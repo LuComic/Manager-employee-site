@@ -121,9 +121,37 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
     }
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--primary) 22%, transparent);
+}
+
+@media print {
+  aside,
+  header,
+  button,
+  [data-slot="alert"] {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  article {
+    max-width: none !important;
+  }
 }
