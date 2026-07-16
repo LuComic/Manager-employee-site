@@ -3,11 +3,15 @@ import { ArrowRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import type { Category } from "@/lib/knowledge-base"
-import { guides } from "@/lib/knowledge-base"
 
-export function CategoryCard({ category }: { category: Category }) {
+export function CategoryCard({
+  category,
+  count = 0,
+}: {
+  category: Category
+  count?: number
+}) {
   const Icon = category.icon
-  const count = guides.filter((guide) => guide.category === category.id).length
 
   return (
     <Link
@@ -22,7 +26,9 @@ export function CategoryCard({ category }: { category: Category }) {
           {category.label}
           <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
         </span>
-        <span className="mt-2 block text-sm text-muted-foreground">{category.description}</span>
+        <span className="mt-2 block text-sm text-muted-foreground">
+          {category.description}
+        </span>
         <Badge variant="secondary" className="mt-4">
           {count} guides
         </Badge>

@@ -1,108 +1,196 @@
-import Link from "next/link"
-import { ArrowRight, BookOpenCheck, CircleHelp, Headphones } from "lucide-react"
+"use client"
 
-import { CategoryCard } from "@/components/knowledge-base/category-card"
-import { ContactButton } from "@/components/knowledge-base/contact-dialog"
+import Link from "next/link"
+import { ArrowRight, BookOpen, CalendarDays, Megaphone } from "lucide-react"
+
+import { AnnouncementCard } from "@/components/operations/announcement-card"
+import { EmptyState } from "@/components/operations/empty-state"
+import { EventCard } from "@/components/operations/event-card"
 import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
-import { buttonVariants } from "@/components/ui/button"
+import { useOperations } from "@/components/providers/operations-provider"
 import {
   Card,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { categories, guides } from "@/lib/knowledge-base"
-import { cn } from "@/lib/utils"
+import {
+  endOfToday,
+  formatDate,
+  isAnnouncementActive,
+  startOfToday,
+} from "@/lib/operations"
 
-export default function HomePage() {
-  const featuredGuides = guides.filter((guide) => guide.featured)
+const quickLinks = [
+  {
+    href: "/guides",
+    title: "Guides",
+    description: "Find practical instructions by work area.",
+    icon: BookOpen,
+  },
+  {
+    href: "/calendar",
+    title: "Calendar",
+    description: "See reservations, training, and visits.",
+    icon: CalendarDays,
+  },
+  {
+    href: "/announcements",
+    title: "Announcements",
+    description: "Check temporary operational updates.",
+    icon: Megaphone,
+  },
+]
+
+export default function TodayPage() {
+  const { guides, events, announcements } = useOperations()
+  const todayStart = startOfToday()
+  const todayEnd = endOfToday()
+  const todayEvents = events
+    .filter(
+      (event) =>
+        event.published &&
+        new Date(event.start) >= todayStart &&
+        new Date(event.start) <= todayEnd
+    )
+    .sort((a, b) => a.start.localeCompare(b.start))
+  const upcomingEvents = events
+    .filter((event) => event.published && new Date(event.start) > todayEnd)
+    .sort((a, b) => a.start.localeCompare(b.start))
+    .slice(0, 3)
+  const activeAnnouncements = announcements
+    .filter((announcement) => isAnnouncementActive(announcement))
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned))
+    .slice(0, 3)
+  const usefulGuides = guides
+    .filter((guide) => guide.published && guide.featured)
+    .slice(0, 4)
 
   return (
     <div className="space-y-8">
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="flex min-h-64 flex-col justify-between bg-primary p-8 text-primary-foreground lg:col-span-2">
-          <span className="flex size-12 items-center justify-center bg-primary-foreground/10">
-            <BookOpenCheck className="size-6" />
-          </span>
-          <div className="mt-8">
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">How can we help?</h1>
-            <p className="mt-4 max-w-xl text-base text-primary-foreground/80">
-              Find a clear answer or follow a short guide for the task in front of you.
-            </p>
-          </div>
-        </div>
-
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base normal-case tracking-normal">Need something quickly?</CardTitle>
-            <CardDescription>These guides solve some of the most common questions at the counter.</CardDescription>
-          </CardHeader>
-          <CardFooter className="mt-auto flex-col items-stretch gap-2">
-            {featuredGuides.slice(0, 3).map((guide) => (
-              <Link
-                key={guide.id}
-                href={`/guides/${guide.id}`}
-                className={cn(
-                  buttonVariants({ variant: "ghost" }),
-                  "w-full justify-between normal-case tracking-normal",
-                )}
-              >
-                {guide.title} <ArrowRight />
-              </Link>
-            ))}
-          </CardFooter>
-        </Card>
+      <section className="border bg-primary p-8 text-primary-foreground">
+        <p className="text-sm font-medium text-primary-foreground/80">
+          {formatDate(new Date().toISOString(), {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Today at North & Pine
+        </h1>
+        <p className="mt-4 max-w-2xl text-primary-foreground/80">
+          Current updates, important times, and the guides you may need during
+          the day.
+        </p>
       </section>
 
       <section>
         <SectionHeading
-          title="Popular guides"
-          description="Straightforward instructions for the tasks that come up most often."
-          action={{ label: "View cash register", href: "/categories/register" }}
+          title="Quick links"
+          description="Go straight to the main areas of the operations hub."
         />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {featuredGuides.map((guide) => (
-            <GuideCard key={guide.id} guide={guide} />
+        <div className="grid gap-4 md:grid-cols-3">
+          {quickLinks.map(({ href, title, description, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="group outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            >
+              <Card className="h-full shadow-none transition-shadow group-hover:shadow-md">
+                <CardHeader>
+                  <span className="mb-4 flex size-10 items-center justify-center bg-primary/10 text-primary">
+                    <Icon className="size-5" />
+                  </span>
+                  <CardTitle className="flex items-center justify-between text-base">
+                    {title}
+                    <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                  </CardTitle>
+                  <CardDescription>{description}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
           ))}
         </div>
       </section>
 
       <section>
-        <SectionHeading title="Browse by work area" description="Choose the part of the shift you need help with." />
-        <div className="grid gap-px overflow-hidden border bg-border sm:grid-cols-2 xl:grid-cols-3">
-          {categories.map((category) => (
-            <CategoryCard key={category.id} category={category} />
-          ))}
-        </div>
+        <SectionHeading
+          title="Happening today"
+          description="Events and important times for the current day."
+          action={{ label: "Open calendar", href: "/calendar" }}
+        />
+        {todayEvents.length ? (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {todayEvents.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={CalendarDays}
+            title="Nothing scheduled today"
+            description="Use the calendar to look ahead at upcoming events."
+          />
+        )}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base normal-case tracking-normal">
-              <CircleHelp className="size-4 text-primary" /> Common questions
-            </CardTitle>
-            <CardDescription>Read quick answers to the questions that come up during a shift.</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Link href="/questions" className={buttonVariants({ variant: "outline", size: "sm" })}>
-              Read the answers <ArrowRight />
-            </Link>
-          </CardFooter>
-        </Card>
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base normal-case tracking-normal">
-              <Headphones className="size-4 text-primary" /> Need a person?
-            </CardTitle>
-            <CardDescription>Send a short question to the shift lead when a guide is not enough.</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <ContactButton className="border border-border px-4" />
-          </CardFooter>
-        </Card>
+      <section>
+        <SectionHeading
+          title="Current announcements"
+          description="Temporary information that matters right now."
+          action={{ label: "View announcements", href: "/announcements" }}
+        />
+        {activeAnnouncements.length ? (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {activeAnnouncements.map((announcement) => (
+              <AnnouncementCard
+                key={announcement.id}
+                announcement={announcement}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Megaphone}
+            title="No current announcements"
+            description="There are no active operational updates."
+          />
+        )}
+      </section>
+
+      <section>
+        <SectionHeading
+          title="Coming next"
+          description="A small preview of what is ahead."
+        />
+        {upcomingEvents.length ? (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {upcomingEvents.map((event) => (
+              <EventCard key={event.id} event={event} compact />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={CalendarDays}
+            title="No upcoming events"
+            description="Published future events will appear here."
+          />
+        )}
+      </section>
+
+      <section>
+        <SectionHeading
+          title="Useful guides"
+          description="Frequently used instructions for a smooth shift."
+          action={{ label: "Browse all guides", href: "/guides" }}
+        />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {usefulGuides.map((guide) => (
+            <GuideCard key={guide.id} guide={guide} />
+          ))}
+        </div>
       </section>
     </div>
   )

@@ -1,0 +1,50 @@
+import Link from "next/link"
+import { ArrowRight, Clock3, MapPin } from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { formatDate, formatTime, type CalendarEvent } from "@/lib/operations"
+
+export function EventCard({
+  event,
+  compact = false,
+}: {
+  event: CalendarEvent
+  compact?: boolean
+}) {
+  return (
+    <Link
+      href={`/calendar/${event.id}`}
+      className="group block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+    >
+      <Card
+        size={compact ? "sm" : "default"}
+        className="h-full shadow-none transition-shadow group-hover:shadow-md"
+      >
+        <CardHeader>
+          <Badge variant="secondary">{event.category}</Badge>
+          <CardTitle className="text-base">{event.title}</CardTitle>
+          <CardDescription>{event.description}</CardDescription>
+        </CardHeader>
+        <CardFooter className="mt-auto flex-wrap justify-between gap-4 text-xs text-muted-foreground">
+          <span className="flex flex-wrap items-center gap-4">
+            <span className="flex items-center gap-2">
+              <Clock3 className="size-4" /> {formatDate(event.start)},{" "}
+              {formatTime(event.start)}
+            </span>
+            <span className="flex items-center gap-2">
+              <MapPin className="size-4" /> {event.location}
+            </span>
+          </span>
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+        </CardFooter>
+      </Card>
+    </Link>
+  )
+}

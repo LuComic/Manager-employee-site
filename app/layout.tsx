@@ -3,6 +3,7 @@ import { Geist_Mono, Noto_Sans } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { OperationsProvider } from "@/components/providers/operations-provider"
 import { cn } from "@/lib/utils"
 
 const notoSans = Noto_Sans({ subsets: ["latin"], variable: "--font-sans" })
@@ -13,8 +14,8 @@ const fontMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Service Manual · North & Pine Bistro",
-  description: "Simple, practical guides for smooth shifts.",
+  title: "Operations hub · North & Pine Bistro",
+  description: "Today’s information and practical guides for smooth shifts.",
 }
 
 export default function RootLayout({
@@ -35,7 +36,9 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider defaultTheme="light">{children}</ThemeProvider>
+        <ThemeProvider defaultTheme="light">
+          <OperationsProvider>{children}</OperationsProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

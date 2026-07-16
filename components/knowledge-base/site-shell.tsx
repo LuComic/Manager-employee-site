@@ -130,7 +130,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 <Brand onNavigate={() => setQuery("")} />
               </SheetTitle>
               <SheetDescription>
-                Simple guides for a smooth shift.
+                Today’s information and practical guides.
               </SheetDescription>
             </SheetHeader>
             <SidebarNav

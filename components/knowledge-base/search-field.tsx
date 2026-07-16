@@ -20,9 +20,9 @@ export function SearchField({
         ref={inputRef}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Search guides and questions…"
+        placeholder="Search guides, events, and announcements…"
         className="h-10 border border-input bg-background pr-10 pl-10 focus-visible:border-ring"
-        aria-label="Search the knowledge base"
+        aria-label="Search the operations hub"
       />
       {value && (
         <button
