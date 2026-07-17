@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
   const { categories } = useOperations()
 
@@ -30,12 +30,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       <p className="px-3 py-2 text-sm font-medium text-muted-foreground">
         Workspace
       </p>
-      <NavLink
-        href="/"
-        label="Today"
-        active={pathname === "/"}
-        onNavigate={onNavigate}
-      >
+      <NavLink href="/" label="Today" active={pathname === "/"}>
         <Home />
       </NavLink>
       <NavLink
@@ -46,7 +41,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           pathname.startsWith("/guides/") ||
           pathname.startsWith("/categories/")
         }
-        onNavigate={onNavigate}
       >
         <BookOpen />
       </NavLink>
@@ -54,7 +48,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         href="/calendar"
         label="Calendar"
         active={pathname.startsWith("/calendar")}
-        onNavigate={onNavigate}
       >
         <CalendarDays />
       </NavLink>
@@ -62,7 +55,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         href="/announcements"
         label="Announcements"
         active={pathname.startsWith("/announcements")}
-        onNavigate={onNavigate}
       >
         <Megaphone />
       </NavLink>
@@ -79,7 +71,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             href={href}
             label={category.label}
             active={pathname === href}
-            onNavigate={onNavigate}
           >
             <CategoryIcon iconKey={category.iconKey} />
           </NavLink>
@@ -93,22 +84,16 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         href="/questions"
         label="Common questions"
         active={pathname === "/questions"}
-        onNavigate={onNavigate}
       >
         <CircleHelp />
       </NavLink>
-      <NavLink
-        href="/manager"
-        label="Manager area"
-        active={false}
-        onNavigate={onNavigate}
-      >
+      <NavLink href="/manager" label="Manager area" active={false}>
         <Settings />
       </NavLink>
       <Separator className="my-4" />
       <ContactButton
         className="h-10 w-full justify-start px-3"
-        onBeforeOpen={onNavigate}
+        onBeforeOpen={onContact}
       />
     </nav>
   )
@@ -118,19 +103,16 @@ function NavLink({
   href,
   label,
   active,
-  onNavigate,
   children,
 }: {
   href: string
   label: string
   active: boolean
-  onNavigate?: () => void
   children: React.ReactNode
 }) {
   return (
     <Link
       href={href}
-      onClick={onNavigate}
       className={cn(
         buttonVariants({ variant: "ghost" }),
         "h-10 w-full justify-start gap-3 px-3 tracking-normal normal-case",

@@ -15,12 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  endOfToday,
-  formatDate,
-  isAnnouncementActive,
-  startOfToday,
-} from "@/lib/operations"
+import { formatDate, isAnnouncementActive, toDateKey } from "@/lib/operations"
 
 const quickLinks = [
   {
@@ -44,19 +39,13 @@ const quickLinks = [
 ]
 
 export default function TodayPage() {
-  const { guides, events, announcements } = useOperations()
-  const todayStart = startOfToday()
-  const todayEnd = endOfToday()
+  const { hub, guides, events, announcements } = useOperations()
+  const today = toDateKey(new Date())
   const todayEvents = events
-    .filter(
-      (event) =>
-        event.published &&
-        new Date(event.start) >= todayStart &&
-        new Date(event.start) <= todayEnd
-    )
+    .filter((event) => event.published && toDateKey(event.start) === today)
     .sort((a, b) => a.start.localeCompare(b.start))
   const upcomingEvents = events
-    .filter((event) => event.published && new Date(event.start) > todayEnd)
+    .filter((event) => event.published && toDateKey(event.start) > today)
     .sort((a, b) => a.start.localeCompare(b.start))
     .slice(0, 3)
   const activeAnnouncements = announcements
@@ -78,7 +67,7 @@ export default function TodayPage() {
           })}
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-          Today at North & Pine
+          Today at {hub?.name ?? "your workplace"}
         </h1>
         <p className="mt-4 max-w-2xl text-primary-foreground/80">
           Current updates, important times, and the guides you may need during

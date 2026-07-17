@@ -16,10 +16,15 @@ export function SectionHeading({
     <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-        {description && <p className="mt-2 text-sm text-muted-foreground">{description}</p>}
+        {description && (
+          <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+        )}
       </div>
       {action && (
-        <Link href={action.href} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+        <Link
+          href={action.href}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
           {action.label} <ArrowRight />
         </Link>
       )}

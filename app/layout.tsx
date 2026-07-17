@@ -1,8 +1,12 @@
+import { ClerkProvider } from "@clerk/nextjs"
+import { shadcn } from "@clerk/ui/themes"
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { Geist_Mono, Noto_Sans } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ConvexClientProvider } from "@/components/providers/convex-client-provider"
 import { OperationsProvider } from "@/components/providers/operations-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils"
@@ -37,10 +41,16 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider defaultTheme="light">
-          <OperationsProvider>{children}</OperationsProvider>
-          <Toaster />
-        </ThemeProvider>
+        <ClerkProvider appearance={{ theme: shadcn }} afterSignOutUrl="/">
+          <ConvexClientProvider>
+            <ThemeProvider defaultTheme="light">
+              <Suspense fallback={<div className="min-h-svh bg-background" />}>
+                <OperationsProvider>{children}</OperationsProvider>
+              </Suspense>
+              <Toaster />
+            </ThemeProvider>
+          </ConvexClientProvider>
+        </ClerkProvider>
       </body>
     </html>
   )

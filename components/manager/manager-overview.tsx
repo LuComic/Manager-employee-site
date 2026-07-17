@@ -61,7 +61,7 @@ export function ManagerOverview() {
     <div className="space-y-8">
       <ManagerHeading
         title="Content overview"
-        description="Counts are calculated from the current demo state and update as content changes."
+        description="Live counts from your Convex-backed hub update as content changes."
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ href, title, count, detail, icon: Icon }) => (

@@ -27,8 +27,8 @@ export function ConfirmDeleteDialog({
         <DialogHeader>
           <DialogTitle>Delete “{title}”?</DialogTitle>
           <DialogDescription>
-            This removes the item from the demo for the rest of this browser
-            session. This action cannot be undone without refreshing the page.
+            This permanently removes the item from the hub. This action cannot
+            be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

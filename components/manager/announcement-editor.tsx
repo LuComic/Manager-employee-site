@@ -67,6 +67,7 @@ export function AnnouncementEditor({
   const [mode, setMode] = useState<"edit" | "preview">("edit")
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
+  const [saving, setSaving] = useState(false)
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "announcement",
@@ -84,7 +85,7 @@ export function AnnouncementEditor({
     requestLeave("/manager/announcements")
   }
 
-  function submit() {
+  async function submit() {
     if (!draft) return
     if (!draft.title.trim() || isRichTextEmpty(draft.content))
       return setError("Add a title and message.")
@@ -103,16 +104,21 @@ export function AnnouncementEditor({
         suffix += 1
       }
     }
-    saveAnnouncement({
-      ...draft,
-      id,
-      title: draft.title.trim(),
-      guideId: draft.guideId || undefined,
-      eventId: draft.eventId || undefined,
-    })
-    setDirty(false)
-    showFeedback(draft.id ? "Announcement saved." : "Announcement created.")
-    leaveWithoutPrompt("/manager/announcements")
+    setSaving(true)
+    try {
+      await saveAnnouncement({
+        ...draft,
+        id,
+        title: draft.title.trim(),
+        guideId: draft.guideId || undefined,
+        eventId: draft.eventId || undefined,
+      })
+      setDirty(false)
+      showFeedback(draft.id ? "Announcement saved." : "Announcement created.")
+      leaveWithoutPrompt("/manager/announcements")
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (!draft)
@@ -320,7 +326,9 @@ export function AnnouncementEditor({
           <Button variant="outline" onClick={leave}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save announcement</Button>
+          <Button onClick={() => void submit()} disabled={saving}>
+            {saving ? "Saving…" : "Save announcement"}
+          </Button>
         </div>
       </div>
     </div>

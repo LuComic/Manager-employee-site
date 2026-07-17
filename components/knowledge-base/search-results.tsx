@@ -2,7 +2,9 @@
 
 import Link from "next/link"
 import { BookOpen, CalendarDays, Megaphone, Search } from "lucide-react"
+import { useQuery } from "convex/react"
 
+import { api } from "@/convex/_generated/api"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -11,8 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useOperations } from "@/components/providers/operations-provider"
-import { getAnnouncementState } from "@/lib/operations"
-import { richTextToPlainText } from "@/lib/rich-text"
+import { toDateKey } from "@/lib/operations"
 
 type Result = {
   id: string
@@ -22,86 +23,27 @@ type Result = {
   type: "Guide" | "Event" | "Announcement"
 }
 
-export function SearchResults({
-  query,
-  onNavigate,
-}: {
-  query: string
-  onNavigate: () => void
-}) {
-  const { categories, guides, events, announcements } = useOperations()
-  const cleanQuery = query.trim().toLowerCase()
-  const includes = (...values: (string | string[] | undefined)[]) =>
-    values.flat().filter(Boolean).join(" ").toLowerCase().includes(cleanQuery)
-
-  const results: Result[] = [
-    ...guides
-      .filter(
-        (guide) =>
-          guide.published &&
-          includes(
-            guide.title,
-            guide.description,
-            guide.keywords,
-            richTextToPlainText(guide.content),
-            categories.find((category) => category.id === guide.category)?.label
-          )
-      )
-      .map((guide) => ({
-        id: guide.id,
-        href: `/guides/${guide.id}`,
-        title: guide.title,
-        description: guide.description,
-        type: "Guide" as const,
-      })),
-    ...events
-      .filter(
-        (event) =>
-          event.published &&
-          includes(
-            event.title,
-            event.description,
-            event.category,
-            event.location,
-            event.owner,
-            event.notes
-          )
-      )
-      .map((event) => ({
-        id: event.id,
-        href: `/calendar/${event.id}`,
-        title: event.title,
-        description: event.description,
-        type: "Event" as const,
-      })),
-    ...announcements
-      .filter(
-        (announcement) =>
-          announcement.published &&
-          getAnnouncementState(announcement) !== "Expired" &&
-          includes(
-            announcement.title,
-            richTextToPlainText(announcement.content),
-            announcement.priority
-          )
-      )
-      .map((announcement) => ({
-        id: announcement.id,
-        href: `/announcements/${announcement.id}`,
-        title: announcement.title,
-        description: richTextToPlainText(announcement.content),
-        type: "Announcement" as const,
-      })),
-  ]
+export function SearchResults({ query }: { query: string }) {
+  const { hubSlug, credential } = useOperations()
+  const results = useQuery(api.search.published, {
+    hubSlug,
+    credential,
+    query,
+    nowDate: toDateKey(new Date()),
+  }) as Result[] | undefined
 
   return (
     <div>
       <h1 className="text-3xl font-semibold tracking-tight">Search results</h1>
       <p className="mt-2 text-muted-foreground">
-        {results.length} {results.length === 1 ? "result" : "results"} found for
-        “{query.trim()}”
+        {results?.length ?? 0} {results?.length === 1 ? "result" : "results"}{" "}
+        found for “{query.trim()}”
       </p>
-      {results.length > 0 ? (
+      {results === undefined ? (
+        <p className="mt-8 text-sm text-muted-foreground" role="status">
+          Searching…
+        </p>
+      ) : results.length > 0 ? (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {results.map((result) => {
             const Icon =
@@ -114,7 +56,6 @@ export function SearchResults({
               <Link
                 key={`${result.type}-${result.id}`}
                 href={result.href}
-                onClick={onNavigate}
                 className="group h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
               >
                 <Card className="h-full shadow-none transition-shadow group-hover:shadow-md">

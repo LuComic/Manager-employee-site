@@ -18,6 +18,14 @@ export const eventCategories = [
 
 export type EventCategory = (typeof eventCategories)[number]
 
+export type Attachment = {
+  id: string
+  name: string
+  contentType: string
+  size: number
+  url: string
+}
+
 export type CalendarEvent = {
   id: string
   title: string
@@ -28,7 +36,7 @@ export type CalendarEvent = {
   location: string
   owner: string
   notes: string
-  attachments: string[]
+  attachments: Attachment[]
   guideIds: string[]
   published: boolean
 }
@@ -53,6 +61,32 @@ export type OperationsState = {
   guides: Guide[]
   events: CalendarEvent[]
   announcements: Announcement[]
+}
+
+export const HUB_TIME_ZONE = "Europe/Tallinn"
+
+function dateParts(value: Date, timeZone = HUB_TIME_ZONE) {
+  return Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(value)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  )
+}
+
+function localWallTimeDate(value: string) {
+  const [date, time = "00:00"] = value.split("T")
+  const [year, month, day] = date.split("-").map(Number)
+  const [hour, minute] = time.split(":").map(Number)
+  return new Date(Date.UTC(year, month - 1, day, hour, minute))
 }
 
 function atDate(offset: number, time = "09:00") {
@@ -90,7 +124,7 @@ export function createSeedState(): OperationsState {
         owner: "Marta",
         notes:
           "Terrace closed to walk-ins from noon. Water and place cards should be ready by 12:00.",
-        attachments: ["Terrace seating plan.pdf", "Set lunch menu.pdf"],
+        attachments: [],
         guideIds: ["allergy-request", "split-payment"],
         published: true,
       },
@@ -105,7 +139,7 @@ export function createSeedState(): OperationsState {
         location: "Bar",
         owner: "Joonas",
         notes: "The bar remains open. Training will use the left-hand machine.",
-        attachments: ["Coffee quick reference.pdf"],
+        attachments: [],
         guideIds: [],
         published: true,
       },
@@ -136,7 +170,7 @@ export function createSeedState(): OperationsState {
         owner: "Anu",
         notes:
           "Remove the old menu inserts before opening and check table talkers.",
-        attachments: ["Summer menu notes.pdf"],
+        attachments: [],
         guideIds: ["allergy-request"],
         published: true,
       },
@@ -165,7 +199,7 @@ export function createSeedState(): OperationsState {
         location: "Whole venue",
         owner: "Marta",
         notes: "Keep all corridors and exits fully clear before opening.",
-        attachments: ["Inspection preparation.pdf"],
+        attachments: [],
         guideIds: ["cash-safety"],
         published: true,
       },
@@ -252,17 +286,20 @@ export function createSeedState(): OperationsState {
 }
 
 export function toLocalDateTimeValue(date: Date) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
+  const parts = dateParts(date)
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
 }
 
 export function toDateKey(value: string | Date) {
-  const date = typeof value === "string" ? new Date(value) : value
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-")
+  if (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}/.test(value) &&
+    !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
+  ) {
+    return value.slice(0, 10)
+  }
+  const parts = dateParts(typeof value === "string" ? new Date(value) : value)
+  return `${parts.year}-${parts.month}-${parts.day}`
 }
 
 export function startOfToday() {
@@ -281,9 +318,12 @@ export function isAnnouncementActive(
   announcement: Announcement,
   now = new Date()
 ) {
-  const start = new Date(`${announcement.publishedAt}T00:00:00`)
-  const end = new Date(`${announcement.expiresAt}T23:59:59`)
-  return announcement.published && start <= now && end >= now
+  const today = toDateKey(now)
+  return (
+    announcement.published &&
+    announcement.publishedAt <= today &&
+    announcement.expiresAt >= today
+  )
 }
 
 export function getAnnouncementState(
@@ -291,8 +331,9 @@ export function getAnnouncementState(
   now = new Date()
 ) {
   if (!announcement.published) return "Draft"
-  if (new Date(`${announcement.publishedAt}T00:00:00`) > now) return "Upcoming"
-  if (new Date(`${announcement.expiresAt}T23:59:59`) < now) return "Expired"
+  const today = toDateKey(now)
+  if (announcement.publishedAt > today) return "Upcoming"
+  if (announcement.expiresAt < today) return "Expired"
   return "Active"
 }
 
@@ -300,17 +341,22 @@ export function formatDate(
   value: string,
   options?: Intl.DateTimeFormatOptions
 ) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    options ?? { weekday: "short", day: "numeric", month: "short" }
-  ).format(new Date(value))
+  const isWallTime =
+    /^\d{4}-\d{2}-\d{2}/.test(value) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
+  return new Intl.DateTimeFormat("en-GB", {
+    ...(options ?? { weekday: "short", day: "numeric", month: "short" }),
+    timeZone: isWallTime ? "UTC" : HUB_TIME_ZONE,
+  }).format(isWallTime ? localWallTimeDate(value) : new Date(value))
 }
 
 export function formatTime(value: string) {
+  const isWallTime =
+    /^\d{4}-\d{2}-\d{2}/.test(value) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value))
+    timeZone: isWallTime ? "UTC" : HUB_TIME_ZONE,
+  }).format(isWallTime ? localWallTimeDate(value) : new Date(value))
 }
 
 export function slugify(value: string) {

@@ -91,11 +91,21 @@ export function EventDetail({ eventId }: { eventId: string }) {
               <ul className="mt-4 space-y-2">
                 {event.attachments.map((attachment) => (
                   <li
-                    key={attachment}
+                    key={attachment.id}
                     className="flex items-center gap-2 text-sm"
                   >
-                    <FileText className="size-4 text-primary" /> {attachment}{" "}
-                    <Badge variant="secondary">Demo file</Badge>
+                    <FileText className="size-4 text-primary" />
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-4 hover:text-primary"
+                    >
+                      {attachment.name}
+                    </a>
+                    <Badge variant="secondary">
+                      {Math.max(1, Math.round(attachment.size / 1024))} KB
+                    </Badge>
                   </li>
                 ))}
               </ul>

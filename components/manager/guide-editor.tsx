@@ -89,6 +89,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
   const [mode, setMode] = useState<"edit" | "preview">("edit")
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
+  const [saving, setSaving] = useState(false)
   const [keywordInput, setKeywordInput] = useState("")
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
@@ -130,7 +131,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
     })
   }
 
-  function submit() {
+  async function submit() {
     if (!draft) return
     const duration = normalizeReadingTime(draft.duration)
     if (
@@ -153,22 +154,27 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         suffix += 1
       }
     }
-    saveGuide({
-      id,
-      title: draft.title.trim(),
-      description: draft.description.trim(),
-      category: draft.category,
-      icon: draft.icon,
-      duration,
-      updated: "Updated just now",
-      keywords: uniqueKeywords(draft.keywords),
-      content: draft.content,
-      published: draft.published,
-      featured: draft.featured,
-    })
-    setDirty(false)
-    showFeedback(draft.id ? "Guide saved." : "Guide created.")
-    leaveWithoutPrompt("/manager/guides")
+    setSaving(true)
+    try {
+      await saveGuide({
+        id,
+        title: draft.title.trim(),
+        description: draft.description.trim(),
+        category: draft.category,
+        icon: draft.icon,
+        duration,
+        updated: "Updated just now",
+        keywords: uniqueKeywords(draft.keywords),
+        content: draft.content,
+        published: draft.published,
+        featured: draft.featured,
+      })
+      setDirty(false)
+      showFeedback(draft.id ? "Guide saved." : "Guide created.")
+      leaveWithoutPrompt("/manager/guides")
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (!categories.length)
@@ -415,7 +421,9 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
           <Button variant="outline" onClick={leave}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save guide</Button>
+          <Button onClick={() => void submit()} disabled={saving}>
+            {saving ? "Saving…" : "Save guide"}
+          </Button>
         </div>
       </div>
     </div>

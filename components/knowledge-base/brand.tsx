@@ -1,5 +1,9 @@
+"use client"
+
 import Link from "next/link"
 import { BriefcaseBusiness } from "lucide-react"
+
+import { useOperations } from "@/components/providers/operations-provider"
 
 export function Brand({
   compact = false,
@@ -10,6 +14,7 @@ export function Brand({
   onNavigate?: () => void
   linked?: boolean
 }) {
+  const { hub, hubSlug, isManager } = useOperations()
   const content = (
     <>
       <span className="flex size-10 items-center justify-center bg-primary text-primary-foreground">
@@ -21,7 +26,7 @@ export function Brand({
             Operations hub
           </span>
           <span className="block text-xs text-muted-foreground">
-            North & Pine Bistro
+            {hub?.name ?? "Operations hub"}
           </span>
         </span>
       )}
@@ -31,7 +36,11 @@ export function Brand({
   if (!linked) return <div className="flex items-center gap-3">{content}</div>
 
   return (
-    <Link href="/" className="flex items-center gap-3" onClick={onNavigate}>
+    <Link
+      href={isManager ? "/manager" : `/?hub=${hubSlug}`}
+      className="flex items-center gap-3"
+      onClick={onNavigate}
+    >
       {content}
     </Link>
   )

@@ -16,17 +16,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { useOperations } from "@/components/providers/operations-provider"
 
 const ContactContext = createContext<() => void>(() => undefined)
 
 export function ContactProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const [sent, setSent] = useState(false)
+  const [topic, setTopic] = useState("")
+  const [message, setMessage] = useState("")
+  const [pending, setPending] = useState(false)
+  const { submitHelpRequest } = useOperations()
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
     if (!nextOpen) {
       setSent(false)
+      setTopic("")
+      setMessage("")
     }
   }
 
@@ -40,7 +47,9 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
               <span className="mx-auto flex size-12 items-center justify-center bg-primary/10 text-primary">
                 <CheckCircle2 />
               </span>
-              <DialogTitle className="mt-4 normal-case tracking-normal">Question sent</DialogTitle>
+              <DialogTitle className="mt-4 tracking-normal normal-case">
+                Question sent
+              </DialogTitle>
               <DialogDescription className="mt-2">
                 The shift lead has the note and will come by shortly.
               </DialogDescription>
@@ -50,15 +59,24 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <form
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault()
-                setSent(true)
+                setPending(true)
+                try {
+                  await submitHelpRequest(topic, message)
+                  setSent(true)
+                } finally {
+                  setPending(false)
+                }
               }}
             >
               <DialogHeader>
-                <DialogTitle className="normal-case tracking-normal">Ask the shift lead</DialogTitle>
+                <DialogTitle className="tracking-normal normal-case">
+                  Ask the shift lead
+                </DialogTitle>
                 <DialogDescription>
-                  Send a quick note. For anything urgent or related to safety, speak to someone in person.
+                  Send a quick note. For anything urgent or related to safety,
+                  speak to someone in person.
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
@@ -67,6 +85,8 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                   <Input
                     id="topic"
                     required
+                    value={topic}
+                    onChange={(event) => setTopic(event.target.value)}
                     placeholder="For example: refund approval"
                     className="border border-input px-3 focus-visible:border-ring"
                   />
@@ -76,17 +96,23 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                   <Textarea
                     id="message"
                     required
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
                     placeholder="Describe what you need help with…"
                     className="min-h-28 border border-input px-3 focus-visible:border-ring"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpenChange(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit">
-                  Send question <ArrowRight />
+                <Button type="submit" disabled={pending}>
+                  {pending ? "Sending…" : "Send question"} <ArrowRight />
                 </Button>
               </DialogFooter>
             </form>
@@ -112,7 +138,7 @@ export function ContactButton({
     <Button
       variant="ghost"
       size={compact ? "icon-sm" : "sm"}
-      className={cn(!compact && "gap-2 normal-case tracking-normal", className)}
+      className={cn(!compact && "gap-2 tracking-normal normal-case", className)}
       onClick={() => {
         onBeforeOpen?.()
         openContact()

@@ -1,0 +1,123 @@
+import { v } from "convex/values"
+
+import { query } from "./_generated/server"
+import { canReadPublishedHub } from "./lib/access"
+
+function plainText(value: unknown): string {
+  if (typeof value === "string") return value
+  if (Array.isArray(value)) return value.map(plainText).join(" ")
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>
+    return [record.text, record.content].map(plainText).join(" ")
+  }
+  return ""
+}
+
+function includes(queryText: string, ...values: unknown[]) {
+  return values.map(plainText).join(" ").toLocaleLowerCase().includes(queryText)
+}
+
+export const published = query({
+  args: {
+    hubSlug: v.string(),
+    credential: v.optional(v.string()),
+    query: v.string(),
+    nowDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const hub = await ctx.db
+      .query("hubs")
+      .withIndex("by_slug", (q) => q.eq("slug", args.hubSlug))
+      .unique()
+    if (!hub || !(await canReadPublishedHub(ctx, hub, args.credential)))
+      return []
+    const cleanQuery = args.query.trim().toLocaleLowerCase().slice(0, 120)
+    if (!cleanQuery) return []
+
+    const [categories, guides, events, announcements] = await Promise.all([
+      ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
+        .take(500),
+      ctx.db
+        .query("guides")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500),
+      ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500),
+      ctx.db
+        .query("announcements")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500),
+    ])
+    const categoryById = new Map(
+      categories.map((category) => [category._id, category.label])
+    )
+
+    return [
+      ...guides
+        .filter((guide) =>
+          includes(
+            cleanQuery,
+            guide.title,
+            guide.description,
+            guide.keywords,
+            guide.content,
+            categoryById.get(guide.categoryId)
+          )
+        )
+        .map((guide) => ({
+          id: guide.slug,
+          href: `/guides/${guide.slug}`,
+          title: guide.title,
+          description: guide.description,
+          type: "Guide" as const,
+        })),
+      ...events
+        .filter((event) =>
+          includes(
+            cleanQuery,
+            event.title,
+            event.description,
+            event.category,
+            event.location,
+            event.owner,
+            event.notes
+          )
+        )
+        .map((event) => ({
+          id: event.slug,
+          href: `/calendar/${event.slug}`,
+          title: event.title,
+          description: event.description,
+          type: "Event" as const,
+        })),
+      ...announcements
+        .filter(
+          (announcement) =>
+            announcement.expiresAt >= args.nowDate &&
+            includes(
+              cleanQuery,
+              announcement.title,
+              announcement.content,
+              announcement.priority
+            )
+        )
+        .map((announcement) => ({
+          id: announcement.slug,
+          href: `/announcements/${announcement.slug}`,
+          title: announcement.title,
+          description: plainText(announcement.content).trim(),
+          type: "Announcement" as const,
+        })),
+    ].slice(0, 30)
+  },
+})

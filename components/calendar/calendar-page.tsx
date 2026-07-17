@@ -42,10 +42,10 @@ export function CalendarPage() {
   )
   const monthEvents = published
     .filter((event) => {
-      const date = new Date(event.start)
+      const [year, month] = toDateKey(event.start).split("-").map(Number)
       return (
-        date.getFullYear() === visibleDate.getFullYear() &&
-        date.getMonth() === visibleDate.getMonth()
+        year === visibleDate.getFullYear() &&
+        month - 1 === visibleDate.getMonth()
       )
     })
     .sort((a, b) => a.start.localeCompare(b.start))

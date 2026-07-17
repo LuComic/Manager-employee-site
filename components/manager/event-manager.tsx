@@ -1,7 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { CalendarDays, FilePenLine, Plus, Search, Trash2 } from "lucide-react"
+import {
+  CalendarDays,
+  FilePenLine,
+  Paperclip,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react"
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
@@ -56,13 +63,21 @@ function newEvent(): CalendarEvent {
 }
 
 export function EventManager() {
-  const { events, guides, saveEvent, deleteEvent, showFeedback } =
-    useOperations()
+  const {
+    events,
+    guides,
+    saveEvent,
+    deleteEvent,
+    uploadAttachment,
+    deleteAttachment,
+    showFeedback,
+  } = useOperations()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [category, setCategory] = useState<EventCategory | "All">("All")
   const [editing, setEditing] = useState<CalendarEvent | null>(null)
-  const [attachments, setAttachments] = useState("")
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
   const [error, setError] = useState("")
   const visible = useMemo(
@@ -87,11 +102,11 @@ export function EventManager() {
       attachments: [...event.attachments],
       guideIds: [...event.guideIds],
     })
-    setAttachments(event.attachments.join(", "))
+    setPendingFiles([])
     setError("")
   }
 
-  function submit() {
+  async function submit() {
     if (!editing) return
     if (
       !editing.title.trim() ||
@@ -109,21 +124,24 @@ export function EventManager() {
     let id = editing.id || slugify(editing.title)
     if (!editing.id && events.some((event) => event.id === id))
       id = `${id}-${Date.now()}`
-    saveEvent({
-      ...editing,
-      id,
-      title: editing.title.trim(),
-      description: editing.description.trim(),
-      location: editing.location.trim(),
-      owner: editing.owner.trim(),
-      notes: editing.notes.trim(),
-      attachments: attachments
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
-    })
-    showFeedback(editing.id ? "Event saved." : "Event created.")
-    setEditing(null)
+    setSaving(true)
+    try {
+      const eventSlug = await saveEvent({
+        ...editing,
+        id,
+        title: editing.title.trim(),
+        description: editing.description.trim(),
+        location: editing.location.trim(),
+        owner: editing.owner.trim(),
+        notes: editing.notes.trim(),
+      })
+      for (const file of pendingFiles) await uploadAttachment(eventSlug, file)
+      showFeedback(editing.id ? "Event saved." : "Event created.")
+      setEditing(null)
+      setPendingFiles([])
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -345,18 +363,62 @@ export function EventManager() {
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field
-                  label="Attachments, separated by commas"
-                  id="event-attachments"
-                >
+                <Field label="Add attachments" id="event-attachments">
                   <Input
                     id="event-attachments"
-                    value={attachments}
-                    onChange={(event) => setAttachments(event.target.value)}
-                    placeholder="Brief.pdf, Plan.pdf"
+                    type="file"
+                    multiple
+                    onChange={(event) =>
+                      setPendingFiles(Array.from(event.target.files ?? []))
+                    }
                     className="border border-input px-3"
                   />
                 </Field>
+                {(editing.attachments.length > 0 ||
+                  pendingFiles.length > 0) && (
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label>Attachments</Label>
+                    <ul className="space-y-2 border p-3 text-sm">
+                      {editing.attachments.map((attachment) => (
+                        <li
+                          key={attachment.id}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Paperclip className="size-4 shrink-0" />
+                            <span className="truncate">{attachment.name}</span>
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Remove ${attachment.name}`}
+                            onClick={async () => {
+                              await deleteAttachment(attachment)
+                              setEditing({
+                                ...editing,
+                                attachments: editing.attachments.filter(
+                                  (item) => item.id !== attachment.id
+                                ),
+                              })
+                            }}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </li>
+                      ))}
+                      {pendingFiles.map((file) => (
+                        <li
+                          key={`${file.name}-${file.size}`}
+                          className="flex items-center gap-2 text-muted-foreground"
+                        >
+                          <Paperclip className="size-4" /> {file.name}{" "}
+                          <span>(uploads on save)</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <Field label="Notes" id="event-notes" wide>
                   <Textarea
                     id="event-notes"
@@ -430,7 +492,9 @@ export function EventManager() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit">Save event</Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : "Save event"}
+                </Button>
               </DialogFooter>
             </form>
           )}

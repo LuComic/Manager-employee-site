@@ -10,7 +10,13 @@ import {
 } from "@/components/ui/card"
 import type { Guide } from "@/lib/knowledge-base"
 
-export function GuideCard({ guide, onNavigate }: { guide: Guide; onNavigate?: () => void }) {
+export function GuideCard({
+  guide,
+  onNavigate,
+}: {
+  guide: Guide
+  onNavigate?: () => void
+}) {
   const Icon = guide.icon
 
   return (
@@ -19,12 +25,14 @@ export function GuideCard({ guide, onNavigate }: { guide: Guide; onNavigate?: ()
       onClick={onNavigate}
       className="group block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
     >
-      <Card className="min-h-56 h-full shadow-none transition-shadow group-hover:shadow-md">
+      <Card className="h-full min-h-56 shadow-none transition-shadow group-hover:shadow-md">
         <CardHeader>
           <span className="mb-4 flex size-10 items-center justify-center bg-primary/10 text-primary">
             <Icon className="size-5" />
           </span>
-          <CardTitle className="text-base normal-case tracking-normal">{guide.title}</CardTitle>
+          <CardTitle className="text-base tracking-normal normal-case">
+            {guide.title}
+          </CardTitle>
           <CardDescription>{guide.description}</CardDescription>
         </CardHeader>
         <CardFooter className="mt-auto justify-between">
