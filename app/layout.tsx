@@ -4,6 +4,7 @@ import { Geist_Mono, Noto_Sans } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { OperationsProvider } from "@/components/providers/operations-provider"
+import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils"
 
 const notoSans = Noto_Sans({ subsets: ["latin"], variable: "--font-sans" })
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider defaultTheme="light">
           <OperationsProvider>{children}</OperationsProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

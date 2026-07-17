@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { CategoryIcon } from "@/lib/category-icons"
 import type { Category } from "@/lib/knowledge-base"
 
 export function CategoryCard({
@@ -11,15 +12,13 @@ export function CategoryCard({
   category: Category
   count?: number
 }) {
-  const Icon = category.icon
-
   return (
     <Link
       href={`/categories/${category.id}`}
       className="group flex min-h-32 items-start gap-4 bg-background p-6 transition-colors hover:bg-muted/60"
     >
       <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-        <Icon className="size-5" />
+        <CategoryIcon iconKey={category.iconKey} className="size-5" />
       </span>
       <span>
         <span className="flex items-center gap-2 font-semibold">

@@ -4,13 +4,20 @@ import Link from "next/link"
 import { ArrowLeft, CalendarDays, Megaphone, Pin } from "lucide-react"
 
 import { EmptyState } from "@/components/operations/empty-state"
+import { RichTextContent } from "@/components/rich-text/rich-text-content"
 import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { EventCard } from "@/components/operations/event-card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatDate, getAnnouncementState } from "@/lib/operations"
+import {
+  formatDate,
+  getAnnouncementState,
+  type Announcement,
+  type CalendarEvent,
+} from "@/lib/operations"
+import type { Guide } from "@/lib/knowledge-base"
 import { cn } from "@/lib/utils"
 
 export function AnnouncementDetail({
@@ -36,19 +43,40 @@ export function AnnouncementDetail({
   const event = events.find(
     (item) => item.id === announcement.eventId && item.published
   )
-  const state = getAnnouncementState(announcement)
+  return (
+    <AnnouncementArticle
+      announcement={announcement}
+      guide={guide}
+      event={event}
+    />
+  )
+}
 
+export function AnnouncementArticle({
+  announcement,
+  guide,
+  event,
+  preview = false,
+}: {
+  announcement: Announcement
+  guide?: Guide
+  event?: CalendarEvent
+  preview?: boolean
+}) {
+  const state = getAnnouncementState(announcement)
   return (
     <article className="mx-auto max-w-4xl space-y-6">
-      <Link
-        href="/announcements"
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "sm" }),
-          "tracking-normal normal-case"
-        )}
-      >
-        <ArrowLeft /> Back to announcements
-      </Link>
+      {!preview && (
+        <Link
+          href="/announcements"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "tracking-normal normal-case"
+          )}
+        >
+          <ArrowLeft /> Back to announcements
+        </Link>
+      )}
       <Card className="shadow-none">
         <CardHeader className="border-b">
           <div className="flex flex-wrap items-center gap-4">
@@ -73,9 +101,7 @@ export function AnnouncementDetail({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-base leading-7 whitespace-pre-wrap">
-            {announcement.message}
-          </p>
+          <RichTextContent content={announcement.content} />
           <div className="mt-8 flex flex-wrap gap-6 border-t pt-6 text-sm text-muted-foreground">
             <span>
               Published {formatDate(`${announcement.publishedAt}T12:00`)}
@@ -93,7 +119,7 @@ export function AnnouncementDetail({
           </div>
         </section>
       )}
-      {!event && announcement.eventId && (
+      {!preview && !event && announcement.eventId && (
         <EmptyState
           icon={CalendarDays}
           title="Related event is not published"

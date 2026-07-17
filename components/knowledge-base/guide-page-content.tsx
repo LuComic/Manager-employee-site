@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 
 export function GuidePageContent({ guideId }: { guideId: string }) {
-  const { guides } = useOperations()
+  const { categories, guides } = useOperations()
   const guide = guides.find((item) => item.id === guideId && item.published)
   if (!guide)
     return (
@@ -17,5 +17,10 @@ export function GuidePageContent({ guideId }: { guideId: string }) {
         description="This guide may be unpublished or removed. Browse the current guides to find another."
       />
     )
-  return <GuideDetail guide={guide} />
+  return (
+    <GuideDetail
+      guide={guide}
+      category={categories.find((item) => item.id === guide.category)}
+    />
+  )
 }

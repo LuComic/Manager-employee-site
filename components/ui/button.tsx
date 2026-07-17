@@ -1,3 +1,10 @@
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -8,23 +15,24 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        default:
+          "border-primary bg-primary text-primary-foreground hover:border-primary/80 hover:bg-primary/80",
         outline:
           "border-border bg-transparent hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-input/30",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "border-secondary bg-secondary text-secondary-foreground hover:border-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:border-secondary aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "hover:border-muted hover:bg-muted hover:text-foreground aria-expanded:border-muted aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:border-muted/50 dark:hover:bg-muted/50",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "border-destructive/10 bg-destructive/10 text-destructive hover:border-destructive/20 hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:border-destructive/20 dark:bg-destructive/20 dark:hover:border-destructive/30 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline underline-offset-4 hover:underline",
       },
       size: {
         default:
-          "h-10 gap-1.5 px-6 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
-        xs: "h-7 gap-1 px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-9 gap-1 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
-        lg: "h-11 gap-1.5 px-8 has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5",
+          "h-10 gap-1.5 px-6 has-data-[icon=inline-start]:pl-5 has-data-[icon=inline-end]:pr-5",
+        xs: "h-7 gap-1 px-3 has-data-[icon=inline-start]:pl-2 has-data-[icon=inline-end]:pr-2 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-9 gap-1 px-4 has-data-[icon=inline-start]:pl-3 has-data-[icon=inline-end]:pr-3",
+        lg: "h-11 gap-1.5 px-8 has-data-[icon=inline-start]:pl-7 has-data-[icon=inline-end]:pr-7",
         icon: "size-10",
         "icon-xs": "size-7 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-9",
@@ -42,6 +50,7 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  children,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
@@ -49,8 +58,37 @@ function Button({
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {markInlineIcons(children)}
+    </ButtonPrimitive>
   )
+}
+
+function markInlineIcons(children: ReactNode) {
+  const items = Children.toArray(children)
+  if (items.length < 2) return children
+
+  return items.map((child, index) => {
+    if (!isIconElement(child)) return child
+
+    const position =
+      index === 0
+        ? "inline-start"
+        : index === items.length - 1
+          ? "inline-end"
+          : undefined
+
+    if (!position) return child
+    return cloneElement(
+      child as ReactElement<{ "data-icon"?: "inline-start" | "inline-end" }>,
+      { "data-icon": position }
+    )
+  })
+}
+
+function isIconElement(child: ReactNode) {
+  if (!isValidElement(child)) return false
+  return typeof child.type !== "string" || child.type === "svg"
 }
 
 export { Button, buttonVariants }

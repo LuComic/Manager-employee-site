@@ -12,13 +12,15 @@ import {
 } from "lucide-react"
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
+import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { categories } from "@/lib/knowledge-base"
+import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
+  const { categories } = useOperations()
 
   return (
     <nav
@@ -69,7 +71,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         Guide categories
       </p>
       {categories.map((category) => {
-        const Icon = category.icon
         const href = `/categories/${category.id}`
 
         return (
@@ -80,7 +81,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             active={pathname === href}
             onNavigate={onNavigate}
           >
-            <Icon />
+            <CategoryIcon iconKey={category.iconKey} />
           </NavLink>
         )
       })}

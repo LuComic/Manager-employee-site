@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { formatDate, type Announcement } from "@/lib/operations"
+import { richTextToPlainText } from "@/lib/rich-text"
 
 export function AnnouncementCard({
   announcement,
@@ -38,7 +39,9 @@ export function AnnouncementCard({
             )}
           </div>
           <CardTitle className="text-base">{announcement.title}</CardTitle>
-          <CardDescription>{announcement.message}</CardDescription>
+          <CardDescription className="line-clamp-3">
+            {richTextToPlainText(announcement.content)}
+          </CardDescription>
         </CardHeader>
         <CardFooter className="mt-auto justify-between text-xs text-muted-foreground">
           <span>Until {formatDate(`${announcement.expiresAt}T12:00`)}</span>

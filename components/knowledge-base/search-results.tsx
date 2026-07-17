@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { getAnnouncementState } from "@/lib/operations"
+import { richTextToPlainText } from "@/lib/rich-text"
 
 type Result = {
   id: string
@@ -28,7 +29,7 @@ export function SearchResults({
   query: string
   onNavigate: () => void
 }) {
-  const { guides, events, announcements } = useOperations()
+  const { categories, guides, events, announcements } = useOperations()
   const cleanQuery = query.trim().toLowerCase()
   const includes = (...values: (string | string[] | undefined)[]) =>
     values.flat().filter(Boolean).join(" ").toLowerCase().includes(cleanQuery)
@@ -42,7 +43,8 @@ export function SearchResults({
             guide.title,
             guide.description,
             guide.keywords,
-            guide.steps.flatMap((step) => [step.title, step.detail])
+            richTextToPlainText(guide.content),
+            categories.find((category) => category.id === guide.category)?.label
           )
       )
       .map((guide) => ({
@@ -79,7 +81,7 @@ export function SearchResults({
           getAnnouncementState(announcement) !== "Expired" &&
           includes(
             announcement.title,
-            announcement.message,
+            richTextToPlainText(announcement.content),
             announcement.priority
           )
       )
@@ -87,7 +89,7 @@ export function SearchResults({
         id: announcement.id,
         href: `/announcements/${announcement.id}`,
         title: announcement.title,
-        description: announcement.message,
+        description: richTextToPlainText(announcement.content),
         type: "Announcement" as const,
       })),
   ]

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   FilePenLine,
   Megaphone,
+  Tags,
 } from "lucide-react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
@@ -21,8 +22,15 @@ import {
 import { getAnnouncementState } from "@/lib/operations"
 
 export function ManagerOverview() {
-  const { guides, events, announcements } = useOperations()
+  const { categories, guides, events, announcements } = useOperations()
   const cards = [
+    {
+      href: "/manager/categories",
+      title: "Guide categories",
+      count: categories.length,
+      detail: "Shown in guide navigation",
+      icon: Tags,
+    },
     {
       href: "/manager/guides",
       title: "Guides",
@@ -55,7 +63,7 @@ export function ManagerOverview() {
         title="Content overview"
         description="Counts are calculated from the current demo state and update as content changes."
       />
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ href, title, count, detail, icon: Icon }) => (
           <Link
             key={href}

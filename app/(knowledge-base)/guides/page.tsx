@@ -8,10 +8,9 @@ import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
-import { categories } from "@/lib/knowledge-base"
 
 export default function GuidesPage() {
-  const { guides } = useOperations()
+  const { categories, guides } = useOperations()
   const publishedGuides = guides.filter((guide) => guide.published)
 
   return (
@@ -25,19 +24,27 @@ export default function GuidesPage() {
           title="Browse by work area"
           description="Choose the area that best matches the task in front of you."
         />
-        <div className="grid gap-px overflow-hidden border bg-border sm:grid-cols-2 xl:grid-cols-3">
-          {categories.map((category) => (
-            <CategoryCard
-              key={category.id}
-              category={category}
-              count={
-                publishedGuides.filter(
-                  (guide) => guide.category === category.id
-                ).length
-              }
-            />
-          ))}
-        </div>
+        {categories.length ? (
+          <div className="grid gap-px overflow-hidden border bg-border sm:grid-cols-2 xl:grid-cols-3">
+            {categories.map((category) => (
+              <CategoryCard
+                key={category.id}
+                category={category}
+                count={
+                  publishedGuides.filter(
+                    (guide) => guide.category === category.id
+                  ).length
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={BookOpen}
+            title="No guide categories"
+            description="Work areas will appear here when a manager creates them."
+          />
+        )}
       </section>
       <section>
         <SectionHeading

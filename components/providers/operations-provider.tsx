@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo, useState } from "react"
 
-import type { Guide } from "@/lib/knowledge-base"
+import type { Category, Guide } from "@/lib/knowledge-base"
 import {
   createSeedState,
   type Announcement,
@@ -11,6 +11,9 @@ import {
 } from "@/lib/operations"
 
 type OperationsContextValue = OperationsState & {
+  saveCategory: (category: Category) => void
+  moveCategory: (id: string, direction: -1 | 1) => void
+  deleteCategory: (id: string) => void
   saveGuide: (guide: Guide) => void
   deleteGuide: (id: string) => void
   saveEvent: (event: CalendarEvent) => void
@@ -42,6 +45,37 @@ export function OperationsProvider({
   const value = useMemo<OperationsContextValue>(
     () => ({
       ...state,
+      saveCategory: (category) =>
+        setState((current) => ({
+          ...current,
+          categories: current.categories.some((item) => item.id === category.id)
+            ? current.categories.map((item) =>
+                item.id === category.id ? category : item
+              )
+            : [...current.categories, category],
+        })),
+      moveCategory: (id, direction) =>
+        setState((current) => {
+          const from = current.categories.findIndex((item) => item.id === id)
+          const to = from + direction
+          if (from < 0 || to < 0 || to >= current.categories.length)
+            return current
+          const categories = [...current.categories]
+          const [category] = categories.splice(from, 1)
+          categories.splice(to, 0, category)
+          return { ...current, categories }
+        }),
+      deleteCategory: (id) =>
+        setState((current) =>
+          current.guides.some((guide) => guide.category === id)
+            ? current
+            : {
+                ...current,
+                categories: current.categories.filter(
+                  (category) => category.id !== id
+                ),
+              }
+        ),
       saveGuide: (guide) =>
         setState((current) => ({
           ...current,

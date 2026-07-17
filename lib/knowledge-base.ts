@@ -2,7 +2,6 @@ import {
   AlertCircle,
   BookOpen,
   ClipboardCheck,
-  CreditCard,
   FileText,
   HandCoins,
   MessageCircleQuestion,
@@ -10,20 +9,20 @@ import {
   ReceiptText,
   RotateCcw,
   ShieldCheck,
-  ShoppingBag,
   Sparkles,
-  UsersRound,
   UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react"
 
-export type CategoryId =
-  "register" | "orders" | "payments" | "invoices" | "service" | "policies"
+import type { CategoryIconKey } from "@/lib/category-icons"
+import type { LegacyGuideStep, RichTextDocument } from "@/lib/rich-text"
+
+export type CategoryId = string
 
 export type Category = {
   id: CategoryId
   label: string
-  icon: LucideIcon
+  iconKey: CategoryIconKey
   description: string
 }
 
@@ -38,49 +37,53 @@ export type Guide = {
   featured?: boolean
   published?: boolean
   keywords?: string[]
-  steps: { title: string; detail: string; tip?: string }[]
+  content: RichTextDocument
+}
+
+export type SeedGuide = Omit<Guide, "content"> & {
+  steps: LegacyGuideStep[]
 }
 
 export const categories: Category[] = [
   {
     id: "register",
     label: "Cash register",
-    icon: ReceiptText,
+    iconKey: "register",
     description: "Open, run, and close the till.",
   },
   {
     id: "orders",
     label: "Orders",
-    icon: ShoppingBag,
+    iconKey: "orders",
     description: "Take and manage every kind of order.",
   },
   {
     id: "payments",
     label: "Payments",
-    icon: CreditCard,
+    iconKey: "payments",
     description: "Handle payments, refunds, and tips.",
   },
   {
     id: "invoices",
     label: "Invoices",
-    icon: FileText,
+    iconKey: "documents",
     description: "Find receipts and send business invoices.",
   },
   {
     id: "service",
     label: "Guest service",
-    icon: UsersRound,
+    iconKey: "people",
     description: "Create a welcoming guest experience.",
   },
   {
     id: "policies",
     label: "Safety & policies",
-    icon: ShieldCheck,
+    iconKey: "safety",
     description: "Check the important house rules.",
   },
 ]
 
-export const guides: Guide[] = [
+export const guides: SeedGuide[] = [
   {
     id: "open-register",
     title: "Open the cash register",

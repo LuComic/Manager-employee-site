@@ -1,5 +1,10 @@
-import type { Guide } from "@/lib/knowledge-base"
-import { guides as knowledgeBaseGuides } from "@/lib/knowledge-base"
+import type { Category, Guide } from "@/lib/knowledge-base"
+import {
+  categories as knowledgeBaseCategories,
+  guides as knowledgeBaseGuides,
+} from "@/lib/knowledge-base"
+import type { RichTextDocument } from "@/lib/rich-text"
+import { guideStepsToRichText, paragraphDocument } from "@/lib/rich-text"
 
 export const eventCategories = [
   "Reservation",
@@ -33,7 +38,7 @@ export type AnnouncementPriority = "Normal" | "Important" | "Urgent"
 export type Announcement = {
   id: string
   title: string
-  message: string
+  content: RichTextDocument
   publishedAt: string
   expiresAt: string
   priority: AnnouncementPriority
@@ -44,6 +49,7 @@ export type Announcement = {
 }
 
 export type OperationsState = {
+  categories: Category[]
   guides: Guide[]
   events: CalendarEvent[]
   announcements: Announcement[]
@@ -64,9 +70,10 @@ function dateOnly(offset: number) {
 
 export function createSeedState(): OperationsState {
   return {
-    guides: knowledgeBaseGuides.map((guide) => ({
+    categories: knowledgeBaseCategories.map((category) => ({ ...category })),
+    guides: knowledgeBaseGuides.map(({ steps, ...guide }) => ({
       ...guide,
-      steps: guide.steps.map((step) => ({ ...step })),
+      content: guideStepsToRichText(steps),
       keywords: [...(guide.keywords ?? [])],
       published: true,
     })),
@@ -181,8 +188,9 @@ export function createSeedState(): OperationsState {
       {
         id: "terrace-entrance",
         title: "Use the side entrance for terrace deliveries",
-        message:
-          "The main terrace gate is reserved for today’s group. Please direct deliveries to the marked side entrance.",
+        content: paragraphDocument(
+          "The main terrace gate is reserved for today’s group. Please direct deliveries to the marked side entrance."
+        ),
         publishedAt: dateOnly(-1),
         expiresAt: dateOnly(1),
         priority: "Important",
@@ -193,8 +201,9 @@ export function createSeedState(): OperationsState {
       {
         id: "card-terminal",
         title: "Bar card terminal is back in service",
-        message:
-          "The replacement terminal is installed and can be used normally. Report any connection issue to the shift lead.",
+        content: paragraphDocument(
+          "The replacement terminal is installed and can be used normally. Report any connection issue to the shift lead."
+        ),
         publishedAt: dateOnly(0),
         expiresAt: dateOnly(4),
         priority: "Normal",
@@ -205,8 +214,9 @@ export function createSeedState(): OperationsState {
       {
         id: "menu-briefing",
         title: "Summer menu briefing coming up",
-        message:
-          "Read the menu notes before the launch and bring allergen questions to the pre-shift briefing.",
+        content: paragraphDocument(
+          "Read the menu notes before the launch and bring allergen questions to the pre-shift briefing."
+        ),
         publishedAt: dateOnly(2),
         expiresAt: dateOnly(8),
         priority: "Normal",
@@ -218,8 +228,9 @@ export function createSeedState(): OperationsState {
       {
         id: "old-repair",
         title: "Ice machine repair completed",
-        message:
-          "The repair is complete and the machine is operating normally.",
+        content: paragraphDocument(
+          "The repair is complete and the machine is operating normally."
+        ),
         publishedAt: dateOnly(-12),
         expiresAt: dateOnly(-3),
         priority: "Normal",
@@ -229,7 +240,7 @@ export function createSeedState(): OperationsState {
       {
         id: "draft-note",
         title: "Draft supplier note",
-        message: "Waiting for delivery confirmation.",
+        content: paragraphDocument("Waiting for delivery confirmation."),
         publishedAt: dateOnly(1),
         expiresAt: dateOnly(5),
         priority: "Normal",
@@ -308,4 +319,11 @@ export function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
+}
+
+export function normalizeReadingTime(value: string) {
+  const readingTime = value.trim()
+  return /^\d+(?:[.,]\d+)?$/.test(readingTime)
+    ? `${readingTime} min`
+    : readingTime
 }

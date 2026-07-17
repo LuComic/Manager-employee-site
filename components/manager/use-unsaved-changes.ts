@@ -1,0 +1,142 @@
+"use client"
+
+import { useCallback, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+
+const historyGuardKey = "__operationsUnsavedChangesGuard"
+
+type UnsavedChangesOptions = {
+  dirty: boolean
+  itemName: string
+  toastId: string
+  onDiscard: () => void
+}
+
+export function useUnsavedChanges({
+  dirty,
+  itemName,
+  toastId,
+  onDiscard,
+}: UnsavedChangesOptions) {
+  const router = useRouter()
+  const dirtyRef = useRef(dirty)
+  const onDiscardRef = useRef(onDiscard)
+  const guardActiveRef = useRef(false)
+  const allowHistoryNavigationRef = useRef(false)
+  const guardStateRef = useRef<unknown>(null)
+  const editorUrlRef = useRef("")
+
+  useEffect(() => {
+    dirtyRef.current = dirty
+  }, [dirty])
+
+  useEffect(() => {
+    onDiscardRef.current = onDiscard
+  }, [onDiscard])
+
+  const showDiscardToast = useCallback(
+    (discard: () => void) => {
+      toast.warning(`Discard your unsaved ${itemName} changes?`, {
+        id: toastId,
+        description: "Your changes will not be saved.",
+        duration: Infinity,
+        cancel: {
+          label: "Keep editing",
+          onClick: () => undefined,
+        },
+        action: {
+          label: "Discard",
+          onClick: discard,
+        },
+      })
+    },
+    [itemName, toastId]
+  )
+
+  const leaveWithoutPrompt = useCallback(
+    (destination: string) => {
+      toast.dismiss(toastId)
+      if (!guardActiveRef.current) {
+        router.push(destination)
+        return
+      }
+
+      allowHistoryNavigationRef.current = true
+      window.addEventListener(
+        "popstate",
+        () => {
+          guardActiveRef.current = false
+          router.push(destination)
+        },
+        { once: true }
+      )
+      window.history.back()
+    },
+    [router, toastId]
+  )
+
+  const requestLeave = useCallback(
+    (destination: string) => {
+      if (!dirtyRef.current) {
+        leaveWithoutPrompt(destination)
+        return
+      }
+
+      showDiscardToast(() => {
+        onDiscardRef.current()
+        leaveWithoutPrompt(destination)
+      })
+    },
+    [leaveWithoutPrompt, showDiscardToast]
+  )
+
+  useEffect(() => {
+    if (!dirty || guardActiveRef.current) return
+
+    const currentState = window.history.state
+    const guardState =
+      typeof currentState === "object" && currentState !== null
+        ? { ...currentState, [historyGuardKey]: toastId }
+        : { [historyGuardKey]: toastId }
+
+    guardStateRef.current = guardState
+    editorUrlRef.current = window.location.href
+    guardActiveRef.current = true
+    allowHistoryNavigationRef.current = false
+    window.history.pushState(guardState, "", editorUrlRef.current)
+
+    function handlePopState() {
+      if (
+        allowHistoryNavigationRef.current ||
+        !dirtyRef.current ||
+        !guardActiveRef.current
+      )
+        return
+
+      window.history.pushState(guardStateRef.current, "", editorUrlRef.current)
+      showDiscardToast(() => {
+        toast.dismiss(toastId)
+        allowHistoryNavigationRef.current = true
+        guardActiveRef.current = false
+        onDiscardRef.current()
+        window.history.go(-2)
+      })
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [dirty, showDiscardToast, toastId])
+
+  useEffect(() => {
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (!dirtyRef.current) return
+      event.preventDefault()
+    }
+
+    window.addEventListener("beforeunload", warnBeforeUnload)
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload)
+  }, [])
+
+  return { leaveWithoutPrompt, requestLeave }
+}
