@@ -19,7 +19,7 @@ const fontMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Operations hub · North & Pine Bistro",
+  title: "Operations hub",
   description: "Today’s information and practical guides for smooth shifts.",
 }
 

@@ -27,8 +27,13 @@ import { cn } from "@/lib/utils"
 type Status = "All" | "Active" | "Upcoming" | "Expired" | "Draft"
 
 export function AnnouncementManager() {
-  const { announcements, saveAnnouncement, deleteAnnouncement, showFeedback } =
-    useOperations()
+  const {
+    announcements,
+    hub,
+    saveAnnouncement,
+    deleteAnnouncement,
+    showFeedback,
+  } = useOperations()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
@@ -40,14 +45,16 @@ export function AnnouncementManager() {
             `${announcement.title} ${richTextToPlainText(announcement.content)}`
               .toLowerCase()
               .includes(query.toLowerCase()) &&
-            (status === "All" || getAnnouncementState(announcement) === status)
+            (status === "All" ||
+              getAnnouncementState(announcement, new Date(), hub?.timeZone) ===
+                status)
         )
         .sort(
           (a, b) =>
             Number(b.pinned) - Number(a.pinned) ||
             b.publishedAt.localeCompare(a.publishedAt)
         ),
-    [announcements, query, status]
+    [announcements, hub?.timeZone, query, status]
   )
 
   return (
@@ -88,7 +95,11 @@ export function AnnouncementManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((announcement) => {
-            const state = getAnnouncementState(announcement)
+            const state = getAnnouncementState(
+              announcement,
+              new Date(),
+              hub?.timeZone
+            )
             return (
               <Card key={announcement.id} className="shadow-none">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">

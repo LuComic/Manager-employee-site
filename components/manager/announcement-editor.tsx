@@ -32,15 +32,15 @@ function cloneContent(content: RichTextDocument) {
   return JSON.parse(JSON.stringify(content)) as RichTextDocument
 }
 
-function newAnnouncement(): AnnouncementDraft {
+function newAnnouncement(timeZone?: string): AnnouncementDraft {
   const expires = new Date()
   expires.setDate(expires.getDate() + 7)
   return {
     id: "",
     title: "",
     content: cloneContent(emptyRichTextDocument),
-    publishedAt: toDateKey(new Date()),
-    expiresAt: toDateKey(expires),
+    publishedAt: toDateKey(new Date(), timeZone),
+    expiresAt: toDateKey(expires, timeZone),
     priority: "Normal",
     pinned: false,
     published: false,
@@ -52,7 +52,7 @@ export function AnnouncementEditor({
 }: {
   announcementId?: string
 }) {
-  const { announcements, guides, events, saveAnnouncement, showFeedback } =
+  const { hub, announcements, guides, events, saveAnnouncement, showFeedback } =
     useOperations()
   const existing = announcementId
     ? announcements.find((announcement) => announcement.id === announcementId)
@@ -62,7 +62,7 @@ export function AnnouncementEditor({
       ? existing
         ? { ...existing, content: cloneContent(existing.content) }
         : null
-      : newAnnouncement()
+      : newAnnouncement(hub?.timeZone)
   )
   const [mode, setMode] = useState<"edit" | "preview">("edit")
   const [dirty, setDirty] = useState(false)

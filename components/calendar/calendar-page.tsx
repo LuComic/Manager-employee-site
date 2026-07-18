@@ -31,10 +31,25 @@ function firstOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
+function dateFromKey(value: string) {
+  const [year, month, day] = value.split("-").map(Number)
+  return new Date(year, month - 1, day)
+}
+
+function calendarKey(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, "0")
+  const day = String(value.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 export function CalendarPage() {
-  const { events } = useOperations()
+  const { events, hub } = useOperations()
+  const todayKey = toDateKey(new Date(), hub?.timeZone)
   const [view, setView] = useState<View>("month")
-  const [visibleDate, setVisibleDate] = useState(firstOfMonth(new Date()))
+  const [visibleDate, setVisibleDate] = useState(() =>
+    firstOfMonth(dateFromKey(todayKey))
+  )
   const [category, setCategory] = useState<EventCategory | "All">("All")
   const published = events.filter(
     (event) =>
@@ -88,7 +103,7 @@ export function CalendarPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setVisibleDate(firstOfMonth(new Date()))}
+            onClick={() => setVisibleDate(firstOfMonth(dateFromKey(todayKey)))}
           >
             Today
           </Button>
@@ -157,12 +172,12 @@ export function CalendarPage() {
             </div>
             <div className="grid grid-cols-7">
               {days.map((day) => {
-                const key = toDateKey(day)
+                const key = calendarKey(day)
                 const dayEvents = published.filter(
                   (event) => toDateKey(event.start) === key
                 )
                 const inMonth = day.getMonth() === visibleDate.getMonth()
-                const isToday = key === toDateKey(new Date())
+                const isToday = key === todayKey
                 return (
                   <div
                     key={key}

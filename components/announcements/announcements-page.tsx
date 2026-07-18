@@ -13,10 +13,13 @@ import { getAnnouncementState } from "@/lib/operations"
 type Filter = "Active" | "Upcoming" | "Expired"
 
 export function AnnouncementsPage() {
-  const { announcements } = useOperations()
+  const { announcements, hub } = useOperations()
   const [filter, setFilter] = useState<Filter>("Active")
   const visible = announcements
-    .filter((announcement) => getAnnouncementState(announcement) === filter)
+    .filter(
+      (announcement) =>
+        getAnnouncementState(announcement, new Date(), hub?.timeZone) === filter
+    )
     .sort(
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) ||
@@ -35,7 +38,9 @@ export function AnnouncementsPage() {
       >
         {(["Active", "Upcoming", "Expired"] as const).map((item) => {
           const count = announcements.filter(
-            (announcement) => getAnnouncementState(announcement) === item
+            (announcement) =>
+              getAnnouncementState(announcement, new Date(), hub?.timeZone) ===
+              item
           ).length
           return (
             <Button

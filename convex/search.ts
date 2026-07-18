@@ -34,30 +34,36 @@ export const published = query({
     const cleanQuery = args.query.trim().toLocaleLowerCase().slice(0, 120)
     if (!cleanQuery) return []
 
-    const [categories, guides, events, announcements] = await Promise.all([
-      ctx.db
-        .query("categories")
-        .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
-        .take(500),
-      ctx.db
-        .query("guides")
-        .withIndex("by_hubId_and_published", (q) =>
-          q.eq("hubId", hub._id).eq("published", true)
-        )
-        .take(500),
-      ctx.db
-        .query("events")
-        .withIndex("by_hubId_and_published", (q) =>
-          q.eq("hubId", hub._id).eq("published", true)
-        )
-        .take(500),
-      ctx.db
-        .query("announcements")
-        .withIndex("by_hubId_and_published", (q) =>
-          q.eq("hubId", hub._id).eq("published", true)
-        )
-        .take(500),
-    ])
+    const [categories, guides, events, announcements, faqs] = await Promise.all(
+      [
+        ctx.db
+          .query("categories")
+          .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
+          .take(500),
+        ctx.db
+          .query("guides")
+          .withIndex("by_hubId_and_published", (q) =>
+            q.eq("hubId", hub._id).eq("published", true)
+          )
+          .take(500),
+        ctx.db
+          .query("events")
+          .withIndex("by_hubId_and_published", (q) =>
+            q.eq("hubId", hub._id).eq("published", true)
+          )
+          .take(500),
+        ctx.db
+          .query("announcements")
+          .withIndex("by_hubId_and_published", (q) =>
+            q.eq("hubId", hub._id).eq("published", true)
+          )
+          .take(500),
+        ctx.db
+          .query("faqs")
+          .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
+          .take(500),
+      ]
+    )
     const categoryById = new Map(
       categories.map((category) => [category._id, category.label])
     )
@@ -117,6 +123,18 @@ export const published = query({
           title: announcement.title,
           description: plainText(announcement.content).trim(),
           type: "Announcement" as const,
+        })),
+      ...faqs
+        .filter(
+          (faq) =>
+            faq.published && includes(cleanQuery, faq.question, faq.answer)
+        )
+        .map((faq) => ({
+          id: faq.slug,
+          href: `/questions#${faq.slug}`,
+          title: faq.question,
+          description: faq.answer,
+          type: "Question" as const,
         })),
     ].slice(0, 30)
   },

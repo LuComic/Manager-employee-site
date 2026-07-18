@@ -33,6 +33,7 @@ async function createHub(
     accessMode: options.restricted ? "restricted" : "public",
     joinCode: "ABCD-EFGH",
     privateToken: "private-token-that-is-at-least-thirty-two-characters",
+    timeZone: "Europe/Tallinn",
     seedDemoContent: false,
   })
 }
@@ -140,6 +141,42 @@ describe("hub authorization and anonymous access", () => {
         label: "Stolen",
         iconKey: "general",
         description: "Must not be written",
+      })
+    ).rejects.toThrow("Unauthorized")
+  })
+
+  test("publishes managed FAQs and keeps help requests owner-only", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+
+    await owner.mutation(api.content.saveFaq, {
+      hubId,
+      slug: "where-are-keys",
+      question: "Where are the keys?",
+      answer: "Ask the opening manager.",
+      published: true,
+    })
+    const snapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "test-hub",
+      nowDate: "2026-07-18",
+    })
+    expect(snapshot.kind).toBe("ready")
+    if (snapshot.kind === "ready") {
+      expect(snapshot.faqs).toHaveLength(1)
+    }
+
+    await t.mutation(api.content.submitHelpRequest, {
+      hubSlug: "test-hub",
+      topic: "Keys",
+      message: "I cannot find the opening keys.",
+    })
+    expect(
+      await owner.query(api.content.listHelpRequests, { hubId })
+    ).toHaveLength(1)
+    await expect(
+      t.withIdentity(otherIdentity).query(api.content.listHelpRequests, {
+        hubId,
       })
     ).rejects.toThrow("Unauthorized")
   })

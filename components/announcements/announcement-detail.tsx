@@ -63,7 +63,8 @@ export function AnnouncementArticle({
   event?: CalendarEvent
   preview?: boolean
 }) {
-  const state = getAnnouncementState(announcement)
+  const { hub } = useOperations()
+  const state = getAnnouncementState(announcement, new Date(), hub?.timeZone)
   return (
     <article className="mx-auto max-w-4xl space-y-6">
       {!preview && (
@@ -104,9 +105,21 @@ export function AnnouncementArticle({
           <RichTextContent content={announcement.content} />
           <div className="mt-8 flex flex-wrap gap-6 border-t pt-6 text-sm text-muted-foreground">
             <span>
-              Published {formatDate(`${announcement.publishedAt}T12:00`)}
+              Published{" "}
+              {formatDate(
+                `${announcement.publishedAt}T12:00`,
+                undefined,
+                hub?.timeZone
+              )}
             </span>
-            <span>Expires {formatDate(`${announcement.expiresAt}T12:00`)}</span>
+            <span>
+              Expires{" "}
+              {formatDate(
+                `${announcement.expiresAt}T12:00`,
+                undefined,
+                hub?.timeZone
+              )}
+            </span>
           </div>
         </CardContent>
       </Card>

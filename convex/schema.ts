@@ -11,6 +11,13 @@ export default defineSchema({
   hubs: defineTable({
     name: v.string(),
     slug: v.string(),
+    description: v.optional(v.string()),
+    address: v.optional(v.string()),
+    timeZone: v.optional(v.string()),
+    contactName: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    contentVersion: v.optional(v.number()),
     ownerSubject: v.string(),
     ownerTokenIdentifier: v.string(),
     accessMode,
@@ -107,6 +114,17 @@ export default defineSchema({
       searchField: "title",
       filterFields: ["hubId", "published"],
     }),
+
+  faqs: defineTable({
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    question: v.string(),
+    answer: v.string(),
+    order: v.number(),
+    published: v.boolean(),
+  })
+    .index("by_hubId_and_order", ["hubId", "order"])
+    .index("by_hubId_and_slug", ["hubId", "slug"]),
 
   attachments: defineTable({
     hubId: v.id("hubs"),

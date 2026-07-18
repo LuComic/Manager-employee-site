@@ -14,6 +14,7 @@ import {
   type Announcement,
   type Attachment,
   type CalendarEvent,
+  type Faq,
   type OperationsState,
 } from "@/lib/operations"
 
@@ -25,7 +26,25 @@ export type HubInfo = {
   slug: string
   accessMode: HubAccessMode
   credentialVersion: number
+  description: string
+  address: string
+  timeZone: string
+  contactName: string
+  contactEmail: string
+  contactPhone: string
+  contentVersion: number
 }
+
+export type HubSettings = Pick<
+  HubInfo,
+  | "name"
+  | "description"
+  | "address"
+  | "timeZone"
+  | "contactName"
+  | "contactEmail"
+  | "contactPhone"
+>
 
 export type HubCredentials = {
   joinCode: string
@@ -53,6 +72,7 @@ type OperationsContextValue = OperationsState & {
   ) => Promise<void>
   setAccessMode: (accessMode: HubAccessMode) => Promise<void>
   rotateCredentials: () => Promise<HubCredentials>
+  saveHubSettings: (settings: HubSettings) => Promise<void>
   grantAnonymousAccess: (credential: string) => void
   leaveHub: () => void
   saveCategory: (category: Category) => Promise<void>
@@ -66,6 +86,9 @@ type OperationsContextValue = OperationsState & {
   deleteAttachment: (attachment: Attachment) => Promise<void>
   saveAnnouncement: (announcement: Announcement) => Promise<void>
   deleteAnnouncement: (id: string) => Promise<void>
+  saveFaq: (faq: Faq) => Promise<void>
+  moveFaq: (id: string, direction: -1 | 1) => Promise<void>
+  deleteFaq: (id: string) => Promise<void>
   submitHelpRequest: (topic: string, message: string) => Promise<void>
   showFeedback: (message: string) => void
 }
@@ -126,12 +149,15 @@ export function OperationsProvider({
     pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth()
   const requestedHubSlug = searchParams.get("hub")?.trim().toLowerCase()
-  const [rememberedHubSlug, setRememberedHubSlug] = useState("north-pine")
+  const [rememberedHubSlug, setRememberedHubSlug] = useState("")
   const hubSlug = requestedHubSlug || rememberedHubSlug
   const [credential, setCredential] = useState<string | undefined>()
   const [ownerCredentials, setOwnerCredentials] =
     useState<HubCredentials | null>(null)
-  const nowDate = toDateKey(new Date())
+  const [hubTimeZone, setHubTimeZone] = useState(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+  )
+  const nowDate = toDateKey(new Date(), hubTimeZone)
 
   useEffect(() => {
     let timeout: number | undefined
@@ -145,7 +171,7 @@ export function OperationsProvider({
       timeout = window.setTimeout(
         () =>
           setRememberedHubSlug(
-            localStorage.getItem("operations-hub:active-slug") || "north-pine"
+            localStorage.getItem("operations-hub:active-slug") || ""
           ),
         0
       )
@@ -165,6 +191,8 @@ export function OperationsProvider({
   const createHubMutation = useMutation(api.hubs.create)
   const setAccessModeMutation = useMutation(api.hubs.setAccessMode)
   const rotateCredentialsMutation = useMutation(api.hubs.rotateCredentials)
+  const ensureManagedContent = useMutation(api.hubs.ensureManagedContent)
+  const updateSettingsMutation = useMutation(api.hubs.updateSettings)
   const saveCategoryMutation = useMutation(api.content.saveCategory)
   const moveCategoryMutation = useMutation(api.content.moveCategory)
   const deleteCategoryMutation = useMutation(api.content.deleteCategory)
@@ -174,6 +202,9 @@ export function OperationsProvider({
   const deleteEventMutation = useMutation(api.content.deleteEvent)
   const saveAnnouncementMutation = useMutation(api.content.saveAnnouncement)
   const deleteAnnouncementMutation = useMutation(api.content.deleteAnnouncement)
+  const saveFaqMutation = useMutation(api.content.saveFaq)
+  const moveFaqMutation = useMutation(api.content.moveFaq)
+  const deleteFaqMutation = useMutation(api.content.deleteFaq)
   const submitHelpMutation = useMutation(api.content.submitHelpRequest)
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
   const attachToEvent = useMutation(api.files.attachToEvent)
@@ -191,6 +222,26 @@ export function OperationsProvider({
     (publicSnapshot?.kind === "restricted"
       ? publicSnapshot.hub
       : null)) as HubInfo | null
+
+  useEffect(() => {
+    if (!activeSnapshot?.hub.timeZone) return
+    const timeout = window.setTimeout(
+      () => setHubTimeZone(activeSnapshot.hub.timeZone),
+      0
+    )
+    return () => window.clearTimeout(timeout)
+  }, [activeSnapshot?.hub.timeZone])
+
+  useEffect(() => {
+    if (!isManager || !hub || hub.contentVersion >= 1) return
+    void ensureManagedContent({ hubId: hub.id }).catch((error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message.replace(/^.*Uncaught Error: /, "")
+          : "Could not prepare managed content"
+      )
+    })
+  }, [ensureManagedContent, hub, isManager])
 
   useEffect(() => {
     const fragment = new URLSearchParams(window.location.hash.slice(1))
@@ -260,7 +311,13 @@ export function OperationsProvider({
 
   const state = useMemo<OperationsState>(() => {
     if (!activeSnapshot)
-      return { categories: [], guides: [], events: [], announcements: [] }
+      return {
+        categories: [],
+        guides: [],
+        events: [],
+        announcements: [],
+        faqs: [],
+      }
     const categories = activeSnapshot.categories.map((category) => ({
       id: category.id,
       label: category.label,
@@ -280,6 +337,7 @@ export function OperationsProvider({
       })) as Guide[],
       events: activeSnapshot.events as CalendarEvent[],
       announcements: activeSnapshot.announcements as Announcement[],
+      faqs: activeSnapshot.faqs as Faq[],
     }
   }, [activeSnapshot])
 
@@ -332,6 +390,9 @@ export function OperationsProvider({
           accessMode,
           joinCode: credentials.joinCode,
           privateToken: credentials.privateToken,
+          timeZone:
+            Intl.DateTimeFormat().resolvedOptions().timeZone ||
+            "Europe/Tallinn",
           seedDemoContent: true,
         })
       )
@@ -363,6 +424,11 @@ export function OperationsProvider({
       localStorage.setItem(ownerCredentialKey(hubId), JSON.stringify(saved))
       setOwnerCredentials(saved)
       return saved
+    },
+    saveHubSettings: async (settings) => {
+      await run(() =>
+        updateSettingsMutation({ hubId: managerHubId(), ...settings })
+      )
     },
     grantAnonymousAccess: (value) => setCredential(value.trim()),
     leaveHub: () => {
@@ -485,6 +551,25 @@ export function OperationsProvider({
       await run(() =>
         deleteAnnouncementMutation({ hubId: managerHubId(), slug })
       )
+    },
+    saveFaq: async (faq) => {
+      await run(() =>
+        saveFaqMutation({
+          hubId: managerHubId(),
+          slug: faq.id,
+          question: faq.question,
+          answer: faq.answer,
+          published: faq.published,
+        })
+      )
+    },
+    moveFaq: async (slug, direction) => {
+      await run(() =>
+        moveFaqMutation({ hubId: managerHubId(), slug, direction })
+      )
+    },
+    deleteFaq: async (slug) => {
+      await run(() => deleteFaqMutation({ hubId: managerHubId(), slug }))
     },
     submitHelpRequest: async (topic, message) => {
       await run(() =>

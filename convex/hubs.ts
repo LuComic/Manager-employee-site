@@ -1,6 +1,7 @@
 import { v } from "convex/values"
 
 import { createSeedState } from "../lib/operations"
+import { commonQuestions } from "../lib/knowledge-base"
 import type { Id } from "./_generated/dataModel"
 import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
@@ -17,6 +18,9 @@ const accessModeValidator = v.union(
   v.literal("public"),
   v.literal("restricted")
 )
+
+const defaultDescription =
+  "Current updates, important times, and practical guides for each shift."
 
 function slugify(value: string) {
   return value
@@ -120,6 +124,17 @@ async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
         : undefined,
     })
   }
+
+  for (const [order, faq] of commonQuestions.entries()) {
+    await ctx.db.insert("faqs", {
+      hubId,
+      slug: slugify(faq.question),
+      question: faq.question,
+      answer: faq.answer,
+      order,
+      published: true,
+    })
+  }
 }
 
 export const create = mutation({
@@ -129,6 +144,7 @@ export const create = mutation({
     accessMode: accessModeValidator,
     joinCode: v.string(),
     privateToken: v.string(),
+    timeZone: v.string(),
     seedDemoContent: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -150,9 +166,17 @@ export const create = mutation({
 
     const slug = await availableSlug(ctx, args.slug)
     const now = Date.now()
+    const timeZone = validateTimeZone(args.timeZone)
     const hubId = await ctx.db.insert("hubs", {
       name,
       slug,
+      description: defaultDescription,
+      address: "",
+      timeZone,
+      contactName: "shift lead",
+      contactEmail: "",
+      contactPhone: "",
+      contentVersion: 1,
       ownerSubject: identity.subject,
       ownerTokenIdentifier: identity.tokenIdentifier,
       accessMode: args.accessMode,
@@ -165,6 +189,93 @@ export const create = mutation({
 
     if (args.seedDemoContent) await seedHub(ctx, hubId)
     return { hubId, slug, created: true }
+  },
+})
+
+function optional(value: string, max: number) {
+  const clean = value.trim()
+  if (clean.length > max) throw new Error("A hub detail is too long")
+  return clean
+}
+
+function validateTimeZone(value: string) {
+  const clean = value.trim()
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: clean }).format()
+  } catch {
+    throw new Error("Choose a valid time zone")
+  }
+  return clean
+}
+
+export const ensureManagedContent = mutation({
+  args: { hubId: v.id("hubs") },
+  handler: async (ctx, args) => {
+    const hub = await requireOwnedHub(ctx, args.hubId)
+    if ((hub.contentVersion ?? 0) >= 1) return null
+
+    const existingFaq = await ctx.db
+      .query("faqs")
+      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
+      .first()
+    if (!existingFaq) {
+      for (const [order, faq] of commonQuestions.entries()) {
+        await ctx.db.insert("faqs", {
+          hubId: hub._id,
+          slug: slugify(faq.question),
+          question: faq.question,
+          answer: faq.answer,
+          order,
+          published: true,
+        })
+      }
+    }
+
+    await ctx.db.patch("hubs", hub._id, {
+      description: hub.description ?? defaultDescription,
+      address: hub.address ?? "",
+      timeZone: hub.timeZone ?? "Europe/Tallinn",
+      contactName: hub.contactName ?? "shift lead",
+      contactEmail: hub.contactEmail ?? "",
+      contactPhone: hub.contactPhone ?? "",
+      contentVersion: 1,
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
+export const updateSettings = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    name: v.string(),
+    description: v.string(),
+    address: v.string(),
+    timeZone: v.string(),
+    contactName: v.string(),
+    contactEmail: v.string(),
+    contactPhone: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireOwnedHub(ctx, args.hubId)
+    const name = args.name.trim()
+    if (name.length < 2 || name.length > 80)
+      throw new Error("Hub name must be between 2 and 80 characters")
+    const contactEmail = optional(args.contactEmail, 200)
+    if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail))
+      throw new Error("Enter a valid contact email")
+
+    await ctx.db.patch("hubs", args.hubId, {
+      name,
+      description: optional(args.description, 500),
+      address: optional(args.address, 500),
+      timeZone: validateTimeZone(args.timeZone),
+      contactName: optional(args.contactName, 100) || "shift lead",
+      contactEmail,
+      contactPhone: optional(args.contactPhone, 80),
+      updatedAt: Date.now(),
+    })
+    return null
   },
 })
 

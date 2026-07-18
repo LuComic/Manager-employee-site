@@ -1,7 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { BookOpen, CalendarDays, Megaphone, Search } from "lucide-react"
+import {
+  BookOpen,
+  CalendarDays,
+  CircleHelp,
+  Megaphone,
+  Search,
+} from "lucide-react"
 import { useQuery } from "convex/react"
 
 import { api } from "@/convex/_generated/api"
@@ -20,16 +26,16 @@ type Result = {
   href: string
   title: string
   description: string
-  type: "Guide" | "Event" | "Announcement"
+  type: "Guide" | "Event" | "Announcement" | "Question"
 }
 
 export function SearchResults({ query }: { query: string }) {
-  const { hubSlug, credential } = useOperations()
+  const { hub, hubSlug, credential } = useOperations()
   const results = useQuery(api.search.published, {
     hubSlug,
     credential,
     query,
-    nowDate: toDateKey(new Date()),
+    nowDate: toDateKey(new Date(), hub?.timeZone),
   }) as Result[] | undefined
 
   return (
@@ -51,7 +57,9 @@ export function SearchResults({ query }: { query: string }) {
                 ? BookOpen
                 : result.type === "Event"
                   ? CalendarDays
-                  : Megaphone
+                  : result.type === "Announcement"
+                    ? Megaphone
+                    : CircleHelp
             return (
               <Link
                 key={`${result.type}-${result.id}`}

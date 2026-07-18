@@ -1,7 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, BookOpen, CalendarDays, Megaphone } from "lucide-react"
+import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  MapPin,
+  Megaphone,
+} from "lucide-react"
 
 import { AnnouncementCard } from "@/components/operations/announcement-card"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -40,7 +46,8 @@ const quickLinks = [
 
 export default function TodayPage() {
   const { hub, guides, events, announcements } = useOperations()
-  const today = toDateKey(new Date())
+  const timeZone = hub?.timeZone
+  const today = toDateKey(new Date(), timeZone)
   const todayEvents = events
     .filter((event) => event.published && toDateKey(event.start) === today)
     .sort((a, b) => a.start.localeCompare(b.start))
@@ -49,7 +56,9 @@ export default function TodayPage() {
     .sort((a, b) => a.start.localeCompare(b.start))
     .slice(0, 3)
   const activeAnnouncements = announcements
-    .filter((announcement) => isAnnouncementActive(announcement))
+    .filter((announcement) =>
+      isAnnouncementActive(announcement, new Date(), timeZone)
+    )
     .sort((a, b) => Number(b.pinned) - Number(a.pinned))
     .slice(0, 3)
   const usefulGuides = guides
@@ -60,19 +69,28 @@ export default function TodayPage() {
     <div className="space-y-8">
       <section className="border bg-primary p-8 text-primary-foreground">
         <p className="text-sm font-medium text-primary-foreground/80">
-          {formatDate(new Date().toISOString(), {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-          })}
+          {formatDate(
+            new Date().toISOString(),
+            {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            },
+            timeZone
+          )}
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
           Today at {hub?.name ?? "your workplace"}
         </h1>
         <p className="mt-4 max-w-2xl text-primary-foreground/80">
-          Current updates, important times, and the guides you may need during
-          the day.
+          {hub?.description ||
+            "Current updates, important times, and the guides you may need during the day."}
         </p>
+        {hub?.address && (
+          <p className="mt-4 flex items-center gap-2 text-sm text-primary-foreground/80">
+            <MapPin className="size-4" /> {hub.address}
+          </p>
+        )}
       </section>
 
       <section>
@@ -175,11 +193,19 @@ export default function TodayPage() {
           description="Frequently used instructions for a smooth shift."
           action={{ label: "Browse all guides", href: "/guides" }}
         />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {usefulGuides.map((guide) => (
-            <GuideCard key={guide.id} guide={guide} />
-          ))}
-        </div>
+        {usefulGuides.length ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {usefulGuides.map((guide) => (
+              <GuideCard key={guide.id} guide={guide} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={BookOpen}
+            title="No useful guides yet"
+            description="Featured published guides will appear here."
+          />
+        )}
       </section>
     </div>
   )

@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
+  CircleHelp,
   FilePenLine,
   Megaphone,
   Tags,
@@ -22,7 +23,8 @@ import {
 import { getAnnouncementState } from "@/lib/operations"
 
 export function ManagerOverview() {
-  const { categories, guides, events, announcements } = useOperations()
+  const { hub, categories, guides, events, announcements, faqs } =
+    useOperations()
   const cards = [
     {
       href: "/manager/categories",
@@ -49,21 +51,29 @@ export function ManagerOverview() {
       href: "/manager/announcements",
       title: "Announcements",
       count: announcements.length,
-      detail: `${announcements.filter((item) => getAnnouncementState(item) === "Active").length} active`,
+      detail: `${announcements.filter((item) => getAnnouncementState(item, new Date(), hub?.timeZone) === "Active").length} active`,
       icon: Megaphone,
+    },
+    {
+      href: "/manager/questions",
+      title: "Common questions",
+      count: faqs.length,
+      detail: `${faqs.filter((item) => item.published).length} published`,
+      icon: CircleHelp,
     },
   ]
   const drafts =
     guides.filter((item) => !item.published).length +
     events.filter((item) => !item.published).length +
-    announcements.filter((item) => !item.published).length
+    announcements.filter((item) => !item.published).length +
+    faqs.filter((item) => !item.published).length
   return (
     <div className="space-y-8">
       <ManagerHeading
         title="Content overview"
         description="Live counts from your Convex-backed hub update as content changes."
       />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {cards.map(({ href, title, count, detail, icon: Icon }) => (
           <Link
             key={href}

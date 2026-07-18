@@ -58,9 +58,7 @@ export function GuideDetail({
         </CardContent>
 
         <div className="flex flex-col gap-4 border-t bg-muted/30 p-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <span className="text-xs text-muted-foreground">
-            {guide.updated} · Approved by operations
-          </span>
+          <span className="text-xs text-muted-foreground">{guide.updated}</span>
           {!preview && <PrintButton />}
         </div>
       </Card>

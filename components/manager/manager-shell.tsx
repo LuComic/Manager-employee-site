@@ -5,7 +5,10 @@ import { usePathname } from "next/navigation"
 import {
   ArrowLeft,
   BookOpen,
+  Building2,
   CalendarDays,
+  CircleHelp,
+  Headphones,
   LayoutDashboard,
   Megaphone,
   ShieldCheck,
@@ -25,7 +28,10 @@ const links = [
   { href: "/manager/categories", label: "Guide categories", icon: Tags },
   { href: "/manager/calendar", label: "Calendar events", icon: CalendarDays },
   { href: "/manager/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/manager/questions", label: "Common questions", icon: CircleHelp },
+  { href: "/manager/help", label: "Help requests", icon: Headphones },
   { href: "/manager/access", label: "Employee access", icon: ShieldCheck },
+  { href: "/manager/settings", label: "Establishment", icon: Building2 },
 ]
 
 export function ManagerShell({ children }: { children: React.ReactNode }) {
@@ -63,7 +69,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           </div>
           {!focusedEditor && (
             <nav
-              className="flex gap-2 overflow-x-auto pb-1"
+              className="flex gap-2 overflow-x-auto pb-1 xl:flex-wrap xl:overflow-visible"
               aria-label="Manager navigation"
             >
               {links.map(({ href, label, icon: Icon }) => {

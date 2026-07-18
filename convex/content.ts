@@ -1,6 +1,6 @@
 import { v } from "convex/values"
 
-import { mutation } from "./_generated/server"
+import { mutation, query } from "./_generated/server"
 import { canReadPublishedHub, requireOwnedHub } from "./lib/access"
 
 const richTextDocument = v.object({
@@ -392,6 +392,81 @@ export const deleteAnnouncement = mutation({
   },
 })
 
+export const saveFaq = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    question: v.string(),
+    answer: v.string(),
+    published: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await requireOwnedHub(ctx, args.hubId)
+    const existing = await ctx.db
+      .query("faqs")
+      .withIndex("by_hubId_and_slug", (q) =>
+        q.eq("hubId", args.hubId).eq("slug", args.slug)
+      )
+      .unique()
+    const value = {
+      question: required(args.question, "Question", 300),
+      answer: required(args.answer, "Answer", 4000),
+      published: args.published,
+    }
+    if (existing) {
+      await ctx.db.patch("faqs", existing._id, value)
+      return existing.slug
+    }
+    const faqs = await ctx.db
+      .query("faqs")
+      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
+      .take(500)
+    await ctx.db.insert("faqs", {
+      hubId: args.hubId,
+      slug: required(args.slug, "Question slug", 120),
+      order: faqs.length,
+      ...value,
+    })
+    return args.slug
+  },
+})
+
+export const moveFaq = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    direction: v.union(v.literal(-1), v.literal(1)),
+  },
+  handler: async (ctx, args) => {
+    await requireOwnedHub(ctx, args.hubId)
+    const faqs = await ctx.db
+      .query("faqs")
+      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
+      .take(500)
+    const index = faqs.findIndex((faq) => faq.slug === args.slug)
+    const target = index + args.direction
+    if (index < 0 || target < 0 || target >= faqs.length) return null
+    await ctx.db.patch("faqs", faqs[index]._id, { order: faqs[target].order })
+    await ctx.db.patch("faqs", faqs[target]._id, { order: faqs[index].order })
+    return null
+  },
+})
+
+export const deleteFaq = mutation({
+  args: { hubId: v.id("hubs"), slug: v.string() },
+  handler: async (ctx, args) => {
+    await requireOwnedHub(ctx, args.hubId)
+    const faq = await ctx.db
+      .query("faqs")
+      .withIndex("by_hubId_and_slug", (q) =>
+        q.eq("hubId", args.hubId).eq("slug", args.slug)
+      )
+      .unique()
+    if (faq) await ctx.db.delete("faqs", faq._id)
+    return null
+  },
+})
+
 export const submitHelpRequest = mutation({
   args: {
     hubSlug: v.string(),
@@ -413,6 +488,56 @@ export const submitHelpRequest = mutation({
       submittedAt: Date.now(),
       status: "open",
     })
+    return null
+  },
+})
+
+export const listHelpRequests = query({
+  args: { hubId: v.id("hubs") },
+  handler: async (ctx, args) => {
+    await requireOwnedHub(ctx, args.hubId)
+    const requests = await ctx.db
+      .query("helpRequests")
+      .withIndex("by_hubId_and_submittedAt", (q) => q.eq("hubId", args.hubId))
+      .order("desc")
+      .take(500)
+    return requests.map((request) => ({
+      id: request._id,
+      topic: request.topic,
+      message: request.message,
+      submittedAt: request.submittedAt,
+      status: request.status,
+    }))
+  },
+})
+
+export const setHelpRequestStatus = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    requestId: v.id("helpRequests"),
+    status: v.union(v.literal("open"), v.literal("resolved")),
+  },
+  handler: async (ctx, args) => {
+    await requireOwnedHub(ctx, args.hubId)
+    const request = await ctx.db.get("helpRequests", args.requestId)
+    if (!request || request.hubId !== args.hubId)
+      throw new Error("Help request not found")
+    await ctx.db.patch("helpRequests", request._id, { status: args.status })
+    return null
+  },
+})
+
+export const deleteHelpRequest = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    requestId: v.id("helpRequests"),
+  },
+  handler: async (ctx, args) => {
+    await requireOwnedHub(ctx, args.hubId)
+    const request = await ctx.db.get("helpRequests", args.requestId)
+    if (!request || request.hubId !== args.hubId)
+      throw new Error("Help request not found")
+    await ctx.db.delete("helpRequests", request._id)
     return null
   },
 })

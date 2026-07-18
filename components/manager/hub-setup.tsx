@@ -18,8 +18,8 @@ import { slugify } from "@/lib/operations"
 
 export function HubSetup() {
   const { createHub } = useOperations()
-  const [name, setName] = useState("North & Pine Bistro")
-  const [slug, setSlug] = useState("north-pine")
+  const [name, setName] = useState("")
+  const [slug, setSlug] = useState("")
   const [pending, setPending] = useState(false)
 
   return (
@@ -30,8 +30,8 @@ export function HubSetup() {
         </span>
         <CardTitle>Create your operations hub</CardTitle>
         <CardDescription>
-          This creates a hub owned only by your Clerk account and adds the North
-          &amp; Pine sample content once.
+          This creates a hub owned only by your Clerk account and adds editable
+          sample content once.
         </CardDescription>
       </CardHeader>
       <CardContent>

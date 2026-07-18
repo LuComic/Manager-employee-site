@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState } from "react"
-import { ArrowRight, CheckCircle2, Headphones } from "lucide-react"
+import { ArrowRight, CheckCircle2, Headphones, Mail, Phone } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -26,7 +26,8 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
   const [topic, setTopic] = useState("")
   const [message, setMessage] = useState("")
   const [pending, setPending] = useState(false)
-  const { submitHelpRequest } = useOperations()
+  const { hub, submitHelpRequest } = useOperations()
+  const contactName = hub?.contactName || "shift lead"
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -51,7 +52,7 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                 Question sent
               </DialogTitle>
               <DialogDescription className="mt-2">
-                The shift lead has the note and will come by shortly.
+                Your note has been sent to {contactName}.
               </DialogDescription>
               <Button className="mt-6" onClick={() => handleOpenChange(false)}>
                 Done
@@ -72,13 +73,33 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
             >
               <DialogHeader>
                 <DialogTitle className="tracking-normal normal-case">
-                  Ask the shift lead
+                  Ask {contactName}
                 </DialogTitle>
                 <DialogDescription>
                   Send a quick note. For anything urgent or related to safety,
                   speak to someone in person.
                 </DialogDescription>
               </DialogHeader>
+              {(hub?.contactEmail || hub?.contactPhone) && (
+                <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  {hub.contactEmail && (
+                    <a
+                      href={`mailto:${hub.contactEmail}`}
+                      className="flex items-center gap-2 underline underline-offset-4 hover:text-foreground"
+                    >
+                      <Mail className="size-4" /> {hub.contactEmail}
+                    </a>
+                  )}
+                  {hub.contactPhone && (
+                    <a
+                      href={`tel:${hub.contactPhone}`}
+                      className="flex items-center gap-2 underline underline-offset-4 hover:text-foreground"
+                    >
+                      <Phone className="size-4" /> {hub.contactPhone}
+                    </a>
+                  )}
+                </div>
+              )}
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="topic">What is this about?</Label>
@@ -133,6 +154,8 @@ export function ContactButton({
   onBeforeOpen?: () => void
 }) {
   const openContact = useContext(ContactContext)
+  const { hub } = useOperations()
+  const contactName = hub?.contactName || "shift lead"
 
   return (
     <Button
@@ -143,10 +166,10 @@ export function ContactButton({
         onBeforeOpen?.()
         openContact()
       }}
-      aria-label={compact ? "Contact shift lead" : undefined}
+      aria-label={compact ? `Contact ${contactName}` : undefined}
     >
       <Headphones />
-      {!compact && "Contact shift lead"}
+      {!compact && `Contact ${contactName}`}
     </Button>
   )
 }

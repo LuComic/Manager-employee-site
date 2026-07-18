@@ -1,6 +1,7 @@
 import type { Category, Guide } from "@/lib/knowledge-base"
 import {
   categories as knowledgeBaseCategories,
+  commonQuestions,
   guides as knowledgeBaseGuides,
 } from "@/lib/knowledge-base"
 import type { RichTextDocument } from "@/lib/rich-text"
@@ -56,11 +57,20 @@ export type Announcement = {
   eventId?: string
 }
 
+export type Faq = {
+  id: string
+  question: string
+  answer: string
+  order: number
+  published: boolean
+}
+
 export type OperationsState = {
   categories: Category[]
   guides: Guide[]
   events: CalendarEvent[]
   announcements: Announcement[]
+  faqs: Faq[]
 }
 
 export const HUB_TIME_ZONE = "Europe/Tallinn"
@@ -282,6 +292,13 @@ export function createSeedState(): OperationsState {
         published: false,
       },
     ],
+    faqs: commonQuestions.map((faq, order) => ({
+      id: slugify(faq.question),
+      question: faq.question,
+      answer: faq.answer,
+      order,
+      published: true,
+    })),
   }
 }
 
@@ -290,7 +307,7 @@ export function toLocalDateTimeValue(date: Date) {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
 }
 
-export function toDateKey(value: string | Date) {
+export function toDateKey(value: string | Date, timeZone = HUB_TIME_ZONE) {
   if (
     typeof value === "string" &&
     /^\d{4}-\d{2}-\d{2}/.test(value) &&
@@ -298,7 +315,10 @@ export function toDateKey(value: string | Date) {
   ) {
     return value.slice(0, 10)
   }
-  const parts = dateParts(typeof value === "string" ? new Date(value) : value)
+  const parts = dateParts(
+    typeof value === "string" ? new Date(value) : value,
+    timeZone
+  )
   return `${parts.year}-${parts.month}-${parts.day}`
 }
 
@@ -316,9 +336,10 @@ export function endOfToday() {
 
 export function isAnnouncementActive(
   announcement: Announcement,
-  now = new Date()
+  now = new Date(),
+  timeZone = HUB_TIME_ZONE
 ) {
-  const today = toDateKey(now)
+  const today = toDateKey(now, timeZone)
   return (
     announcement.published &&
     announcement.publishedAt <= today &&
@@ -328,10 +349,11 @@ export function isAnnouncementActive(
 
 export function getAnnouncementState(
   announcement: Announcement,
-  now = new Date()
+  now = new Date(),
+  timeZone = HUB_TIME_ZONE
 ) {
   if (!announcement.published) return "Draft"
-  const today = toDateKey(now)
+  const today = toDateKey(now, timeZone)
   if (announcement.publishedAt > today) return "Upcoming"
   if (announcement.expiresAt < today) return "Expired"
   return "Active"
@@ -339,23 +361,24 @@ export function getAnnouncementState(
 
 export function formatDate(
   value: string,
-  options?: Intl.DateTimeFormatOptions
+  options?: Intl.DateTimeFormatOptions,
+  timeZone = HUB_TIME_ZONE
 ) {
   const isWallTime =
     /^\d{4}-\d{2}-\d{2}/.test(value) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
   return new Intl.DateTimeFormat("en-GB", {
     ...(options ?? { weekday: "short", day: "numeric", month: "short" }),
-    timeZone: isWallTime ? "UTC" : HUB_TIME_ZONE,
+    timeZone: isWallTime ? "UTC" : timeZone,
   }).format(isWallTime ? localWallTimeDate(value) : new Date(value))
 }
 
-export function formatTime(value: string) {
+export function formatTime(value: string, timeZone = HUB_TIME_ZONE) {
   const isWallTime =
     /^\d{4}-\d{2}-\d{2}/.test(value) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: isWallTime ? "UTC" : HUB_TIME_ZONE,
+    timeZone: isWallTime ? "UTC" : timeZone,
   }).format(isWallTime ? localWallTimeDate(value) : new Date(value))
 }
 

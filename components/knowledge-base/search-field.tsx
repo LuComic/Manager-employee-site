@@ -20,7 +20,7 @@ export function SearchField({
         ref={inputRef}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Search guides, events, and announcements…"
+        placeholder="Search guides, events, announcements, and questions…"
         className="h-10 border border-input bg-background pr-10 pl-10 focus-visible:border-ring"
         aria-label="Search the operations hub"
       />

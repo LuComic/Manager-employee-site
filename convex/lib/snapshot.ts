@@ -13,6 +13,7 @@ export async function buildSnapshot(
     allAnnouncements,
     eventGuides,
     attachments,
+    allFaqs,
   ] = await Promise.all([
     ctx.db
       .query("categories")
@@ -38,6 +39,10 @@ export async function buildSnapshot(
       .query("attachments")
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
       .take(1000),
+    ctx.db
+      .query("faqs")
+      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
+      .take(500),
   ])
 
   const guides = options.includeDrafts
@@ -52,6 +57,9 @@ export async function buildSnapshot(
         (announcement) =>
           announcement.published && announcement.expiresAt >= options.nowDate
       )
+  const faqs = options.includeDrafts
+    ? allFaqs
+    : allFaqs.filter((faq) => faq.published)
 
   const categorySlugById = new Map(
     categories.map((category) => [category._id, category.slug])
@@ -99,6 +107,15 @@ export async function buildSnapshot(
       slug: hub.slug,
       accessMode: hub.accessMode,
       credentialVersion: hub.credentialVersion,
+      description:
+        hub.description ??
+        "Current updates, important times, and practical guides for each shift.",
+      address: hub.address ?? "",
+      timeZone: hub.timeZone ?? "Europe/Tallinn",
+      contactName: hub.contactName ?? "shift lead",
+      contactEmail: hub.contactEmail ?? "",
+      contactPhone: hub.contactPhone ?? "",
+      contentVersion: hub.contentVersion ?? 0,
     },
     categories: categories.map((category) => ({
       id: category.slug,
@@ -154,6 +171,13 @@ export async function buildSnapshot(
       eventId: announcement.eventId
         ? eventSlugById.get(announcement.eventId)
         : undefined,
+    })),
+    faqs: faqs.map((faq) => ({
+      id: faq.slug,
+      question: faq.question,
+      answer: faq.answer,
+      order: faq.order,
+      published: faq.published,
     })),
   }
 }
