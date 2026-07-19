@@ -2,6 +2,10 @@ import { v } from "convex/values"
 
 import { createSeedState } from "../lib/operations"
 import { commonQuestions } from "../lib/knowledge-base"
+import {
+  defaultTodaySections,
+  normalizeTodaySections,
+} from "../lib/today-sections"
 import type { Id } from "./_generated/dataModel"
 import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
@@ -17,6 +21,14 @@ import { buildSnapshot } from "./lib/snapshot"
 const accessModeValidator = v.union(
   v.literal("public"),
   v.literal("restricted")
+)
+const todaySectionKeyValidator = v.union(
+  v.literal("welcome"),
+  v.literal("quick-links"),
+  v.literal("happening-today"),
+  v.literal("current-announcements"),
+  v.literal("coming-next"),
+  v.literal("useful-guides")
 )
 
 const defaultDescription =
@@ -176,6 +188,7 @@ export const create = mutation({
       contactName: "shift lead",
       contactEmail: "",
       contactPhone: "",
+      todaySections: defaultTodaySections.map((section) => ({ ...section })),
       contentVersion: 1,
       ownerSubject: identity.subject,
       ownerTokenIdentifier: identity.tokenIdentifier,
@@ -273,6 +286,51 @@ export const updateSettings = mutation({
       contactName: optional(args.contactName, 100) || "shift lead",
       contactEmail,
       contactPhone: optional(args.contactPhone, 80),
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
+export const moveTodaySection = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    key: todaySectionKeyValidator,
+    direction: v.union(v.literal(-1), v.literal(1)),
+  },
+  handler: async (ctx, args) => {
+    const hub = await requireOwnedHub(ctx, args.hubId)
+    const sections = normalizeTodaySections(hub.todaySections)
+    const index = sections.findIndex((section) => section.key === args.key)
+    const target = index + args.direction
+    if (index < 0 || target < 0 || target >= sections.length) return null
+    const current = sections[index]
+    sections[index] = sections[target]
+    sections[target] = current
+    await ctx.db.patch("hubs", hub._id, {
+      todaySections: sections,
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
+export const setTodaySectionVisibility = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    key: todaySectionKeyValidator,
+    visible: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const hub = await requireOwnedHub(ctx, args.hubId)
+    const todaySections = normalizeTodaySections(hub.todaySections).map(
+      (section) =>
+        section.key === args.key
+          ? { ...section, visible: args.visible }
+          : section
+    )
+    await ctx.db.patch("hubs", hub._id, {
+      todaySections,
       updatedAt: Date.now(),
     })
     return null

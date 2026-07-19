@@ -2,6 +2,18 @@ import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
 const accessMode = v.union(v.literal("public"), v.literal("restricted"))
+const todaySectionKey = v.union(
+  v.literal("welcome"),
+  v.literal("quick-links"),
+  v.literal("happening-today"),
+  v.literal("current-announcements"),
+  v.literal("coming-next"),
+  v.literal("useful-guides")
+)
+const todaySection = v.object({
+  key: todaySectionKey,
+  visible: v.boolean(),
+})
 const richTextDocument = v.object({
   type: v.literal("doc"),
   content: v.optional(v.array(v.any())),
@@ -17,6 +29,7 @@ export default defineSchema({
     contactName: v.optional(v.string()),
     contactEmail: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
+    todaySections: v.optional(v.array(todaySection)),
     contentVersion: v.optional(v.number()),
     ownerSubject: v.string(),
     ownerTokenIdentifier: v.string(),

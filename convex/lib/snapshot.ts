@@ -1,5 +1,6 @@
 import type { Doc } from "../_generated/dataModel"
 import type { QueryCtx } from "../_generated/server"
+import { normalizeTodaySections } from "../../lib/today-sections"
 
 export async function buildSnapshot(
   ctx: QueryCtx,
@@ -115,6 +116,7 @@ export async function buildSnapshot(
       contactName: hub.contactName ?? "shift lead",
       contactEmail: hub.contactEmail ?? "",
       contactPhone: hub.contactPhone ?? "",
+      todaySections: normalizeTodaySections(hub.todaySections),
       contentVersion: hub.contentVersion ?? 0,
     },
     categories: categories.map((category) => ({

@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
 import type { Category, Guide } from "@/lib/knowledge-base"
+import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
 import {
   toDateKey,
   type Announcement,
@@ -33,6 +34,7 @@ export type HubInfo = {
   contactEmail: string
   contactPhone: string
   contentVersion: number
+  todaySections: TodaySectionSetting[]
 }
 
 export type HubSettings = Pick<
@@ -73,6 +75,11 @@ type OperationsContextValue = OperationsState & {
   setAccessMode: (accessMode: HubAccessMode) => Promise<void>
   rotateCredentials: () => Promise<HubCredentials>
   saveHubSettings: (settings: HubSettings) => Promise<void>
+  moveTodaySection: (key: TodaySectionKey, direction: -1 | 1) => Promise<void>
+  setTodaySectionVisibility: (
+    key: TodaySectionKey,
+    visible: boolean
+  ) => Promise<void>
   grantAnonymousAccess: (credential: string) => void
   leaveHub: () => void
   saveCategory: (category: Category) => Promise<void>
@@ -193,6 +200,10 @@ export function OperationsProvider({
   const rotateCredentialsMutation = useMutation(api.hubs.rotateCredentials)
   const ensureManagedContent = useMutation(api.hubs.ensureManagedContent)
   const updateSettingsMutation = useMutation(api.hubs.updateSettings)
+  const moveTodaySectionMutation = useMutation(api.hubs.moveTodaySection)
+  const setTodaySectionVisibilityMutation = useMutation(
+    api.hubs.setTodaySectionVisibility
+  )
   const saveCategoryMutation = useMutation(api.content.saveCategory)
   const moveCategoryMutation = useMutation(api.content.moveCategory)
   const deleteCategoryMutation = useMutation(api.content.deleteCategory)
@@ -428,6 +439,20 @@ export function OperationsProvider({
     saveHubSettings: async (settings) => {
       await run(() =>
         updateSettingsMutation({ hubId: managerHubId(), ...settings })
+      )
+    },
+    moveTodaySection: async (key, direction) => {
+      await run(() =>
+        moveTodaySectionMutation({ hubId: managerHubId(), key, direction })
+      )
+    },
+    setTodaySectionVisibility: async (key, visible) => {
+      await run(() =>
+        setTodaySectionVisibilityMutation({
+          hubId: managerHubId(),
+          key,
+          visible,
+        })
       )
     },
     grantAnonymousAccess: (value) => setCredential(value.trim()),

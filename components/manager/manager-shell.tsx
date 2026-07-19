@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CircleHelp,
   Headphones,
+  Home,
   LayoutDashboard,
   Megaphone,
   ShieldCheck,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils"
 
 const links = [
   { href: "/manager", label: "Overview", icon: LayoutDashboard },
+  { href: "/manager/today", label: "Today", icon: Home },
   { href: "/manager/guides", label: "Guides", icon: BookOpen },
   { href: "/manager/categories", label: "Guide categories", icon: Tags },
   { href: "/manager/calendar", label: "Calendar events", icon: CalendarDays },
