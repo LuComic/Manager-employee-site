@@ -6,6 +6,7 @@ import {
 } from "@/lib/knowledge-base"
 import type { RichTextDocument } from "@/lib/rich-text"
 import { guideStepsToRichText, paragraphDocument } from "@/lib/rich-text"
+import type { WorkspaceDocument } from "@/lib/documents"
 
 export const eventCategories = [
   "Reservation",
@@ -71,6 +72,7 @@ export type OperationsState = {
   events: CalendarEvent[]
   announcements: Announcement[]
   faqs: Faq[]
+  documents: WorkspaceDocument[]
 }
 
 export const HUB_TIME_ZONE = "Europe/Tallinn"
@@ -299,6 +301,7 @@ export function createSeedState(): OperationsState {
       order,
       published: true,
     })),
+    documents: [],
   }
 }
 

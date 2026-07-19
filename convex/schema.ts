@@ -18,6 +18,30 @@ const richTextDocument = v.object({
   type: v.literal("doc"),
   content: v.optional(v.array(v.any())),
 })
+const documentContent = v.union(
+  v.object({
+    kind: v.literal("text"),
+    body: richTextDocument,
+  }),
+  v.object({
+    kind: v.literal("table"),
+    columns: v.array(v.string()),
+    showColumnHeaders: v.optional(v.boolean()),
+    showRowHeaders: v.optional(v.boolean()),
+    rowHeaders: v.optional(v.array(v.string())),
+    rows: v.array(v.array(v.string())),
+  }),
+  v.object({
+    kind: v.literal("presentation"),
+    slides: v.array(
+      v.object({
+        id: v.string(),
+        title: v.string(),
+        body: richTextDocument,
+      })
+    ),
+  })
+)
 
 export default defineSchema({
   hubs: defineTable({
@@ -138,6 +162,28 @@ export default defineSchema({
   })
     .index("by_hubId_and_order", ["hubId", "order"])
     .index("by_hubId_and_slug", ["hubId", "slug"]),
+
+  documents: defineTable({
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    title: v.string(),
+    description: v.string(),
+    type: v.union(
+      v.literal("text"),
+      v.literal("table"),
+      v.literal("presentation")
+    ),
+    content: documentContent,
+    published: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_hubId_and_slug", ["hubId", "slug"])
+    .index("by_hubId_and_published", ["hubId", "published"])
+    .index("by_hubId_and_updatedAt", ["hubId", "updatedAt"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["hubId", "published"],
+    }),
 
   attachments: defineTable({
     hubId: v.id("hubs"),

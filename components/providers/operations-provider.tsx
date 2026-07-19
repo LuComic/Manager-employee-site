@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
 import type { Category, Guide } from "@/lib/knowledge-base"
+import type { WorkspaceDocument } from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
 import {
   toDateKey,
@@ -96,6 +97,8 @@ type OperationsContextValue = OperationsState & {
   saveFaq: (faq: Faq) => Promise<void>
   moveFaq: (id: string, direction: -1 | 1) => Promise<void>
   deleteFaq: (id: string) => Promise<void>
+  saveDocument: (document: WorkspaceDocument) => Promise<void>
+  deleteDocument: (id: string) => Promise<void>
   submitHelpRequest: (topic: string, message: string) => Promise<void>
   showFeedback: (message: string) => void
 }
@@ -217,6 +220,8 @@ export function OperationsProvider({
   const moveFaqMutation = useMutation(api.content.moveFaq)
   const deleteFaqMutation = useMutation(api.content.deleteFaq)
   const submitHelpMutation = useMutation(api.content.submitHelpRequest)
+  const saveDocumentMutation = useMutation(api.documents.save)
+  const deleteDocumentMutation = useMutation(api.documents.remove)
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
   const attachToEvent = useMutation(api.files.attachToEvent)
   const removeAttachment = useMutation(api.files.remove)
@@ -244,7 +249,7 @@ export function OperationsProvider({
   }, [activeSnapshot?.hub.timeZone])
 
   useEffect(() => {
-    if (!isManager || !hub || hub.contentVersion >= 1) return
+    if (!isManager || !hub || hub.contentVersion >= 2) return
     void ensureManagedContent({ hubId: hub.id }).catch((error) => {
       toast.error(
         error instanceof Error
@@ -328,6 +333,7 @@ export function OperationsProvider({
         events: [],
         announcements: [],
         faqs: [],
+        documents: [],
       }
     const categories = activeSnapshot.categories.map((category) => ({
       id: category.id,
@@ -349,6 +355,7 @@ export function OperationsProvider({
       events: activeSnapshot.events as CalendarEvent[],
       announcements: activeSnapshot.announcements as Announcement[],
       faqs: activeSnapshot.faqs as Faq[],
+      documents: activeSnapshot.documents as WorkspaceDocument[],
     }
   }, [activeSnapshot])
 
@@ -595,6 +602,22 @@ export function OperationsProvider({
     },
     deleteFaq: async (slug) => {
       await run(() => deleteFaqMutation({ hubId: managerHubId(), slug }))
+    },
+    saveDocument: async (document) => {
+      await run(() =>
+        saveDocumentMutation({
+          hubId: managerHubId(),
+          slug: document.id,
+          title: document.title,
+          description: document.description,
+          type: document.type,
+          content: document.content,
+          published: document.published,
+        })
+      )
+    },
+    deleteDocument: async (slug) => {
+      await run(() => deleteDocumentMutation({ hubId: managerHubId(), slug }))
     },
     submitHelpRequest: async (topic, message) => {
       await run(() =>

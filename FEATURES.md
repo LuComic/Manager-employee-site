@@ -61,12 +61,22 @@ Announcements may include:
 
 The employee-facing page should make active announcements easy to scan. Expired and draft content is excluded by the Convex data-access layer. Managers should be able to create, edit, publish, pin, unpin, and delete announcements.
 
+### Documents
+
+Use documents for shared material that is easier to maintain as a text, table, or short presentation than as a step-by-step guide.
+
+- Text documents use the same rich-text editing tools as guides and announcements.
+- Tables support editable column headings and bounded rows and columns.
+- Presentations support adding, arranging, removing, and previewing simple rich-text slides.
+- Published documents appear in the employee library, document sidebar, detail routes, and global search.
+- Managers can create, edit, preview, publish, unpublish, filter, and delete documents.
+
 ### Manager administration
 
 Provide a separate, Clerk-protected management area for maintaining the owner's hub. It includes:
 
 - A small overview calculated from current persisted data
-- Management views for guides, calendar events, and announcements
+- Management views for guides, calendar events, announcements, and documents
 - Search and useful status filters
 - Forms for creating and editing content
 - Publish and unpublish actions
@@ -74,7 +84,7 @@ Provide a separate, Clerk-protected management area for maintaining the owner's 
 - Clear save feedback
 - A way to return to the employee-facing site
 
-Manager changes update Today, Guides, Calendar, and Announcements through Convex subscriptions and remain after refresh.
+Manager changes update Today, Guides, Calendar, Announcements, and Documents through Convex subscriptions and remain after refresh.
 
 ### Hub access
 
@@ -91,7 +101,7 @@ Manager changes update Today, Guides, Calendar, and Announcements through Convex
 - Today summarizes published content from the other areas.
 - Events and announcements can link to relevant guides.
 - Convex subscriptions update employee-facing pages after manager changes.
-- Global search should include published guides, events, and announcements.
+- Global search should include published guides, events, announcements, documents, and common questions.
 - Draft and expired content should remain hidden from employee-facing summaries.
 
 ## Implementation constraints

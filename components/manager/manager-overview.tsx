@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CircleHelp,
   FilePenLine,
+  Files,
   Megaphone,
   Tags,
 } from "lucide-react"
@@ -23,7 +24,7 @@ import {
 import { getAnnouncementState } from "@/lib/operations"
 
 export function ManagerOverview() {
-  const { hub, categories, guides, events, announcements, faqs } =
+  const { hub, categories, guides, events, announcements, faqs, documents } =
     useOperations()
   const cards = [
     {
@@ -55,6 +56,13 @@ export function ManagerOverview() {
       icon: Megaphone,
     },
     {
+      href: "/manager/documents",
+      title: "Documents",
+      count: documents.length,
+      detail: `${documents.filter((item) => item.published).length} published`,
+      icon: Files,
+    },
+    {
       href: "/manager/questions",
       title: "Common questions",
       count: faqs.length,
@@ -66,14 +74,15 @@ export function ManagerOverview() {
     guides.filter((item) => !item.published).length +
     events.filter((item) => !item.published).length +
     announcements.filter((item) => !item.published).length +
-    faqs.filter((item) => !item.published).length
+    faqs.filter((item) => !item.published).length +
+    documents.filter((item) => !item.published).length
   return (
     <div className="space-y-8">
       <ManagerHeading
         title="Content overview"
         description="Live counts from your Convex-backed hub update as content changes."
       />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cards.map(({ href, title, count, detail, icon: Icon }) => (
           <Link
             key={href}

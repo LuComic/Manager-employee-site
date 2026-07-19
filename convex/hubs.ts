@@ -189,7 +189,7 @@ export const create = mutation({
       contactEmail: "",
       contactPhone: "",
       todaySections: defaultTodaySections.map((section) => ({ ...section })),
-      contentVersion: 1,
+      contentVersion: 2,
       ownerSubject: identity.subject,
       ownerTokenIdentifier: identity.tokenIdentifier,
       accessMode: args.accessMode,
@@ -225,7 +225,7 @@ export const ensureManagedContent = mutation({
   args: { hubId: v.id("hubs") },
   handler: async (ctx, args) => {
     const hub = await requireOwnedHub(ctx, args.hubId)
-    if ((hub.contentVersion ?? 0) >= 1) return null
+    if ((hub.contentVersion ?? 0) >= 2) return null
 
     const existingFaq = await ctx.db
       .query("faqs")
@@ -251,7 +251,7 @@ export const ensureManagedContent = mutation({
       contactName: hub.contactName ?? "shift lead",
       contactEmail: hub.contactEmail ?? "",
       contactPhone: hub.contactPhone ?? "",
-      contentVersion: 1,
+      contentVersion: 2,
       updatedAt: Date.now(),
     })
     return null

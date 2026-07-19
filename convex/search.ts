@@ -34,8 +34,8 @@ export const published = query({
     const cleanQuery = args.query.trim().toLocaleLowerCase().slice(0, 120)
     if (!cleanQuery) return []
 
-    const [categories, guides, events, announcements, faqs] = await Promise.all(
-      [
+    const [categories, guides, events, announcements, faqs, documents] =
+      await Promise.all([
         ctx.db
           .query("categories")
           .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
@@ -62,8 +62,13 @@ export const published = query({
           .query("faqs")
           .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
           .take(500),
-      ]
-    )
+        ctx.db
+          .query("documents")
+          .withIndex("by_hubId_and_published", (q) =>
+            q.eq("hubId", hub._id).eq("published", true)
+          )
+          .take(500),
+      ])
     const categoryById = new Map(
       categories.map((category) => [category._id, category.label])
     )
@@ -135,6 +140,23 @@ export const published = query({
           title: faq.question,
           description: faq.answer,
           type: "Question" as const,
+        })),
+      ...documents
+        .filter((document) =>
+          includes(
+            cleanQuery,
+            document.title,
+            document.description,
+            document.type,
+            document.content
+          )
+        )
+        .map((document) => ({
+          id: document.slug,
+          href: `/documents/${document.slug}`,
+          title: document.title,
+          description: document.description,
+          type: "Document" as const,
         })),
     ].slice(0, 30)
   },

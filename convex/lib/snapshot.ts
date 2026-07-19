@@ -15,6 +15,7 @@ export async function buildSnapshot(
     eventGuides,
     attachments,
     allFaqs,
+    allDocuments,
   ] = await Promise.all([
     ctx.db
       .query("categories")
@@ -44,6 +45,11 @@ export async function buildSnapshot(
       .query("faqs")
       .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
       .take(500),
+    ctx.db
+      .query("documents")
+      .withIndex("by_hubId_and_updatedAt", (q) => q.eq("hubId", hub._id))
+      .order("desc")
+      .take(500),
   ])
 
   const guides = options.includeDrafts
@@ -61,6 +67,9 @@ export async function buildSnapshot(
   const faqs = options.includeDrafts
     ? allFaqs
     : allFaqs.filter((faq) => faq.published)
+  const documents = options.includeDrafts
+    ? allDocuments
+    : allDocuments.filter((document) => document.published)
 
   const categorySlugById = new Map(
     categories.map((category) => [category._id, category.slug])
@@ -180,6 +189,15 @@ export async function buildSnapshot(
       answer: faq.answer,
       order: faq.order,
       published: faq.published,
+    })),
+    documents: documents.map((document) => ({
+      id: document.slug,
+      title: document.title,
+      description: document.description,
+      type: document.type,
+      content: document.content,
+      published: document.published,
+      updatedAt: document.updatedAt,
     })),
   }
 }

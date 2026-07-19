@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   CircleHelp,
+  Files,
   Megaphone,
   Search,
 } from "lucide-react"
@@ -26,7 +27,7 @@ type Result = {
   href: string
   title: string
   description: string
-  type: "Guide" | "Event" | "Announcement" | "Question"
+  type: "Guide" | "Event" | "Announcement" | "Question" | "Document"
 }
 
 export function SearchResults({ query }: { query: string }) {
@@ -59,7 +60,9 @@ export function SearchResults({ query }: { query: string }) {
                   ? CalendarDays
                   : result.type === "Announcement"
                     ? Megaphone
-                    : CircleHelp
+                    : result.type === "Document"
+                      ? Files
+                      : CircleHelp
             return (
               <Link
                 key={`${result.type}-${result.id}`}

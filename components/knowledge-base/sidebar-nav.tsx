@@ -8,13 +8,13 @@ import {
   CalendarDays,
   ChevronDown,
   CircleHelp,
-  Files,
   Home,
   Megaphone,
   Settings,
 } from "lucide-react"
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
+import { DocumentTypeIcon } from "@/components/documents/document-card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -23,7 +23,8 @@ import { cn } from "@/lib/utils"
 
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
-  const { categories } = useOperations()
+  const { categories, documents } = useOperations()
+  const publishedDocuments = documents.filter((document) => document.published)
 
   return (
     <nav
@@ -83,13 +84,19 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         href="/documents"
         active={pathname.startsWith("/documents")}
       >
-        <NavLink
-          href="/documents"
-          label="Document library"
-          active={pathname === "/documents"}
-        >
-          <Files />
-        </NavLink>
+        {publishedDocuments.slice(0, 8).map((document) => {
+          const href = `/documents/${document.id}`
+          return (
+            <NavLink
+              key={document.id}
+              href={href}
+              label={document.title}
+              active={pathname === href}
+            >
+              <DocumentTypeIcon type={document.type} />
+            </NavLink>
+          )
+        })}
       </SidebarSection>
 
       <SidebarSection

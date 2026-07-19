@@ -9,6 +9,7 @@
  */
 
 import type * as content from "../content.js";
+import type * as documents from "../documents.js";
 import type * as files from "../files.js";
 import type * as hubs from "../hubs.js";
 import type * as lib_access from "../lib/access.js";
@@ -23,6 +24,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   content: typeof content;
+  documents: typeof documents;
   files: typeof files;
   hubs: typeof hubs;
   "lib/access": typeof lib_access;

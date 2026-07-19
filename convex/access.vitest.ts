@@ -276,4 +276,101 @@ describe("hub authorization and anonymous access", () => {
     expect(managerAfter.events[0].guideIds).toEqual([])
     expect(managerAfter.announcements[0].guideId).toBeUndefined()
   })
+
+  test("documents enforce ownership, draft visibility, search, and deletion", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+    const body = {
+      type: "doc" as const,
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Emergency contact details" }],
+        },
+      ],
+    }
+
+    await owner.mutation(api.documents.save, {
+      hubId,
+      slug: "safety-notes",
+      title: "Safety notes",
+      description: "Important emergency information",
+      type: "text",
+      content: { kind: "text", body },
+      published: true,
+    })
+    await owner.mutation(api.documents.save, {
+      hubId,
+      slug: "private-rota",
+      title: "Private rota",
+      description: "Still being prepared",
+      type: "table",
+      content: {
+        kind: "table",
+        columns: ["Day", "Team"],
+        showColumnHeaders: false,
+        showRowHeaders: false,
+        rows: [["Monday", "Opening"]],
+      },
+      published: false,
+    })
+
+    const publicSnapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "test-hub",
+      nowDate: "2026-07-18",
+    })
+    expect(publicSnapshot.kind).toBe("ready")
+    if (publicSnapshot.kind !== "ready")
+      throw new Error("Expected public snapshot")
+    expect(publicSnapshot.documents.map((document) => document.id)).toEqual([
+      "safety-notes",
+    ])
+
+    const managerSnapshot = await owner.query(api.hubs.getOwnedSnapshot, {
+      nowDate: "2026-07-18",
+    })
+    if (managerSnapshot.kind !== "ready")
+      throw new Error("Expected manager snapshot")
+    expect(managerSnapshot.documents).toHaveLength(2)
+    expect(
+      managerSnapshot.documents.find(
+        (document) => document.id === "private-rota"
+      )?.content
+    ).toMatchObject({
+      kind: "table",
+      showColumnHeaders: false,
+      showRowHeaders: false,
+      rowHeaders: ["Row 1"],
+    })
+
+    const searchResults = await t.query(api.search.published, {
+      hubSlug: "test-hub",
+      query: "emergency",
+      nowDate: "2026-07-18",
+    })
+    expect(searchResults).toMatchObject([
+      { id: "safety-notes", type: "Document" },
+    ])
+
+    await expect(
+      t.withIdentity(otherIdentity).mutation(api.documents.remove, {
+        hubId,
+        slug: "safety-notes",
+      })
+    ).rejects.toThrow("Unauthorized")
+
+    await owner.mutation(api.documents.remove, {
+      hubId,
+      slug: "safety-notes",
+    })
+    const afterDelete = await owner.query(api.hubs.getOwnedSnapshot, {
+      nowDate: "2026-07-18",
+    })
+    if (afterDelete.kind !== "ready")
+      throw new Error("Expected manager snapshot")
+    expect(afterDelete.documents.map((document) => document.id)).toEqual([
+      "private-rota",
+    ])
+  })
 })
