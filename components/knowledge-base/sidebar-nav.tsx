@@ -30,18 +30,14 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
       aria-label="Knowledge base navigation"
     >
-      <SidebarSection label="Workspace">
+      <SidebarSection label="Workspace" href="/" active={pathname === "/"}>
         <NavLink href="/" label="Today" active={pathname === "/"}>
           <Home />
         </NavLink>
         <NavLink
           href="/guides"
           label="Guides"
-          active={
-            pathname === "/guides" ||
-            pathname.startsWith("/guides/") ||
-            pathname.startsWith("/categories/")
-          }
+          active={pathname === "/guides" || pathname.startsWith("/guides/")}
         >
           <BookOpen />
         </NavLink>
@@ -61,7 +57,11 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         </NavLink>
       </SidebarSection>
 
-      <SidebarSection label="Guide categories">
+      <SidebarSection
+        label="Guide categories"
+        href="/categories"
+        active={pathname.startsWith("/categories")}
+      >
         {categories.map((category) => {
           const href = `/categories/${category.id}`
 
@@ -78,7 +78,11 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         })}
       </SidebarSection>
 
-      <SidebarSection label="Documents">
+      <SidebarSection
+        label="Documents"
+        href="/documents"
+        active={pathname.startsWith("/documents")}
+      >
         <NavLink
           href="/documents"
           label="Document library"
@@ -88,7 +92,11 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         </NavLink>
       </SidebarSection>
 
-      <SidebarSection label="Help and tools">
+      <SidebarSection
+        label="Help and tools"
+        href="/questions"
+        active={pathname === "/questions"}
+      >
         <NavLink
           href="/questions"
           label="Common questions"
@@ -111,9 +119,13 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
 
 function SidebarSection({
   label,
+  href,
+  active,
   children,
 }: {
   label: string
+  href: string
+  active: boolean
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(true)
@@ -121,21 +133,33 @@ function SidebarSection({
 
   return (
     <div>
-      <button
-        type="button"
-        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-controls={contentId}
-      >
-        {label}
-        <ChevronDown
+      <div className="flex items-center">
+        <Link
+          href={href}
           className={cn(
-            "size-3.5 text-primary transition-transform",
-            !open && "-rotate-90"
+            "min-w-0 flex-1 px-3 py-2 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30",
+            active && "text-primary"
           )}
-        />
-      </button>
+          aria-current={active ? "page" : undefined}
+        >
+          {label}
+        </Link>
+        <button
+          type="button"
+          className="flex size-8 shrink-0 items-center justify-center text-primary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/30"
+          onClick={() => setOpen((current) => !current)}
+          aria-label={`${open ? "Collapse" : "Expand"} ${label}`}
+          aria-expanded={open}
+          aria-controls={contentId}
+        >
+          <ChevronDown
+            className={cn(
+              "size-3.5 transition-transform",
+              !open && "-rotate-90"
+            )}
+          />
+        </button>
+      </div>
       <div id={contentId} hidden={!open}>
         {children}
       </div>
