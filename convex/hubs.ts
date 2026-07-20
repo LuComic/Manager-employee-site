@@ -225,7 +225,7 @@ export const create = mutation({
       contentVersion: 2,
       ownerSubject: identity.subject,
       ownerTokenIdentifier: identity.tokenIdentifier,
-      accessMode: args.accessMode,
+      accessMode: "restricted",
       joinCodeHash: hashCredential(normalizeJoinCode(args.joinCode)),
       privateTokenHash: hashCredential(args.privateToken),
       credentialVersion: 1,
@@ -278,6 +278,7 @@ export const createForOrganization = mutation({
     if (legacy) {
       await ctx.db.patch("hubs", legacy._id, {
         clerkOrganizationId: activeOrganization.organizationId,
+        accessMode: "restricted",
         updatedAt: Date.now(),
       })
       return {
@@ -314,7 +315,7 @@ export const createForOrganization = mutation({
       clerkOrganizationId: activeOrganization.organizationId,
       ownerSubject: identity.subject,
       ownerTokenIdentifier: identity.tokenIdentifier,
-      accessMode: args.accessMode,
+      accessMode: "restricted",
       joinCodeHash: hashCredential(normalizeJoinCode(args.joinCode)),
       privateTokenHash: hashCredential(args.privateToken),
       credentialVersion: 1,
@@ -372,6 +373,7 @@ export const ensureManagedContent = mutation({
       contactName: hub.contactName ?? "shift lead",
       contactEmail: hub.contactEmail ?? "",
       contactPhone: hub.contactPhone ?? "",
+      accessMode: "restricted",
       contentVersion: 2,
       updatedAt: Date.now(),
     })
@@ -552,18 +554,6 @@ export const getActiveMemberSnapshot = query({
         nowDate: args.nowDate,
       })),
     }
-  },
-})
-
-export const setAccessMode = mutation({
-  args: { hubId: v.id("hubs"), accessMode: accessModeValidator },
-  handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
-    await ctx.db.patch("hubs", args.hubId, {
-      accessMode: args.accessMode,
-      updatedAt: Date.now(),
-    })
-    return null
   },
 })
 

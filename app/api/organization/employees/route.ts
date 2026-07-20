@@ -6,11 +6,7 @@ import { convexServerClient, safeErrorMessage } from "@/lib/server/convex"
 import { assertAdminRemovalIsSafe } from "@/lib/server/organization-access"
 
 type EmployeeAction =
-  | "deactivate"
-  | "reactivate"
-  | "promote"
-  | "demote"
-  | "reconcile"
+  "deactivate" | "reactivate" | "promote" | "demote" | "reconcile"
 
 function parseBody(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
@@ -22,10 +18,14 @@ function parseBody(value: unknown) {
     "demote",
     "reconcile",
   ]
-  if (typeof body.action !== "string" || !allowed.includes(body.action as EmployeeAction)) {
+  if (
+    typeof body.action !== "string" ||
+    !allowed.includes(body.action as EmployeeAction)
+  ) {
     return null
   }
-  if (body.action !== "reconcile" && typeof body.profileId !== "string") return null
+  if (body.action !== "reconcile" && typeof body.profileId !== "string")
+    return null
   return {
     action: body.action as EmployeeAction,
     profileId: body.profileId as Id<"employeeProfiles"> | undefined,
@@ -38,12 +38,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not authenticated" }, { status: 401 })
   }
   if (!orgId || !has({ role: "org:admin" })) {
-    return Response.json({ error: "Organization admin access required" }, { status: 403 })
+    return Response.json(
+      { error: "Workplace admin access required" },
+      { status: 403 }
+    )
   }
   const body = parseBody(await request.json().catch(() => null))
   if (!body) return Response.json({ error: "Invalid request" }, { status: 400 })
   const token = await getToken()
-  if (!token) return Response.json({ error: "Missing session token" }, { status: 401 })
+  if (!token)
+    return Response.json({ error: "Missing session token" }, { status: 401 })
   const convex = convexServerClient(token)
   const clerk = await clerkClient()
 
@@ -101,7 +105,8 @@ export async function POST(request: Request) {
     const record = await convex.query(api.employees.getForAdmin, {
       profileId: body.profileId!,
     })
-    if (record.organizationId !== orgId) throw new Error("Employee belongs to another workplace")
+    if (record.organizationId !== orgId)
+      throw new Error("Employee belongs to another workplace")
 
     if (body.action === "reactivate") {
       await convex.mutation(api.employees.reactivateUnclaimed, {
@@ -113,7 +118,10 @@ export async function POST(request: Request) {
     const targetUserId = record.profile.clerkUserId
 
     if (body.action === "deactivate" && !targetUserId) {
-      if (record.profile.invitationId && record.profile.invitationStatus === "pending") {
+      if (
+        record.profile.invitationId &&
+        record.profile.invitationStatus === "pending"
+      ) {
         try {
           await clerk.organizations.revokeOrganizationInvitation({
             organizationId: orgId,
@@ -129,12 +137,14 @@ export async function POST(request: Request) {
       })
       return Response.json({ status: "deactivated" })
     }
-    if (!targetUserId) throw new Error("Employee does not have a linked Clerk account")
-    const membershipList = await clerk.organizations.getOrganizationMembershipList({
-      organizationId: orgId,
-      userId: [targetUserId],
-      limit: 1,
-    })
+    if (!targetUserId)
+      throw new Error("Employee does not have a linked account")
+    const membershipList =
+      await clerk.organizations.getOrganizationMembershipList({
+        organizationId: orgId,
+        userId: [targetUserId],
+        limit: 1,
+      })
     const membership = membershipList.data[0]
 
     if (body.action === "promote") {
@@ -164,7 +174,10 @@ export async function POST(request: Request) {
       return Response.json({ status: "org:member", refreshSession: true })
     }
 
-    if (record.profile.invitationId && record.profile.invitationStatus === "pending") {
+    if (
+      record.profile.invitationId &&
+      record.profile.invitationStatus === "pending"
+    ) {
       try {
         await clerk.organizations.revokeOrganizationInvitation({
           organizationId: orgId,

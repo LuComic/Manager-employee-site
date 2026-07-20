@@ -124,8 +124,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             <h1 className="text-xl font-semibold">Manager area</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {hub
-                ? `${hub.name} · Organization administration`
-                : "Choose or create a workplace Organization"}
+                ? `${hub.name} · Workplace administration`
+                : "Choose or create a workplace"}
             </p>
           </div>
           {!focusedEditor && (
@@ -205,9 +205,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           <div role="alert" className="max-w-2xl border bg-background p-6">
             <h2 className="font-semibold">Manager session is not connected</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Clerk signed you in, but Convex could not validate this session.
-              Check the Clerk Convex integration and issuer configuration, then
-              sign out and back in.
+              You are signed in, but this session could not be validated. Sign
+              out and back in, then contact support if the issue continues.
             </p>
           </div>
         ) : hubState === "needs-setup" ? (
@@ -221,8 +220,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     Upgrade this workplace to team access
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Create its Clerk Organization to add employees and
-                    additional managers.
+                    Enable team access to add employees and additional managers.
                   </p>
                 </div>
                 {orgId ? (
@@ -232,7 +230,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                       void migrateHubToOrganization().catch(() => undefined)
                     }
                   >
-                    Connect {organization?.name ?? "active Organization"}
+                    Connect {organization?.name ?? "active workplace"}
                   </button>
                 ) : (
                   <button
@@ -244,7 +242,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                       })
                     }
                   >
-                    Create workplace with Clerk
+                    Create workplace account
                   </button>
                 )}
               </div>

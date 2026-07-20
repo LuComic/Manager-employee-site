@@ -14,6 +14,13 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   documentTypeLabel,
   type DocumentType,
   type WorkspaceDocument,
@@ -72,27 +79,39 @@ export function DocumentManager() {
             className="border border-input pr-3 pl-10"
           />
         </div>
-        <select
+        <Select
           value={type}
-          onChange={(event) => setType(event.target.value as TypeFilter)}
-          className="h-10 border bg-background px-3 text-sm"
-          aria-label="Filter documents by type"
+          onValueChange={(value) => setType(value as TypeFilter)}
         >
-          <option value="all">All types</option>
-          <option value="text">Text</option>
-          <option value="table">Table</option>
-          <option value="presentation">Presentation</option>
-        </select>
-        <select
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter documents by type"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="text">Text</SelectItem>
+            <SelectItem value="table">Table</SelectItem>
+            <SelectItem value="presentation">Presentation</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={status}
-          onChange={(event) => setStatus(event.target.value as Status)}
-          className="h-10 border bg-background px-3 text-sm"
-          aria-label="Filter documents by status"
+          onValueChange={(value) => setStatus(value as Status)}
         >
-          <option>All</option>
-          <option>Published</option>
-          <option>Draft</option>
-        </select>
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter documents by status"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            <SelectItem value="Published">Published</SelectItem>
+            <SelectItem value="Draft">Draft</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {visible.length ? (
         <div className="space-y-4">

@@ -21,6 +21,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createDefaultDocumentContent,
@@ -287,18 +294,22 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
               <Field label="Document type" id="document-type">
-                <select
-                  id="document-type"
+                <Select
                   value={draft.type}
-                  onChange={(event) =>
-                    changeType(event.target.value as DocumentType)
-                  }
-                  className="h-10 w-full border bg-background px-3 text-sm"
+                  onValueChange={(value) => changeType(value as DocumentType)}
                 >
-                  <option value="text">Text</option>
-                  <option value="table">Table</option>
-                  <option value="presentation">Presentation</option>
-                </select>
+                  <SelectTrigger
+                    id="document-type"
+                    className="w-full border border-input bg-background px-3"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="table">Table</SelectItem>
+                    <SelectItem value="presentation">Presentation</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
               <p className="text-xs text-muted-foreground">
                 Changing the type resets the document content.

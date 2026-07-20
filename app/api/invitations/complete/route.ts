@@ -16,11 +16,13 @@ export async function POST() {
   }
   try {
     const clerk = await clerkClient()
-    const memberships = await clerk.organizations.getOrganizationMembershipList({
-      organizationId: orgId,
-      userId: [userId],
-      limit: 1,
-    })
+    const memberships = await clerk.organizations.getOrganizationMembershipList(
+      {
+        organizationId: orgId,
+        userId: [userId],
+        limit: 1,
+      }
+    )
     const membership = memberships.data[0]
     const correlationCredential = (
       membership?.publicMetadata as Record<string, unknown> | undefined
@@ -29,7 +31,7 @@ export async function POST() {
       throw new Error("This membership is not linked to an employee profile")
     }
     const token = await getToken()
-    if (!token) throw new Error("Missing Organization session token")
+    if (!token) throw new Error("Missing workplace session token")
     const result = await convexServerClient(token).mutation(
       api.employees.claimByInvitation,
       { correlationCredential }
@@ -37,7 +39,12 @@ export async function POST() {
     return Response.json(result)
   } catch (error) {
     return Response.json(
-      { error: safeErrorMessage(error, "Could not activate the employee profile") },
+      {
+        error: safeErrorMessage(
+          error,
+          "Could not activate the employee profile"
+        ),
+      },
       { status: 400 }
     )
   }

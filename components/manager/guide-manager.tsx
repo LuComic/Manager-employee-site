@@ -12,6 +12,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { Guide } from "@/lib/knowledge-base"
 import { cn } from "@/lib/utils"
 
@@ -71,29 +78,41 @@ export function GuideManager() {
             className="border border-input pr-3 pl-10"
           />
         </div>
-        <select
+        <Select
           value={categoryId}
-          onChange={(event) => setCategoryId(event.target.value)}
-          className="h-10 border bg-background px-3 text-sm"
-          aria-label="Filter guides by work area"
+          onValueChange={(value) => value && setCategoryId(value)}
         >
-          <option value="All">All work areas</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.label}
-            </option>
-          ))}
-        </select>
-        <select
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter guides by work area"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All work areas</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={status}
-          onChange={(event) => setStatus(event.target.value as Status)}
-          className="h-10 border bg-background px-3 text-sm"
-          aria-label="Filter guides by status"
+          onValueChange={(value) => setStatus(value as Status)}
         >
-          <option>All</option>
-          <option>Published</option>
-          <option>Draft</option>
-        </select>
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter guides by status"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            <SelectItem value="Published">Published</SelectItem>
+            <SelectItem value="Draft">Draft</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {visible.length ? (
         <div className="space-y-4">

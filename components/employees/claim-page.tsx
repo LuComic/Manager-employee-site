@@ -1,7 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { SignInButton, useAuth, useOrganizationList, useSession } from "@clerk/nextjs"
+import {
+  SignInButton,
+  useAuth,
+  useOrganizationList,
+  useSession,
+} from "@clerk/nextjs"
 import { ConvexHttpClient } from "convex/browser"
 import { useQuery } from "convex/react"
 import { KeyRound, LoaderCircle } from "lucide-react"
@@ -25,7 +30,9 @@ export function ClaimPage() {
   const [credential] = useState(() => {
     if (typeof window === "undefined") return ""
     const fragment = new URLSearchParams(window.location.hash.slice(1))
-    return fragment.get("claim")?.trim() || sessionStorage.getItem(storageKey) || ""
+    return (
+      fragment.get("claim")?.trim() || sessionStorage.getItem(storageKey) || ""
+    )
   })
   const [pending, setPending] = useState(false)
   const [error, setError] = useState("")
@@ -68,14 +75,18 @@ export function ClaimPage() {
         organizationId: result.organizationId,
         skipCache: true,
       })
-      if (!token) throw new Error("Could not create an Organization session")
+      if (!token) throw new Error("Could not create a workplace session")
       const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
       convex.setAuth(token)
       await convex.mutation(api.employees.completeClaim, { credential })
       sessionStorage.removeItem(storageKey)
       window.location.assign(`/?hub=${encodeURIComponent(result.hubSlug)}`)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not claim this profile")
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not claim this profile"
+      )
       setPending(false)
     }
   }
@@ -89,13 +100,14 @@ export function ClaimPage() {
           </span>
           <CardTitle>Claim your employee profile</CardTitle>
           <CardDescription>
-            This personal link connects your own Clerk account to one workplace profile.
+            This personal link connects your account to one workplace profile.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!credential || preview === undefined || !isLoaded ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <LoaderCircle className="size-4 animate-spin" /> Checking claim link…
+              <LoaderCircle className="size-4 animate-spin" /> Checking claim
+              link…
             </p>
           ) : preview.kind === "invalid" ? (
             <p role="alert" className="text-sm text-destructive">
@@ -105,10 +117,16 @@ export function ClaimPage() {
             <>
               <div className="border p-4 text-sm">
                 <p className="font-semibold">{preview.employeeDisplayName}</p>
-                <p className="mt-1 text-muted-foreground">{preview.workplaceName}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {preview.workplaceName}
+                </p>
               </div>
               {isSignedIn ? (
-                <Button className="w-full" disabled={pending} onClick={() => void complete()}>
+                <Button
+                  className="w-full"
+                  disabled={pending}
+                  onClick={() => void complete()}
+                >
                   {pending && <LoaderCircle className="animate-spin" />}
                   Join workplace and claim profile
                 </Button>
@@ -117,7 +135,11 @@ export function ClaimPage() {
                   <Button className="w-full">Sign in to continue</Button>
                 </SignInButton>
               )}
-              {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
             </>
           )}
         </CardContent>

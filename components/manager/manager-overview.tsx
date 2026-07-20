@@ -69,8 +69,8 @@ export function ManagerOverview() {
         {
           href: "/manager/access",
           title: "Employee access",
-          value: hub?.accessMode === "public" ? "Public" : "Restricted",
-          detail: "Current employee access mode",
+          value: "Protected",
+          detail: "Join code and private link",
           icon: ShieldCheck,
         },
       ],

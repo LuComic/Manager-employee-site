@@ -139,7 +139,7 @@ export async function canReadPublishedHub(
   hub: Doc<"hubs">,
   credential?: string
 ) {
-  if (hub.accessMode === "public" || (await isHubOwner(ctx, hub))) return true
+  if (await isHubOwner(ctx, hub)) return true
   if (!credential) return false
 
   const tokenHash = hashCredential(credential)

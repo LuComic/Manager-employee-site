@@ -30,6 +30,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { EmployeeProfile, EmployeeStatus } from "@/lib/operations"
@@ -181,7 +188,7 @@ export function EmployeeManager() {
       if (result.refreshSession) await session?.reload()
       showFeedback(
         action === "reconcile"
-          ? "Clerk access reconciled."
+          ? "Employee access reconciled."
           : "Employee access updated."
       )
     } catch (caught) {
@@ -211,7 +218,7 @@ export function EmployeeManager() {
     return (
       <EmptyState
         icon={Users}
-        title="Create the workplace Organization first"
+        title="Create the workplace first"
         description="Use the upgrade action above before adding employees or invitations."
       />
     )
@@ -232,7 +239,7 @@ export function EmployeeManager() {
               <RefreshCw
                 className={actionId === "reconcile" ? "animate-spin" : ""}
               />{" "}
-              Reconcile Clerk
+              Reconcile access
             </Button>
             <Button onClick={() => openForm("new")}>
               <Plus /> New employee
@@ -250,19 +257,24 @@ export function EmployeeManager() {
             className="border border-input pr-3 pl-10"
           />
         </div>
-        <select
+        <Select
           value={status}
-          onChange={(event) =>
-            setStatus(event.target.value as EmployeeStatus | "all")
-          }
-          className="h-10 border bg-background px-3 text-sm"
+          onValueChange={(value) => setStatus(value as EmployeeStatus | "all")}
         >
-          <option value="all">All statuses</option>
-          <option value="unclaimed">Unclaimed</option>
-          <option value="invited">Invited</option>
-          <option value="active">Active</option>
-          <option value="deactivated">Deactivated</option>
-        </select>
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter employees by status"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="unclaimed">Unclaimed</SelectItem>
+            <SelectItem value="invited">Invited</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="deactivated">Deactivated</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -446,8 +458,7 @@ export function EmployeeManager() {
                 {editing === "new" ? "Create employee" : "Edit employee"}
               </DialogTitle>
               <DialogDescription>
-                The profile can exist before the employee creates a Clerk
-                account.
+                The profile can exist before the employee creates an account.
               </DialogDescription>
             </DialogHeader>
             <div className="my-6 space-y-4">

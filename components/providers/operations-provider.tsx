@@ -74,11 +74,7 @@ type OperationsContextValue = OperationsState & {
   isManagerRoute: boolean
   ownerCredentials: HubCredentials | null
   employees: EmployeeProfile[]
-  createHub: (
-    name: string,
-    slug: string,
-    accessMode: HubAccessMode
-  ) => Promise<void>
+  createHub: (name: string, slug: string) => Promise<void>
   migrateHubToOrganization: () => Promise<void>
   createEmployee: (profile: {
     displayName: string
@@ -105,7 +101,6 @@ type OperationsContextValue = OperationsState & {
   revokeEmployeeClaimLink: (
     claimLinkId: Id<"employeeClaimLinks">
   ) => Promise<void>
-  setAccessMode: (accessMode: HubAccessMode) => Promise<void>
   rotateCredentials: () => Promise<HubCredentials>
   saveHubSettings: (settings: HubSettings) => Promise<void>
   moveTodaySection: (key: TodaySectionKey, direction: -1 | 1) => Promise<void>
@@ -242,7 +237,6 @@ export function OperationsProvider({
       : "skip"
   )
 
-  const setAccessModeMutation = useMutation(api.hubs.setAccessMode)
   const rotateCredentialsMutation = useMutation(api.hubs.rotateCredentials)
   const ensureManagedContent = useMutation(api.hubs.ensureManagedContent)
   const updateSettingsMutation = useMutation(api.hubs.updateSettings)
@@ -349,12 +343,7 @@ export function OperationsProvider({
   }, [credential, hubSlug])
 
   useEffect(() => {
-    if (
-      !credential ||
-      publicSnapshot?.kind !== "ready" ||
-      publicSnapshot.hub.accessMode !== "restricted"
-    )
-      return
+    if (!credential || publicSnapshot?.kind !== "ready") return
     localStorage.setItem(
       employeeCredentialKey(publicSnapshot.hub.slug),
       JSON.stringify({ credential, expiresAt: Date.now() + ACCESS_TTL })
@@ -465,10 +454,10 @@ export function OperationsProvider({
     isManagerRoute,
     ownerCredentials,
     employees: (employeeProfiles ?? []) as EmployeeProfile[],
-    createHub: async (name, slug, accessMode) => {
+    createHub: async (name, slug) => {
       await run(async () => {
         if (!clerkOrganizationId) {
-          throw new Error("Create or select a Clerk Organization first")
+          throw new Error("Create or select a workplace first")
         }
         const credentials = createCredentials()
         const response = await fetch("/api/workplaces", {
@@ -484,13 +473,13 @@ export function OperationsProvider({
           organizationId: result.organizationId,
           skipCache: true,
         })
-        if (!token) throw new Error("Could not create an Organization session")
+        if (!token) throw new Error("Could not create a workplace session")
         const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
         convex.setAuth(token)
         const created = await convex.mutation(api.hubs.createForOrganization, {
           name,
           slug,
-          accessMode,
+          accessMode: "restricted",
           joinCode: credentials.joinCode,
           privateToken: credentials.privateToken,
           timeZone:
@@ -509,7 +498,7 @@ export function OperationsProvider({
       await run(async () => {
         if (!hub) throw new Error("Hub not found")
         if (!clerkOrganizationId) {
-          throw new Error("Create or select a Clerk Organization first")
+          throw new Error("Create or select a workplace first")
         }
         const credentials =
           ownerCredentials ?? createCredentials(hub.credentialVersion)
@@ -526,13 +515,13 @@ export function OperationsProvider({
           organizationId: result.organizationId,
           skipCache: true,
         })
-        if (!token) throw new Error("Could not create an Organization session")
+        if (!token) throw new Error("Could not create a workplace session")
         const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
         convex.setAuth(token)
         await convex.mutation(api.hubs.createForOrganization, {
           name: hub.name,
           slug: hub.slug,
-          accessMode: hub.accessMode,
+          accessMode: "restricted",
           joinCode: credentials.joinCode,
           privateToken: credentials.privateToken,
           timeZone: hub.timeZone,
@@ -556,11 +545,6 @@ export function OperationsProvider({
     },
     revokeEmployeeClaimLink: async (claimLinkId) => {
       await run(() => revokeClaimLinkMutation({ claimLinkId }))
-    },
-    setAccessMode: async (accessMode) => {
-      await run(() =>
-        setAccessModeMutation({ hubId: managerHubId(), accessMode })
-      )
     },
     rotateCredentials: async () => {
       const hubId = managerHubId()

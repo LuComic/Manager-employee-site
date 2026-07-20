@@ -160,6 +160,7 @@ describe("hub authorization and anonymous access", () => {
     })
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "test-hub",
+      credential: "ABCD-EFGH",
       nowDate: "2026-07-18",
     })
     expect(snapshot.kind).toBe("ready")
@@ -169,6 +170,7 @@ describe("hub authorization and anonymous access", () => {
 
     await t.mutation(api.content.submitHelpRequest, {
       hubSlug: "test-hub",
+      credential: "ABCD-EFGH",
       topic: "Keys",
       message: "I cannot find the opening keys.",
     })
@@ -256,6 +258,7 @@ describe("hub authorization and anonymous access", () => {
 
     const publicBefore = await t.query(api.hubs.getPublicSnapshot, {
       slug: "test-hub",
+      credential: "ABCD-EFGH",
       nowDate: "2026-07-18",
     })
     expect(publicBefore.kind).toBe("ready")
@@ -319,6 +322,7 @@ describe("hub authorization and anonymous access", () => {
 
     const publicSnapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "test-hub",
+      credential: "ABCD-EFGH",
       nowDate: "2026-07-18",
     })
     expect(publicSnapshot.kind).toBe("ready")
@@ -347,6 +351,7 @@ describe("hub authorization and anonymous access", () => {
 
     const searchResults = await t.query(api.search.published, {
       hubSlug: "test-hub",
+      credential: "ABCD-EFGH",
       query: "emergency",
       nowDate: "2026-07-18",
     })
@@ -396,15 +401,20 @@ async function createOrganizationHub(
   identity = orgAdminIdentity,
   slug = "org-hub"
 ) {
-  return await t.withIdentity(identity).mutation(api.hubs.createForOrganization, {
-    name: slug === "other-org-hub" ? "Other Organization Hub" : "Organization Hub",
-    slug,
-    accessMode: "public",
-    joinCode: "ORGA-NIZE",
-    privateToken: "organization-private-token-that-is-long-enough",
-    timeZone: "Europe/Tallinn",
-    seedDemoContent: false,
-  })
+  return await t
+    .withIdentity(identity)
+    .mutation(api.hubs.createForOrganization, {
+      name:
+        slug === "other-org-hub"
+          ? "Other Organization Hub"
+          : "Organization Hub",
+      slug,
+      accessMode: "public",
+      joinCode: "ORGA-NIZE",
+      privateToken: "organization-private-token-that-is-long-enough",
+      timeZone: "Europe/Tallinn",
+      seedDemoContent: false,
+    })
 }
 
 async function createEmployee(
@@ -481,6 +491,7 @@ describe("Organization employees, claims, and event links", () => {
     })
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
+      credential: "ORGA-NIZE",
       nowDate: "2026-07-19",
     })
     if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
@@ -488,7 +499,9 @@ describe("Organization employees, claims, and event links", () => {
       { displayName: "Marta Manager" },
     ])
     expect(snapshot.events[0].employees[0]).not.toHaveProperty("id")
-    expect(JSON.stringify(snapshot.events[0])).not.toContain("marta@example.test")
+    expect(JSON.stringify(snapshot.events[0])).not.toContain(
+      "marta@example.test"
+    )
   })
 
   test("adds zero or multiple employees idempotently and rejects cross-hub links", async () => {
@@ -557,7 +570,9 @@ describe("Organization employees, claims, and event links", () => {
       credential: token,
       expiresAt: Date.now() + 60_000,
     })
-    const stored = await t.run((ctx) => ctx.db.get("employeeClaimLinks", linkId))
+    const stored = await t.run((ctx) =>
+      ctx.db.get("employeeClaimLinks", linkId)
+    )
     expect(stored?.credentialHash).not.toBe(token)
     expect(
       await t.query(api.employees.previewClaim, {
@@ -662,22 +677,24 @@ describe("Organization employees, claims, and event links", () => {
       subject: "employee-new",
       tokenIdentifier: "https://clerk.example.test|employee-new",
     }
-    await t
-      .withIdentity(newMember)
-      .mutation(api.employees.claimByInvitation, {
-        correlationCredential: newCredential,
-      })
+    await t.withIdentity(newMember).mutation(api.employees.claimByInvitation, {
+      correlationCredential: newCredential,
+    })
     const profiles = await admin.query(api.employees.list, { hubId })
-    expect(profiles.find((profile) => profile.id === existingProfile)).toMatchObject({
+    expect(
+      profiles.find((profile) => profile.id === existingProfile)
+    ).toMatchObject({
       status: "active",
       clerkUserId: "employee-a",
       invitationStatus: "accepted",
     })
-    expect(profiles.find((profile) => profile.id === newProfile)).toMatchObject({
-      status: "active",
-      clerkUserId: "employee-new",
-      invitationStatus: "accepted",
-    })
+    expect(profiles.find((profile) => profile.id === newProfile)).toMatchObject(
+      {
+        status: "active",
+        clerkUserId: "employee-new",
+        invitationStatus: "accepted",
+      }
+    )
   })
 
   test("never treats the shared join code as an employee claim credential", async () => {
@@ -723,6 +740,7 @@ describe("Organization employees, claims, and event links", () => {
     })
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
+      credential: "ORGA-NIZE",
       nowDate: "2026-07-19",
     })
     if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
@@ -754,10 +772,12 @@ describe("Organization employees, claims, and event links", () => {
       .mutation(api.employees.completeClaim, { credential })
     expect(
       (
-        await t.withIdentity(orgMemberIdentity).query(
-          api.hubs.getActiveMemberSnapshot,
-          { nowDate: "2026-07-19", organizationHint: "org-a" }
-        )
+        await t
+          .withIdentity(orgMemberIdentity)
+          .query(api.hubs.getActiveMemberSnapshot, {
+            nowDate: "2026-07-19",
+            organizationHint: "org-a",
+          })
       ).kind
     ).toBe("ready")
     await admin.mutation(api.employees.deactivateAfterClerkRemoval, {
@@ -765,10 +785,12 @@ describe("Organization employees, claims, and event links", () => {
     })
     expect(
       (
-        await t.withIdentity(orgMemberIdentity).query(
-          api.hubs.getActiveMemberSnapshot,
-          { nowDate: "2026-07-19", organizationHint: "org-a" }
-        )
+        await t
+          .withIdentity(orgMemberIdentity)
+          .query(api.hubs.getActiveMemberSnapshot, {
+            nowDate: "2026-07-19",
+            organizationHint: "org-a",
+          })
       ).kind
     ).toBe("deactivated")
   })
@@ -794,6 +816,7 @@ describe("Organization employees, claims, and event links", () => {
     await admin.mutation(api.content.saveEvent, base)
     let snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
+      credential: "ORGA-NIZE",
       nowDate: "2026-07-19",
     })
     if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
@@ -806,6 +829,7 @@ describe("Organization employees, claims, and event links", () => {
     })
     snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
+      credential: "ORGA-NIZE",
       nowDate: "2026-07-19",
     })
     if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
@@ -833,6 +857,7 @@ describe("Organization employees, claims, and event links", () => {
     })
     const results = await t.query(api.search.published, {
       hubSlug: "org-hub",
+      credential: "ORGA-NIZE",
       query: "Searchable Employee",
       nowDate: "2026-07-19",
     })

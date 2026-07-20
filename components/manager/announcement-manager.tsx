@@ -20,6 +20,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { getAnnouncementState, type Announcement } from "@/lib/operations"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
@@ -79,18 +86,24 @@ export function AnnouncementManager() {
             className="border border-input pr-3 pl-10"
           />
         </div>
-        <select
+        <Select
           value={status}
-          onChange={(event) => setStatus(event.target.value as Status)}
-          className="h-10 border bg-background px-3 text-sm"
-          aria-label="Filter announcements by status"
+          onValueChange={(value) => setStatus(value as Status)}
         >
-          <option>All</option>
-          <option>Active</option>
-          <option>Upcoming</option>
-          <option>Expired</option>
-          <option>Draft</option>
-        </select>
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter announcements by status"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Upcoming">Upcoming</SelectItem>
+            <SelectItem value="Expired">Expired</SelectItem>
+            <SelectItem value="Draft">Draft</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {visible.length ? (
         <div className="space-y-4">

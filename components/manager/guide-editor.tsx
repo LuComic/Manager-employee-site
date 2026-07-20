@@ -12,6 +12,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { getCategoryIcon } from "@/lib/category-icons"
 import type { Guide } from "@/lib/knowledge-base"
@@ -296,28 +303,35 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
               <Field label="Work area" id="guide-category">
-                <select
-                  id="guide-category"
+                <Select
                   value={draft.category}
-                  onChange={(event) => {
+                  onValueChange={(value) => {
+                    if (!value) return
                     const category = categories.find(
-                      (item) => item.id === event.target.value
+                      (item) => item.id === value
                     )
                     change({
-                      category: event.target.value,
+                      category: value,
                       ...(!draft.id && category
                         ? { icon: getCategoryIcon(category.iconKey) }
                         : {}),
                     })
                   }}
-                  className="h-10 w-full border bg-background px-3 text-sm"
                 >
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    id="guide-category"
+                    className="w-full border border-input bg-background px-3"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="Reading time" id="guide-duration">
                 <Input

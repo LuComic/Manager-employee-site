@@ -12,7 +12,6 @@ import {
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { useOperations } from "@/components/providers/operations-provider"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -23,13 +22,8 @@ import {
 } from "@/components/ui/card"
 
 export function AccessManager() {
-  const {
-    hub,
-    ownerCredentials,
-    setAccessMode,
-    rotateCredentials,
-    showFeedback,
-  } = useOperations()
+  const { hub, ownerCredentials, rotateCredentials, showFeedback } =
+    useOperations()
   const [pending, setPending] = useState(false)
   const [copied, setCopied] = useState("")
   if (!hub) return null
@@ -63,37 +57,6 @@ export function AccessManager() {
             The signed-in owner can always open and manage this hub.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <Badge
-              variant={hub.accessMode === "public" ? "secondary" : "outline"}
-            >
-              {hub.accessMode === "public" ? "Public" : "Restricted"}
-            </Badge>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              {hub.accessMode === "public"
-                ? "Anyone with the employee URL can read published content."
-                : "Employees must use the current join code or private link. No Clerk account is required."}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            disabled={pending}
-            onClick={async () => {
-              setPending(true)
-              try {
-                await setAccessMode(
-                  hub.accessMode === "public" ? "restricted" : "public"
-                )
-                showFeedback("Hub access mode updated.")
-              } finally {
-                setPending(false)
-              }
-            }}
-          >
-            Switch to {hub.accessMode === "public" ? "restricted" : "public"}
-          </Button>
-        </CardContent>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">

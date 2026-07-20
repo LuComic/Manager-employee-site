@@ -1,5 +1,4 @@
 import { ClerkProvider } from "@clerk/nextjs"
-import { shadcn } from "@clerk/ui/themes"
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { Geist_Mono, Noto_Sans } from "next/font/google"
@@ -9,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider"
 import { OperationsProvider } from "@/components/providers/operations-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { clerkAppearance } from "@/lib/clerk-appearance"
 import { cn } from "@/lib/utils"
 
 const notoSans = Noto_Sans({ subsets: ["latin"], variable: "--font-sans" })
@@ -41,17 +41,7 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ClerkProvider
-          appearance={{
-            theme: shadcn,
-            variables: {
-              borderRadius: "0rem",
-              colorPrimary: "var(--primary)",
-              fontFamily: "var(--font-sans)",
-            },
-          }}
-          afterSignOutUrl="/"
-        >
+        <ClerkProvider appearance={clerkAppearance} afterSignOutUrl="/">
           <ConvexClientProvider>
             <ThemeProvider defaultTheme="light">
               <Suspense fallback={<div className="min-h-svh bg-background" />}>

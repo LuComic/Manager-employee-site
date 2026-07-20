@@ -9,7 +9,7 @@ export async function POST() {
   }
   if (!orgId || !has({ role: "org:admin" })) {
     return Response.json(
-      { error: "Select an Organization you administer" },
+      { error: "Select a workplace you administer" },
       { status: 403 }
     )
   }

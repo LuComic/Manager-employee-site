@@ -40,8 +40,8 @@ export function HubSetup() {
           </span>
           <CardTitle>Create your workplace</CardTitle>
           <CardDescription>
-            Use Clerk’s organization setup to choose the workplace name and logo.
-            You will become its first manager.
+            Choose the workplace name and logo. You will become its first
+            manager.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -54,7 +54,7 @@ export function HubSetup() {
               })
             }
           >
-            <Building2 /> Create workplace with Clerk
+            <Building2 /> Create workplace
           </Button>
           <div className="border-t pt-5">
             <p className="mb-3 text-sm text-muted-foreground">
@@ -87,8 +87,8 @@ export function HubSetup() {
         </span>
         <CardTitle>Finish setting up your operations hub</CardTitle>
         <CardDescription>
-          Clerk now owns the workplace name, logo, managers, and members. The
-          operations hub will use the active Organization shown below.
+          Your workplace account manages the name, logo, managers, and members.
+          The operations hub will use the active workplace shown below.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -99,12 +99,14 @@ export function HubSetup() {
             afterSelectOrganizationUrl="/manager"
             afterSelectPersonalUrl="/manager"
           />
-          <span className="text-xs text-muted-foreground">Active workplace</span>
+          <span className="text-xs text-muted-foreground">
+            Active workplace
+          </span>
         </div>
         <div className="border p-4 text-sm">
           <p className="font-medium">Employee address</p>
           <p className="mt-1 text-muted-foreground">
-            Assigned automatically from the Organization name:
+            Assigned automatically from the workplace name:
           </p>
           <p className="mt-2 font-mono text-xs">?hub={slug || "workplace"}</p>
         </div>
@@ -120,7 +122,7 @@ export function HubSetup() {
             setPending(true)
             setError("")
             try {
-              await createHub(name, slug, "public")
+              await createHub(name, slug)
             } catch (caught) {
               setError(
                 caught instanceof Error
@@ -132,11 +134,7 @@ export function HubSetup() {
             }
           }}
         >
-          {pending ? (
-            <LoaderCircle className="animate-spin" />
-          ) : (
-            <Building2 />
-          )}
+          {pending ? <LoaderCircle className="animate-spin" /> : <Building2 />}
           {pending ? "Creating operations hub…" : "Create operations hub"}
         </Button>
       </CardContent>

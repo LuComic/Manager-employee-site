@@ -17,6 +17,13 @@ import StarterKit from "@tiptap/starter-kit"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { RichTextDocument } from "@/lib/rich-text"
 import { normalizeRichTextLink } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
@@ -91,23 +98,28 @@ export function RichTextEditor({
         role="toolbar"
         aria-label={`${ariaLabel} formatting`}
       >
-        <select
+        <Select
           value={blockType}
-          onChange={(event) => {
+          onValueChange={(value) => {
             const chain = editor.chain().focus()
-            if (event.target.value === "heading-2")
-              chain.setHeading({ level: 2 }).run()
-            else if (event.target.value === "heading-3")
-              chain.setHeading({ level: 3 }).run()
+            if (value === "heading-2") chain.setHeading({ level: 2 }).run()
+            else if (value === "heading-3") chain.setHeading({ level: 3 }).run()
             else chain.setParagraph().run()
           }}
-          className="h-9 border bg-background px-3 text-sm"
-          aria-label="Text style"
         >
-          <option value="paragraph">Paragraph</option>
-          <option value="heading-2">Section heading</option>
-          <option value="heading-3">Subsection heading</option>
-        </select>
+          <SelectTrigger
+            size="sm"
+            className="border border-input bg-background px-3"
+            aria-label="Text style"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="paragraph">Paragraph</SelectItem>
+            <SelectItem value="heading-2">Section heading</SelectItem>
+            <SelectItem value="heading-3">Subsection heading</SelectItem>
+          </SelectContent>
+        </Select>
         <FormatButton
           label="Bold"
           active={editor.isActive("bold")}

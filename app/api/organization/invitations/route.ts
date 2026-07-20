@@ -29,19 +29,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not authenticated" }, { status: 401 })
   }
   if (!orgId || !has({ role: "org:admin" })) {
-    return Response.json({ error: "Organization admin access required" }, { status: 403 })
+    return Response.json(
+      { error: "Workplace admin access required" },
+      { status: 403 }
+    )
   }
   const body = parseBody(await request.json().catch(() => null))
   if (!body) return Response.json({ error: "Invalid request" }, { status: 400 })
   const token = await getToken()
-  if (!token) return Response.json({ error: "Missing session token" }, { status: 401 })
+  if (!token)
+    return Response.json({ error: "Missing session token" }, { status: 401 })
   const convex = convexServerClient(token)
 
   try {
     const record = await convex.query(api.employees.getForAdmin, {
       profileId: body.profileId,
     })
-    if (record.organizationId !== orgId) throw new Error("Employee belongs to another workplace")
+    if (record.organizationId !== orgId)
+      throw new Error("Employee belongs to another workplace")
     const clerk = await clerkClient()
 
     if (body.action === "revoke") {
@@ -59,7 +64,10 @@ export async function POST(request: Request) {
       return Response.json({ status: "revoked" })
     }
 
-    if (record.profile.invitationId && record.profile.invitationStatus === "pending") {
+    if (
+      record.profile.invitationId &&
+      record.profile.invitationStatus === "pending"
+    ) {
       try {
         await clerk.organizations.revokeOrganizationInvitation({
           organizationId: orgId,
@@ -76,14 +84,16 @@ export async function POST(request: Request) {
       correlationCredential,
     })
     try {
-      const invitation = await clerk.organizations.createOrganizationInvitation({
-        organizationId: orgId,
-        inviterUserId: userId,
-        emailAddress: prepared.email,
-        role: "org:member",
-        redirectUrl: new URL("/invitation/complete", request.url).toString(),
-        publicMetadata: { operationsHubClaim: correlationCredential },
-      })
+      const invitation = await clerk.organizations.createOrganizationInvitation(
+        {
+          organizationId: orgId,
+          inviterUserId: userId,
+          emailAddress: prepared.email,
+          role: "org:member",
+          redirectUrl: new URL("/invitation/complete", request.url).toString(),
+          publicMetadata: { operationsHubClaim: correlationCredential },
+        }
+      )
       await convex.mutation(api.employees.recordInvitation, {
         profileId: body.profileId,
         invitationId: invitation.id,
@@ -92,7 +102,7 @@ export async function POST(request: Request) {
     } catch (error) {
       await convex.mutation(api.employees.recordInvitationFailure, {
         profileId: body.profileId,
-        message: safeErrorMessage(error, "Clerk invitation failed"),
+        message: safeErrorMessage(error, "Invitation failed"),
       })
       throw error
     }
@@ -102,7 +112,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         error: membershipLimit
-          ? "This workplace has reached Clerk’s 20-member limit. Remove an inactive member before inviting another employee."
+          ? "This workplace has reached its 20-member limit. Remove an inactive member before inviting another employee."
           : message,
       },
       { status: 400 }

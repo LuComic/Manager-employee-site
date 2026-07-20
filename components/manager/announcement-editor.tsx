@@ -13,6 +13,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   slugify,
   toDateKey,
   type Announcement,
@@ -238,54 +245,76 @@ export function AnnouncementEditor({
                 />
               </Field>
               <Field label="Priority" id="announcement-priority">
-                <select
-                  id="announcement-priority"
+                <Select
                   value={draft.priority}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     change({
-                      priority: event.target.value as AnnouncementPriority,
+                      priority: value as AnnouncementPriority,
                     })
                   }
-                  className="h-10 w-full border bg-background px-3 text-sm"
                 >
-                  <option>Normal</option>
-                  <option>Important</option>
-                  <option>Urgent</option>
-                </select>
+                  <SelectTrigger
+                    id="announcement-priority"
+                    className="w-full border border-input bg-background px-3"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Normal">Normal</SelectItem>
+                    <SelectItem value="Important">Important</SelectItem>
+                    <SelectItem value="Urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="Related guide" id="announcement-guide">
-                <select
-                  id="announcement-guide"
-                  value={draft.guideId ?? ""}
-                  onChange={(event) =>
-                    change({ guideId: event.target.value || undefined })
+                <Select
+                  value={draft.guideId ?? "none"}
+                  onValueChange={(value) =>
+                    change({
+                      guideId: !value || value === "none" ? undefined : value,
+                    })
                   }
-                  className="h-10 w-full border bg-background px-3 text-sm"
                 >
-                  <option value="">No related guide</option>
-                  {guides.map((guide) => (
-                    <option key={guide.id} value={guide.id}>
-                      {guide.title}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    id="announcement-guide"
+                    className="w-full border border-input bg-background px-3"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No related guide</SelectItem>
+                    {guides.map((guide) => (
+                      <SelectItem key={guide.id} value={guide.id}>
+                        {guide.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="Related event" id="announcement-event">
-                <select
-                  id="announcement-event"
-                  value={draft.eventId ?? ""}
-                  onChange={(event) =>
-                    change({ eventId: event.target.value || undefined })
+                <Select
+                  value={draft.eventId ?? "none"}
+                  onValueChange={(value) =>
+                    change({
+                      eventId: !value || value === "none" ? undefined : value,
+                    })
                   }
-                  className="h-10 w-full border bg-background px-3 text-sm"
                 >
-                  <option value="">No related event</option>
-                  {events.map((event) => (
-                    <option key={event.id} value={event.id}>
-                      {event.title}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    id="announcement-event"
+                    className="w-full border border-input bg-background px-3"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No related event</SelectItem>
+                    {events.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <label className="flex items-center gap-2 text-sm">
                 <input

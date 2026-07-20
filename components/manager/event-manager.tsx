@@ -27,6 +27,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
   eventCategories,
@@ -165,29 +172,41 @@ export function EventManager() {
             className="border border-input pr-3 pl-10"
           />
         </div>
-        <select
+        <Select
           value={status}
-          onChange={(event) => setStatus(event.target.value as Status)}
-          className="h-10 border bg-background px-3 text-sm"
-          aria-label="Filter events by status"
+          onValueChange={(value) => setStatus(value as Status)}
         >
-          <option>All</option>
-          <option>Published</option>
-          <option>Draft</option>
-        </select>
-        <select
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter events by status"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            <SelectItem value="Published">Published</SelectItem>
+            <SelectItem value="Draft">Draft</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={category}
-          onChange={(event) =>
-            setCategory(event.target.value as EventCategory | "All")
-          }
-          className="h-10 border bg-background px-3 text-sm"
-          aria-label="Filter events by type"
+          onValueChange={(value) => setCategory(value as EventCategory | "All")}
         >
-          <option>All</option>
-          {eventCategories.map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
+          <SelectTrigger
+            className="w-full border border-input bg-background px-3"
+            aria-label="Filter events by type"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All</SelectItem>
+            {eventCategories.map((item) => (
+              <SelectItem key={item} value={item}>
+                {item}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {visible.length ? (
         <div className="space-y-4">
@@ -304,21 +323,29 @@ export function EventManager() {
                   />
                 </Field>
                 <Field label="Event type" id="event-type">
-                  <select
-                    id="event-type"
+                  <Select
                     value={editing.category}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       setEditing({
                         ...editing,
-                        category: event.target.value as EventCategory,
+                        category: value as EventCategory,
                       })
                     }
-                    className="h-10 w-full border bg-background px-3 text-sm"
                   >
-                    {eventCategories.map((item) => (
-                      <option key={item}>{item}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      id="event-type"
+                      className="w-full border border-input bg-background px-3"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eventCategories.map((item) => (
+                        <SelectItem key={item} value={item}>
+                          {item}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
                 <Field label="Location" id="event-location">
                   <Input
@@ -367,7 +394,9 @@ export function EventManager() {
                   <Label>Employees</Label>
                   {editing.legacyResponsiblePerson && (
                     <p className="border bg-muted/40 p-3 text-sm text-muted-foreground">
-                      Previous responsible person: {editing.legacyResponsiblePerson}. Saving this form replaces that legacy text with the selected profiles.
+                      Previous responsible person:{" "}
+                      {editing.legacyResponsiblePerson}. Saving this form
+                      replaces that legacy text with the selected profiles.
                     </p>
                   )}
                   <div className="grid gap-2 border p-4 sm:grid-cols-2">
@@ -375,14 +404,19 @@ export function EventManager() {
                       .filter(
                         (employee) =>
                           employee.status !== "deactivated" ||
-                          editing.employees.some((selected) => selected.id === employee.id)
+                          editing.employees.some(
+                            (selected) => selected.id === employee.id
+                          )
                       )
                       .map((employee) => {
                         const selected = editing.employees.some(
                           (item) => item.id === employee.id
                         )
                         return (
-                          <label key={employee.id} className="flex items-start gap-2 text-sm">
+                          <label
+                            key={employee.id}
+                            className="flex items-start gap-2 text-sm"
+                          >
                             <input
                               className="mt-1"
                               type="checkbox"
@@ -415,7 +449,8 @@ export function EventManager() {
                       })}
                     {!employees.length && (
                       <p className="text-sm text-muted-foreground sm:col-span-2">
-                        Create employee profiles in Employees, or save this event with no employees.
+                        Create employee profiles in Employees, or save this
+                        event with no employees.
                       </p>
                     )}
                   </div>

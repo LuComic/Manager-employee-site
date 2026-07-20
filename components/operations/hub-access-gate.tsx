@@ -150,7 +150,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      {hub?.accessMode === "restricted" && credential && (
+      {credential && (
         <Button
           variant="outline"
           size="sm"
@@ -233,8 +233,8 @@ export function HubEntryScreen({
                 <div className="space-y-4">
                   <p className="text-sm text-primary-foreground/75">
                     {hasActiveOrganization
-                      ? "The selected Organization is not connected to a hub. Choose another workplace."
-                      : "Choose a workplace Organization or manage your own hub."}
+                      ? "The selected workplace is not connected to a hub. Choose another workplace."
+                      : "Choose a workplace or manage your own hub."}
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex h-10 items-center border border-primary-foreground/30 bg-background px-2 text-foreground">
@@ -341,13 +341,13 @@ export function HubEntryScreen({
                   id="employee-code"
                   value={employeeCode}
                   onChange={(event) => setEmployeeCode(event.target.value)}
-                  placeholder="Optional for public workplaces"
+                  placeholder="Enter the employee code"
                   autoComplete="one-time-code"
                   className="border border-input px-3 font-mono uppercase"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Restricted workplaces require the employee code. It is kept
-                  out of the URL query string.
+                  Use the code shared by your manager, or leave this blank when
+                  pasting a private join link.
                 </p>
               </div>
               {initialHubSlug && (

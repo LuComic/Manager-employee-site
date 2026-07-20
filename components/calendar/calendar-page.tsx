@@ -17,6 +17,13 @@ import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   eventCategories,
   formatDate,
   formatTime,
@@ -126,19 +133,28 @@ export function CalendarPage() {
           <label htmlFor="event-category" className="sr-only">
             Filter by event type
           </label>
-          <select
-            id="event-category"
+          <Select
             value={category}
-            onChange={(event) =>
-              setCategory(event.target.value as EventCategory | "All")
+            onValueChange={(value) =>
+              setCategory(value as EventCategory | "All")
             }
-            className="h-9 border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
           >
-            <option value="All">All event types</option>
-            {eventCategories.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="event-category"
+              size="sm"
+              className="border border-input bg-background px-3"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All event types</SelectItem>
+              {eventCategories.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="flex border" aria-label="Calendar view">
             <Button
               variant={view === "month" ? "secondary" : "ghost"}
