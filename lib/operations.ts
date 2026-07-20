@@ -36,11 +36,38 @@ export type CalendarEvent = {
   start: string
   end: string
   location: string
-  owner: string
+  employees: Array<{ id?: string; displayName: string }>
+  legacyResponsiblePerson?: string
+  replaceLegacyResponsiblePerson?: boolean
   notes: string
   attachments: Attachment[]
   guideIds: string[]
   published: boolean
+}
+
+export type EmployeeStatus =
+  | "unclaimed"
+  | "invited"
+  | "active"
+  | "deactivated"
+
+export type EmployeeProfile = {
+  id: string
+  displayName: string
+  email?: string
+  department?: string
+  jobTitle?: string
+  status: EmployeeStatus
+  clerkUserId?: string
+  invitationId?: string
+  invitationStatus:
+    | "not-sent"
+    | "pending"
+    | "accepted"
+    | "expired"
+    | "revoked"
+    | "failed"
+  invitationError?: string
 }
 
 export type AnnouncementPriority = "Normal" | "Important" | "Urgent"
@@ -133,7 +160,8 @@ export function createSeedState(): OperationsState {
         start: atDate(0, "12:30"),
         end: atDate(0, "15:00"),
         location: "Terrace",
-        owner: "Marta",
+        employees: [],
+        legacyResponsiblePerson: "Marta",
         notes:
           "Terrace closed to walk-ins from noon. Water and place cards should be ready by 12:00.",
         attachments: [],
@@ -149,7 +177,8 @@ export function createSeedState(): OperationsState {
         start: atDate(0, "16:00"),
         end: atDate(0, "17:00"),
         location: "Bar",
-        owner: "Joonas",
+        employees: [],
+        legacyResponsiblePerson: "Joonas",
         notes: "The bar remains open. Training will use the left-hand machine.",
         attachments: [],
         guideIds: [],
@@ -164,7 +193,8 @@ export function createSeedState(): OperationsState {
         start: atDate(1, "07:30"),
         end: atDate(1, "08:15"),
         location: "Rear entrance",
-        owner: "Sofia",
+        employees: [],
+        legacyResponsiblePerson: "Sofia",
         notes:
           "Keep the rear entrance clear and place cold items in storage first.",
         attachments: [],
@@ -179,7 +209,8 @@ export function createSeedState(): OperationsState {
         start: atDate(3, "10:00"),
         end: atDate(3, "23:00"),
         location: "Whole venue",
-        owner: "Anu",
+        employees: [],
+        legacyResponsiblePerson: "Anu",
         notes:
           "Remove the old menu inserts before opening and check table talkers.",
         attachments: [],
@@ -195,7 +226,8 @@ export function createSeedState(): OperationsState {
         start: atDate(7, "08:00"),
         end: atDate(7, "10:30"),
         location: "Wash area",
-        owner: "Rasmus",
+        employees: [],
+        legacyResponsiblePerson: "Rasmus",
         notes: "Use the prep sink only if the engineer confirms it is safe.",
         attachments: [],
         guideIds: ["end-cleaning"],
@@ -209,7 +241,8 @@ export function createSeedState(): OperationsState {
         start: atDate(12, "09:30"),
         end: atDate(12, "11:00"),
         location: "Whole venue",
-        owner: "Marta",
+        employees: [],
+        legacyResponsiblePerson: "Marta",
         notes: "Keep all corridors and exits fully clear before opening.",
         attachments: [],
         guideIds: ["cash-safety"],
@@ -223,7 +256,8 @@ export function createSeedState(): OperationsState {
         start: atDate(5, "14:00"),
         end: atDate(5, "15:00"),
         location: "Private room",
-        owner: "Anu",
+        employees: [],
+        legacyResponsiblePerson: "Anu",
         notes: "Draft only.",
         attachments: [],
         guideIds: [],

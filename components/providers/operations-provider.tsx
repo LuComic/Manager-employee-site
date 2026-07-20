@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
+import { useAuth, useSession } from "@clerk/nextjs"
+import { ConvexHttpClient } from "convex/browser"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import { toast } from "sonner"
 
@@ -16,6 +18,7 @@ import {
   type Announcement,
   type Attachment,
   type CalendarEvent,
+  type EmployeeProfile,
   type Faq,
   type OperationsState,
 } from "@/lib/operations"
@@ -35,6 +38,7 @@ export type HubInfo = {
   contactEmail: string
   contactPhone: string
   contentVersion: number
+  clerkOrganizationId?: string
   todaySections: TodaySectionSetting[]
 }
 
@@ -64,14 +68,42 @@ type OperationsContextValue = OperationsState & {
     | "ready"
     | "restricted"
     | "not-found"
+    | "deactivated"
     | "needs-setup"
     | "auth-error"
-  isManager: boolean
+  isManagerRoute: boolean
   ownerCredentials: HubCredentials | null
+  employees: EmployeeProfile[]
   createHub: (
     name: string,
     slug: string,
     accessMode: HubAccessMode
+  ) => Promise<void>
+  migrateHubToOrganization: () => Promise<void>
+  createEmployee: (profile: {
+    displayName: string
+    email?: string
+    department?: string
+    jobTitle?: string
+  }) => Promise<Id<"employeeProfiles">>
+  updateEmployee: (
+    profileId: Id<"employeeProfiles">,
+    profile: {
+      displayName: string
+      email?: string
+      department?: string
+      jobTitle?: string
+    }
+  ) => Promise<void>
+  createEmployeeClaimLink: (
+    profileId: Id<"employeeProfiles">,
+    expiresAt: number
+  ) => Promise<{
+    credential: string
+    claimLinkId: Id<"employeeClaimLinks">
+  }>
+  revokeEmployeeClaimLink: (
+    claimLinkId: Id<"employeeClaimLinks">
   ) => Promise<void>
   setAccessMode: (accessMode: HubAccessMode) => Promise<void>
   rotateCredentials: () => Promise<HubCredentials>
@@ -154,10 +186,12 @@ export function OperationsProvider({
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const isManager = pathname.startsWith("/manager")
+  const isManagerRoute = pathname.startsWith("/manager")
   const isAuthPage =
     pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth()
+  const { orgId: clerkOrganizationId } = useAuth()
+  const { session } = useSession()
   const requestedHubSlug = searchParams.get("hub")?.trim().toLowerCase()
   const [rememberedHubSlug, setRememberedHubSlug] = useState("")
   const hubSlug = requestedHubSlug || rememberedHubSlug
@@ -191,14 +225,23 @@ export function OperationsProvider({
 
   const managerSnapshot = useQuery(
     api.hubs.getOwnedSnapshot,
-    isManager && isAuthenticated ? { nowDate } : "skip"
+    isManagerRoute && isAuthenticated
+      ? { nowDate, organizationHint: clerkOrganizationId ?? undefined }
+      : "skip"
   )
   const publicSnapshot = useQuery(
     api.hubs.getPublicSnapshot,
-    !isManager && !isAuthPage ? { slug: hubSlug, credential, nowDate } : "skip"
+    !isManagerRoute && !isAuthPage && (requestedHubSlug || !isAuthenticated)
+      ? { slug: hubSlug, credential, nowDate }
+      : "skip"
+  )
+  const memberSnapshot = useQuery(
+    api.hubs.getActiveMemberSnapshot,
+    !isManagerRoute && !isAuthPage && isAuthenticated && !requestedHubSlug
+      ? { nowDate, organizationHint: clerkOrganizationId ?? undefined }
+      : "skip"
   )
 
-  const createHubMutation = useMutation(api.hubs.create)
   const setAccessModeMutation = useMutation(api.hubs.setAccessMode)
   const rotateCredentialsMutation = useMutation(api.hubs.rotateCredentials)
   const ensureManagedContent = useMutation(api.hubs.ensureManagedContent)
@@ -226,14 +269,28 @@ export function OperationsProvider({
   const attachToEvent = useMutation(api.files.attachToEvent)
   const removeAttachment = useMutation(api.files.remove)
   const discardUpload = useMutation(api.files.discardUpload)
+  const employeeProfiles = useQuery(
+    api.employees.list,
+    isManagerRoute && isAuthenticated && managerSnapshot?.kind === "ready"
+      ? { hubId: managerSnapshot.hub.id }
+      : "skip"
+  )
+  const createEmployeeMutation = useMutation(api.employees.create)
+  const updateEmployeeMutation = useMutation(api.employees.update)
+  const createClaimLinkMutation = useMutation(api.employees.createClaimLink)
+  const revokeClaimLinkMutation = useMutation(api.employees.revokeClaimLink)
 
-  const activeSnapshot = isManager
+  const activeSnapshot = isManagerRoute
     ? managerSnapshot?.kind === "ready"
       ? managerSnapshot
       : null
-    : publicSnapshot?.kind === "ready"
-      ? publicSnapshot
-      : null
+    : requestedHubSlug || !isAuthenticated
+      ? publicSnapshot?.kind === "ready"
+        ? publicSnapshot
+        : null
+      : memberSnapshot?.kind === "ready"
+        ? memberSnapshot
+        : null
   const hub = (activeSnapshot?.hub ??
     (publicSnapshot?.kind === "restricted"
       ? publicSnapshot.hub
@@ -249,7 +306,7 @@ export function OperationsProvider({
   }, [activeSnapshot?.hub.timeZone])
 
   useEffect(() => {
-    if (!isManager || !hub || hub.contentVersion >= 2) return
+    if (!isManagerRoute || !hub || hub.contentVersion >= 2) return
     void ensureManagedContent({ hubId: hub.id }).catch((error) => {
       toast.error(
         error instanceof Error
@@ -257,7 +314,7 @@ export function OperationsProvider({
           : "Could not prepare managed content"
       )
     })
-  }, [ensureManagedContent, hub, isManager])
+  }, [ensureManagedContent, hub, isManagerRoute])
 
   useEffect(() => {
     const fragment = new URLSearchParams(window.location.hash.slice(1))
@@ -311,7 +368,7 @@ export function OperationsProvider({
   }, [credential, hubSlug, publicSnapshot])
 
   useEffect(() => {
-    if (!isManager || !hub) return
+    if (!isManagerRoute || !hub) return
     const stored = parseStored<HubCredentials>(
       localStorage.getItem(ownerCredentialKey(hub.id))
     )
@@ -323,7 +380,7 @@ export function OperationsProvider({
       0
     )
     return () => window.clearTimeout(timeout)
-  }, [hub, isManager])
+  }, [hub, isManagerRoute])
 
   const state = useMemo<OperationsState>(() => {
     if (!activeSnapshot)
@@ -360,7 +417,9 @@ export function OperationsProvider({
   }, [activeSnapshot])
 
   function managerHubId() {
-    if (!isManager || !hub) throw new Error("Create or open your hub first")
+    if (!isManagerRoute || !hub) {
+      throw new Error("Create or open your hub first")
+    }
     return hub.id
   }
 
@@ -379,7 +438,7 @@ export function OperationsProvider({
 
   const hubState: OperationsContextValue["hubState"] = isAuthPage
     ? "loading"
-    : isManager
+    : isManagerRoute
       ? authLoading || (isAuthenticated && managerSnapshot === undefined)
         ? "loading"
         : !isAuthenticated
@@ -387,9 +446,15 @@ export function OperationsProvider({
           : managerSnapshot?.kind === "none"
             ? "needs-setup"
             : "ready"
-      : publicSnapshot === undefined
-        ? "loading"
-        : publicSnapshot.kind
+      : isAuthenticated && !requestedHubSlug
+        ? authLoading || memberSnapshot === undefined
+          ? "loading"
+          : memberSnapshot.kind === "none"
+            ? "not-found"
+            : memberSnapshot.kind
+        : publicSnapshot === undefined
+          ? "loading"
+          : publicSnapshot.kind
 
   const value: OperationsContextValue = {
     ...state,
@@ -397,12 +462,32 @@ export function OperationsProvider({
     hubSlug,
     credential,
     hubState,
-    isManager,
+    isManagerRoute,
     ownerCredentials,
+    employees: (employeeProfiles ?? []) as EmployeeProfile[],
     createHub: async (name, slug, accessMode) => {
-      const credentials = createCredentials()
-      const result = await run(() =>
-        createHubMutation({
+      await run(async () => {
+        if (!clerkOrganizationId) {
+          throw new Error("Create or select a Clerk Organization first")
+        }
+        const credentials = createCredentials()
+        const response = await fetch("/api/workplaces", {
+          method: "POST",
+        })
+        const result = (await response.json()) as {
+          error?: string
+          organizationId: string
+        }
+        if (!response.ok)
+          throw new Error(result.error ?? "Could not configure workplace")
+        const token = await session?.getToken({
+          organizationId: result.organizationId,
+          skipCache: true,
+        })
+        if (!token) throw new Error("Could not create an Organization session")
+        const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
+        convex.setAuth(token)
+        const created = await convex.mutation(api.hubs.createForOrganization, {
           name,
           slug,
           accessMode,
@@ -413,12 +498,64 @@ export function OperationsProvider({
             "Europe/Tallinn",
           seedDemoContent: true,
         })
+        localStorage.setItem(
+          ownerCredentialKey(created.hubId),
+          JSON.stringify(credentials)
+        )
+        setOwnerCredentials(credentials)
+      })
+    },
+    migrateHubToOrganization: async () => {
+      await run(async () => {
+        if (!hub) throw new Error("Hub not found")
+        if (!clerkOrganizationId) {
+          throw new Error("Create or select a Clerk Organization first")
+        }
+        const credentials =
+          ownerCredentials ?? createCredentials(hub.credentialVersion)
+        const response = await fetch("/api/workplaces", {
+          method: "POST",
+        })
+        const result = (await response.json()) as {
+          error?: string
+          organizationId: string
+        }
+        if (!response.ok)
+          throw new Error(result.error ?? "Could not configure workplace")
+        const token = await session?.getToken({
+          organizationId: result.organizationId,
+          skipCache: true,
+        })
+        if (!token) throw new Error("Could not create an Organization session")
+        const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
+        convex.setAuth(token)
+        await convex.mutation(api.hubs.createForOrganization, {
+          name: hub.name,
+          slug: hub.slug,
+          accessMode: hub.accessMode,
+          joinCode: credentials.joinCode,
+          privateToken: credentials.privateToken,
+          timeZone: hub.timeZone,
+          seedDemoContent: false,
+        })
+      })
+    },
+    createEmployee: async (profile) =>
+      await run(() =>
+        createEmployeeMutation({ hubId: managerHubId(), ...profile })
+      ),
+    updateEmployee: async (profileId, profile) => {
+      await run(() => updateEmployeeMutation({ profileId, ...profile }))
+    },
+    createEmployeeClaimLink: async (profileId, expiresAt) => {
+      const credential = createCredentials().privateToken
+      const claimLinkId = await run(() =>
+        createClaimLinkMutation({ profileId, credential, expiresAt })
       )
-      localStorage.setItem(
-        ownerCredentialKey(result.hubId),
-        JSON.stringify(credentials)
-      )
-      setOwnerCredentials(credentials)
+      return { credential, claimLinkId }
+    },
+    revokeEmployeeClaimLink: async (claimLinkId) => {
+      await run(() => revokeClaimLinkMutation({ claimLinkId }))
     },
     setAccessMode: async (accessMode) => {
       await run(() =>
@@ -516,7 +653,10 @@ export function OperationsProvider({
           start: event.start,
           end: event.end,
           location: event.location,
-          owner: event.owner,
+          employeeProfileIds: event.employees.flatMap((employee) =>
+            employee.id ? [employee.id as Id<"employeeProfiles">] : []
+          ),
+          replaceLegacyResponsiblePerson: event.replaceLegacyResponsiblePerson,
           notes: event.notes,
           published: event.published,
           guideSlugs: event.guideIds,

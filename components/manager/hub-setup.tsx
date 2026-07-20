@@ -1,10 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Building2, LoaderCircle } from "lucide-react"
+import Link from "next/link"
+import {
+  OrganizationSwitcher,
+  useAuth,
+  useClerk,
+  useOrganization,
+} from "@clerk/nextjs"
+import { Building2, KeyRound, LoaderCircle } from "lucide-react"
 
 import { useOperations } from "@/components/providers/operations-provider"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -12,15 +19,65 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { slugify } from "@/lib/operations"
+
+const afterOrganizationCreated = "/manager"
 
 export function HubSetup() {
   const { createHub } = useOperations()
-  const [name, setName] = useState("")
-  const [slug, setSlug] = useState("")
+  const { orgId } = useAuth()
+  const { organization, isLoaded } = useOrganization()
+  const { openCreateOrganization } = useClerk()
   const [pending, setPending] = useState(false)
+  const [error, setError] = useState("")
+
+  if (!orgId) {
+    return (
+      <Card className="mx-auto max-w-xl shadow-none">
+        <CardHeader>
+          <span className="mb-3 flex size-11 items-center justify-center bg-primary/10 text-primary">
+            <Building2 />
+          </span>
+          <CardTitle>Create your workplace</CardTitle>
+          <CardDescription>
+            Use Clerk’s organization setup to choose the workplace name and logo.
+            You will become its first manager.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <Button
+            className="w-full"
+            onClick={() =>
+              openCreateOrganization({
+                afterCreateOrganizationUrl: afterOrganizationCreated,
+                skipInvitationScreen: true,
+              })
+            }
+          >
+            <Building2 /> Create workplace with Clerk
+          </Button>
+          <div className="border-t pt-5">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Joining as an employee? Use the workplace link, ID, or code your
+              manager shared with you.
+            </p>
+            <Link
+              href="/join#join-workplace"
+              className={buttonVariants({
+                variant: "outline",
+                className: "w-full",
+              })}
+            >
+              <KeyRound /> Join an existing workplace
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const name = organization?.name.trim() ?? ""
+  const slug = slugify(organization?.slug || name)
 
   return (
     <Card className="mx-auto max-w-xl shadow-none">
@@ -28,65 +85,60 @@ export function HubSetup() {
         <span className="mb-3 flex size-11 items-center justify-center bg-primary/10 text-primary">
           <Building2 />
         </span>
-        <CardTitle>Create your operations hub</CardTitle>
+        <CardTitle>Finish setting up your operations hub</CardTitle>
         <CardDescription>
-          This creates a hub owned only by your Clerk account and adds editable
-          sample content once.
+          Clerk now owns the workplace name, logo, managers, and members. The
+          operations hub will use the active Organization shown below.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form
-          className="space-y-4"
-          onSubmit={async (event) => {
-            event.preventDefault()
+      <CardContent className="space-y-5">
+        <div className="flex items-center justify-between gap-4 border bg-muted/30 p-4">
+          <OrganizationSwitcher
+            hidePersonal={false}
+            afterCreateOrganizationUrl={afterOrganizationCreated}
+            afterSelectOrganizationUrl="/manager"
+            afterSelectPersonalUrl="/manager"
+          />
+          <span className="text-xs text-muted-foreground">Active workplace</span>
+        </div>
+        <div className="border p-4 text-sm">
+          <p className="font-medium">Employee address</p>
+          <p className="mt-1 text-muted-foreground">
+            Assigned automatically from the Organization name:
+          </p>
+          <p className="mt-2 font-mono text-xs">?hub={slug || "workplace"}</p>
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <Button
+          className="w-full"
+          disabled={!isLoaded || !name || !slug || pending}
+          onClick={async () => {
             setPending(true)
+            setError("")
             try {
               await createHub(name, slug, "public")
+            } catch (caught) {
+              setError(
+                caught instanceof Error
+                  ? caught.message
+                  : "Could not create the operations hub"
+              )
             } finally {
               setPending(false)
             }
           }}
         >
-          <div className="space-y-2">
-            <Label htmlFor="hub-name">Hub name</Label>
-            <Input
-              id="hub-name"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value)
-                setSlug(slugify(event.target.value))
-              }}
-              className="border border-input px-3"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="hub-slug">Public address identifier</Label>
-            <Input
-              id="hub-slug"
-              value={slug}
-              onChange={(event) => setSlug(slugify(event.target.value))}
-              className="border border-input px-3 font-mono"
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              The employee URL will include{" "}
-              <span className="font-mono">?hub={slug || "your-hub"}</span>.
-            </p>
-          </div>
-          <Button
-            type="submit"
-            disabled={pending || !name.trim() || !slug}
-            className="w-full"
-          >
-            {pending ? (
-              <LoaderCircle className="animate-spin" />
-            ) : (
-              <Building2 />
-            )}
-            {pending ? "Creating hub…" : "Create hub with sample content"}
-          </Button>
-        </form>
+          {pending ? (
+            <LoaderCircle className="animate-spin" />
+          ) : (
+            <Building2 />
+          )}
+          {pending ? "Creating operations hub…" : "Create operations hub"}
+        </Button>
       </CardContent>
     </Card>
   )

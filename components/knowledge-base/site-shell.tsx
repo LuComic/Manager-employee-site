@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Menu } from "lucide-react"
 import { usePathname } from "next/navigation"
+import { OrganizationSwitcher, Show } from "@clerk/nextjs"
 
 import { Brand } from "@/components/knowledge-base/brand"
 import {
@@ -81,6 +82,14 @@ function SiteShellContent({ children }: { children: React.ReactNode }) {
                 inputRef={searchRef}
               />
               <div className="ml-auto flex shrink-0 items-center gap-2">
+                <Show when="signed-in">
+                  <OrganizationSwitcher
+                    hidePersonal={false}
+                    afterCreateOrganizationUrl="/manager"
+                    afterSelectOrganizationUrl="/"
+                    afterSelectPersonalUrl="/"
+                  />
+                </Show>
                 <ContactButton className="hidden sm:flex" />
                 <div className="sm:hidden">
                   <ContactButton compact />

@@ -13,6 +13,8 @@ import {
   getOwnedHub,
   hashCredential,
   normalizeJoinCode,
+  getActiveOrganizationFromIdentity,
+  isHubOwner,
   requireIdentity,
   requireOwnedHub,
 } from "./lib/access"
@@ -60,6 +62,7 @@ async function availableSlug(ctx: MutationCtx, requested: string) {
 
 async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
   const seed = createSeedState()
+  const identity = await requireIdentity(ctx)
   const categoryIds = new Map<string, Id<"categories">>()
   for (const [order, category] of seed.categories.entries()) {
     const categoryId = await ctx.db.insert("categories", {
@@ -93,6 +96,25 @@ async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
     guideIds.set(guide.id, guideId)
   }
 
+  const employeeIds = new Map<string, Id<"employeeProfiles">>()
+  for (const event of seed.events) {
+    const displayName = event.legacyResponsiblePerson?.trim()
+    if (!displayName || employeeIds.has(displayName)) continue
+    const now = Date.now()
+    employeeIds.set(
+      displayName,
+      await ctx.db.insert("employeeProfiles", {
+        hubId,
+        displayName,
+        status: "unclaimed",
+        createdBy: identity.subject,
+        createdAt: now,
+        updatedAt: now,
+        invitationStatus: "not-sent",
+      })
+    )
+  }
+
   const eventIds = new Map<string, Id<"events">>()
   for (const event of seed.events) {
     const eventId = await ctx.db.insert("events", {
@@ -104,11 +126,22 @@ async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
       start: event.start,
       end: event.end,
       location: event.location,
-      owner: event.owner,
       notes: event.notes,
       published: event.published,
     })
     eventIds.set(event.id, eventId)
+    const employeeId = event.legacyResponsiblePerson
+      ? employeeIds.get(event.legacyResponsiblePerson)
+      : undefined
+    if (employeeId) {
+      await ctx.db.insert("eventEmployees", {
+        hubId,
+        eventId,
+        employeeProfileId: employeeId,
+        addedAt: Date.now(),
+        addedBy: identity.subject,
+      })
+    }
     for (const guideSlug of event.guideIds) {
       const guideId = guideIds.get(guideSlug)
       if (guideId) {
@@ -202,6 +235,94 @@ export const create = mutation({
 
     if (args.seedDemoContent) await seedHub(ctx, hubId)
     return { hubId, slug, created: true }
+  },
+})
+
+export const createForOrganization = mutation({
+  args: {
+    name: v.string(),
+    slug: v.string(),
+    accessMode: accessModeValidator,
+    joinCode: v.string(),
+    privateToken: v.string(),
+    timeZone: v.string(),
+    seedDemoContent: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx)
+    const activeOrganization = getActiveOrganizationFromIdentity(identity)
+    if (!activeOrganization) throw new Error("No active organization")
+    if (activeOrganization.role !== "org:admin") throw new Error("Unauthorized")
+
+    const mapped = await ctx.db
+      .query("hubs")
+      .withIndex("by_clerkOrganizationId", (q) =>
+        q.eq("clerkOrganizationId", activeOrganization.organizationId)
+      )
+      .unique()
+    if (mapped) {
+      return {
+        hubId: mapped._id,
+        slug: mapped.slug,
+        created: false,
+        migrated: false,
+      }
+    }
+
+    const legacy = await ctx.db
+      .query("hubs")
+      .withIndex("by_ownerTokenIdentifier", (q) =>
+        q.eq("ownerTokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique()
+    if (legacy) {
+      await ctx.db.patch("hubs", legacy._id, {
+        clerkOrganizationId: activeOrganization.organizationId,
+        updatedAt: Date.now(),
+      })
+      return {
+        hubId: legacy._id,
+        slug: legacy.slug,
+        created: false,
+        migrated: true,
+      }
+    }
+
+    const name = args.name.trim()
+    if (name.length < 2 || name.length > 80) {
+      throw new Error("Hub name must be between 2 and 80 characters")
+    }
+    if (normalizeJoinCode(args.joinCode).length < 8) {
+      throw new Error("Join code is too short")
+    }
+    if (args.privateToken.length < 32) {
+      throw new Error("Private link credential is too short")
+    }
+    const slug = await availableSlug(ctx, args.slug)
+    const now = Date.now()
+    const hubId = await ctx.db.insert("hubs", {
+      name,
+      slug,
+      description: defaultDescription,
+      address: "",
+      timeZone: validateTimeZone(args.timeZone),
+      contactName: "shift lead",
+      contactEmail: "",
+      contactPhone: "",
+      todaySections: defaultTodaySections.map((section) => ({ ...section })),
+      contentVersion: 2,
+      clerkOrganizationId: activeOrganization.organizationId,
+      ownerSubject: identity.subject,
+      ownerTokenIdentifier: identity.tokenIdentifier,
+      accessMode: args.accessMode,
+      joinCodeHash: hashCredential(normalizeJoinCode(args.joinCode)),
+      privateTokenHash: hashCredential(args.privateToken),
+      credentialVersion: 1,
+      createdAt: now,
+      updatedAt: now,
+    })
+    if (args.seedDemoContent) await seedHub(ctx, hubId)
+    return { hubId, slug, created: true, migrated: false }
   },
 })
 
@@ -338,14 +459,27 @@ export const setTodaySectionVisibility = mutation({
 })
 
 export const getOwnedSnapshot = query({
-  args: { nowDate: v.string() },
+  args: {
+    nowDate: v.string(),
+    organizationHint: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
+    if (args.organizationHint) {
+      const identity = await ctx.auth.getUserIdentity()
+      if (
+        getActiveOrganizationFromIdentity(identity)?.organizationId !==
+        args.organizationHint
+      ) {
+        return { kind: "none" as const }
+      }
+    }
     const hub = await getOwnedHub(ctx)
     if (!hub) return { kind: "none" as const }
     return {
       kind: "ready" as const,
       ...(await buildSnapshot(ctx, hub, {
         includeDrafts: true,
+        includeOrganizationMapping: true,
         nowDate: args.nowDate,
       })),
     }
@@ -380,6 +514,41 @@ export const getPublicSnapshot = query({
       kind: "ready" as const,
       ...(await buildSnapshot(ctx, hub, {
         includeDrafts: false,
+        includeOrganizationMapping: false,
+        nowDate: args.nowDate,
+      })),
+    }
+  },
+})
+
+export const getActiveMemberSnapshot = query({
+  args: {
+    nowDate: v.string(),
+    organizationHint: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    const activeOrganization = getActiveOrganizationFromIdentity(identity)
+    if (!activeOrganization) return { kind: "none" as const }
+    if (
+      args.organizationHint &&
+      args.organizationHint !== activeOrganization.organizationId
+    ) {
+      return { kind: "none" as const }
+    }
+    const hub = await ctx.db
+      .query("hubs")
+      .withIndex("by_clerkOrganizationId", (q) =>
+        q.eq("clerkOrganizationId", activeOrganization.organizationId)
+      )
+      .unique()
+    if (!hub) return { kind: "none" as const }
+    if (!(await isHubOwner(ctx, hub))) return { kind: "deactivated" as const }
+    return {
+      kind: "ready" as const,
+      ...(await buildSnapshot(ctx, hub, {
+        includeDrafts: false,
+        includeOrganizationMapping: false,
         nowDate: args.nowDate,
       })),
     }

@@ -7,7 +7,7 @@ import {
   Clock3,
   FileText,
   MapPin,
-  UserRound,
+  UsersRound,
 } from "lucide-react"
 
 import { EmptyState } from "@/components/operations/empty-state"
@@ -75,9 +75,13 @@ export function EventDetail({ eventId }: { eventId: string }) {
           />
           <Detail icon={MapPin} label="Location" value={event.location} />
           <Detail
-            icon={UserRound}
-            label="Responsible person"
-            value={event.owner}
+            icon={UsersRound}
+            label="Employees"
+            value={
+              event.employees.length
+                ? event.employees.map((employee) => employee.displayName).join(", ")
+                : event.legacyResponsiblePerson || "No employees assigned"
+            }
           />
           <div className="border-t pt-6 sm:col-span-2">
             <h2 className="font-semibold">Notes</h2>

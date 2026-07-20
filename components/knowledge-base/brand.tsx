@@ -14,7 +14,7 @@ export function Brand({
   onNavigate?: () => void
   linked?: boolean
 }) {
-  const { hub, hubSlug, isManager } = useOperations()
+  const { hub, hubSlug, isManagerRoute } = useOperations()
   const content = (
     <>
       <span className="flex size-10 items-center justify-center bg-primary text-primary-foreground">
@@ -37,7 +37,7 @@ export function Brand({
 
   return (
     <Link
-      href={isManager ? "/manager" : `/?hub=${hubSlug}`}
+      href={isManagerRoute ? "/manager" : `/?hub=${hubSlug}`}
       className="flex items-center gap-3"
       onClick={onNavigate}
     >

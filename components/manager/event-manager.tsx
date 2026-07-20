@@ -54,7 +54,7 @@ function newEvent(): CalendarEvent {
     start: toLocalDateTimeValue(start),
     end: toLocalDateTimeValue(end),
     location: "",
-    owner: "",
+    employees: [],
     notes: "",
     attachments: [],
     guideIds: [],
@@ -65,6 +65,7 @@ function newEvent(): CalendarEvent {
 export function EventManager() {
   const {
     events,
+    employees,
     guides,
     saveEvent,
     deleteEvent,
@@ -100,6 +101,7 @@ export function EventManager() {
     setEditing({
       ...event,
       attachments: [...event.attachments],
+      employees: [...event.employees],
       guideIds: [...event.guideIds],
     })
     setPendingFiles([])
@@ -111,12 +113,9 @@ export function EventManager() {
     if (
       !editing.title.trim() ||
       !editing.description.trim() ||
-      !editing.location.trim() ||
-      !editing.owner.trim()
+      !editing.location.trim()
     )
-      return setError(
-        "Add a title, description, location, and responsible person."
-      )
+      return setError("Add a title, description, and location.")
     if (!editing.start || !editing.end)
       return setError("Add a start and end date and time.")
     if (new Date(editing.end) <= new Date(editing.start))
@@ -132,7 +131,7 @@ export function EventManager() {
         title: editing.title.trim(),
         description: editing.description.trim(),
         location: editing.location.trim(),
-        owner: editing.owner.trim(),
+        replaceLegacyResponsiblePerson: true,
         notes: editing.notes.trim(),
       })
       for (const file of pendingFiles) await uploadAttachment(eventSlug, file)
@@ -353,16 +352,6 @@ export function EventManager() {
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field label="Responsible person" id="event-owner">
-                  <Input
-                    id="event-owner"
-                    value={editing.owner}
-                    onChange={(event) =>
-                      setEditing({ ...editing, owner: event.target.value })
-                    }
-                    className="border border-input px-3"
-                  />
-                </Field>
                 <Field label="Add attachments" id="event-attachments">
                   <Input
                     id="event-attachments"
@@ -374,6 +363,63 @@ export function EventManager() {
                     className="border border-input px-3"
                   />
                 </Field>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Employees</Label>
+                  {editing.legacyResponsiblePerson && (
+                    <p className="border bg-muted/40 p-3 text-sm text-muted-foreground">
+                      Previous responsible person: {editing.legacyResponsiblePerson}. Saving this form replaces that legacy text with the selected profiles.
+                    </p>
+                  )}
+                  <div className="grid gap-2 border p-4 sm:grid-cols-2">
+                    {employees
+                      .filter(
+                        (employee) =>
+                          employee.status !== "deactivated" ||
+                          editing.employees.some((selected) => selected.id === employee.id)
+                      )
+                      .map((employee) => {
+                        const selected = editing.employees.some(
+                          (item) => item.id === employee.id
+                        )
+                        return (
+                          <label key={employee.id} className="flex items-start gap-2 text-sm">
+                            <input
+                              className="mt-1"
+                              type="checkbox"
+                              checked={selected}
+                              onChange={(event) =>
+                                setEditing({
+                                  ...editing,
+                                  employees: event.target.checked
+                                    ? [
+                                        ...editing.employees,
+                                        {
+                                          id: employee.id,
+                                          displayName: employee.displayName,
+                                        },
+                                      ]
+                                    : editing.employees.filter(
+                                        (item) => item.id !== employee.id
+                                      ),
+                                })
+                              }
+                            />
+                            <span>
+                              {employee.displayName}
+                              <span className="block text-xs text-muted-foreground">
+                                {employee.status}
+                              </span>
+                            </span>
+                          </label>
+                        )
+                      })}
+                    {!employees.length && (
+                      <p className="text-sm text-muted-foreground sm:col-span-2">
+                        Create employee profiles in Employees, or save this event with no employees.
+                      </p>
+                    )}
+                  </div>
+                </div>
                 {(editing.attachments.length > 0 ||
                   pendingFiles.length > 0) && (
                   <div className="space-y-2 sm:col-span-2">

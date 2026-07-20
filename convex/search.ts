@@ -34,7 +34,16 @@ export const published = query({
     const cleanQuery = args.query.trim().toLocaleLowerCase().slice(0, 120)
     if (!cleanQuery) return []
 
-    const [categories, guides, events, announcements, faqs, documents] =
+    const [
+      categories,
+      guides,
+      events,
+      announcements,
+      faqs,
+      documents,
+      eventEmployees,
+      employeeProfiles,
+    ] =
       await Promise.all([
         ctx.db
           .query("categories")
@@ -68,10 +77,31 @@ export const published = query({
             q.eq("hubId", hub._id).eq("published", true)
           )
           .take(500),
+        ctx.db
+          .query("eventEmployees")
+          .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
+          .take(2000),
+        ctx.db
+          .query("employeeProfiles")
+          .withIndex("by_hubId_and_displayName", (q) =>
+            q.eq("hubId", hub._id)
+          )
+          .take(500),
       ])
     const categoryById = new Map(
       categories.map((category) => [category._id, category.label])
     )
+    const employeeNameById = new Map(
+      employeeProfiles.map((profile) => [profile._id, profile.displayName])
+    )
+    const employeeNamesByEventId = new Map<string, string[]>()
+    for (const relation of eventEmployees) {
+      const name = employeeNameById.get(relation.employeeProfileId)
+      if (!name) continue
+      const current = employeeNamesByEventId.get(relation.eventId) ?? []
+      current.push(name)
+      employeeNamesByEventId.set(relation.eventId, current)
+    }
 
     return [
       ...guides
@@ -100,7 +130,8 @@ export const published = query({
             event.description,
             event.category,
             event.location,
-            event.owner,
+            event.legacyResponsiblePerson,
+            employeeNamesByEventId.get(event._id),
             event.notes
           )
         )

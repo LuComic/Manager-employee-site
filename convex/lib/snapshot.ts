@@ -5,7 +5,11 @@ import { normalizeTodaySections } from "../../lib/today-sections"
 export async function buildSnapshot(
   ctx: QueryCtx,
   hub: Doc<"hubs">,
-  options: { includeDrafts: boolean; nowDate: string }
+  options: {
+    includeDrafts: boolean
+    includeOrganizationMapping: boolean
+    nowDate: string
+  }
 ) {
   const [
     categories,
@@ -16,6 +20,8 @@ export async function buildSnapshot(
     attachments,
     allFaqs,
     allDocuments,
+    eventEmployees,
+    employeeProfiles,
   ] = await Promise.all([
     ctx.db
       .query("categories")
@@ -49,6 +55,14 @@ export async function buildSnapshot(
       .query("documents")
       .withIndex("by_hubId_and_updatedAt", (q) => q.eq("hubId", hub._id))
       .order("desc")
+      .take(500),
+    ctx.db
+      .query("eventEmployees")
+      .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
+      .take(2000),
+    ctx.db
+      .query("employeeProfiles")
+      .withIndex("by_hubId_and_displayName", (q) => q.eq("hubId", hub._id))
       .take(500),
   ])
 
@@ -110,6 +124,21 @@ export async function buildSnapshot(
     attachmentsByEventId.set(attachment.eventId, current)
   }
 
+  const employeeById = new Map(
+    employeeProfiles.map((profile) => [profile._id, profile])
+  )
+  const employeesByEventId = new Map<
+    string,
+    Array<{ id: string; displayName: string }>
+  >()
+  for (const relation of eventEmployees) {
+    const profile = employeeById.get(relation.employeeProfileId)
+    if (!profile) continue
+    const current = employeesByEventId.get(relation.eventId) ?? []
+    current.push({ id: profile._id, displayName: profile.displayName })
+    employeesByEventId.set(relation.eventId, current)
+  }
+
   return {
     hub: {
       id: hub._id,
@@ -127,6 +156,9 @@ export async function buildSnapshot(
       contactPhone: hub.contactPhone ?? "",
       todaySections: normalizeTodaySections(hub.todaySections),
       contentVersion: hub.contentVersion ?? 0,
+      ...(options.includeOrganizationMapping
+        ? { clerkOrganizationId: hub.clerkOrganizationId }
+        : {}),
     },
     categories: categories.map((category) => ({
       id: category.slug,
@@ -161,7 +193,13 @@ export async function buildSnapshot(
       start: event.start,
       end: event.end,
       location: event.location,
-      owner: event.owner,
+      employees: (employeesByEventId.get(event._id) ?? []).map((employee) =>
+        options.includeDrafts
+          ? employee
+          : { displayName: employee.displayName }
+      ),
+      legacyResponsiblePerson:
+        event.legacyResponsiblePerson ?? event.owner ?? undefined,
       notes: event.notes,
       published: event.published,
       guideIds: guideIdsByEventId.get(event._id) ?? [],

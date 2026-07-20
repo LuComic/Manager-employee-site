@@ -41,7 +41,17 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ClerkProvider appearance={{ theme: shadcn }} afterSignOutUrl="/">
+        <ClerkProvider
+          appearance={{
+            theme: shadcn,
+            variables: {
+              borderRadius: "0rem",
+              colorPrimary: "var(--primary)",
+              fontFamily: "var(--font-sans)",
+            },
+          }}
+          afterSignOutUrl="/"
+        >
           <ConvexClientProvider>
             <ThemeProvider defaultTheme="light">
               <Suspense fallback={<div className="min-h-svh bg-background" />}>

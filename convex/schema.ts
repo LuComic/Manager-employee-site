@@ -2,6 +2,20 @@ import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
 const accessMode = v.union(v.literal("public"), v.literal("restricted"))
+const employeeStatus = v.union(
+  v.literal("unclaimed"),
+  v.literal("invited"),
+  v.literal("active"),
+  v.literal("deactivated")
+)
+const invitationStatus = v.union(
+  v.literal("not-sent"),
+  v.literal("pending"),
+  v.literal("accepted"),
+  v.literal("expired"),
+  v.literal("revoked"),
+  v.literal("failed")
+)
 const todaySectionKey = v.union(
   v.literal("welcome"),
   v.literal("quick-links"),
@@ -55,6 +69,8 @@ export default defineSchema({
     contactPhone: v.optional(v.string()),
     todaySections: v.optional(v.array(todaySection)),
     contentVersion: v.optional(v.number()),
+    // Transitional: legacy hubs are backfilled before this becomes required.
+    clerkOrganizationId: v.optional(v.string()),
     ownerSubject: v.string(),
     ownerTokenIdentifier: v.string(),
     accessMode,
@@ -65,7 +81,52 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_slug", ["slug"])
-    .index("by_ownerTokenIdentifier", ["ownerTokenIdentifier"]),
+    .index("by_ownerTokenIdentifier", ["ownerTokenIdentifier"])
+    .index("by_clerkOrganizationId", ["clerkOrganizationId"]),
+
+  employeeProfiles: defineTable({
+    hubId: v.id("hubs"),
+    clerkUserId: v.optional(v.string()),
+    displayName: v.string(),
+    email: v.optional(v.string()),
+    normalizedEmail: v.optional(v.string()),
+    department: v.optional(v.string()),
+    jobTitle: v.optional(v.string()),
+    status: employeeStatus,
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    invitedAt: v.optional(v.number()),
+    activatedAt: v.optional(v.number()),
+    deactivatedAt: v.optional(v.number()),
+    invitationId: v.optional(v.string()),
+    invitationStatus: invitationStatus,
+    invitationCorrelationHash: v.optional(v.string()),
+    invitationError: v.optional(v.string()),
+  })
+    .index("by_hubId_and_displayName", ["hubId", "displayName"])
+    .index("by_hubId_and_clerkUserId", ["hubId", "clerkUserId"])
+    .index("by_hubId_and_normalizedEmail", ["hubId", "normalizedEmail"])
+    .index("by_invitationCorrelationHash", ["invitationCorrelationHash"])
+    .index("by_invitationId", ["invitationId"]),
+
+  employeeClaimLinks: defineTable({
+    hubId: v.id("hubs"),
+    employeeProfileId: v.id("employeeProfiles"),
+    credentialHash: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    createdBy: v.string(),
+    revokedAt: v.optional(v.number()),
+    consumedAt: v.optional(v.number()),
+    consumedByClerkUserId: v.optional(v.string()),
+  })
+    .index("by_credentialHash", ["credentialHash"])
+    .index("by_employeeProfileId_and_createdAt", [
+      "employeeProfileId",
+      "createdAt",
+    ])
+    .index("by_hubId_and_createdAt", ["hubId", "createdAt"]),
 
   categories: defineTable({
     hubId: v.id("hubs"),
@@ -107,7 +168,11 @@ export default defineSchema({
     start: v.string(),
     end: v.string(),
     location: v.string(),
-    owner: v.string(),
+    // Transitional fields. `owner` contains pre-migration data; new writes use
+    // linked employee profiles and may retain `legacyResponsiblePerson` until
+    // a manager deliberately replaces it.
+    owner: v.optional(v.string()),
+    legacyResponsiblePerson: v.optional(v.string()),
     notes: v.string(),
     published: v.boolean(),
   })
@@ -127,6 +192,23 @@ export default defineSchema({
     .index("by_eventId", ["eventId"])
     .index("by_guideId", ["guideId"])
     .index("by_hubId", ["hubId"]),
+
+  eventEmployees: defineTable({
+    hubId: v.id("hubs"),
+    eventId: v.id("events"),
+    employeeProfileId: v.id("employeeProfiles"),
+    addedAt: v.number(),
+    addedBy: v.string(),
+  })
+    .index("by_eventId_and_employeeProfileId", ["eventId", "employeeProfileId"])
+    .index("by_employeeProfileId_and_eventId", ["employeeProfileId", "eventId"])
+    .index("by_hubId_and_eventId", ["hubId", "eventId"]),
+
+  clerkWebhookEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    receivedAt: v.number(),
+  }).index("by_eventId", ["eventId"]),
 
   announcements: defineTable({
     hubId: v.id("hubs"),

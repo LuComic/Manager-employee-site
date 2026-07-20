@@ -1,6 +1,18 @@
 import { clerkMiddleware } from "@clerk/nextjs/server"
+import { NextResponse } from "next/server"
 
-export default clerkMiddleware()
+export default clerkMiddleware(async (auth, request) => {
+  const { nextUrl } = request
+  if (nextUrl.pathname !== "/" || nextUrl.searchParams.has("hub")) return
+
+  const { isAuthenticated, orgId } = await auth()
+  if (!isAuthenticated) {
+    return NextResponse.redirect(new URL("/join", request.url))
+  }
+  if (!orgId) {
+    return NextResponse.redirect(new URL("/manager", request.url))
+  }
+})
 
 export const config = {
   matcher: [

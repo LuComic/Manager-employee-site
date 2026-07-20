@@ -211,7 +211,9 @@ export const saveEvent = mutation({
     start: v.string(),
     end: v.string(),
     location: v.string(),
-    owner: v.string(),
+    owner: v.optional(v.string()),
+    employeeProfileIds: v.optional(v.array(v.id("employeeProfiles"))),
+    replaceLegacyResponsiblePerson: v.optional(v.boolean()),
     notes: v.string(),
     published: v.boolean(),
     guideSlugs: v.array(v.string()),
@@ -233,7 +235,6 @@ export const saveEvent = mutation({
       start: required(args.start, "Event start", 40),
       end: required(args.end, "Event end", 40),
       location: required(args.location, "Event location", 140),
-      owner: required(args.owner, "Responsible person", 100),
       notes: args.notes.trim().slice(0, 4000),
       published: args.published,
     }
@@ -244,6 +245,60 @@ export const saveEvent = mutation({
           slug: required(args.slug, "Event slug", 100),
           ...value,
         })
+
+    if (args.replaceLegacyResponsiblePerson) {
+      await ctx.db.patch("events", eventId, {
+        owner: undefined,
+        legacyResponsiblePerson: undefined,
+      })
+    } else if (!existing && args.owner?.trim()) {
+      await ctx.db.patch("events", eventId, {
+        legacyResponsiblePerson: args.owner.trim().slice(0, 100),
+      })
+    }
+
+    if (args.employeeProfileIds !== undefined) {
+      const selectedIds = [...new Set(args.employeeProfileIds)].slice(0, 100)
+      const oldEmployeeRelations = await ctx.db
+        .query("eventEmployees")
+        .withIndex("by_eventId_and_employeeProfileId", (q) =>
+          q.eq("eventId", eventId)
+        )
+        .take(200)
+      const oldByEmployeeId = new Map(
+        oldEmployeeRelations.map((relation) => [
+          relation.employeeProfileId,
+          relation,
+        ])
+      )
+      for (const employeeProfileId of selectedIds) {
+        const profile = await ctx.db.get("employeeProfiles", employeeProfileId)
+        if (!profile || profile.hubId !== args.hubId) {
+          throw new Error("Employee does not belong to this workplace")
+        }
+        if (
+          profile.status === "deactivated" &&
+          !oldByEmployeeId.has(employeeProfileId)
+        ) {
+          throw new Error("Deactivated employees cannot be added to events")
+        }
+        if (!oldByEmployeeId.has(employeeProfileId)) {
+          await ctx.db.insert("eventEmployees", {
+            hubId: args.hubId,
+            eventId,
+            employeeProfileId,
+            addedAt: Date.now(),
+            addedBy: (await ctx.auth.getUserIdentity())!.subject,
+          })
+        }
+      }
+      const selected = new Set(selectedIds)
+      for (const relation of oldEmployeeRelations) {
+        if (!selected.has(relation.employeeProfileId)) {
+          await ctx.db.delete("eventEmployees", relation._id)
+        }
+      }
+    }
 
     const oldRelations = await ctx.db
       .query("eventGuides")
@@ -280,23 +335,34 @@ export const deleteEvent = mutation({
       )
       .unique()
     if (!event) return null
-    const [relations, attachments, announcements] = await Promise.all([
-      ctx.db
-        .query("eventGuides")
-        .withIndex("by_eventId", (q) => q.eq("eventId", event._id))
-        .take(1000),
-      ctx.db
-        .query("attachments")
-        .withIndex("by_eventId", (q) => q.eq("eventId", event._id))
-        .take(1000),
-      ctx.db
-        .query("announcements")
-        .withIndex("by_hubId_and_published", (q) => q.eq("hubId", args.hubId))
-        .filter((q) => q.eq(q.field("eventId"), event._id))
-        .take(500),
-    ])
+    const [relations, employeeRelations, attachments, announcements] =
+      await Promise.all([
+        ctx.db
+          .query("eventGuides")
+          .withIndex("by_eventId", (q) => q.eq("eventId", event._id))
+          .take(1000),
+        ctx.db
+          .query("eventEmployees")
+          .withIndex("by_eventId_and_employeeProfileId", (q) =>
+            q.eq("eventId", event._id)
+          )
+          .take(1000),
+        ctx.db
+          .query("attachments")
+          .withIndex("by_eventId", (q) => q.eq("eventId", event._id))
+          .take(1000),
+        ctx.db
+          .query("announcements")
+          .withIndex("by_hubId_and_published", (q) =>
+            q.eq("hubId", args.hubId)
+          )
+          .filter((q) => q.eq(q.field("eventId"), event._id))
+          .take(500),
+      ])
     for (const relation of relations)
       await ctx.db.delete("eventGuides", relation._id)
+    for (const relation of employeeRelations)
+      await ctx.db.delete("eventEmployees", relation._id)
     for (const attachment of attachments) {
       await ctx.storage.delete(attachment.storageId)
       await ctx.db.delete("attachments", attachment._id)
