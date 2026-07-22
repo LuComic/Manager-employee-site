@@ -47,7 +47,7 @@ import {
 
 type Status = "All" | "Published" | "Draft"
 
-function newEvent(): CalendarEvent {
+function newEvent(location = ""): CalendarEvent {
   const start = new Date()
   start.setDate(start.getDate() + 1)
   start.setHours(10, 0, 0, 0)
@@ -60,7 +60,7 @@ function newEvent(): CalendarEvent {
     category: "Reservation",
     start: toLocalDateTimeValue(start),
     end: toLocalDateTimeValue(end),
-    location: "",
+    location,
     employees: [],
     notes: "",
     attachments: [],
@@ -74,6 +74,7 @@ export function EventManager() {
     events,
     employees,
     guides,
+    hub,
     saveEvent,
     deleteEvent,
     uploadAttachment,
@@ -156,7 +157,7 @@ export function EventManager() {
         title="Manage calendar events"
         description="Maintain shared operational dates and their related information."
         action={
-          <Button onClick={() => openEditor(newEvent())}>
+          <Button onClick={() => openEditor(newEvent(hub?.address ?? ""))}>
             <Plus /> New event
           </Button>
         }
@@ -399,7 +400,10 @@ export function EventManager() {
                       replaces that legacy text with the selected profiles.
                     </p>
                   )}
-                  <div className="grid gap-2 border p-4 sm:grid-cols-2">
+                  <div
+                    className="flex flex-wrap gap-2"
+                    aria-label="Select employees"
+                  >
                     {employees
                       .filter(
                         (employee) =>
@@ -413,42 +417,36 @@ export function EventManager() {
                           (item) => item.id === employee.id
                         )
                         return (
-                          <label
+                          <Button
                             key={employee.id}
-                            className="flex items-start gap-2 text-sm"
+                            type="button"
+                            size="xs"
+                            variant={selected ? "default" : "outline"}
+                            className={selected ? undefined : "bg-background"}
+                            aria-pressed={selected}
+                            onClick={() =>
+                              setEditing({
+                                ...editing,
+                                employees: selected
+                                  ? editing.employees.filter(
+                                      (item) => item.id !== employee.id
+                                    )
+                                  : [
+                                      ...editing.employees,
+                                      {
+                                        id: employee.id,
+                                        displayName: employee.displayName,
+                                      },
+                                    ],
+                              })
+                            }
                           >
-                            <input
-                              className="mt-1"
-                              type="checkbox"
-                              checked={selected}
-                              onChange={(event) =>
-                                setEditing({
-                                  ...editing,
-                                  employees: event.target.checked
-                                    ? [
-                                        ...editing.employees,
-                                        {
-                                          id: employee.id,
-                                          displayName: employee.displayName,
-                                        },
-                                      ]
-                                    : editing.employees.filter(
-                                        (item) => item.id !== employee.id
-                                      ),
-                                })
-                              }
-                            />
-                            <span>
-                              {employee.displayName}
-                              <span className="block text-xs text-muted-foreground">
-                                {employee.status}
-                              </span>
-                            </span>
-                          </label>
+                            {employee.displayName}
+                          </Button>
                         )
                       })}
                     {!employees.length && (
-                      <p className="text-sm text-muted-foreground sm:col-span-2">
+                      <p className="text-sm text-muted-foreground">
                         Create employee profiles in Employees, or save this
                         event with no employees.
                       </p>
@@ -512,32 +510,37 @@ export function EventManager() {
                 </Field>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Related guides</Label>
-                  <div className="grid gap-2 border p-4 sm:grid-cols-2">
+                  <div
+                    className="flex flex-wrap gap-2"
+                    aria-label="Select related guides"
+                  >
                     {guides
                       .filter((guide) => guide.published)
-                      .map((guide) => (
-                        <label
-                          key={guide.id}
-                          className="flex items-start gap-2 text-sm"
-                        >
-                          <input
-                            className="mt-1"
-                            type="checkbox"
-                            checked={editing.guideIds.includes(guide.id)}
-                            onChange={(event) =>
+                      .map((guide) => {
+                        const selected = editing.guideIds.includes(guide.id)
+                        return (
+                          <Button
+                            key={guide.id}
+                            type="button"
+                            size="xs"
+                            variant={selected ? "default" : "outline"}
+                            className={selected ? undefined : "bg-background"}
+                            aria-pressed={selected}
+                            onClick={() =>
                               setEditing({
                                 ...editing,
-                                guideIds: event.target.checked
-                                  ? [...editing.guideIds, guide.id]
-                                  : editing.guideIds.filter(
+                                guideIds: selected
+                                  ? editing.guideIds.filter(
                                       (id) => id !== guide.id
-                                    ),
+                                    )
+                                  : [...editing.guideIds, guide.id],
                               })
                             }
-                          />{" "}
-                          {guide.title}
-                        </label>
-                      ))}
+                          >
+                            {guide.title}
+                          </Button>
+                        )
+                      })}
                   </div>
                 </div>
                 <label className="flex items-center gap-2 text-sm">

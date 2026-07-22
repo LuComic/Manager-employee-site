@@ -40,23 +40,36 @@ Use this guide when designing or reviewing interfaces in this project. The goal 
 - Major page sections usually use `space-y-8` or an equivalent consistent separation.
 - A heading and its supporting description should use less space than the gap between separate sections.
 - Responsive variants may change spacing, but equivalent components should still follow the same pattern.
+- Use compact card spacing (`p-4` or the small Card size) for dashboards, summaries, and repeatable list rows.
+- Use `p-6` for forms and detail panels that need more separation. Reserve `p-8` for long-form or intentionally spacious content rather than using it by default.
 
 ## Sizing and layout
 
 - Prefer standard Tailwind sizes and simple grid utilities.
 - Avoid arbitrary fractions, dimensions, font sizes, and line heights when a standard value works.
 - Keep page containers consistent and let narrow layouts stack naturally.
+- Do not rely on horizontal scrolling for primary navigation. Let a short navigation stack or wrap deliberately on narrow screens.
 
 ## Cards and visuals
 
 - Use solid theme colors, borders, and subtle shadows. Avoid generic gradients, glows, and unnecessary decoration.
 - Make the full card clickable when it leads to a single destination.
 - Account for ShadCN's built-in card spacing so padding is not duplicated and backgrounds reach the card edges.
+- Prefer compact rows over a grid of tall cards when the main content is a short label, status, or count.
+
+## Information hierarchy and navigation
+
+- Give each page one clear, specific `h1`. Treat the product or area name in the shared header as context, not as the page title.
+- Make section headings visually distinct enough to scan quickly; do not let large numbers or card decoration overpower them.
+- Keep the always-visible navigation focused on a few frequent destinations. Group secondary destinations in a clearly labeled menu such as `More tools`.
+- Group disclosed navigation by user purpose, not by implementation details, and keep its order consistent across pages.
+- Use progressive disclosure only for secondary choices. Do not hide information or actions that most users need to complete the current task.
 
 ## Interaction and content
 
 - Keep controls easy to recognize, comfortably sized, and keyboard accessible.
 - Use links for navigation and buttons for actions.
 - Write short, direct copy for non-technical users.
+- Avoid technical implementation language in interface copy when a task-focused explanation works instead.
 - Avoid personal greetings or account-focused language in communal interfaces.
 - Check that desktop and mobile layouts remain clear and readable.

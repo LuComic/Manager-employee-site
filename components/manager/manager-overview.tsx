@@ -16,13 +16,7 @@ import {
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { useOperations } from "@/components/providers/operations-provider"
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { getAnnouncementState } from "@/lib/operations"
 
 export function ManagerOverview() {
@@ -116,52 +110,66 @@ export function ManagerOverview() {
     faqs.filter((item) => !item.published).length +
     documents.filter((item) => !item.published).length
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
-        title="Content overview"
-        description="Live counts from your Convex-backed hub update as content changes."
+        title="Overview"
+        description="See what is available to employees and choose an area to manage."
       />
+      {drafts > 0 && (
+        <div
+          className="flex items-start gap-3 border bg-background p-4"
+          role="status"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center bg-muted text-muted-foreground">
+            <FilePenLine className="size-4" />
+          </span>
+          <div>
+            <p className="font-semibold">
+              {drafts} {drafts === 1 ? "draft needs" : "drafts need"} review
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Draft items are not visible to employees until they are published.
+            </p>
+          </div>
+        </div>
+      )}
       {sections.map((section) => (
-        <section key={section.title} className="space-y-4">
-          <h2 className="text-lg font-semibold">{section.title}</h2>
-          <div className="grid gap-4 md:grid-cols-2">
+        <section key={section.title} className="space-y-3">
+          <h2 className="text-xl font-semibold tracking-tight">
+            {section.title}
+          </h2>
+          <div className="grid gap-3 lg:grid-cols-2">
             {section.cards.map(({ href, title, value, detail, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
                 className="group outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
               >
-                <Card className="h-full shadow-none transition-shadow group-hover:shadow-md">
-                  <CardHeader>
-                    <span className="flex size-10 items-center justify-center bg-primary/10 text-primary">
+                <Card
+                  size="sm"
+                  className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+                >
+                  <CardContent className="flex h-full items-center gap-4">
+                    <span className="flex size-9 shrink-0 items-center justify-center bg-primary/10 text-primary">
                       <Icon className="size-5" />
                     </span>
-                    <CardTitle className="mt-4 text-base">{title}</CardTitle>
-                    <CardDescription>{detail}</CardDescription>
-                  </CardHeader>
-                  <CardFooter className="mt-auto justify-between">
-                    <span className="text-3xl font-semibold">{value}</span>
-                    <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-                  </CardFooter>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold">{title}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {detail}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-lg font-semibold">
+                      {value}
+                    </span>
+                    <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                  </CardContent>
                 </Card>
               </Link>
             ))}
           </div>
         </section>
       ))}
-      <Card className="shadow-none">
-        <CardHeader>
-          <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
-            <FilePenLine className="size-5" />
-          </span>
-          <CardTitle className="mt-4 text-base">Draft content</CardTitle>
-          <CardDescription>
-            {drafts === 0
-              ? "Everything is currently published."
-              : `${drafts} ${drafts === 1 ? "item is" : "items are"} still in draft. Open a management view to review or publish it.`}
-          </CardDescription>
-        </CardHeader>
-      </Card>
     </div>
   )
 }

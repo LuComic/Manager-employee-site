@@ -13,6 +13,7 @@ import {
   Headphones,
   Home,
   LayoutDashboard,
+  Menu,
   Megaphone,
   ShieldCheck,
   Tags,
@@ -34,7 +35,10 @@ import { buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
@@ -45,41 +49,55 @@ type NavigationLink = {
   icon: LucideIcon
 }
 
-type NavigationGroup = {
-  label: string
-  icon: LucideIcon
-  items: NavigationLink[]
-}
-
-const navigationItems: Array<NavigationLink | NavigationGroup> = [
+const primaryNavigationItems: NavigationLink[] = [
   { href: "/manager", label: "Overview", icon: LayoutDashboard },
   { href: "/manager/today", label: "Today", icon: Home },
+]
+
+const guideNavigationItems: NavigationLink[] = [
+  { href: "/manager/guides", label: "Guides", icon: BookOpen },
+  { href: "/manager/categories", label: "Guide categories", icon: Tags },
+]
+
+const moreNavigationGroups: { label: string; items: NavigationLink[] }[] = [
   {
-    label: "Guides",
-    icon: BookOpen,
+    label: "Content",
     items: [
-      { href: "/manager/guides", label: "Guides", icon: BookOpen },
-      { href: "/manager/categories", label: "Guide categories", icon: Tags },
+      {
+        href: "/manager/calendar",
+        label: "Calendar events",
+        icon: CalendarDays,
+      },
+      {
+        href: "/manager/announcements",
+        label: "Announcements",
+        icon: Megaphone,
+      },
+      { href: "/manager/documents", label: "Documents", icon: Files },
+      {
+        href: "/manager/questions",
+        label: "Common questions",
+        icon: CircleHelp,
+      },
     ],
   },
-  { href: "/manager/calendar", label: "Calendar events", icon: CalendarDays },
-  { href: "/manager/announcements", label: "Announcements", icon: Megaphone },
-  { href: "/manager/documents", label: "Documents", icon: Files },
-  { href: "/manager/questions", label: "Common questions", icon: CircleHelp },
-  { href: "/manager/help", label: "Help requests", icon: Headphones },
   {
-    label: "Employees",
-    icon: Users,
+    label: "People and workplace",
     items: [
+      { href: "/manager/help", label: "Help requests", icon: Headphones },
       { href: "/manager/employees", label: "Employees", icon: Users },
       {
         href: "/manager/access",
         label: "Employee access",
         icon: ShieldCheck,
       },
+      {
+        href: "/manager/settings",
+        label: "Establishment",
+        icon: Building2,
+      },
     ],
   },
-  { href: "/manager/settings", label: "Establishment", icon: Building2 },
 ]
 
 function isActiveLink(pathname: string, href: string) {
@@ -97,9 +115,9 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-svh bg-muted/40">
       <header className="border-b bg-background">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Brand linked={!focusedEditor} />
-            <div className="flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-3">
               <OrganizationSwitcher
                 hidePersonal={false}
                 afterCreateOrganizationUrl="/manager"
@@ -121,7 +139,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div>
-            <h1 className="text-xl font-semibold">Manager area</h1>
+            <p className="text-lg font-semibold">Manager area</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {hub
                 ? `${hub.name} · Workplace administration`
@@ -130,50 +148,10 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           </div>
           {!focusedEditor && (
             <nav
-              className="flex gap-2 overflow-x-auto pb-1 xl:flex-wrap xl:overflow-visible"
+              className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
               aria-label="Manager navigation"
             >
-              {navigationItems.map((item) => {
-                if ("items" in item) {
-                  const active = item.items.some(({ href }) =>
-                    isActiveLink(pathname, href)
-                  )
-                  const Icon = item.icon
-                  return (
-                    <DropdownMenu key={item.label}>
-                      <DropdownMenuTrigger
-                        className={cn(
-                          buttonVariants({
-                            variant: active ? "secondary" : "ghost",
-                            size: "sm",
-                          }),
-                          "tracking-normal normal-case"
-                        )}
-                      >
-                        <Icon /> {item.label} <ChevronDown />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        {item.items.map((link) => {
-                          const ChildIcon = link.icon
-                          const childActive = isActiveLink(pathname, link.href)
-                          return (
-                            <DropdownMenuItem
-                              key={link.href}
-                              render={<Link href={link.href} />}
-                              className={cn(
-                                childActive &&
-                                  "bg-accent text-accent-foreground"
-                              )}
-                            >
-                              <ChildIcon /> {link.label}
-                            </DropdownMenuItem>
-                          )
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )
-                }
-
+              {primaryNavigationItems.map((item) => {
                 const { href, label, icon: Icon } = item
                 const active = isActiveLink(pathname, href)
                 return (
@@ -183,20 +161,96 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     className={cn(
                       buttonVariants({
                         variant: active ? "secondary" : "ghost",
-                        size: "sm",
+                        size: "default",
                       }),
-                      "tracking-normal normal-case"
+                      "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                     )}
                   >
                     <Icon /> {label}
                   </Link>
                 )
               })}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(
+                    buttonVariants({
+                      variant: guideNavigationItems.some(({ href }) =>
+                        isActiveLink(pathname, href)
+                      )
+                        ? "secondary"
+                        : "ghost",
+                      size: "default",
+                    }),
+                    "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                  )}
+                >
+                  <BookOpen /> Guides <ChevronDown />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {guideNavigationItems.map((link) => {
+                    const Icon = link.icon
+                    const active = isActiveLink(pathname, link.href)
+                    return (
+                      <DropdownMenuItem
+                        key={link.href}
+                        render={<Link href={link.href} />}
+                        className={cn(
+                          active && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <Icon /> {link.label}
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(
+                    buttonVariants({
+                      variant: moreNavigationGroups.some((group) =>
+                        group.items.some(({ href }) =>
+                          isActiveLink(pathname, href)
+                        )
+                      )
+                        ? "secondary"
+                        : "ghost",
+                      size: "default",
+                    }),
+                    "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                  )}
+                >
+                  <Menu /> More tools <ChevronDown />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64">
+                  {moreNavigationGroups.map((group, groupIndex) => (
+                    <DropdownMenuGroup key={group.label}>
+                      {groupIndex > 0 && <DropdownMenuSeparator />}
+                      <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+                      {group.items.map((link) => {
+                        const Icon = link.icon
+                        const active = isActiveLink(pathname, link.href)
+                        return (
+                          <DropdownMenuItem
+                            key={link.href}
+                            render={<Link href={link.href} />}
+                            className={cn(
+                              active && "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            <Icon /> {link.label}
+                          </DropdownMenuItem>
+                        )
+                      })}
+                    </DropdownMenuGroup>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </nav>
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {hubState === "loading" ? (
           <p role="status" className="text-sm text-muted-foreground">
             Loading your hub…

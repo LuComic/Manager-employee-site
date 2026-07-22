@@ -17,7 +17,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { slugify } from "@/lib/operations"
 
@@ -38,7 +37,9 @@ export function HubSetup() {
           <span className="mb-3 flex size-11 items-center justify-center bg-primary/10 text-primary">
             <Building2 />
           </span>
-          <CardTitle>Create your workplace</CardTitle>
+          <h1 className="font-heading text-lg font-semibold">
+            Create your workplace
+          </h1>
           <CardDescription>
             Choose the workplace name and logo. You will become its first
             manager.
@@ -85,7 +86,9 @@ export function HubSetup() {
         <span className="mb-3 flex size-11 items-center justify-center bg-primary/10 text-primary">
           <Building2 />
         </span>
-        <CardTitle>Finish setting up your operations hub</CardTitle>
+        <h1 className="font-heading text-lg font-semibold">
+          Finish setting up your operations hub
+        </h1>
         <CardDescription>
           Your workplace account manages the name, logo, managers, and members.
           The operations hub will use the active workplace shown below.
