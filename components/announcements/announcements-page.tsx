@@ -7,7 +7,10 @@ import { AnnouncementCard } from "@/components/operations/announcement-card"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
-import { Button } from "@/components/ui/button"
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control"
 import { getAnnouncementState } from "@/lib/operations"
 
 type Filter = "Active" | "Upcoming" | "Expired"
@@ -27,36 +30,37 @@ export function AnnouncementsPage() {
     )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeading
         title="Announcements"
         description="Temporary operational updates, changes, and notices for the whole establishment."
       />
-      <div
-        className="flex flex-wrap gap-2 border-b pb-4"
-        aria-label="Announcement status"
-      >
-        {(["Active", "Upcoming", "Expired"] as const).map((item) => {
-          const count = announcements.filter(
-            (announcement) =>
-              getAnnouncementState(announcement, new Date(), hub?.timeZone) ===
-              item
-          ).length
-          return (
-            <Button
-              key={item}
-              variant={filter === item ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setFilter(item)}
-              aria-pressed={filter === item}
-            >
-              {item} ({count})
-            </Button>
-          )
-        })}
+      <div className="border-b pb-4">
+        <SegmentedControl aria-label="Announcement status">
+          {(["Active", "Upcoming", "Expired"] as const).map((item) => {
+            const count = announcements.filter(
+              (announcement) =>
+                getAnnouncementState(
+                  announcement,
+                  new Date(),
+                  hub?.timeZone
+                ) === item
+            ).length
+            return (
+              <SegmentedControlItem
+                key={item}
+                selected={filter === item}
+                size="sm"
+                onClick={() => setFilter(item)}
+              >
+                {item} ({count})
+              </SegmentedControlItem>
+            )
+          })}
+        </SegmentedControl>
       </div>
       {visible.length ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((announcement) => (
             <AnnouncementCard
               key={announcement.id}

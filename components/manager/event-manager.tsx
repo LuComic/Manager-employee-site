@@ -152,7 +152,7 @@ export function EventManager() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Manage calendar events"
         description="Maintain shared operational dates and their related information."
@@ -212,7 +212,7 @@ export function EventManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((event) => (
-            <Card key={event.id} className="shadow-none">
+            <Card key={event.id} size="sm" className="shadow-none">
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                   <CalendarDays className="size-5" />

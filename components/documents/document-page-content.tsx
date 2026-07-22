@@ -29,7 +29,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
     )
 
   return (
-    <article className="space-y-8">
+    <article className="space-y-6">
       <div>
         <Link
           href="/documents"
@@ -40,9 +40,9 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
         >
           <ArrowLeft /> Back to documents
         </Link>
-        <div className="mt-6 max-w-4xl">
+        <div className="mt-4 max-w-4xl">
           <Badge variant="secondary">{documentTypeLabel(document.type)}</Badge>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
             {document.title}
           </h1>
           <p className="mt-3 text-muted-foreground">{document.description}</p>
@@ -51,7 +51,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
       {document.type === "presentation" ? (
         <DocumentContent document={document} />
       ) : (
-        <div className="border bg-background p-6 sm:p-8">
+        <div className="border bg-background p-6">
           <DocumentContent document={document} />
         </div>
       )}

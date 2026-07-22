@@ -96,14 +96,12 @@ export function AnnouncementArticle({
             )}
           </div>
           <CardTitle>
-            <h1 className="text-3xl tracking-tight sm:text-4xl">
-              {announcement.title}
-            </h1>
+            <h1 className="text-2xl tracking-tight">{announcement.title}</h1>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <RichTextContent content={announcement.content} />
-          <div className="mt-8 flex flex-wrap gap-6 border-t pt-6 text-sm text-muted-foreground">
+          <div className="mt-6 flex flex-wrap gap-4 border-t pt-4 text-sm text-muted-foreground">
             <span>
               Published{" "}
               {formatDate(
@@ -126,7 +124,7 @@ export function AnnouncementArticle({
       {(event || guide) && (
         <section>
           <h2 className="mb-4 text-xl font-semibold">Related information</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {event && <EventCard event={event} compact />}
             {guide && <GuideCard guide={guide} />}
           </div>

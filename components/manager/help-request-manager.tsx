@@ -11,6 +11,10 @@ import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control"
 import { Card, CardContent } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -51,27 +55,29 @@ export function HelpRequestManager() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Help requests"
         description="Review questions employees sent from the help button."
       />
 
-      <div className="flex gap-2 border bg-background p-4">
-        {(["open", "resolved"] as const).map((status) => (
-          <Button
-            key={status}
-            variant={filter === status ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setFilter(status)}
-          >
-            {status === "open" ? "Open" : "Resolved"}
-            <Badge variant="outline">
-              {requests?.filter((request) => request.status === status)
-                .length ?? 0}
-            </Badge>
-          </Button>
-        ))}
+      <div className="border-b pb-4">
+        <SegmentedControl aria-label="Help request status">
+          {(["open", "resolved"] as const).map((status) => (
+            <SegmentedControlItem
+              key={status}
+              selected={filter === status}
+              size="sm"
+              onClick={() => setFilter(status)}
+            >
+              {status === "open" ? "Open" : "Resolved"}
+              <Badge variant="outline">
+                {requests?.filter((request) => request.status === status)
+                  .length ?? 0}
+              </Badge>
+            </SegmentedControlItem>
+          ))}
+        </SegmentedControl>
       </div>
 
       {requests === undefined ? (
@@ -81,7 +87,7 @@ export function HelpRequestManager() {
       ) : visible.length ? (
         <div className="space-y-4">
           {visible.map((request) => (
-            <Card key={request.id} className="shadow-none">
+            <Card key={request.id} size="sm" className="shadow-none">
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
                 <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                   <Headphones className="size-5" />

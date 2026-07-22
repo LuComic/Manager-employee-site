@@ -14,7 +14,7 @@ export default function GuidesPage() {
   const publishedGuides = guides.filter((guide) => guide.published)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeading
         title="Guides"
         description="Clear, step-by-step instructions for the tasks that come up during a shift."
@@ -52,7 +52,7 @@ export default function GuidesPage() {
           description={`${publishedGuides.length} published guides available.`}
         />
         {publishedGuides.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {publishedGuides.map((guide) => (
               <GuideCard key={guide.id} guide={guide} />
             ))}

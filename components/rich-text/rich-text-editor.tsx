@@ -250,7 +250,7 @@ function FormatButton({
   return (
     <Button
       type="button"
-      variant={active ? "secondary" : "ghost"}
+      variant={active ? "selected" : "ghost"}
       size="icon-sm"
       aria-label={label}
       aria-pressed={active}

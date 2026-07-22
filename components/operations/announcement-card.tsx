@@ -22,7 +22,10 @@ export function AnnouncementCard({
       href={`/announcements/${announcement.id}`}
       className="group block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
     >
-      <Card className="h-full shadow-none transition-shadow group-hover:shadow-md">
+      <Card
+        size="sm"
+        className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+      >
         <CardHeader>
           <div className="mb-2 flex items-center gap-4">
             <Badge

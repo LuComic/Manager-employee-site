@@ -12,7 +12,7 @@ export default function CategoriesPage() {
   const publishedGuides = guides.filter((guide) => guide.published)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeading
         title="Guide categories"
         description="Choose a work area to see all of its published guides."

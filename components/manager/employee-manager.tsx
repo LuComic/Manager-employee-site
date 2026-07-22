@@ -225,7 +225,7 @@ export function EmployeeManager() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Employees"
         description="Create workplace profiles, invite employees, manage roles, and control access."
@@ -288,7 +288,7 @@ export function EmployeeManager() {
               ? roles.get(employee.clerkUserId)
               : undefined
             return (
-              <Card key={employee.id} className="shadow-none">
+              <Card key={employee.id} size="sm" className="shadow-none">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                     <UserCog className="size-5" />

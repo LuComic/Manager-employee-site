@@ -9,6 +9,10 @@ import { useOperations } from "@/components/providers/operations-provider"
 import { RichTextEditor } from "@/components/rich-text/rich-text-editor"
 import { useUnsavedChanges } from "@/components/manager/use-unsaved-changes"
 import { Button } from "@/components/ui/button"
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -227,33 +231,33 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
           <Button variant="ghost" size="sm" onClick={leave}>
             <ArrowLeft /> Back to guides
           </Button>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
             {draft.id ? "Edit guide" : "Create guide"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Write clear instructions and preview how employees will read them.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
+        <SegmentedControl aria-label="Guide editor view">
+          <SegmentedControlItem
             type="button"
-            variant={mode === "edit" ? "secondary" : "outline"}
+            selected={mode === "edit"}
             onClick={() => setMode("edit")}
           >
             <Pencil /> Edit
-          </Button>
-          <Button
+          </SegmentedControlItem>
+          <SegmentedControlItem
             type="button"
-            variant={mode === "preview" ? "secondary" : "outline"}
+            selected={mode === "preview"}
             onClick={() => setMode("preview")}
           >
             <Eye /> Preview
-          </Button>
-        </div>
+          </SegmentedControlItem>
+        </SegmentedControl>
       </div>
 
       {mode === "preview" ? (
-        <div className="border bg-muted/20 p-4 sm:p-8">
+        <div className="border bg-muted/20 p-4 sm:p-6">
           <GuideDetail
             guide={previewGuide}
             category={categories.find(
@@ -302,7 +306,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
 
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
-              <Field label="Work area" id="guide-category">
+              <Field label="Category" id="guide-category">
                 <Select
                   value={draft.category}
                   onValueChange={(value) => {

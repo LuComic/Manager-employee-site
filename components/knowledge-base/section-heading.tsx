@@ -13,9 +13,9 @@ export function SectionHeading({
   action?: { label: string; href: string }
 }) {
   return (
-    <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
         {description && (
           <p className="mt-2 text-sm text-muted-foreground">{description}</p>
         )}

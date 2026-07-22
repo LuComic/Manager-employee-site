@@ -49,15 +49,13 @@ export function EventDetail({ eventId }: { eventId: string }) {
         <CardHeader className="border-b">
           <Badge variant="secondary">{event.category}</Badge>
           <CardTitle>
-            <h1 className="text-3xl tracking-tight sm:text-4xl">
-              {event.title}
-            </h1>
+            <h1 className="text-2xl tracking-tight">{event.title}</h1>
           </CardTitle>
           <p className="mt-2 max-w-2xl text-muted-foreground">
             {event.description}
           </p>
         </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-2">
+        <CardContent className="grid gap-4 sm:grid-cols-2">
           <Detail
             icon={CalendarDays}
             label="Date"
@@ -79,17 +77,19 @@ export function EventDetail({ eventId }: { eventId: string }) {
             label="Employees"
             value={
               event.employees.length
-                ? event.employees.map((employee) => employee.displayName).join(", ")
+                ? event.employees
+                    .map((employee) => employee.displayName)
+                    .join(", ")
                 : event.legacyResponsiblePerson || "No employees assigned"
             }
           />
-          <div className="border-t pt-6 sm:col-span-2">
+          <div className="border-t pt-4 sm:col-span-2">
             <h2 className="font-semibold">Notes</h2>
             <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
               {event.notes || "No additional notes."}
             </p>
           </div>
-          <div className="border-t pt-6 sm:col-span-2">
+          <div className="border-t pt-4 sm:col-span-2">
             <h2 className="font-semibold">Attachments</h2>
             {event.attachments.length ? (
               <ul className="mt-4 space-y-2">
@@ -124,7 +124,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
       {relatedGuides.length > 0 && (
         <section>
           <h2 className="mb-4 text-xl font-semibold">Related guides</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {relatedGuides.map((guide) => (
               <GuideCard key={guide.id} guide={guide} />
             ))}

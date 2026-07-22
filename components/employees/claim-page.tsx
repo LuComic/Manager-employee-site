@@ -18,7 +18,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 
 const storageKey = "operations-hub:employee-claim"
@@ -98,7 +97,9 @@ export function ClaimPage() {
           <span className="mb-3 flex size-11 items-center justify-center bg-primary/10 text-primary">
             <KeyRound />
           </span>
-          <CardTitle>Claim your employee profile</CardTitle>
+          <h1 className="font-heading text-lg font-semibold">
+            Claim your employee profile
+          </h1>
           <CardDescription>
             This personal link connects your account to one workplace profile.
           </CardDescription>

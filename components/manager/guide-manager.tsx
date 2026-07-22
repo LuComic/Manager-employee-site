@@ -48,7 +48,7 @@ export function GuideManager() {
   )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Manage guides"
         description="Create, edit, publish, and remove practical instructions."
@@ -117,7 +117,7 @@ export function GuideManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((guide) => (
-            <Card key={guide.id} className="shadow-none">
+            <Card key={guide.id} size="sm" className="shadow-none">
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                   <BookOpen className="size-5" />

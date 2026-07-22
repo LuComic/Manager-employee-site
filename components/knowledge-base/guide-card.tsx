@@ -25,10 +25,13 @@ export function GuideCard({
       onClick={onNavigate}
       className="group block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
     >
-      <Card className="h-full min-h-56 shadow-none transition-shadow group-hover:shadow-md">
+      <Card
+        size="sm"
+        className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+      >
         <CardHeader>
-          <span className="mb-4 flex size-10 items-center justify-center bg-primary/10 text-primary">
-            <Icon className="size-5" />
+          <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
+            <Icon className="size-4" />
           </span>
           <CardTitle className="text-base tracking-normal normal-case">
             {guide.title}

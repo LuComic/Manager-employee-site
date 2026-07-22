@@ -51,14 +51,14 @@ export function HubSettingsManager() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Establishment settings"
         description="Update the workplace details employees see across the hub."
       />
 
       <form
-        className="space-y-8"
+        className="space-y-6"
         onSubmit={async (event) => {
           event.preventDefault()
           setPending(true)

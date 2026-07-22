@@ -28,7 +28,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -78,7 +77,9 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
         <Card className="w-full max-w-lg shadow-none">
           <CardHeader>
-            <CardTitle>Workplace access removed</CardTitle>
+            <h1 className="font-heading text-lg font-semibold">
+              Workplace access removed
+            </h1>
             <CardDescription>
               Your employee profile is deactivated. Choose another workplace or
               contact a manager if this is unexpected.
@@ -104,7 +105,9 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
             <span className="mb-3 flex size-11 items-center justify-center bg-primary/10 text-primary">
               <ShieldCheck />
             </span>
-            <CardTitle>{hub?.name ?? "Private operations hub"}</CardTitle>
+            <h1 className="font-heading text-lg font-semibold">
+              {hub?.name ?? "Private operations hub"}
+            </h1>
             <CardDescription>
               Enter the employee join code. You do not need an account.
             </CardDescription>
@@ -208,27 +211,27 @@ export function HubEntryScreen({
   }
 
   return (
-    <main className="min-h-svh bg-muted/40 p-4 sm:p-8">
-      <div className="mx-auto flex min-h-[calc(100svh-2rem)] max-w-5xl items-center sm:min-h-[calc(100svh-4rem)]">
+    <main className="min-h-svh bg-muted/40 p-4 sm:p-6">
+      <div className="mx-auto flex min-h-[calc(100svh-2rem)] max-w-5xl items-center sm:min-h-[calc(100svh-3rem)]">
         <div className="grid w-full overflow-hidden border bg-background shadow-sm lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="flex flex-col justify-between bg-primary p-8 text-primary-foreground sm:p-12">
+          <section className="flex flex-col justify-between bg-primary p-6 text-primary-foreground sm:p-8">
             <div>
-              <span className="flex size-12 items-center justify-center bg-primary-foreground text-primary">
-                <BriefcaseBusiness className="size-6" />
+              <span className="flex size-10 items-center justify-center bg-primary-foreground text-primary">
+                <BriefcaseBusiness className="size-5" />
               </span>
-              <p className="mt-6 text-sm font-medium text-primary-foreground/75">
+              <p className="mt-4 text-sm font-medium text-primary-foreground/75">
                 Operations hub
               </p>
-              <h1 className="mt-3 max-w-md text-4xl leading-15 font-semibold tracking-tight sm:text-5xl">
+              <h1 className="mt-2 max-w-md text-3xl font-semibold tracking-tight sm:text-4xl">
                 Everything your shift needs, in one place.
               </h1>
-              <p className="mt-5 max-w-lg text-primary-foreground/75">
+              <p className="mt-4 max-w-lg text-sm leading-6 text-primary-foreground/75 sm:text-base">
                 Open today’s updates, practical guides, announcements, and
                 workplace events.
               </p>
             </div>
 
-            <div className="mt-12">
+            <div className="mt-8">
               {isSignedIn ? (
                 <div className="space-y-4">
                   <p className="text-sm text-primary-foreground/75">
@@ -290,11 +293,11 @@ export function HubEntryScreen({
             </div>
           </section>
 
-          <section id="join-workplace" className="scroll-mt-4 p-8 sm:p-12">
-            <div className="flex size-11 items-center justify-center bg-primary/10 text-primary">
+          <section id="join-workplace" className="scroll-mt-4 p-6 sm:p-8">
+            <div className="flex size-10 items-center justify-center bg-primary/10 text-primary">
               <KeyRound className="size-5" />
             </div>
-            <h2 className="mt-6 text-2xl font-semibold tracking-tight">
+            <h2 className="mt-4 text-xl font-semibold tracking-tight">
               Join a workplace
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -302,10 +305,10 @@ export function HubEntryScreen({
               manager.
             </p>
 
-            <Separator className="my-6" />
+            <Separator className="my-4" />
 
             <form
-              className="space-y-5"
+              className="space-y-4"
               onSubmit={(event) => {
                 event.preventDefault()
                 const entry = parseHubEntry(

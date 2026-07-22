@@ -15,7 +15,7 @@ export function CategoryCard({
   return (
     <Link
       href={`/categories/${category.id}`}
-      className="group flex min-h-32 items-start gap-4 bg-background p-6 transition-colors hover:bg-muted/60"
+      className="group flex items-start gap-4 bg-background p-4 transition-colors hover:bg-muted/60"
     >
       <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
         <CategoryIcon iconKey={category.iconKey} className="size-5" />
@@ -28,7 +28,7 @@ export function CategoryCard({
         <span className="mt-2 block text-sm text-muted-foreground">
           {category.description}
         </span>
-        <Badge variant="secondary" className="mt-4">
+        <Badge variant="secondary" className="mt-3">
           {count} guides
         </Badge>
       </span>

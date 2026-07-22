@@ -34,30 +34,30 @@ export function GuideDetail({
       )}
 
       <Card className="gap-0 py-0 shadow-none">
-        <div className="border-b p-6 sm:p-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <span className="flex size-12 shrink-0 items-center justify-center bg-primary/10 text-primary">
-              <Icon className="size-6" />
+        <div className="border-b p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
+              <Icon className="size-5" />
             </span>
             <div>
               <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock3 className="size-4" /> {guide.duration}
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h1 className="text-2xl font-semibold tracking-tight">
                 {guide.title}
               </h1>
-              <p className="mt-4 max-w-2xl text-base text-muted-foreground">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                 {guide.description}
               </p>
             </div>
           </div>
         </div>
 
-        <CardContent className="p-6 sm:p-8">
+        <CardContent className="p-6">
           <RichTextContent content={guide.content} />
         </CardContent>
 
-        <div className="flex flex-col gap-4 border-t bg-muted/30 p-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <div className="flex flex-col gap-4 border-t bg-muted/30 p-6 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs text-muted-foreground">{guide.updated}</span>
           {!preview && <PrintButton />}
         </div>

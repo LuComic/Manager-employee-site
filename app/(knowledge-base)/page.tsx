@@ -16,12 +16,7 @@ import { EventCard } from "@/components/operations/event-card"
 import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { useOperations } from "@/components/providers/operations-provider"
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { formatDate, isAnnouncementActive, toDateKey } from "@/lib/operations"
 import {
   defaultTodaySections,
@@ -74,7 +69,7 @@ export default function TodayPage() {
     switch (key) {
       case "welcome":
         return (
-          <section className="border bg-primary p-8 text-primary-foreground">
+          <section className="border bg-primary p-6 text-primary-foreground">
             <p className="text-sm font-medium text-primary-foreground/80">
               {formatDate(
                 new Date().toISOString(),
@@ -86,15 +81,15 @@ export default function TodayPage() {
                 timeZone
               )}
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
               Today at {hub?.name ?? "your workplace"}
             </h1>
-            <p className="mt-4 max-w-2xl text-primary-foreground/80">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-foreground/80 sm:text-base">
               {hub?.description ||
                 "Current updates, important times, and the guides you may need during the day."}
             </p>
             {hub?.address && (
-              <p className="mt-4 flex items-center gap-2 text-sm text-primary-foreground/80">
+              <p className="mt-3 flex items-center gap-2 text-sm text-primary-foreground/80">
                 <MapPin className="size-4" /> {hub.address}
               </p>
             )}
@@ -107,24 +102,29 @@ export default function TodayPage() {
               title="Quick links"
               description="Go straight to the main areas of the operations hub."
             />
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               {quickLinks.map(({ href, title, description, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
                   className="group outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
                 >
-                  <Card className="h-full shadow-none transition-shadow group-hover:shadow-md">
-                    <CardHeader>
-                      <span className="mb-4 flex size-10 items-center justify-center bg-primary/10 text-primary">
-                        <Icon className="size-5" />
+                  <Card
+                    size="sm"
+                    className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+                  >
+                    <CardContent className="flex h-full items-start gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center bg-primary/10 text-primary">
+                        <Icon className="size-4" />
                       </span>
-                      <CardTitle className="flex items-center justify-between text-base">
-                        {title}
-                        <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-                      </CardTitle>
-                      <CardDescription>{description}</CardDescription>
-                    </CardHeader>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">{title}</span>
+                        <span className="mt-1 block text-sm text-muted-foreground">
+                          {description}
+                        </span>
+                      </span>
+                      <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                    </CardContent>
                   </Card>
                 </Link>
               ))}
@@ -140,7 +140,7 @@ export default function TodayPage() {
               action={{ label: "Open calendar", href: "/calendar" }}
             />
             {todayEvents.length ? (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-3 lg:grid-cols-2">
                 {todayEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
@@ -166,7 +166,7 @@ export default function TodayPage() {
               }}
             />
             {activeAnnouncements.length ? (
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid gap-3 lg:grid-cols-3">
                 {activeAnnouncements.map((announcement) => (
                   <AnnouncementCard
                     key={announcement.id}
@@ -191,7 +191,7 @@ export default function TodayPage() {
               description="A small preview of what is ahead."
             />
             {upcomingEvents.length ? (
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid gap-3 lg:grid-cols-3">
                 {upcomingEvents.map((event) => (
                   <EventCard key={event.id} event={event} compact />
                 ))}
@@ -214,7 +214,7 @@ export default function TodayPage() {
               action={{ label: "Browse all guides", href: "/guides" }}
             />
             {usefulGuides.length ? (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {usefulGuides.map((guide) => (
                   <GuideCard key={guide.id} guide={guide} />
                 ))}
@@ -232,7 +232,7 @@ export default function TodayPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {(hub?.todaySections ?? defaultTodaySections)
         .filter((section) => section.visible)
         .map((section) => (

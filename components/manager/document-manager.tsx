@@ -58,7 +58,7 @@ export function DocumentManager() {
   )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Manage documents"
         description="Create, edit, publish, and remove shared texts, tables, and presentations."
@@ -116,7 +116,7 @@ export function DocumentManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((document) => (
-            <Card key={document.id} className="shadow-none">
+            <Card key={document.id} size="sm" className="shadow-none">
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                   <DocumentTypeIcon type={document.type} />

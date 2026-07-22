@@ -17,6 +17,10 @@ import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -92,12 +96,12 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeading
         title="Calendar"
         description="Shared dates for reservations, training, deliveries, visits, and other operational events."
       />
-      <div className="flex flex-col gap-4 border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -155,24 +159,22 @@ export function CalendarPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex border" aria-label="Calendar view">
-            <Button
-              variant={view === "month" ? "secondary" : "ghost"}
+          <SegmentedControl aria-label="Calendar view">
+            <SegmentedControlItem
+              selected={view === "month"}
               size="sm"
               onClick={() => setView("month")}
-              aria-pressed={view === "month"}
             >
               <CalendarDays /> Month
-            </Button>
-            <Button
-              variant={view === "list" ? "secondary" : "ghost"}
+            </SegmentedControlItem>
+            <SegmentedControlItem
+              selected={view === "list"}
               size="sm"
               onClick={() => setView("list")}
-              aria-pressed={view === "list"}
             >
               <List /> List
-            </Button>
-          </div>
+            </SegmentedControlItem>
+          </SegmentedControl>
         </div>
       </div>
 
@@ -236,12 +238,12 @@ export function CalendarPage() {
           </div>
         </div>
       ) : monthEvents.length ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {monthEvents.map((event) => (
             <Link
               key={event.id}
               href={`/calendar/${event.id}`}
-              className="group flex flex-col gap-4 border bg-background p-6 outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex-row sm:items-center"
+              className="group flex flex-col gap-4 border bg-background p-4 outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex-row sm:items-center"
             >
               <div className="sm:w-40">
                 <p className="font-semibold">{formatDate(event.start)}</p>
@@ -276,7 +278,7 @@ export function CalendarPage() {
       {view === "month" && monthEvents.length > 0 && (
         <section>
           <h2 className="mb-4 text-xl font-semibold">This month</h2>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-3 lg:grid-cols-2">
             {monthEvents.slice(0, 4).map((event) => (
               <EventCard key={event.id} event={event} compact />
             ))}

@@ -44,7 +44,7 @@ export function TodayManager() {
   const sections = hub?.todaySections ?? defaultTodaySections
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Today page"
         description="Choose which sections employees see and arrange them in the order that matters most. Changes save automatically."
@@ -58,6 +58,7 @@ export function TodayManager() {
           return (
             <Card
               key={section.key}
+              size="sm"
               className={cn("shadow-none", !section.visible && "bg-muted/40")}
             >
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">

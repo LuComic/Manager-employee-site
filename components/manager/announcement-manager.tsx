@@ -65,7 +65,7 @@ export function AnnouncementManager() {
   )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Manage announcements"
         description="Maintain temporary notices, dates, priority, and pinned state."
@@ -114,7 +114,7 @@ export function AnnouncementManager() {
               hub?.timeZone
             )
             return (
-              <Card key={announcement.id} className="shadow-none">
+              <Card key={announcement.id} size="sm" className="shadow-none">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                     <Megaphone className="size-5" />

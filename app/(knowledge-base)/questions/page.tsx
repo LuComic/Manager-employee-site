@@ -4,6 +4,7 @@ import { Headphones } from "lucide-react"
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
 import { EmptyState } from "@/components/operations/empty-state"
+import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 import {
   Accordion,
@@ -26,15 +27,13 @@ export default function QuestionsPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-        Common questions
-      </h1>
-      <p className="mt-4 text-muted-foreground">
-        Quick answers for the moments when you are not quite sure what to do.
-      </p>
+      <PageHeading
+        title="Common questions"
+        description="Quick answers for the moments when you are not quite sure what to do."
+      />
 
       {publishedFaqs.length ? (
-        <Card className="mt-8 shadow-none">
+        <Card size="sm" className="mt-6 shadow-none">
           <CardContent>
             <Accordion>
               {publishedFaqs.map((item) => (
@@ -56,7 +55,7 @@ export default function QuestionsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="mt-8">
+        <div className="mt-6">
           <EmptyState
             icon={Headphones}
             title="No common questions yet"
@@ -65,7 +64,7 @@ export default function QuestionsPage() {
         </div>
       )}
 
-      <Card className="mt-6 bg-primary/5 shadow-none ring-primary/10">
+      <Card size="sm" className="mt-6 bg-primary/5 shadow-none ring-primary/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base tracking-normal normal-case">
             <Headphones className="size-4 text-primary" /> Still unsure?

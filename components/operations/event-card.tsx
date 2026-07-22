@@ -24,13 +24,15 @@ export function EventCard({
       className="group block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
     >
       <Card
-        size={compact ? "sm" : "default"}
-        className="h-full shadow-none transition-shadow group-hover:shadow-md"
+        size="sm"
+        className="h-full shadow-none transition-colors group-hover:bg-muted/40"
       >
         <CardHeader>
           <Badge variant="secondary">{event.category}</Badge>
           <CardTitle className="text-base">{event.title}</CardTitle>
-          <CardDescription>{event.description}</CardDescription>
+          <CardDescription className={compact ? "line-clamp-2" : undefined}>
+            {event.description}
+          </CardDescription>
         </CardHeader>
         <CardFooter className="mt-auto flex-wrap justify-between gap-4 text-xs text-muted-foreground">
           <span className="flex flex-wrap items-center gap-4">

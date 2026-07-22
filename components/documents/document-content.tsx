@@ -111,16 +111,16 @@ export function PresentationViewer({
 
   return (
     <div className="space-y-4">
-      <div className="aspect-video min-h-96 w-full overflow-auto border bg-background p-8 sm:p-12">
+      <div className="aspect-video min-h-72 w-full overflow-auto border bg-background p-6 sm:p-8">
         <p className="text-sm text-muted-foreground">
           Slide {activeIndex + 1} of {content.slides.length}
         </p>
-        <h2 className="mt-6 text-2xl font-semibold tracking-tight sm:text-4xl">
+        <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
           {slide.title}
         </h2>
         <RichTextContent
           content={slide.body}
-          className="mt-6 max-w-3xl sm:text-lg"
+          className="mt-4 max-w-3xl sm:text-lg"
         />
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

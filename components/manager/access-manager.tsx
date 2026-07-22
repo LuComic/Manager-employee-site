@@ -43,7 +43,7 @@ export function AccessManager() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Employee access"
         description="Control accountless access to published hub content. Join codes and private links are bearer credentials."

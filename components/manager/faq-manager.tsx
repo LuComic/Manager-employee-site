@@ -67,7 +67,7 @@ export function FaqManager() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ManagerHeading
         title="Common questions"
         description="Manage the quick answers employees see on the questions page and in search."
@@ -92,7 +92,7 @@ export function FaqManager() {
       {faqs.length ? (
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <Card key={faq.id} className="shadow-none">
+            <Card key={faq.id} size="sm" className="shadow-none">
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
                 <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                   <CircleHelp className="size-5" />

@@ -18,6 +18,10 @@ import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { RichTextEditor } from "@/components/rich-text/rich-text-editor"
 import { Button } from "@/components/ui/button"
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@/components/ui/segmented-control"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -207,7 +211,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           <Button variant="ghost" size="sm" onClick={leave}>
             <ArrowLeft /> Back to documents
           </Button>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
             {draft.id ? "Edit document" : "Create document"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -215,22 +219,22 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
             publishing.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
+        <SegmentedControl aria-label="Document editor view">
+          <SegmentedControlItem
             type="button"
-            variant={mode === "edit" ? "secondary" : "outline"}
+            selected={mode === "edit"}
             onClick={() => setMode("edit")}
           >
             <FileText /> Edit
-          </Button>
-          <Button
+          </SegmentedControlItem>
+          <SegmentedControlItem
             type="button"
-            variant={mode === "preview" ? "secondary" : "outline"}
+            selected={mode === "preview"}
             onClick={() => setMode("preview")}
           >
             <Eye /> Preview
-          </Button>
-        </div>
+          </SegmentedControlItem>
+        </SegmentedControl>
       </div>
 
       {mode === "preview" ? (
@@ -239,7 +243,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
             <p className="text-sm font-medium text-primary">
               {documentTypeLabel(draft.type)}
             </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">
               {draft.title || "Untitled document"}
             </h2>
             <p className="mt-2 text-muted-foreground">
@@ -249,7 +253,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           {draft.type === "presentation" ? (
             <DocumentContent document={draft} />
           ) : (
-            <div className="border bg-background p-6 sm:p-8">
+            <div className="border bg-background p-6">
               <DocumentContent document={draft} />
             </div>
           )}

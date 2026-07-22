@@ -13,6 +13,7 @@ import { useQuery } from "convex/react"
 
 import { api } from "@/convex/_generated/api"
 import { Badge } from "@/components/ui/badge"
+import { PageHeading } from "@/components/operations/page-heading"
 import {
   Card,
   CardDescription,
@@ -41,17 +42,16 @@ export function SearchResults({ query }: { query: string }) {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold tracking-tight">Search results</h1>
-      <p className="mt-2 text-muted-foreground">
-        {results?.length ?? 0} {results?.length === 1 ? "result" : "results"}{" "}
-        found for “{query.trim()}”
-      </p>
+      <PageHeading
+        title="Search results"
+        description={`${results?.length ?? 0} ${results?.length === 1 ? "result" : "results"} found for “${query.trim()}”`}
+      />
       {results === undefined ? (
         <p className="mt-8 text-sm text-muted-foreground" role="status">
           Searching…
         </p>
       ) : results.length > 0 ? (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {results.map((result) => {
             const Icon =
               result.type === "Guide"
@@ -69,10 +69,13 @@ export function SearchResults({ query }: { query: string }) {
                 href={result.href}
                 className="group h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
               >
-                <Card className="h-full shadow-none transition-shadow group-hover:shadow-md">
+                <Card
+                  size="sm"
+                  className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+                >
                   <CardHeader>
-                    <span className="mb-4 flex size-10 items-center justify-center bg-primary/10 text-primary">
-                      <Icon className="size-5" />
+                    <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
+                      <Icon className="size-4" />
                     </span>
                     <Badge variant="secondary">{result.type}</Badge>
                     <CardTitle className="text-base">{result.title}</CardTitle>
@@ -84,8 +87,8 @@ export function SearchResults({ query }: { query: string }) {
           })}
         </div>
       ) : (
-        <div className="mt-8 flex min-h-64 flex-col items-center justify-center border bg-background p-8 text-center">
-          <span className="flex size-12 items-center justify-center bg-muted text-muted-foreground">
+        <div className="mt-6 flex min-h-40 flex-col items-center justify-center border bg-background p-6 text-center">
+          <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
             <Search className="size-5" />
           </span>
           <h2 className="mt-4 text-lg font-semibold">No matching content</h2>

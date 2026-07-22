@@ -68,6 +68,9 @@ Use this guide when designing or reviewing interfaces in this project. The goal 
 ## Interaction and content
 
 - Keep controls easy to recognize, comfortably sized, and keyboard accessible.
+- Use `text-sm` for standard buttons and menu items. Reserve `text-xs` for genuinely compact controls and secondary metadata.
+- Use the neutral `selected` button variant for pressed toggles and view switches. Its color comes from the reusable selected-control tokens in `globals.css` and should remain subtle enough not to compete with primary actions.
+- Present 2 to 4 mutually exclusive view or mode choices as one connected `SegmentedControl`. Use separate buttons for independent actions and a select menu when the choice list is longer.
 - Use links for navigation and buttons for actions.
 - Write short, direct copy for non-technical users.
 - Avoid technical implementation language in interface copy when a task-focused explanation works instead.
