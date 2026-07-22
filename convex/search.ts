@@ -43,51 +43,48 @@ export const published = query({
       documents,
       eventEmployees,
       employeeProfiles,
-    ] =
-      await Promise.all([
-        ctx.db
-          .query("categories")
-          .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
-          .take(500),
-        ctx.db
-          .query("guides")
-          .withIndex("by_hubId_and_published", (q) =>
-            q.eq("hubId", hub._id).eq("published", true)
-          )
-          .take(500),
-        ctx.db
-          .query("events")
-          .withIndex("by_hubId_and_published", (q) =>
-            q.eq("hubId", hub._id).eq("published", true)
-          )
-          .take(500),
-        ctx.db
-          .query("announcements")
-          .withIndex("by_hubId_and_published", (q) =>
-            q.eq("hubId", hub._id).eq("published", true)
-          )
-          .take(500),
-        ctx.db
-          .query("faqs")
-          .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
-          .take(500),
-        ctx.db
-          .query("documents")
-          .withIndex("by_hubId_and_published", (q) =>
-            q.eq("hubId", hub._id).eq("published", true)
-          )
-          .take(500),
-        ctx.db
-          .query("eventEmployees")
-          .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
-          .take(2000),
-        ctx.db
-          .query("employeeProfiles")
-          .withIndex("by_hubId_and_displayName", (q) =>
-            q.eq("hubId", hub._id)
-          )
-          .take(500),
-      ])
+    ] = await Promise.all([
+      ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
+        .take(500),
+      ctx.db
+        .query("guides")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500),
+      ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500),
+      ctx.db
+        .query("announcements")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500),
+      ctx.db
+        .query("faqs")
+        .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
+        .take(500),
+      ctx.db
+        .query("documents")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500),
+      ctx.db
+        .query("eventEmployees")
+        .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
+        .take(2000),
+      ctx.db
+        .query("employeeProfiles")
+        .withIndex("by_hubId_and_displayName", (q) => q.eq("hubId", hub._id))
+        .take(500),
+    ])
     const categoryById = new Map(
       categories.map((category) => [category._id, category.label])
     )

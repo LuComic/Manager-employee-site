@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Menu } from "lucide-react"
-import { usePathname } from "next/navigation"
 import { OrganizationSwitcher, Show } from "@clerk/nextjs"
 
 import { Brand } from "@/components/knowledge-base/brand"
@@ -11,7 +10,6 @@ import {
   ContactProvider,
 } from "@/components/knowledge-base/contact-dialog"
 import { SearchField } from "@/components/knowledge-base/search-field"
-import { SearchResults } from "@/components/knowledge-base/search-results"
 import { SidebarNav } from "@/components/knowledge-base/sidebar-nav"
 import { HubAccessGate } from "@/components/operations/hub-access-gate"
 import { Button } from "@/components/ui/button"
@@ -24,13 +22,6 @@ import {
 } from "@/components/ui/sheet"
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-
-  return <SiteShellContent key={pathname}>{children}</SiteShellContent>
-}
-
-function SiteShellContent({ children }: { children: React.ReactNode }) {
-  const [query, setQuery] = useState("")
   const [mobileOpen, setMobileOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -76,11 +67,7 @@ function SiteShellContent({ children }: { children: React.ReactNode }) {
               <div className="lg:hidden">
                 <Brand compact />
               </div>
-              <SearchField
-                value={query}
-                onChange={setQuery}
-                inputRef={searchRef}
-              />
+              <SearchField inputRef={searchRef} />
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 <Show when="signed-in">
                   <OrganizationSwitcher
@@ -98,7 +85,7 @@ function SiteShellContent({ children }: { children: React.ReactNode }) {
             </header>
 
             <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-              {query.trim() ? <SearchResults query={query} /> : children}
+              {children}
             </main>
           </div>
 
