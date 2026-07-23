@@ -12,6 +12,7 @@ export async function buildSnapshot(
   }
 ) {
   const [
+    bannerImageUrl,
     categories,
     allGuides,
     allEvents,
@@ -23,6 +24,7 @@ export async function buildSnapshot(
     eventEmployees,
     employeeProfiles,
   ] = await Promise.all([
+    hub.bannerStorageId ? ctx.storage.getUrl(hub.bannerStorageId) : null,
     ctx.db
       .query("categories")
       .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
@@ -154,6 +156,7 @@ export async function buildSnapshot(
       contactName: hub.contactName ?? "shift lead",
       contactEmail: hub.contactEmail ?? "",
       contactPhone: hub.contactPhone ?? "",
+      bannerImageUrl: bannerImageUrl ?? undefined,
       todaySections: normalizeTodaySections(hub.todaySections),
       contentVersion: hub.contentVersion ?? 0,
       ...(options.includeOrganizationMapping
@@ -194,9 +197,7 @@ export async function buildSnapshot(
       end: event.end,
       location: event.location,
       employees: (employeesByEventId.get(event._id) ?? []).map((employee) =>
-        options.includeDrafts
-          ? employee
-          : { displayName: employee.displayName }
+        options.includeDrafts ? employee : { displayName: employee.displayName }
       ),
       legacyResponsiblePerson:
         event.legacyResponsiblePerson ?? event.owner ?? undefined,

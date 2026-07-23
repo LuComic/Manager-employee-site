@@ -67,6 +67,7 @@ export default defineSchema({
     contactName: v.optional(v.string()),
     contactEmail: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
+    bannerStorageId: v.optional(v.id("_storage")),
     todaySections: v.optional(v.array(todaySection)),
     contentVersion: v.optional(v.number()),
     // Transitional: legacy hubs are backfilled before this becomes required.
@@ -154,6 +155,7 @@ export default defineSchema({
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_published", ["hubId", "published"])
+    .index("by_categoryId", ["categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["hubId", "published"],
@@ -229,6 +231,8 @@ export default defineSchema({
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_published", ["hubId", "published"])
+    .index("by_guideId", ["guideId"])
+    .index("by_eventId", ["eventId"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["hubId", "published"],
@@ -286,4 +290,40 @@ export default defineSchema({
     submittedAt: v.number(),
     status: v.union(v.literal("open"), v.literal("resolved")),
   }).index("by_hubId_and_submittedAt", ["hubId", "submittedAt"]),
+
+  notifications: defineTable({
+    hubId: v.id("hubs"),
+    audience: v.union(
+      v.literal("employees"),
+      v.literal("managers"),
+      v.literal("employee")
+    ),
+    employeeProfileId: v.optional(v.id("employeeProfiles")),
+    kind: v.union(
+      v.literal("guide"),
+      v.literal("event"),
+      v.literal("announcement"),
+      v.literal("document"),
+      v.literal("question"),
+      v.literal("workplace")
+    ),
+    title: v.string(),
+    message: v.string(),
+    href: v.string(),
+    // Transitional: older notification rows stored this redundantly.
+    createdAt: v.optional(v.number()),
+  })
+    .index("by_hubId_and_audience", ["hubId", "audience"])
+    .index("by_employeeProfileId", ["employeeProfileId"]),
+
+  notificationReadStates: defineTable({
+    hubId: v.id("hubs"),
+    viewerKey: v.string(),
+    viewerType: v.union(v.literal("employee"), v.literal("manager")),
+    lastReadAt: v.number(),
+  }).index("by_hubId_and_viewerKey_and_viewerType", [
+    "hubId",
+    "viewerKey",
+    "viewerType",
+  ]),
 })

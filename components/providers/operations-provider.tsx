@@ -9,6 +9,10 @@ import { toast } from "sonner"
 
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import {
+  isBannerImageContentType,
+  MAX_BANNER_IMAGE_SIZE_BYTES,
+} from "@/lib/banner-image"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
 import type { Category, Guide } from "@/lib/knowledge-base"
 import type { WorkspaceDocument } from "@/lib/documents"
@@ -37,6 +41,7 @@ export type HubInfo = {
   contactName: string
   contactEmail: string
   contactPhone: string
+  bannerImageUrl?: string
   contentVersion: number
   clerkOrganizationId?: string
   todaySections: TodaySectionSetting[]
@@ -103,6 +108,8 @@ type OperationsContextValue = OperationsState & {
   ) => Promise<void>
   rotateCredentials: () => Promise<HubCredentials>
   saveHubSettings: (settings: HubSettings) => Promise<void>
+  uploadHubBanner: (file: File) => Promise<void>
+  removeHubBanner: () => Promise<void>
   moveTodaySection: (key: TodaySectionKey, direction: -1 | 1) => Promise<void>
   setTodaySectionVisibility: (
     key: TodaySectionKey,
@@ -263,6 +270,8 @@ export function OperationsProvider({
   const attachToEvent = useMutation(api.files.attachToEvent)
   const removeAttachment = useMutation(api.files.remove)
   const discardUpload = useMutation(api.files.discardUpload)
+  const attachToHubBanner = useMutation(api.files.attachToHubBanner)
+  const removeHubBannerMutation = useMutation(api.files.removeHubBanner)
   const employeeProfiles = useQuery(
     api.employees.list,
     isManagerRoute && isAuthenticated && managerSnapshot?.kind === "ready"
@@ -425,6 +434,32 @@ export function OperationsProvider({
     }
   }
 
+  async function uploadAndAttach(
+    hubId: Id<"hubs">,
+    file: File,
+    failureMessage: string,
+    attach: (storageId: Id<"_storage">) => Promise<unknown>
+  ) {
+    const uploadUrl = await generateUploadUrl({ hubId })
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      body: file,
+    })
+    if (!response.ok) throw new Error(failureMessage)
+    const result = (await response.json()) as { storageId?: unknown }
+    if (typeof result.storageId !== "string") throw new Error(failureMessage)
+    const storageId = result.storageId as Id<"_storage">
+    try {
+      await attach(storageId)
+    } catch (error) {
+      await discardUpload({ hubId, storageId }).catch(() => undefined)
+      throw error
+    }
+  }
+
   const hubState: OperationsContextValue["hubState"] = isAuthPage
     ? "loading"
     : isManagerRoute
@@ -569,6 +604,23 @@ export function OperationsProvider({
         updateSettingsMutation({ hubId: managerHubId(), ...settings })
       )
     },
+    uploadHubBanner: async (file) => {
+      const hubId = managerHubId()
+      await run(async () => {
+        if (!isBannerImageContentType(file.type)) {
+          throw new Error("Use a JPG, PNG, WebP, or AVIF image")
+        }
+        if (file.size > MAX_BANNER_IMAGE_SIZE_BYTES) {
+          throw new Error("Banner images must be 10 MB or smaller")
+        }
+        await uploadAndAttach(hubId, file, "Image upload failed", (storageId) =>
+          attachToHubBanner({ hubId, storageId })
+        )
+      })
+    },
+    removeHubBanner: async () => {
+      await run(() => removeHubBannerMutation({ hubId: managerHubId() }))
+    },
     moveTodaySection: async (key, direction) => {
       await run(() =>
         moveTodaySectionMutation({ hubId: managerHubId(), key, direction })
@@ -652,18 +704,8 @@ export function OperationsProvider({
     },
     uploadAttachment: async (eventSlug, file) => {
       const hubId = managerHubId()
-      const uploadUrl = await run(() => generateUploadUrl({ hubId }))
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      })
-      if (!response.ok) throw new Error("File upload failed")
-      const { storageId } = (await response.json()) as {
-        storageId: Id<"_storage">
-      }
-      try {
-        await run(() =>
+      await run(() =>
+        uploadAndAttach(hubId, file, "File upload failed", (storageId) =>
           attachToEvent({
             hubId,
             eventSlug,
@@ -673,10 +715,7 @@ export function OperationsProvider({
             size: file.size,
           })
         )
-      } catch (error) {
-        await discardUpload({ hubId, storageId })
-        throw error
-      }
+      )
     },
     deleteAttachment: async (attachment) => {
       await run(() =>

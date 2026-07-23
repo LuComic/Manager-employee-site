@@ -13,6 +13,7 @@ import {
   requireOrganizationHub,
   requireOwnedHub,
 } from "./lib/access"
+import { createNotification } from "./lib/notifications"
 
 const invitationStatus = v.union(
   v.literal("not-sent"),
@@ -68,7 +69,12 @@ async function activateProfile(
   if (profile.clerkUserId && profile.clerkUserId !== clerkUserId) {
     throw new Error("Employee profile is already claimed")
   }
-  await ensureNoActiveProfileForUser(ctx, profile.hubId, clerkUserId, profile._id)
+  await ensureNoActiveProfileForUser(
+    ctx,
+    profile.hubId,
+    clerkUserId,
+    profile._id
+  )
   await ctx.db.patch("employeeProfiles", profile._id, {
     clerkUserId,
     status: "active",
@@ -80,6 +86,16 @@ async function activateProfile(
     deactivatedAt: undefined,
     updatedAt: now,
   })
+  if (profile.status !== "active") {
+    await createNotification(ctx, {
+      hubId: profile.hubId,
+      audience: "managers",
+      kind: "workplace",
+      title: "Employee account connected",
+      message: `${profile.displayName} joined the workplace.`,
+      href: "/manager/employees",
+    })
+  }
 }
 
 export const list = query({
@@ -198,8 +214,7 @@ export const update = mutation({
         .take(10)
       if (
         duplicates.some(
-          (other) =>
-            other._id !== profile._id && other.status !== "deactivated"
+          (other) => other._id !== profile._id && other.status !== "deactivated"
         )
       ) {
         throw new Error("An employee profile already uses this email")
@@ -226,9 +241,12 @@ export const prepareInvitation = mutation({
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
     await requireOwnedHub(ctx, profile.hubId)
-    if (!profile.email) throw new Error("Add an email before sending an invitation")
-    if (profile.status === "active") throw new Error("Employee is already active")
-    if (profile.status === "deactivated") throw new Error("Reactivate the employee first")
+    if (!profile.email)
+      throw new Error("Add an email before sending an invitation")
+    if (profile.status === "active")
+      throw new Error("Employee is already active")
+    if (profile.status === "deactivated")
+      throw new Error("Reactivate the employee first")
     if (args.correlationCredential.length < 32) {
       throw new Error("Invitation credential is too short")
     }
@@ -334,9 +352,13 @@ export const createClaimLink = mutation({
     if (profile.status === "active" || profile.status === "deactivated") {
       throw new Error("Only unclaimed or invited profiles can use claim links")
     }
-    if (args.credential.length < 32) throw new Error("Claim credential is too short")
+    if (args.credential.length < 32)
+      throw new Error("Claim credential is too short")
     const now = Date.now()
-    if (args.expiresAt <= now || args.expiresAt > now + 30 * 24 * 60 * 60 * 1000) {
+    if (
+      args.expiresAt <= now ||
+      args.expiresAt > now + 30 * 24 * 60 * 60 * 1000
+    ) {
       throw new Error("Claim link expiry must be within 30 days")
     }
     const credentialHash = hashCredential(args.credential)
@@ -413,7 +435,11 @@ export const resolveClaimForAuthenticatedUser = query({
       ctx.db.get("employeeProfiles", link.employeeProfileId),
       ctx.db.get("hubs", link.hubId),
     ])
-    if (!profile || !hub?.clerkOrganizationId || profile.status === "deactivated") {
+    if (
+      !profile ||
+      !hub?.clerkOrganizationId ||
+      profile.status === "deactivated"
+    ) {
       throw new Error("Claim link is not available")
     }
     return {
@@ -563,7 +589,10 @@ export const reconcileMemberships = mutation({
     const now = Date.now()
     for (const profile of profiles) {
       if (!profile.clerkUserId) continue
-      if (!activeUsers.has(profile.clerkUserId) && profile.status === "active") {
+      if (
+        !activeUsers.has(profile.clerkUserId) &&
+        profile.status === "active"
+      ) {
         await deactivateProfileRecords(ctx, profile, now)
       } else if (
         activeUsers.has(profile.clerkUserId) &&

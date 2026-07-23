@@ -19,6 +19,7 @@ import {
   requireOwnedHub,
 } from "./lib/access"
 import { buildSnapshot } from "./lib/snapshot"
+import { createNotification } from "./lib/notifications"
 
 const accessModeValidator = v.union(
   v.literal("public"),
@@ -393,7 +394,7 @@ export const updateSettings = mutation({
     contactPhone: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    const hub = await requireOwnedHub(ctx, args.hubId)
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80)
       throw new Error("Hub name must be between 2 and 80 characters")
@@ -410,6 +411,14 @@ export const updateSettings = mutation({
       contactEmail,
       contactPhone: optional(args.contactPhone, 80),
       updatedAt: Date.now(),
+    })
+    await createNotification(ctx, {
+      hubId: hub._id,
+      audience: "employees",
+      kind: "workplace",
+      title: "Workplace details updated",
+      message: "The establishment information on the Today page has changed.",
+      href: "/",
     })
     return null
   },

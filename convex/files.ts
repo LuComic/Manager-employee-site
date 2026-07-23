@@ -1,7 +1,12 @@
 import { v } from "convex/values"
 
+import {
+  isBannerImageContentType,
+  MAX_BANNER_IMAGE_SIZE_BYTES,
+} from "../lib/banner-image"
 import { mutation } from "./_generated/server"
 import { requireOwnedHub } from "./lib/access"
+import { createNotification } from "./lib/notifications"
 
 export const generateUploadUrl = mutation({
   args: { hubId: v.id("hubs") },
@@ -40,6 +45,16 @@ export const attachToEvent = mutation({
       size: stored.size,
       createdAt: Date.now(),
     })
+    if (event.published) {
+      await createNotification(ctx, {
+        hubId: args.hubId,
+        audience: "employees",
+        kind: "event",
+        title: "Event attachment added",
+        message: `${event.title} has a new attachment.`,
+        href: `/calendar/${event.slug}`,
+      })
+    }
     return attachmentId
   },
 })
@@ -51,8 +66,19 @@ export const remove = mutation({
     const attachment = await ctx.db.get("attachments", args.attachmentId)
     if (!attachment || attachment.hubId !== args.hubId)
       throw new Error("Attachment not found")
+    const event = await ctx.db.get("events", attachment.eventId)
     await ctx.storage.delete(attachment.storageId)
     await ctx.db.delete("attachments", attachment._id)
+    if (event?.published) {
+      await createNotification(ctx, {
+        hubId: args.hubId,
+        audience: "employees",
+        kind: "event",
+        title: "Event attachment removed",
+        message: `${event.title} has updated attachments.`,
+        href: `/calendar/${event.slug}`,
+      })
+    }
     return null
   },
 })
@@ -62,6 +88,66 @@ export const discardUpload = mutation({
   handler: async (ctx, args) => {
     await requireOwnedHub(ctx, args.hubId)
     await ctx.storage.delete(args.storageId)
+    return null
+  },
+})
+
+export const attachToHubBanner = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    storageId: v.id("_storage"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const hub = await requireOwnedHub(ctx, args.hubId)
+    const stored = await ctx.db.system.get("_storage", args.storageId)
+    if (!stored) throw new Error("Uploaded image not found")
+    const contentType = stored.contentType ?? ""
+    if (!isBannerImageContentType(contentType)) {
+      throw new Error("Use a JPG, PNG, WebP, or AVIF image")
+    }
+    if (stored.size > MAX_BANNER_IMAGE_SIZE_BYTES) {
+      throw new Error("Banner images must be 10 MB or smaller")
+    }
+
+    await ctx.db.patch("hubs", hub._id, {
+      bannerStorageId: args.storageId,
+      updatedAt: Date.now(),
+    })
+    if (hub.bannerStorageId && hub.bannerStorageId !== args.storageId) {
+      await ctx.storage.delete(hub.bannerStorageId)
+    }
+    await createNotification(ctx, {
+      hubId: hub._id,
+      audience: "employees",
+      kind: "workplace",
+      title: "Workplace banner updated",
+      message: "The image on the Today page has been changed.",
+      href: "/",
+    })
+    return null
+  },
+})
+
+export const removeHubBanner = mutation({
+  args: { hubId: v.id("hubs") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const hub = await requireOwnedHub(ctx, args.hubId)
+    if (!hub.bannerStorageId) return null
+    await ctx.db.patch("hubs", hub._id, {
+      bannerStorageId: undefined,
+      updatedAt: Date.now(),
+    })
+    await ctx.storage.delete(hub.bannerStorageId)
+    await createNotification(ctx, {
+      hubId: hub._id,
+      audience: "employees",
+      kind: "workplace",
+      title: "Workplace banner updated",
+      message: "The Today page banner has been reset.",
+      href: "/",
+    })
     return null
   },
 })

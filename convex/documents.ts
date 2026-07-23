@@ -2,6 +2,10 @@ import { v, type Infer } from "convex/values"
 
 import { mutation } from "./_generated/server"
 import { requireOwnedHub } from "./lib/access"
+import {
+  createNotification,
+  notifyPublicationChange,
+} from "./lib/notifications"
 
 const richTextDocument = v.object({
   type: v.literal("doc"),
@@ -139,6 +143,18 @@ export const save = mutation({
         ...value,
       })
     }
+    await notifyPublicationChange(ctx, {
+      hubId: args.hubId,
+      kind: "document",
+      wasPublished: existing?.published ?? false,
+      isPublished: args.published,
+      contentTitle: value.title,
+      detailHref: `/documents/${args.slug}`,
+      listHref: "/documents",
+      publishedTitle: "New document published",
+      updatedTitle: "Document updated",
+      unpublishedTitle: "Document unpublished",
+    })
     return args.slug
   },
 })
@@ -153,7 +169,19 @@ export const remove = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (document) await ctx.db.delete("documents", document._id)
+    if (document) {
+      await ctx.db.delete("documents", document._id)
+      if (document.published) {
+        await createNotification(ctx, {
+          hubId: args.hubId,
+          audience: "employees",
+          kind: "document",
+          title: "Document removed",
+          message: document.title,
+          href: "/documents",
+        })
+      }
+    }
     return null
   },
 })

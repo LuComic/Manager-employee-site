@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { Show } from "@clerk/nextjs"
 import {
   BookOpen,
+  Bell,
   CalendarDays,
   ChevronDown,
   CircleHelp,
@@ -35,6 +36,13 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       <SidebarSection label="Workspace" href="/" active={pathname === "/"}>
         <NavLink href="/" label="Today" active={pathname === "/"}>
           <Home />
+        </NavLink>
+        <NavLink
+          href="/notifications"
+          label="Notifications"
+          active={pathname === "/notifications"}
+        >
+          <Bell />
         </NavLink>
         <NavLink
           href="/guides"

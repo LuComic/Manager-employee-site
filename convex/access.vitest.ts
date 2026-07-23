@@ -936,3 +936,184 @@ describe("Organization employees, claims, and event links", () => {
     expect(stored?.ownerTokenIdentifier).toBe(ownerIdentity.tokenIdentifier)
   })
 })
+
+describe("notification feeds", () => {
+  test("tracks anonymous and manager unread state independently", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t, { restricted: true })
+    const owner = t.withIdentity(ownerIdentity)
+    const firstDevice = "guest-device-0000000000000001"
+    const secondDevice = "guest-device-0000000000000002"
+    const employeeArgs = {
+      hubSlug: "test-hub",
+      credential: "ABCD-EFGH",
+      guestDeviceId: firstDevice,
+    }
+
+    await owner.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "operations",
+      label: "Operations",
+      iconKey: "general",
+      description: "Operational guides",
+    })
+    await t.mutation(api.notifications.markEmployeeRead, employeeArgs)
+    await owner.mutation(api.content.saveGuide, {
+      hubId,
+      slug: "opening",
+      title: "Opening checklist",
+      description: "Open the workplace safely",
+      categorySlug: "operations",
+      duration: "4 min",
+      featured: true,
+      published: true,
+      keywords: [],
+      content: { type: "doc", content: [] },
+    })
+
+    const firstFeed = await t.query(
+      api.notifications.listEmployee,
+      employeeArgs
+    )
+    expect(firstFeed.unreadCount).toBe(1)
+    expect(firstFeed.notifications[0]?.title).toBe("New guide published")
+
+    const secondFeed = await t.query(api.notifications.listEmployee, {
+      ...employeeArgs,
+      guestDeviceId: secondDevice,
+    })
+    expect(secondFeed.unreadCount).toBe(1)
+
+    await t.mutation(api.content.submitHelpRequest, {
+      hubSlug: "test-hub",
+      credential: "ABCD-EFGH",
+      topic: "Opening question",
+      message: "Where is the key?",
+    })
+    const managerFeed = await owner.query(api.notifications.listManager, {
+      hubId,
+    })
+    expect(managerFeed.unreadCount).toBe(1)
+    expect(managerFeed.notifications[0]?.href).toBe("/manager/help")
+    await owner.mutation(api.notifications.markManagerRead, { hubId })
+    expect(
+      (await owner.query(api.notifications.listManager, { hubId })).unreadCount
+    ).toBe(0)
+
+    await expect(
+      t.query(api.notifications.listEmployee, {
+        hubSlug: "test-hub",
+        credential: "wrong",
+        guestDeviceId: firstDevice,
+      })
+    ).rejects.toThrow("Hub access required")
+  })
+
+  test("adds personal assignment alerts only for the assigned employee", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const profileId = await createEmployee(t, hubId, "Assigned Employee")
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", profileId, {
+        clerkUserId: orgMemberIdentity.subject,
+        status: "active",
+        invitationStatus: "accepted",
+      })
+    })
+    await t.withIdentity(orgAdminIdentity).mutation(api.content.saveEvent, {
+      hubId,
+      slug: "team-training",
+      title: "Team training",
+      description: "A required training session",
+      category: "Training",
+      start: "2026-07-25T10:00",
+      end: "2026-07-25T11:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+      employeeProfileIds: [profileId],
+      replaceLegacyResponsiblePerson: true,
+    })
+
+    const memberFeed = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.notifications.listEmployee, {
+        hubSlug: "org-hub",
+        guestDeviceId: "unused-for-an-authenticated-member",
+      })
+    expect(memberFeed.notifications.map((item) => item.title)).toEqual(
+      expect.arrayContaining([
+        "New event added",
+        "You were assigned to an event",
+      ])
+    )
+
+    const guestFeed = await t.query(api.notifications.listEmployee, {
+      hubSlug: "org-hub",
+      credential: "ORGA-NIZE",
+      guestDeviceId: "guest-device-0000000000000003",
+    })
+    expect(
+      guestFeed.notifications.some(
+        (item) => item.title === "You were assigned to an event"
+      )
+    ).toBe(false)
+  })
+
+  test("only alerts employees whose event assignments were saved", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const profileIds = await t.run(async (ctx) => {
+      const ids: Id<"employeeProfiles">[] = []
+      for (let index = 0; index < 101; index += 1) {
+        ids.push(
+          await ctx.db.insert("employeeProfiles", {
+            hubId,
+            displayName: `Employee ${index + 1}`,
+            status: "unclaimed",
+            createdBy: orgAdminIdentity.subject,
+            createdAt: index,
+            updatedAt: index,
+            invitationStatus: "not-sent",
+          })
+        )
+      }
+      return ids
+    })
+
+    await t.withIdentity(orgAdminIdentity).mutation(api.content.saveEvent, {
+      hubId,
+      slug: "capacity-training",
+      title: "Capacity training",
+      description: "Assignment limit regression test",
+      category: "Training",
+      start: "2026-07-26T10:00",
+      end: "2026-07-26T11:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+      employeeProfileIds: profileIds,
+      replaceLegacyResponsiblePerson: true,
+    })
+
+    const [relations, personalNotifications] = await t.run(
+      async (ctx) =>
+        await Promise.all([
+          ctx.db
+            .query("eventEmployees")
+            .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hubId))
+            .take(200),
+          ctx.db
+            .query("notifications")
+            .withIndex("by_hubId_and_audience", (q) =>
+              q.eq("hubId", hubId).eq("audience", "employee")
+            )
+            .take(200),
+        ])
+    )
+    expect(relations).toHaveLength(100)
+    expect(personalNotifications).toHaveLength(100)
+  })
+})

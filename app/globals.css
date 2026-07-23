@@ -183,6 +183,11 @@ button,
   cursor: pointer;
 }
 
+input[type="search"]::-webkit-search-cancel-button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 ::selection {
   background: color-mix(in oklch, var(--primary) 22%, transparent);
 }

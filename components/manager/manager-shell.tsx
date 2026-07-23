@@ -30,6 +30,7 @@ import {
 
 import { Brand } from "@/components/knowledge-base/brand"
 import { HubSetup } from "@/components/manager/hub-setup"
+import { NotificationButton } from "@/components/notifications/notification-center"
 import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import {
@@ -136,6 +137,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 </Link>
               )}
               <UserButton />
+              {hub && <NotificationButton manager />}
             </div>
           </div>
           <div>

@@ -1,7 +1,16 @@
 import { v } from "convex/values"
 
+import type { Id } from "./_generated/dataModel"
 import { mutation, query } from "./_generated/server"
-import { canReadPublishedHub, requireOwnedHub } from "./lib/access"
+import {
+  canReadPublishedHub,
+  requireIdentity,
+  requireOwnedHub,
+} from "./lib/access"
+import {
+  createNotification,
+  notifyPublicationChange,
+} from "./lib/notifications"
 
 const richTextDocument = v.object({
   type: v.literal("doc"),
@@ -104,8 +113,7 @@ export const deleteCategory = mutation({
     if (!category) return null
     const guide = await ctx.db
       .query("guides")
-      .withIndex("by_hubId_and_published", (q) => q.eq("hubId", args.hubId))
-      .filter((q) => q.eq(q.field("categoryId"), category._id))
+      .withIndex("by_categoryId", (q) => q.eq("categoryId", category._id))
       .first()
     if (guide) throw new Error("Reassign guides before deleting this category")
     await ctx.db.delete("categories", category._id)
@@ -163,6 +171,18 @@ export const saveGuide = mutation({
         ...value,
       })
     }
+    await notifyPublicationChange(ctx, {
+      hubId: args.hubId,
+      kind: "guide",
+      wasPublished: existing?.published ?? false,
+      isPublished: args.published,
+      contentTitle: value.title,
+      detailHref: `/guides/${args.slug}`,
+      listHref: "/guides",
+      publishedTitle: "New guide published",
+      updatedTitle: "Guide updated",
+      unpublishedTitle: "Guide unpublished",
+    })
     return args.slug
   },
 })
@@ -185,8 +205,7 @@ export const deleteGuide = mutation({
         .take(1000),
       ctx.db
         .query("announcements")
-        .withIndex("by_hubId_and_published", (q) => q.eq("hubId", args.hubId))
-        .filter((q) => q.eq(q.field("guideId"), guide._id))
+        .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
         .take(500),
     ])
     for (const relation of relations)
@@ -197,6 +216,16 @@ export const deleteGuide = mutation({
       })
     }
     await ctx.db.delete("guides", guide._id)
+    if (guide.published) {
+      await createNotification(ctx, {
+        hubId: args.hubId,
+        audience: "employees",
+        kind: "guide",
+        title: "Guide removed",
+        message: `${guide.title} is no longer available.`,
+        href: "/guides",
+      })
+    }
     return null
   },
 })
@@ -220,6 +249,7 @@ export const saveEvent = mutation({
   },
   handler: async (ctx, args) => {
     await requireOwnedHub(ctx, args.hubId)
+    const identity = await requireIdentity(ctx)
     if (args.end <= args.start)
       throw new Error("Event end must be after its start")
     const existing = await ctx.db
@@ -257,6 +287,7 @@ export const saveEvent = mutation({
       })
     }
 
+    const newlyAssignedEmployeeIds: Id<"employeeProfiles">[] = []
     if (args.employeeProfileIds !== undefined) {
       const selectedIds = [...new Set(args.employeeProfileIds)].slice(0, 100)
       const oldEmployeeRelations = await ctx.db
@@ -288,8 +319,9 @@ export const saveEvent = mutation({
             eventId,
             employeeProfileId,
             addedAt: Date.now(),
-            addedBy: (await ctx.auth.getUserIdentity())!.subject,
+            addedBy: identity.subject,
           })
+          newlyAssignedEmployeeIds.push(employeeProfileId)
         }
       }
       const selected = new Set(selectedIds)
@@ -319,6 +351,41 @@ export const saveEvent = mutation({
           eventId,
           guideId: guide._id,
         })
+    }
+    await notifyPublicationChange(ctx, {
+      hubId: args.hubId,
+      kind: "event",
+      wasPublished: existing?.published ?? false,
+      isPublished: args.published,
+      contentTitle: value.title,
+      detailHref: `/calendar/${args.slug}`,
+      listHref: "/calendar",
+      publishedTitle: "New event added",
+      updatedTitle: "Event updated",
+      unpublishedTitle: "Event unpublished",
+    })
+    if (args.published) {
+      const assignmentRecipients = !existing?.published
+        ? (
+            await ctx.db
+              .query("eventEmployees")
+              .withIndex("by_eventId_and_employeeProfileId", (q) =>
+                q.eq("eventId", eventId)
+              )
+              .take(200)
+          ).map((relation) => relation.employeeProfileId)
+        : newlyAssignedEmployeeIds
+      for (const employeeProfileId of assignmentRecipients) {
+        await createNotification(ctx, {
+          hubId: args.hubId,
+          audience: "employee",
+          employeeProfileId,
+          kind: "event",
+          title: "You were assigned to an event",
+          message: value.title,
+          href: `/calendar/${args.slug}`,
+        })
+      }
     }
     return args.slug
   },
@@ -353,10 +420,7 @@ export const deleteEvent = mutation({
           .take(1000),
         ctx.db
           .query("announcements")
-          .withIndex("by_hubId_and_published", (q) =>
-            q.eq("hubId", args.hubId)
-          )
-          .filter((q) => q.eq(q.field("eventId"), event._id))
+          .withIndex("by_eventId", (q) => q.eq("eventId", event._id))
           .take(500),
       ])
     for (const relation of relations)
@@ -373,6 +437,16 @@ export const deleteEvent = mutation({
       })
     }
     await ctx.db.delete("events", event._id)
+    if (event.published) {
+      await createNotification(ctx, {
+        hubId: args.hubId,
+        audience: "employees",
+        kind: "event",
+        title: "Event removed",
+        message: `${event.title} is no longer on the calendar.`,
+        href: "/calendar",
+      })
+    }
     return null
   },
 })
@@ -439,6 +513,18 @@ export const saveAnnouncement = mutation({
         slug: required(args.slug, "Announcement slug", 100),
         ...value,
       })
+    await notifyPublicationChange(ctx, {
+      hubId: args.hubId,
+      kind: "announcement",
+      wasPublished: existing?.published ?? false,
+      isPublished: args.published,
+      contentTitle: value.title,
+      detailHref: `/announcements/${args.slug}`,
+      listHref: "/announcements",
+      publishedTitle: "New announcement",
+      updatedTitle: "Announcement updated",
+      unpublishedTitle: "Announcement unpublished",
+    })
     return args.slug
   },
 })
@@ -453,7 +539,19 @@ export const deleteAnnouncement = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (announcement) await ctx.db.delete("announcements", announcement._id)
+    if (announcement) {
+      await ctx.db.delete("announcements", announcement._id)
+      if (announcement.published) {
+        await createNotification(ctx, {
+          hubId: args.hubId,
+          audience: "employees",
+          kind: "announcement",
+          title: "Announcement removed",
+          message: announcement.title,
+          href: "/announcements",
+        })
+      }
+    }
     return null
   },
 })
@@ -479,19 +577,30 @@ export const saveFaq = mutation({
       answer: required(args.answer, "Answer", 4000),
       published: args.published,
     }
-    if (existing) {
-      await ctx.db.patch("faqs", existing._id, value)
-      return existing.slug
+    if (existing) await ctx.db.patch("faqs", existing._id, value)
+    else {
+      const faqs = await ctx.db
+        .query("faqs")
+        .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
+        .take(500)
+      await ctx.db.insert("faqs", {
+        hubId: args.hubId,
+        slug: required(args.slug, "Question slug", 120),
+        order: faqs.length,
+        ...value,
+      })
     }
-    const faqs = await ctx.db
-      .query("faqs")
-      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
-      .take(500)
-    await ctx.db.insert("faqs", {
+    await notifyPublicationChange(ctx, {
       hubId: args.hubId,
-      slug: required(args.slug, "Question slug", 120),
-      order: faqs.length,
-      ...value,
+      kind: "question",
+      wasPublished: existing?.published ?? false,
+      isPublished: args.published,
+      contentTitle: value.question,
+      detailHref: `/questions#${args.slug}`,
+      listHref: "/questions",
+      publishedTitle: "New common answer",
+      updatedTitle: "Common answer updated",
+      unpublishedTitle: "Common answer unpublished",
     })
     return args.slug
   },
@@ -528,7 +637,19 @@ export const deleteFaq = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (faq) await ctx.db.delete("faqs", faq._id)
+    if (faq) {
+      await ctx.db.delete("faqs", faq._id)
+      if (faq.published) {
+        await createNotification(ctx, {
+          hubId: args.hubId,
+          audience: "employees",
+          kind: "question",
+          title: "Common answer removed",
+          message: faq.question,
+          href: "/questions",
+        })
+      }
+    }
     return null
   },
 })
@@ -547,12 +668,21 @@ export const submitHelpRequest = mutation({
       .unique()
     if (!hub || !(await canReadPublishedHub(ctx, hub, args.credential)))
       throw new Error("Hub access required")
+    const topic = required(args.topic, "Topic", 140)
     await ctx.db.insert("helpRequests", {
       hubId: hub._id,
-      topic: required(args.topic, "Topic", 140),
+      topic,
       message: required(args.message, "Question", 2000),
       submittedAt: Date.now(),
       status: "open",
+    })
+    await createNotification(ctx, {
+      hubId: hub._id,
+      audience: "managers",
+      kind: "question",
+      title: "New employee question",
+      message: topic,
+      href: "/manager/help",
     })
     return null
   },

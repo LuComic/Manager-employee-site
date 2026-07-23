@@ -11,6 +11,7 @@ import {
 } from "@/components/knowledge-base/contact-dialog"
 import { SearchField } from "@/components/knowledge-base/search-field"
 import { SidebarNav } from "@/components/knowledge-base/sidebar-nav"
+import { NotificationButton } from "@/components/notifications/notification-center"
 import { HubAccessGate } from "@/components/operations/hub-access-gate"
 import { Button } from "@/components/ui/button"
 import {
@@ -78,6 +79,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   />
                 </Show>
                 <ContactButton className="hidden sm:flex" />
+                <NotificationButton />
                 <div className="sm:hidden">
                   <ContactButton compact />
                 </div>

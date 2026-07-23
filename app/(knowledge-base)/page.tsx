@@ -69,30 +69,45 @@ export default function TodayPage() {
     switch (key) {
       case "welcome":
         return (
-          <section className="border bg-primary p-6 text-primary-foreground">
-            <p className="text-sm font-medium text-primary-foreground/80">
-              {formatDate(
-                new Date().toISOString(),
-                {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                },
-                timeZone
-              )}
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-              Today at {hub?.name ?? "your workplace"}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-foreground/80 sm:text-base">
-              {hub?.description ||
-                "Current updates, important times, and the guides you may need during the day."}
-            </p>
-            {hub?.address && (
-              <p className="mt-3 flex items-center gap-2 text-sm text-primary-foreground/80">
-                <MapPin className="size-4" /> {hub.address}
-              </p>
+          <section
+            className="relative isolate overflow-hidden border bg-primary bg-cover bg-center p-6 text-primary-foreground"
+            style={
+              hub?.bannerImageUrl
+                ? { backgroundImage: `url("${hub.bannerImageUrl}")` }
+                : undefined
+            }
+          >
+            {hub?.bannerImageUrl && (
+              <div
+                className="absolute inset-0 -z-10 bg-black/55"
+                aria-hidden="true"
+              />
             )}
+            <div>
+              <p className="text-sm font-medium text-primary-foreground/80">
+                {formatDate(
+                  new Date().toISOString(),
+                  {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  },
+                  timeZone
+                )}
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                Today at {hub?.name ?? "your workplace"}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-foreground/80 sm:text-base">
+                {hub?.description ||
+                  "Current updates, important times, and the guides you may need during the day."}
+              </p>
+              {hub?.address && (
+                <p className="mt-3 flex items-center gap-2 text-sm text-primary-foreground/80">
+                  <MapPin className="size-4" /> {hub.address}
+                </p>
+              )}
+            </div>
           </section>
         )
       case "quick-links":
