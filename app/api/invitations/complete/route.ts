@@ -33,7 +33,7 @@ export async function POST() {
     const token = await getToken()
     if (!token) throw new Error("Missing workplace session token")
     const result = await convexServerClient(token).mutation(
-      api.employees.claimByInvitation,
+      api.employees.activateByInvitation,
       { correlationCredential }
     )
     return Response.json(result)

@@ -7,6 +7,15 @@ import type { MutationCtx, QueryCtx } from "../_generated/server"
 type ReadCtx = QueryCtx | MutationCtx
 
 export type OrganizationRole = "org:admin" | "org:member"
+export type EmployeeAccessLevel = "viewer" | "editor" | "manager"
+export type HubPermission = EmployeeAccessLevel | "owner"
+
+const permissionRank: Record<HubPermission, number> = {
+  viewer: 0,
+  editor: 1,
+  manager: 2,
+  owner: 3,
+}
 
 function stringClaim(value: unknown) {
   return typeof value === "string" ? value : undefined
@@ -48,76 +57,78 @@ export async function getIdentity(ctx: ReadCtx) {
   return await ctx.auth.getUserIdentity()
 }
 
-export async function getOwnedHub(ctx: ReadCtx) {
-  const identity = await getIdentity(ctx)
-  if (!identity) return null
-  const activeOrganization = getActiveOrganizationFromIdentity(identity)
-  if (activeOrganization) {
-    const hub = await ctx.db
-      .query("hubs")
-      .withIndex("by_clerkOrganizationId", (q) =>
-        q.eq("clerkOrganizationId", activeOrganization.organizationId)
-      )
-      .unique()
-    if (hub && activeOrganization.role === "org:admin") return hub
-    if (hub) return null
-  }
-  const legacy = await ctx.db
-    .query("hubs")
-    .withIndex("by_ownerTokenIdentifier", (q) =>
-      q.eq("ownerTokenIdentifier", identity.tokenIdentifier)
-    )
-    .unique()
-  return legacy?.clerkOrganizationId ? null : legacy
-}
-
 export async function requireIdentity(ctx: ReadCtx) {
   const identity = await getIdentity(ctx)
   if (!identity) throw new Error("Not authenticated")
   return identity
 }
 
-export async function requireOwnedHub(ctx: ReadCtx, hubId: Id<"hubs">) {
-  const identity = await requireIdentity(ctx)
-  const hub = await ctx.db.get("hubs", hubId)
-  if (!hub) throw new Error("Unauthorized")
-  if (hub.clerkOrganizationId) {
-    const activeOrganization = getActiveOrganizationFromIdentity(identity)
-    if (
-      activeOrganization?.organizationId !== hub.clerkOrganizationId ||
-      activeOrganization.role !== "org:admin"
-    ) {
-      throw new Error("Unauthorized")
-    }
-    return hub
+export async function getHubPermission(
+  ctx: ReadCtx,
+  hub: Doc<"hubs">
+): Promise<HubPermission | null> {
+  const identity = await getIdentity(ctx)
+  if (!identity) return null
+
+  const activeOrganization = getActiveOrganizationFromIdentity(identity)
+  if (activeOrganization?.organizationId !== hub.clerkOrganizationId) {
+    return null
   }
-  if (hub.ownerTokenIdentifier !== identity.tokenIdentifier) {
-    throw new Error("Unauthorized")
-  }
-  return hub
+
+  const profiles = await ctx.db
+    .query("employeeProfiles")
+    .withIndex("by_hubId_and_clerkUserId", (q) =>
+      q.eq("hubId", hub._id).eq("clerkUserId", identity.subject)
+    )
+    .take(10)
+  const activeProfile = profiles.find((profile) => profile.status === "active")
+  if (profiles.length > 0 && !activeProfile) return null
+  if (activeOrganization.role === "org:admin") return "owner"
+  if (activeProfile) return activeProfile.accessLevel ?? "viewer"
+  return null
 }
 
-export async function isHubOwner(ctx: ReadCtx, hub: Doc<"hubs">) {
+export async function requireHubPermission(
+  ctx: ReadCtx,
+  hubId: Id<"hubs">,
+  minimum: HubPermission
+) {
   const identity = await getIdentity(ctx)
-  if (!identity) return false
-  if (hub.clerkOrganizationId) {
-    const activeOrganization = getActiveOrganizationFromIdentity(identity)
-    if (activeOrganization?.organizationId !== hub.clerkOrganizationId) {
-      return false
-    }
-    if (activeOrganization.role === "org:admin") return true
-    const profiles = await ctx.db
-      .query("employeeProfiles")
-      .withIndex("by_hubId_and_clerkUserId", (q) =>
-        q.eq("hubId", hub._id).eq("clerkUserId", identity.subject)
-      )
-      .take(10)
-    return (
-      profiles.length === 0 ||
-      profiles.some((profile) => profile.status === "active")
+  if (!identity) throw new Error("Not authenticated")
+  const hub = await ctx.db.get("hubs", hubId)
+  if (!hub) throw new Error("Unauthorized")
+  const permission = await getHubPermission(ctx, hub)
+  if (!permission) throw new Error("Unauthorized")
+  if (permissionRank[permission] < permissionRank[minimum]) {
+    throw new Error(
+      minimum === "owner"
+        ? "Workplace owner access required"
+        : minimum === "manager"
+          ? "Full content access required"
+          : "Editing access required"
     )
   }
-  return identity.tokenIdentifier === hub.ownerTokenIdentifier
+  return { hub, permission }
+}
+
+export async function getManagedHub(ctx: ReadCtx) {
+  const identity = await getIdentity(ctx)
+  if (!identity) return null
+  const activeOrganization = getActiveOrganizationFromIdentity(identity)
+  if (!activeOrganization) return null
+  const hub = await ctx.db
+    .query("hubs")
+    .withIndex("by_clerkOrganizationId", (q) =>
+      q.eq("clerkOrganizationId", activeOrganization.organizationId)
+    )
+    .unique()
+  if (!hub) return null
+  const permission = await getHubPermission(ctx, hub)
+  return { hub, permission }
+}
+
+export async function hasHubAccess(ctx: ReadCtx, hub: Doc<"hubs">) {
+  return (await getHubPermission(ctx, hub)) !== null
 }
 
 export async function requireOrganizationHub(ctx: ReadCtx) {
@@ -139,7 +150,8 @@ export async function canReadPublishedHub(
   hub: Doc<"hubs">,
   credential?: string
 ) {
-  if (await isHubOwner(ctx, hub)) return true
+  if (await hasHubAccess(ctx, hub)) return true
+  if (hub.accessMode === "public") return true
   if (!credential) return false
 
   const tokenHash = hashCredential(credential)

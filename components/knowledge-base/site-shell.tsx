@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Menu } from "lucide-react"
-import { OrganizationSwitcher, Show } from "@clerk/nextjs"
+import { OrganizationSwitcher, Show, UserButton } from "@clerk/nextjs"
 
 import { Brand } from "@/components/knowledge-base/brand"
 import {
@@ -55,7 +55,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           </aside>
 
           <div className="lg:pl-64">
-            <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur sm:px-6 lg:h-20 lg:px-8">
+            <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur sm:px-6 lg:h-20 lg:px-8">
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -79,6 +79,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   />
                 </Show>
                 <ContactButton className="hidden sm:flex" />
+                <UserButton />
                 <NotificationButton />
                 <div className="sm:hidden">
                   <ContactButton compact />

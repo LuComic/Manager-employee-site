@@ -86,6 +86,14 @@ Provide a separate, Clerk-protected management area for maintaining the owner's 
 
 Manager changes update Today, Guides, Calendar, Announcements, and Documents through Convex subscriptions and remain after refresh.
 
+Employee profiles have three server-enforced application access tiers:
+
+- Read only: view published workplace content.
+- Editing: open the content editor area and update existing guides, categories, events, announcements, documents, questions, and Today sections.
+- Full access: create, update, publish, reorder, and delete workplace content.
+
+Only the workplace owner can manage employees, invitations, establishment settings, access controls, credentials, help requests, banners, and manager notifications. Editors and full-content employees receive only the employee names/statuses needed for event assignment; contact, invitation, and permission data remain private.
+
 ### Hub access
 
 - Every hub has a stable public slug and is either public or restricted.
@@ -116,6 +124,6 @@ Manager changes update Today, Guides, Calendar, Announcements, and Documents thr
 
 ## Development seed and AI assessment
 
-A signed-in development manager can create an owned hub containing the North & Pine seed once. There is no unauthenticated claim or takeover path.
+A signed-in development manager can create an owned hub containing the North & Pine seed once. There is no unauthenticated ownership or takeover path.
 
 Grounded staff Q&A is the preferred future AI enhancement, but it remains disabled until model credentials are available. It must retrieve only published records from the currently authorized hub and link answers to their sources. Convex-backed keyword search remains the active search implementation; there is no fake AI surface.

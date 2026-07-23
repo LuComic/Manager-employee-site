@@ -1,15 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { useOrganization, useSession } from "@clerk/nextjs"
-import { useQuery } from "convex/react"
+import { useSession } from "@clerk/nextjs"
 import {
-  Copy,
-  Link2,
   Mail,
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   UserCog,
   Users,
 } from "lucide-react"
@@ -37,15 +35,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import type { EmployeeProfile, EmployeeStatus } from "@/lib/operations"
+import type {
+  EmployeeAccessLevel,
+  EmployeeProfile,
+  EmployeeStatus,
+} from "@/lib/operations"
 
 type FormValue = {
   displayName: string
   email: string
   department: string
   jobTitle: string
+  accessLevel: EmployeeAccessLevel
 }
 
 const emptyForm: FormValue = {
@@ -53,19 +55,19 @@ const emptyForm: FormValue = {
   email: "",
   department: "",
   jobTitle: "",
+  accessLevel: "viewer",
+}
+
+const employeeStatusLabels: Record<EmployeeStatus, string> = {
+  unclaimed: "Not joined",
+  invited: "Email invite sent",
+  active: "Active",
+  deactivated: "Deactivated",
 }
 
 export function EmployeeManager() {
-  const {
-    hub,
-    employees,
-    createEmployee,
-    updateEmployee,
-    createEmployeeClaimLink,
-    revokeEmployeeClaimLink,
-    showFeedback,
-  } = useOperations()
-  const { memberships } = useOrganization({ memberships: { pageSize: 20 } })
+  const { hub, employees, createEmployee, updateEmployee, showFeedback } =
+    useOperations()
   const { session } = useSession()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<EmployeeStatus | "all">("all")
@@ -76,29 +78,8 @@ export function EmployeeManager() {
   const [error, setError] = useState("")
   const [deactivateTarget, setDeactivateTarget] =
     useState<EmployeeProfile | null>(null)
-  const [claimProfile, setClaimProfile] = useState<EmployeeProfile | null>(null)
-  const [claimNow, setClaimNow] = useState(0)
-  const [claim, setClaim] = useState<{
-    url: string
-    claimLinkId: Id<"employeeClaimLinks">
-  } | null>(null)
-  const claimLinks = useQuery(
-    api.employees.listClaimLinks,
-    claimProfile
-      ? { profileId: claimProfile.id as Id<"employeeProfiles"> }
-      : "skip"
-  )
+  const [removeTarget, setRemoveTarget] = useState<EmployeeProfile | null>(null)
 
-  const roles = useMemo(
-    () =>
-      new Map(
-        (memberships?.data ?? []).flatMap((membership) => {
-          const userId = membership.publicUserData?.userId
-          return userId ? [[userId, membership.role] as const] : []
-        })
-      ),
-    [memberships?.data]
-  )
   const visible = employees.filter((employee) => {
     const matchesQuery =
       `${employee.displayName} ${employee.email ?? ""} ${employee.department ?? ""} ${employee.jobTitle ?? ""}`
@@ -126,6 +107,7 @@ export function EmployeeManager() {
             email: employee.email ?? "",
             department: employee.department ?? "",
             jobTitle: employee.jobTitle ?? "",
+            accessLevel: employee.accessLevel,
           }
     )
   }
@@ -141,6 +123,7 @@ export function EmployeeManager() {
         email: form.email.trim() || undefined,
         department: form.department.trim() || undefined,
         jobTitle: form.jobTitle.trim() || undefined,
+        accessLevel: form.accessLevel,
       }
       if (editing === "new") await createEmployee(value)
       else if (editing) {
@@ -161,6 +144,7 @@ export function EmployeeManager() {
 
   async function runAction(employee: EmployeeProfile | null, action: string) {
     setActionId(employee ? `${employee.id}:${action}` : action)
+    setError("")
     try {
       const response = await fetch(
         action === "invite" || action === "revoke-invite"
@@ -189,26 +173,18 @@ export function EmployeeManager() {
       showFeedback(
         action === "reconcile"
           ? "Employee access reconciled."
-          : "Employee access updated."
+          : action === "invite"
+            ? "Invitation email sent."
+            : action === "revoke-invite"
+              ? "Email invitation canceled."
+              : action === "remove"
+                ? "Employee removed from this workplace."
+                : "Employee access updated."
       )
+      return true
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Action failed")
-    } finally {
-      setActionId(null)
-    }
-  }
-
-  async function createClaim(employee: EmployeeProfile) {
-    setActionId(`${employee.id}:claim`)
-    try {
-      const result = await createEmployeeClaimLink(
-        employee.id as Id<"employeeProfiles">,
-        Date.now() + 7 * 24 * 60 * 60 * 1000
-      )
-      const url = `${window.location.origin}/claim#claim=${encodeURIComponent(result.credential)}`
-      setClaimNow(Date.now())
-      setClaimProfile(employee)
-      setClaim({ url, claimLinkId: result.claimLinkId })
+      return false
     } finally {
       setActionId(null)
     }
@@ -228,11 +204,12 @@ export function EmployeeManager() {
     <div className="space-y-6">
       <ManagerHeading
         title="Employees"
-        description="Create workplace profiles, invite employees, manage roles, and control access."
+        description="Create employee profiles, send sign-in details, and control content access."
         action={
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
+              className="border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
               disabled={Boolean(actionId)}
               onClick={() => void runAction(null, "reconcile")}
             >
@@ -269,8 +246,8 @@ export function EmployeeManager() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="unclaimed">Unclaimed</SelectItem>
-            <SelectItem value="invited">Invited</SelectItem>
+            <SelectItem value="unclaimed">Not joined</SelectItem>
+            <SelectItem value="invited">Email invite sent</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="deactivated">Deactivated</SelectItem>
           </SelectContent>
@@ -284,9 +261,6 @@ export function EmployeeManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((employee) => {
-            const role = employee.clerkUserId
-              ? roles.get(employee.clerkUserId)
-              : undefined
             return (
               <Card key={employee.id} size="sm" className="shadow-none">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -296,16 +270,6 @@ export function EmployeeManager() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold">{employee.displayName}</h3>
-                      {role && (
-                        <>
-                          <span aria-hidden="true" className="text-border">
-                            |
-                          </span>
-                          <Badge variant="outline">
-                            {role === "org:admin" ? "Manager" : "Member"}
-                          </Badge>
-                        </>
-                      )}
                       <span aria-hidden="true" className="text-border">
                         |
                       </span>
@@ -320,7 +284,17 @@ export function EmployeeManager() {
                                 : "text-danger"
                         }
                       >
-                        {employee.status}
+                        {employeeStatusLabels[employee.status]}
+                      </Badge>
+                      <span aria-hidden="true" className="text-border">
+                        |
+                      </span>
+                      <Badge variant="outline">
+                        {employee.accessLevel === "manager"
+                          ? "Full access"
+                          : employee.accessLevel === "editor"
+                            ? "Editing"
+                            : "Read only"}
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -330,7 +304,7 @@ export function EmployeeManager() {
                     </p>
                     {employee.invitationStatus !== "not-sent" && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Invitation: {employee.invitationStatus}
+                        Email invitation: {employee.invitationStatus}
                         {employee.invitationError
                           ? ` · ${employee.invitationError}`
                           : ""}
@@ -345,6 +319,17 @@ export function EmployeeManager() {
                     >
                       Edit
                     </Button>
+                    {employee.status === "deactivated" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={Boolean(actionId)}
+                        onClick={() => setRemoveTarget(employee)}
+                      >
+                        <Trash2 /> Remove
+                      </Button>
+                    )}
                     {employee.email &&
                       employee.status !== "active" &&
                       employee.status !== "deactivated" && (
@@ -356,8 +341,8 @@ export function EmployeeManager() {
                         >
                           <Mail />{" "}
                           {employee.invitationStatus === "pending"
-                            ? "Resend"
-                            : "Invite"}
+                            ? "Resend email"
+                            : "Send email invite"}
                         </Button>
                       )}
                     {employee.invitationStatus === "pending" && (
@@ -369,44 +354,7 @@ export function EmployeeManager() {
                           void runAction(employee, "revoke-invite")
                         }
                       >
-                        Revoke invite
-                      </Button>
-                    )}
-                    {(employee.status === "unclaimed" ||
-                      employee.status === "invited") && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={Boolean(actionId)}
-                        onClick={() => {
-                          setClaim(null)
-                          setClaimNow(Date.now())
-                          setClaimProfile(employee)
-                        }}
-                      >
-                        <Link2 /> Claim links
-                      </Button>
-                    )}
-                    {employee.clerkUserId &&
-                      role !== "org:admin" &&
-                      employee.status === "active" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={Boolean(actionId)}
-                          onClick={() => void runAction(employee, "promote")}
-                        >
-                          Promote
-                        </Button>
-                      )}
-                    {employee.clerkUserId && role === "org:admin" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={Boolean(actionId)}
-                        onClick={() => void runAction(employee, "demote")}
-                      >
-                        Demote
+                        Cancel email invite
                       </Button>
                     )}
                     {employee.status !== "deactivated" ? (
@@ -519,6 +467,41 @@ export function EmployeeManager() {
                   })}
                 </div>
               )}
+              <div className="space-y-2">
+                <Label htmlFor="employee-access">Application access</Label>
+                <Select
+                  value={form.accessLevel}
+                  onValueChange={(value) =>
+                    setForm({
+                      ...form,
+                      accessLevel: value as EmployeeAccessLevel,
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    id="employee-access"
+                    className="w-full border border-input bg-background px-3"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="viewer">
+                      Nothing - view published content only
+                    </SelectItem>
+                    <SelectItem value="editor">
+                      Editing - update existing content
+                    </SelectItem>
+                    <SelectItem value="manager">
+                      Full access - create and manage all content
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Full access does not include employees, invitations, workplace
+                  settings, or access controls.
+                </p>
+              </div>
+
               {error && (
                 <p role="alert" className="text-sm text-destructive">
                   {error}
@@ -542,116 +525,6 @@ export function EmployeeManager() {
       </Dialog>
 
       <Dialog
-        open={Boolean(claimProfile)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setClaim(null)
-            setClaimProfile(null)
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Personal claim links</DialogTitle>
-            <DialogDescription>
-              Links are single-use and employee-specific. Send a newly generated
-              link only to {claimProfile?.displayName}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {claim ? (
-              <div className="space-y-2 border p-3">
-                <Input
-                  readOnly
-                  value={claim.url}
-                  className="border border-input px-3 font-mono text-xs"
-                />
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(claim.url)
-                    showFeedback("Claim link copied.")
-                  }}
-                >
-                  <Copy /> Copy new claim link
-                </Button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                className="w-full"
-                disabled={Boolean(actionId)}
-                onClick={() => claimProfile && void createClaim(claimProfile)}
-              >
-                <Link2 /> Generate seven-day claim link
-              </Button>
-            )}
-            <div className="max-h-56 space-y-2 overflow-y-auto">
-              {claimLinks === undefined ? (
-                <p className="text-sm text-muted-foreground">
-                  Loading claim history…
-                </p>
-              ) : claimLinks.length ? (
-                claimLinks.map((link) => {
-                  const state = link.consumedAt
-                    ? "consumed"
-                    : link.revokedAt
-                      ? "revoked"
-                      : link.expiresAt <= claimNow
-                        ? "expired"
-                        : "active"
-                  return (
-                    <div
-                      key={link._id}
-                      className="flex items-center justify-between gap-3 border p-3 text-sm"
-                    >
-                      <span>
-                        <span className="font-medium">{state}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          Created {new Date(link.createdAt).toLocaleString()}
-                        </span>
-                      </span>
-                      {state === "active" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={async () => {
-                            await revokeEmployeeClaimLink(link._id)
-                            if (claim?.claimLinkId === link._id) setClaim(null)
-                            showFeedback("Claim link revoked.")
-                          }}
-                        >
-                          Revoke
-                        </Button>
-                      )}
-                    </div>
-                  )
-                })
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No claim links created yet.
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setClaim(null)
-                setClaimProfile(null)
-              }}
-            >
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
         open={Boolean(deactivateTarget)}
         onOpenChange={(open) => !open && setDeactivateTarget(null)}
       >
@@ -661,8 +534,8 @@ export function EmployeeManager() {
               Deactivate {deactivateTarget?.displayName}?
             </DialogTitle>
             <DialogDescription>
-              This removes their workplace membership, revokes pending access
-              links, and preserves their profile and historical event
+              This removes their workplace membership, cancels any pending email
+              invitation, and preserves their profile and historical event
               assignments.
             </DialogDescription>
           </DialogHeader>
@@ -680,11 +553,53 @@ export function EmployeeManager() {
               disabled={Boolean(actionId)}
               onClick={async () => {
                 if (!deactivateTarget) return
-                await runAction(deactivateTarget, "deactivate")
-                setDeactivateTarget(null)
+                if (await runAction(deactivateTarget, "deactivate")) {
+                  setDeactivateTarget(null)
+                }
               }}
             >
               Deactivate employee
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(removeTarget)}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Permanently remove {removeTarget?.displayName}?
+            </DialogTitle>
+            <DialogDescription>
+              This permanently removes the employee from this workplace,
+              including their profile, email invitation, notifications, and all
+              event assignments. Their sign-in account and access to any other
+              workplaces will not be deleted. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRemoveTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={Boolean(actionId)}
+              onClick={async () => {
+                if (!removeTarget) return
+                if (await runAction(removeTarget, "remove")) {
+                  setRemoveTarget(null)
+                }
+              }}
+            >
+              Permanently remove
             </Button>
           </DialogFooter>
         </DialogContent>

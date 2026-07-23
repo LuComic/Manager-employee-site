@@ -5,7 +5,7 @@ import { mutation, query } from "./_generated/server"
 import {
   canReadPublishedHub,
   requireIdentity,
-  requireOwnedHub,
+  requireHubPermission,
 } from "./lib/access"
 import {
   createNotification,
@@ -43,13 +43,16 @@ export const saveCategory = mutation({
     description: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     const existing = await ctx.db
       .query("categories")
       .withIndex("by_hubId_and_slug", (q) =>
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    if (!existing && permission === "editor") {
+      throw new Error("Full content access is required to create content")
+    }
     const value = {
       label: required(args.label, "Category name", 80),
       iconKey: required(args.iconKey, "Category icon", 40),
@@ -80,7 +83,7 @@ export const moveCategory = mutation({
     direction: v.union(v.literal(-1), v.literal(1)),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "editor")
     const categories = await ctx.db
       .query("categories")
       .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
@@ -103,7 +106,7 @@ export const moveCategory = mutation({
 export const deleteCategory = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "manager")
     const category = await ctx.db
       .query("categories")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -135,7 +138,7 @@ export const saveGuide = mutation({
     content: richTextDocument,
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     const category = await ctx.db
       .query("categories")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -149,6 +152,9 @@ export const saveGuide = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    if (!existing && permission === "editor") {
+      throw new Error("Full content access is required to create content")
+    }
     const value = {
       title: required(args.title, "Guide title", 140),
       description: required(args.description, "Guide description", 500),
@@ -190,7 +196,7 @@ export const saveGuide = mutation({
 export const deleteGuide = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "manager")
     const guide = await ctx.db
       .query("guides")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -240,15 +246,13 @@ export const saveEvent = mutation({
     start: v.string(),
     end: v.string(),
     location: v.string(),
-    owner: v.optional(v.string()),
     employeeProfileIds: v.optional(v.array(v.id("employeeProfiles"))),
-    replaceLegacyResponsiblePerson: v.optional(v.boolean()),
     notes: v.string(),
     published: v.boolean(),
     guideSlugs: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     const identity = await requireIdentity(ctx)
     if (args.end <= args.start)
       throw new Error("Event end must be after its start")
@@ -258,6 +262,9 @@ export const saveEvent = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    if (!existing && permission === "editor") {
+      throw new Error("Full content access is required to create content")
+    }
     const value = {
       title: required(args.title, "Event title", 140),
       description: required(args.description, "Event description", 500),
@@ -275,17 +282,6 @@ export const saveEvent = mutation({
           slug: required(args.slug, "Event slug", 100),
           ...value,
         })
-
-    if (args.replaceLegacyResponsiblePerson) {
-      await ctx.db.patch("events", eventId, {
-        owner: undefined,
-        legacyResponsiblePerson: undefined,
-      })
-    } else if (!existing && args.owner?.trim()) {
-      await ctx.db.patch("events", eventId, {
-        legacyResponsiblePerson: args.owner.trim().slice(0, 100),
-      })
-    }
 
     const newlyAssignedEmployeeIds: Id<"employeeProfiles">[] = []
     if (args.employeeProfileIds !== undefined) {
@@ -394,7 +390,7 @@ export const saveEvent = mutation({
 export const deleteEvent = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "manager")
     const event = await ctx.db
       .query("events")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -470,7 +466,7 @@ export const saveAnnouncement = mutation({
     eventSlug: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     if (args.expiresAt < args.publishedAt)
       throw new Error("Expiry must be on or after publish date")
     const guide = args.guideSlug
@@ -495,6 +491,9 @@ export const saveAnnouncement = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    if (!existing && permission === "editor") {
+      throw new Error("Full content access is required to create content")
+    }
     const value = {
       title: required(args.title, "Announcement title", 140),
       content: args.content,
@@ -532,7 +531,7 @@ export const saveAnnouncement = mutation({
 export const deleteAnnouncement = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "manager")
     const announcement = await ctx.db
       .query("announcements")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -565,13 +564,16 @@ export const saveFaq = mutation({
     published: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     const existing = await ctx.db
       .query("faqs")
       .withIndex("by_hubId_and_slug", (q) =>
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    if (!existing && permission === "editor") {
+      throw new Error("Full content access is required to create content")
+    }
     const value = {
       question: required(args.question, "Question", 300),
       answer: required(args.answer, "Answer", 4000),
@@ -613,7 +615,7 @@ export const moveFaq = mutation({
     direction: v.union(v.literal(-1), v.literal(1)),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "editor")
     const faqs = await ctx.db
       .query("faqs")
       .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
@@ -630,7 +632,7 @@ export const moveFaq = mutation({
 export const deleteFaq = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "manager")
     const faq = await ctx.db
       .query("faqs")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -691,7 +693,7 @@ export const submitHelpRequest = mutation({
 export const listHelpRequests = query({
   args: { hubId: v.id("hubs") },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "owner")
     const requests = await ctx.db
       .query("helpRequests")
       .withIndex("by_hubId_and_submittedAt", (q) => q.eq("hubId", args.hubId))
@@ -714,7 +716,7 @@ export const setHelpRequestStatus = mutation({
     status: v.union(v.literal("open"), v.literal("resolved")),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "owner")
     const request = await ctx.db.get("helpRequests", args.requestId)
     if (!request || request.hubId !== args.hubId)
       throw new Error("Help request not found")
@@ -729,7 +731,7 @@ export const deleteHelpRequest = mutation({
     requestId: v.id("helpRequests"),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "owner")
     const request = await ctx.db.get("helpRequests", args.requestId)
     if (!request || request.hubId !== args.hubId)
       throw new Error("Help request not found")

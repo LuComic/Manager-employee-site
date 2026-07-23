@@ -17,7 +17,6 @@ import type * as hubs from "../hubs.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_notifications from "../lib/notifications.js";
 import type * as lib_snapshot from "../lib/snapshot.js";
-import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as search from "../search.js";
 
@@ -37,7 +36,6 @@ declare const fullApi: ApiFromModules<{
   "lib/access": typeof lib_access;
   "lib/notifications": typeof lib_notifications;
   "lib/snapshot": typeof lib_snapshot;
-  migrations: typeof migrations;
   notifications: typeof notifications;
   search: typeof search;
 }>;

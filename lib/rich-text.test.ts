@@ -9,7 +9,7 @@ import {
 } from "@/lib/rich-text"
 
 describe("rich text helpers", () => {
-  test("converts legacy guide steps into searchable rich text", () => {
+  test("converts guide steps into searchable rich text", () => {
     const content = guideStepsToRichText([
       {
         title: "Open the till",

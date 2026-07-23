@@ -41,8 +41,7 @@ export function HubSetup() {
             Create your workplace
           </h1>
           <CardDescription>
-            Choose the workplace name and logo. You will become its first
-            manager.
+            Choose the workplace name and logo. You will become its first owner.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -90,8 +89,8 @@ export function HubSetup() {
           Finish setting up your operations hub
         </h1>
         <CardDescription>
-          Your workplace account manages the name, logo, managers, and members.
-          The operations hub will use the active workplace shown below.
+          Your workplace account manages the name, logo, and members. The
+          operations hub will use the active workplace shown below.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">

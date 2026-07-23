@@ -13,7 +13,7 @@ export type RichTextNode = {
 
 export type RichTextDocument = RichTextNode & { type: "doc" }
 
-export type LegacyGuideStep = {
+export type GuideStep = {
   title: string
   detail: string
   tip?: string
@@ -36,9 +36,7 @@ export function paragraphDocument(text: string): RichTextDocument {
   }
 }
 
-export function guideStepsToRichText(
-  steps: LegacyGuideStep[]
-): RichTextDocument {
+export function guideStepsToRichText(steps: GuideStep[]): RichTextDocument {
   return {
     type: "doc",
     content: [

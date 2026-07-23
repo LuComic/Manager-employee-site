@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import { assertAdminRemovalIsSafe } from "./organization-access"
 
 describe("Organization admin safeguards", () => {
-  test("blocks demotion or removal of the last admin", () => {
+  test("blocks removal of the last admin", () => {
     expect(() => assertAdminRemovalIsSafe("org:admin", 1)).toThrow(
       "last Organization admin"
     )

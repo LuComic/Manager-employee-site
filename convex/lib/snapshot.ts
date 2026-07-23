@@ -158,7 +158,6 @@ export async function buildSnapshot(
       contactPhone: hub.contactPhone ?? "",
       bannerImageUrl: bannerImageUrl ?? undefined,
       todaySections: normalizeTodaySections(hub.todaySections),
-      contentVersion: hub.contentVersion ?? 0,
       ...(options.includeOrganizationMapping
         ? { clerkOrganizationId: hub.clerkOrganizationId }
         : {}),
@@ -199,8 +198,6 @@ export async function buildSnapshot(
       employees: (employeesByEventId.get(event._id) ?? []).map((employee) =>
         options.includeDrafts ? employee : { displayName: employee.displayName }
       ),
-      legacyResponsiblePerson:
-        event.legacyResponsiblePerson ?? event.owner ?? undefined,
       notes: event.notes,
       published: event.published,
       guideIds: guideIdsByEventId.get(event._id) ?? [],

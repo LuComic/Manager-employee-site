@@ -8,6 +8,11 @@ const employeeStatus = v.union(
   v.literal("active"),
   v.literal("deactivated")
 )
+const employeeAccessLevel = v.union(
+  v.literal("viewer"),
+  v.literal("editor"),
+  v.literal("manager")
+)
 const invitationStatus = v.union(
   v.literal("not-sent"),
   v.literal("pending"),
@@ -69,11 +74,7 @@ export default defineSchema({
     contactPhone: v.optional(v.string()),
     bannerStorageId: v.optional(v.id("_storage")),
     todaySections: v.optional(v.array(todaySection)),
-    contentVersion: v.optional(v.number()),
-    // Transitional: legacy hubs are backfilled before this becomes required.
-    clerkOrganizationId: v.optional(v.string()),
-    ownerSubject: v.string(),
-    ownerTokenIdentifier: v.string(),
+    clerkOrganizationId: v.string(),
     accessMode,
     joinCodeHash: v.string(),
     privateTokenHash: v.string(),
@@ -82,7 +83,6 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_slug", ["slug"])
-    .index("by_ownerTokenIdentifier", ["ownerTokenIdentifier"])
     .index("by_clerkOrganizationId", ["clerkOrganizationId"]),
 
   employeeProfiles: defineTable({
@@ -94,6 +94,8 @@ export default defineSchema({
     department: v.optional(v.string()),
     jobTitle: v.optional(v.string()),
     status: employeeStatus,
+    // Missing values are treated as read-only.
+    accessLevel: v.optional(employeeAccessLevel),
     createdBy: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -110,24 +112,6 @@ export default defineSchema({
     .index("by_hubId_and_normalizedEmail", ["hubId", "normalizedEmail"])
     .index("by_invitationCorrelationHash", ["invitationCorrelationHash"])
     .index("by_invitationId", ["invitationId"]),
-
-  employeeClaimLinks: defineTable({
-    hubId: v.id("hubs"),
-    employeeProfileId: v.id("employeeProfiles"),
-    credentialHash: v.string(),
-    expiresAt: v.number(),
-    createdAt: v.number(),
-    createdBy: v.string(),
-    revokedAt: v.optional(v.number()),
-    consumedAt: v.optional(v.number()),
-    consumedByClerkUserId: v.optional(v.string()),
-  })
-    .index("by_credentialHash", ["credentialHash"])
-    .index("by_employeeProfileId_and_createdAt", [
-      "employeeProfileId",
-      "createdAt",
-    ])
-    .index("by_hubId_and_createdAt", ["hubId", "createdAt"]),
 
   categories: defineTable({
     hubId: v.id("hubs"),
@@ -170,11 +154,6 @@ export default defineSchema({
     start: v.string(),
     end: v.string(),
     location: v.string(),
-    // Transitional fields. `owner` contains pre-migration data; new writes use
-    // linked employee profiles and may retain `legacyResponsiblePerson` until
-    // a manager deliberately replaces it.
-    owner: v.optional(v.string()),
-    legacyResponsiblePerson: v.optional(v.string()),
     notes: v.string(),
     published: v.boolean(),
   })
@@ -318,12 +297,15 @@ export default defineSchema({
 
   notificationReadStates: defineTable({
     hubId: v.id("hubs"),
+    employeeProfileId: v.optional(v.id("employeeProfiles")),
     viewerKey: v.string(),
     viewerType: v.union(v.literal("employee"), v.literal("manager")),
     lastReadAt: v.number(),
-  }).index("by_hubId_and_viewerKey_and_viewerType", [
-    "hubId",
-    "viewerKey",
-    "viewerType",
-  ]),
+  })
+    .index("by_hubId_and_viewerKey_and_viewerType", [
+      "hubId",
+      "viewerKey",
+      "viewerType",
+    ])
+    .index("by_employeeProfileId", ["employeeProfileId"]),
 })

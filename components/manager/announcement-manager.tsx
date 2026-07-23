@@ -37,6 +37,7 @@ export function AnnouncementManager() {
   const {
     announcements,
     hub,
+    canCreateContent,
     saveAnnouncement,
     deleteAnnouncement,
     showFeedback,
@@ -70,9 +71,14 @@ export function AnnouncementManager() {
         title="Manage announcements"
         description="Maintain temporary notices, dates, priority, and pinned state."
         action={
-          <Link href="/manager/announcements/new" className={buttonVariants()}>
-            <Plus /> New announcement
-          </Link>
+          canCreateContent ? (
+            <Link
+              href="/manager/announcements/new"
+              className={buttonVariants()}
+            >
+              <Plus /> New announcement
+            </Link>
+          ) : undefined
         }
       />
       <div className="flex flex-col gap-4 border bg-background p-4 sm:flex-row">
@@ -197,14 +203,16 @@ export function AnnouncementManager() {
                     >
                       <FilePenLine /> Edit
                     </Link>
-                    <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => setDeleteTarget(announcement)}
-                      aria-label={`Delete ${announcement.title}`}
-                    >
-                      <Trash2 />
-                    </Button>
+                    {canCreateContent && (
+                      <Button
+                        variant="destructive"
+                        size="icon-sm"
+                        onClick={() => setDeleteTarget(announcement)}
+                        aria-label={`Delete ${announcement.title}`}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

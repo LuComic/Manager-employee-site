@@ -10,8 +10,8 @@ import {
 import {
   hashCredential,
   requireIdentity,
+  requireHubPermission,
   requireOrganizationHub,
-  requireOwnedHub,
 } from "./lib/access"
 import { createNotification } from "./lib/notifications"
 
@@ -22,6 +22,11 @@ const invitationStatus = v.union(
   v.literal("expired"),
   v.literal("revoked"),
   v.literal("failed")
+)
+const accessLevel = v.union(
+  v.literal("viewer"),
+  v.literal("editor"),
+  v.literal("manager")
 )
 
 function clean(value: string | undefined, max: number) {
@@ -67,7 +72,7 @@ async function activateProfile(
   now: number
 ) {
   if (profile.clerkUserId && profile.clerkUserId !== clerkUserId) {
-    throw new Error("Employee profile is already claimed")
+    throw new Error("Employee profile is already connected")
   }
   await ensureNoActiveProfileForUser(
     ctx,
@@ -90,6 +95,7 @@ async function activateProfile(
     await createNotification(ctx, {
       hubId: profile.hubId,
       audience: "managers",
+      employeeProfileId: profile._id,
       kind: "workplace",
       title: "Employee account connected",
       message: `${profile.displayName} joined the workplace.`,
@@ -101,7 +107,7 @@ async function activateProfile(
 export const list = query({
   args: { hubId: v.id("hubs") },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "owner")
     const profiles = await ctx.db
       .query("employeeProfiles")
       .withIndex("by_hubId_and_displayName", (q) => q.eq("hubId", args.hubId))
@@ -113,6 +119,7 @@ export const list = query({
       department: profile.department,
       jobTitle: profile.jobTitle,
       status: profile.status,
+      accessLevel: profile.accessLevel ?? "viewer",
       clerkUserId: profile.clerkUserId,
       invitationId: profile.invitationId,
       invitationStatus: profile.invitationStatus,
@@ -126,12 +133,40 @@ export const list = query({
   },
 })
 
+export const listAssignable = query({
+  args: { hubId: v.id("hubs") },
+  returns: v.array(
+    v.object({
+      id: v.id("employeeProfiles"),
+      displayName: v.string(),
+      status: v.union(
+        v.literal("unclaimed"),
+        v.literal("invited"),
+        v.literal("active"),
+        v.literal("deactivated")
+      ),
+    })
+  ),
+  handler: async (ctx, args) => {
+    await requireHubPermission(ctx, args.hubId, "editor")
+    const profiles = await ctx.db
+      .query("employeeProfiles")
+      .withIndex("by_hubId_and_displayName", (q) => q.eq("hubId", args.hubId))
+      .take(500)
+    return profiles.map((profile) => ({
+      id: profile._id,
+      displayName: profile.displayName,
+      status: profile.status,
+    }))
+  },
+})
+
 export const getForAdmin = query({
   args: { profileId: v.id("employeeProfiles") },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    const hub = await requireOwnedHub(ctx, profile.hubId)
+    const { hub } = await requireHubPermission(ctx, profile.hubId, "owner")
     return {
       profile: {
         id: profile._id,
@@ -155,9 +190,10 @@ export const create = mutation({
     email: v.optional(v.string()),
     department: v.optional(v.string()),
     jobTitle: v.optional(v.string()),
+    accessLevel: v.optional(accessLevel),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "owner")
     const identity = await requireIdentity(ctx)
     const displayName = clean(args.displayName, 120)
     if (!displayName) throw new Error("Employee name is required")
@@ -182,6 +218,7 @@ export const create = mutation({
       department: clean(args.department, 120),
       jobTitle: clean(args.jobTitle, 120),
       status: "unclaimed",
+      accessLevel: args.accessLevel ?? "viewer",
       createdBy: identity.subject,
       createdAt: now,
       updatedAt: now,
@@ -197,11 +234,12 @@ export const update = mutation({
     email: v.optional(v.string()),
     department: v.optional(v.string()),
     jobTitle: v.optional(v.string()),
+    accessLevel: v.optional(accessLevel),
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
+    await requireHubPermission(ctx, profile.hubId, "owner")
     const displayName = clean(args.displayName, 120)
     if (!displayName) throw new Error("Employee name is required")
     const normalizedEmail = normalizeEmail(args.email)
@@ -226,6 +264,7 @@ export const update = mutation({
       normalizedEmail,
       department: clean(args.department, 120),
       jobTitle: clean(args.jobTitle, 120),
+      accessLevel: args.accessLevel ?? profile.accessLevel ?? "viewer",
       updatedAt: Date.now(),
     })
     return null
@@ -240,7 +279,7 @@ export const prepareInvitation = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
+    await requireHubPermission(ctx, profile.hubId, "owner")
     if (!profile.email)
       throw new Error("Add an email before sending an invitation")
     if (profile.status === "active")
@@ -271,7 +310,7 @@ export const recordInvitation = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
+    await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationId: args.invitationId,
       invitationStatus: "pending",
@@ -290,7 +329,7 @@ export const recordInvitationFailure = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
+    await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationStatus: "failed",
       invitationError: args.message.slice(0, 500),
@@ -308,7 +347,7 @@ export const markInvitationStatus = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
+    await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationStatus: args.status,
       updatedAt: Date.now(),
@@ -317,7 +356,7 @@ export const markInvitationStatus = mutation({
   },
 })
 
-export const claimByInvitation = mutation({
+export const activateByInvitation = mutation({
   args: { correlationCredential: v.string() },
   handler: async (ctx, args) => {
     const { hub, identity } = await requireOrganizationHub(ctx)
@@ -338,183 +377,6 @@ export const claimByInvitation = mutation({
   },
 })
 
-export const createClaimLink = mutation({
-  args: {
-    profileId: v.id("employeeProfiles"),
-    credential: v.string(),
-    expiresAt: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
-    const identity = await requireIdentity(ctx)
-    if (profile.status === "active" || profile.status === "deactivated") {
-      throw new Error("Only unclaimed or invited profiles can use claim links")
-    }
-    if (args.credential.length < 32)
-      throw new Error("Claim credential is too short")
-    const now = Date.now()
-    if (
-      args.expiresAt <= now ||
-      args.expiresAt > now + 30 * 24 * 60 * 60 * 1000
-    ) {
-      throw new Error("Claim link expiry must be within 30 days")
-    }
-    const credentialHash = hashCredential(args.credential)
-    const duplicate = await ctx.db
-      .query("employeeClaimLinks")
-      .withIndex("by_credentialHash", (q) =>
-        q.eq("credentialHash", credentialHash)
-      )
-      .unique()
-    if (duplicate) return duplicate._id
-    return await ctx.db.insert("employeeClaimLinks", {
-      hubId: profile.hubId,
-      employeeProfileId: profile._id,
-      credentialHash,
-      expiresAt: args.expiresAt,
-      createdAt: now,
-      createdBy: identity.subject,
-    })
-  },
-})
-
-export const previewClaim = query({
-  args: { credential: v.string(), now: v.number() },
-  handler: async (ctx, args) => {
-    const link = await ctx.db
-      .query("employeeClaimLinks")
-      .withIndex("by_credentialHash", (q) =>
-        q.eq("credentialHash", hashCredential(args.credential))
-      )
-      .unique()
-    if (
-      !link ||
-      link.revokedAt !== undefined ||
-      link.consumedAt !== undefined ||
-      link.expiresAt <= args.now
-    ) {
-      return { kind: "invalid" as const }
-    }
-    const [profile, hub] = await Promise.all([
-      ctx.db.get("employeeProfiles", link.employeeProfileId),
-      ctx.db.get("hubs", link.hubId),
-    ])
-    if (!profile || !hub || profile.status === "deactivated") {
-      return { kind: "invalid" as const }
-    }
-    return {
-      kind: "ready" as const,
-      workplaceName: hub.name,
-      employeeDisplayName: profile.displayName,
-      expiresAt: link.expiresAt,
-    }
-  },
-})
-
-export const resolveClaimForAuthenticatedUser = query({
-  args: { credential: v.string(), now: v.number() },
-  handler: async (ctx, args) => {
-    await requireIdentity(ctx)
-    const link = await ctx.db
-      .query("employeeClaimLinks")
-      .withIndex("by_credentialHash", (q) =>
-        q.eq("credentialHash", hashCredential(args.credential))
-      )
-      .unique()
-    if (
-      !link ||
-      link.revokedAt !== undefined ||
-      link.consumedAt !== undefined ||
-      link.expiresAt <= args.now
-    ) {
-      throw new Error("Claim link is invalid or expired")
-    }
-    const [profile, hub] = await Promise.all([
-      ctx.db.get("employeeProfiles", link.employeeProfileId),
-      ctx.db.get("hubs", link.hubId),
-    ])
-    if (
-      !profile ||
-      !hub?.clerkOrganizationId ||
-      profile.status === "deactivated"
-    ) {
-      throw new Error("Claim link is not available")
-    }
-    return {
-      organizationId: hub.clerkOrganizationId,
-      hubSlug: hub.slug,
-      profileId: profile._id,
-    }
-  },
-})
-
-export const completeClaim = mutation({
-  args: { credential: v.string() },
-  handler: async (ctx, args) => {
-    const { hub, identity } = await requireOrganizationHub(ctx)
-    const link = await ctx.db
-      .query("employeeClaimLinks")
-      .withIndex("by_credentialHash", (q) =>
-        q.eq("credentialHash", hashCredential(args.credential))
-      )
-      .unique()
-    const now = Date.now()
-    if (
-      !link ||
-      link.hubId !== hub._id ||
-      link.revokedAt !== undefined ||
-      (link.consumedAt !== undefined &&
-        link.consumedByClerkUserId !== identity.subject) ||
-      link.expiresAt <= now
-    ) {
-      throw new Error("Claim link is invalid, expired, or already used")
-    }
-    const profile = await ctx.db.get("employeeProfiles", link.employeeProfileId)
-    if (!profile) throw new Error("Employee profile no longer exists")
-    await activateProfile(ctx, profile, identity.subject, now)
-    if (link.consumedAt === undefined) {
-      await ctx.db.patch("employeeClaimLinks", link._id, {
-        consumedAt: now,
-        consumedByClerkUserId: identity.subject,
-      })
-    }
-    return { hubSlug: hub.slug }
-  },
-})
-
-export const revokeClaimLink = mutation({
-  args: { claimLinkId: v.id("employeeClaimLinks") },
-  handler: async (ctx, args) => {
-    const link = await ctx.db.get("employeeClaimLinks", args.claimLinkId)
-    if (!link) return null
-    await requireOwnedHub(ctx, link.hubId)
-    if (link.consumedAt === undefined && link.revokedAt === undefined) {
-      await ctx.db.patch("employeeClaimLinks", link._id, {
-        revokedAt: Date.now(),
-      })
-    }
-    return null
-  },
-})
-
-export const listClaimLinks = query({
-  args: { profileId: v.id("employeeProfiles") },
-  handler: async (ctx, args) => {
-    const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
-    return await ctx.db
-      .query("employeeClaimLinks")
-      .withIndex("by_employeeProfileId_and_createdAt", (q) =>
-        q.eq("employeeProfileId", profile._id)
-      )
-      .order("desc")
-      .take(50)
-  },
-})
-
 async function deactivateProfileRecords(
   ctx: MutationCtx,
   profile: Doc<"employeeProfiles">,
@@ -529,17 +391,6 @@ async function deactivateProfileRecords(
     deactivatedAt: now,
     updatedAt: now,
   })
-  const claims = await ctx.db
-    .query("employeeClaimLinks")
-    .withIndex("by_employeeProfileId_and_createdAt", (q) =>
-      q.eq("employeeProfileId", profile._id)
-    )
-    .take(100)
-  for (const claim of claims) {
-    if (claim.consumedAt === undefined && claim.revokedAt === undefined) {
-      await ctx.db.patch("employeeClaimLinks", claim._id, { revokedAt: now })
-    }
-  }
 }
 
 export const deactivateAfterClerkRemoval = mutation({
@@ -547,9 +398,62 @@ export const deactivateAfterClerkRemoval = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
+    await requireHubPermission(ctx, profile.hubId, "owner")
     await deactivateProfileRecords(ctx, profile, Date.now())
     return null
+  },
+})
+
+export const removeProfileBatch = mutation({
+  args: { profileId: v.id("employeeProfiles") },
+  returns: v.object({ removed: v.boolean() }),
+  handler: async (ctx, args) => {
+    const profile = await ctx.db.get("employeeProfiles", args.profileId)
+    if (!profile) throw new Error("Employee not found")
+    await requireHubPermission(ctx, profile.hubId, "owner")
+
+    const [eventAssignments, employeeNotifications, notificationReadStates] =
+      await Promise.all([
+        ctx.db
+          .query("eventEmployees")
+          .withIndex("by_employeeProfileId_and_eventId", (q) =>
+            q.eq("employeeProfileId", profile._id)
+          )
+          .take(100),
+        ctx.db
+          .query("notifications")
+          .withIndex("by_employeeProfileId", (q) =>
+            q.eq("employeeProfileId", profile._id)
+          )
+          .take(100),
+        ctx.db
+          .query("notificationReadStates")
+          .withIndex("by_employeeProfileId", (q) =>
+            q.eq("employeeProfileId", profile._id)
+          )
+          .take(100),
+      ])
+
+    for (const assignment of eventAssignments) {
+      await ctx.db.delete("eventEmployees", assignment._id)
+    }
+    for (const notification of employeeNotifications) {
+      await ctx.db.delete("notifications", notification._id)
+    }
+    for (const readState of notificationReadStates) {
+      await ctx.db.delete("notificationReadStates", readState._id)
+    }
+
+    if (
+      eventAssignments.length > 0 ||
+      employeeNotifications.length > 0 ||
+      notificationReadStates.length > 0
+    ) {
+      return { removed: false }
+    }
+
+    await ctx.db.delete("employeeProfiles", profile._id)
+    return { removed: true }
   },
 })
 
@@ -558,7 +462,7 @@ export const reactivateUnclaimed = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("Employee not found")
-    await requireOwnedHub(ctx, profile.hubId)
+    await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       clerkUserId: undefined,
       status: "unclaimed",
@@ -580,7 +484,7 @@ export const reconcileMemberships = mutation({
     activeClerkUserIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "owner")
     const activeUsers = new Set(args.activeClerkUserIds.slice(0, 20))
     const profiles = await ctx.db
       .query("employeeProfiles")
@@ -645,10 +549,12 @@ export const applyClerkWebhook = internalMutation({
     }
 
     if (!args.organizationId || !args.clerkUserId) return null
+    const organizationId = args.organizationId
+    const clerkUserId = args.clerkUserId
     const hub = await ctx.db
       .query("hubs")
       .withIndex("by_clerkOrganizationId", (q) =>
-        q.eq("clerkOrganizationId", args.organizationId)
+        q.eq("clerkOrganizationId", organizationId)
       )
       .unique()
     if (!hub) return null
@@ -667,14 +573,14 @@ export const applyClerkWebhook = internalMutation({
     profile ??= await ctx.db
       .query("employeeProfiles")
       .withIndex("by_hubId_and_clerkUserId", (q) =>
-        q.eq("hubId", hub._id).eq("clerkUserId", args.clerkUserId)
+        q.eq("hubId", hub._id).eq("clerkUserId", clerkUserId)
       )
       .unique()
     if (!profile || profile.hubId !== hub._id) return null
     if (args.eventType === "organizationMembership.deleted") {
       await deactivateProfileRecords(ctx, profile, now)
     } else if (args.eventType.startsWith("organizationMembership.")) {
-      await activateProfile(ctx, profile, args.clerkUserId, now)
+      await activateProfile(ctx, profile, clerkUserId, now)
     }
     return null
   },

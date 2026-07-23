@@ -3,7 +3,6 @@
 import { useId, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Show } from "@clerk/nextjs"
 import {
   BookOpen,
   Bell,
@@ -25,7 +24,7 @@ import { cn } from "@/lib/utils"
 
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
-  const { categories, documents } = useOperations()
+  const { categories, documents, managerAccess } = useOperations()
   const publishedDocuments = documents.filter((document) => document.published)
 
   return (
@@ -120,11 +119,11 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         >
           <CircleHelp />
         </NavLink>
-        <Show when={{ role: "org:admin" }}>
+        {managerAccess && (
           <NavLink href="/manager" label="Manager area" active={false}>
             <Settings />
           </NavLink>
-        </Show>
+        )}
         <Separator className="my-4" />
         <ContactButton
           className="h-10 w-full justify-start px-3"

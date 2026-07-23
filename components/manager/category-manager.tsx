@@ -56,6 +56,7 @@ export function CategoryManager() {
   const {
     categories,
     guides,
+    canCreateContent,
     saveCategory,
     moveCategory,
     deleteCategory,
@@ -104,14 +105,16 @@ export function CategoryManager() {
         title="Guide categories"
         description="Manage the work areas shown in the employee sidebar and guide browser."
         action={
-          <Button
-            onClick={() => {
-              setEditing({ ...blankCategory })
-              setError("")
-            }}
-          >
-            <Plus /> New category
-          </Button>
+          canCreateContent ? (
+            <Button
+              onClick={() => {
+                setEditing({ ...blankCategory })
+                setError("")
+              }}
+            >
+              <Plus /> New category
+            </Button>
+          ) : undefined
         }
       />
 
@@ -170,14 +173,16 @@ export function CategoryManager() {
                     >
                       <FilePenLine /> Edit
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => setDeleteTarget(category)}
-                      aria-label={`Delete ${category.label}`}
-                    >
-                      <Trash2 />
-                    </Button>
+                    {canCreateContent && (
+                      <Button
+                        variant="destructive"
+                        size="icon-sm"
+                        onClick={() => setDeleteTarget(category)}
+                        aria-label={`Delete ${category.label}`}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

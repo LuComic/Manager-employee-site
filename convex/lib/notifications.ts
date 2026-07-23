@@ -15,8 +15,12 @@ type NotificationDetails = {
 type NotificationInput = NotificationDetails &
   (
     | {
-        audience: "employees" | "managers"
+        audience: "employees"
         employeeProfileId?: never
+      }
+    | {
+        audience: "managers"
+        employeeProfileId?: Id<"employeeProfiles">
       }
     | {
         audience: "employee"

@@ -30,7 +30,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { slugify, type Faq } from "@/lib/operations"
 
 export function FaqManager() {
-  const { faqs, saveFaq, moveFaq, deleteFaq, showFeedback } = useOperations()
+  const { faqs, canCreateContent, saveFaq, moveFaq, deleteFaq, showFeedback } =
+    useOperations()
   const [editing, setEditing] = useState<Faq | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Faq | null>(null)
   const [pending, setPending] = useState(false)
@@ -72,20 +73,22 @@ export function FaqManager() {
         title="Common questions"
         description="Manage the quick answers employees see on the questions page and in search."
         action={
-          <Button
-            onClick={() => {
-              setEditing({
-                id: "",
-                question: "",
-                answer: "",
-                order: faqs.length,
-                published: true,
-              })
-              setError("")
-            }}
-          >
-            <Plus /> New question
-          </Button>
+          canCreateContent ? (
+            <Button
+              onClick={() => {
+                setEditing({
+                  id: "",
+                  question: "",
+                  answer: "",
+                  order: faqs.length,
+                  published: true,
+                })
+                setError("")
+              }}
+            >
+              <Plus /> New question
+            </Button>
+          ) : undefined
         }
       />
 
@@ -151,14 +154,16 @@ export function FaqManager() {
                   >
                     <FilePenLine /> Edit
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={() => setDeleteTarget(faq)}
-                    aria-label={`Delete ${faq.question}`}
-                  >
-                    <Trash2 />
-                  </Button>
+                  {canCreateContent && (
+                    <Button
+                      variant="destructive"
+                      size="icon-sm"
+                      onClick={() => setDeleteTarget(faq)}
+                      aria-label={`Delete ${faq.question}`}
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

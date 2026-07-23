@@ -35,13 +35,13 @@ For a Clerk development instance, the issuer has the form `https://verb-noun-00.
 
 ## Sources of truth
 
-Clerk owns the global person identity, authentication sessions, verified identifiers, Organizations, Organization memberships, invitations, default `org:admin` and `org:member` roles, and the active Organization. Convex owns hubs and settings, the unique hub-to-Organization mapping, employee workplace profiles, claim links, invitation correlation state, event data, event-to-employee relationships, guest credentials, and legacy migration state.
+Clerk owns the global person identity, authentication sessions, verified identifiers, Organizations, Organization memberships, invitations, default `org:admin` and `org:member` roles, and the active Organization. Convex owns hubs and settings, the unique hub-to-Organization mapping, employee workplace profiles, invitation correlation state, event data, event-to-employee relationships, and guest credentials.
 
 An Organization ID maps to exactly one Convex hub through `hubs.clerkOrganizationId`. Application URLs continue to use the existing Convex hub slug; Clerk Organization slugs are not required. All authenticated Convex authorization derives the active Organization and role from Clerk’s verified v2 session-token Organization claim. A client-supplied hub ID never grants access.
 
 Clerk Organization membership can remain optional. A signed-in Personal Account has no active workplace and must choose an existing Organization or create a manager workplace. Switching Organizations refreshes the Clerk session token, changes the active Convex hub, and rechecks the user’s role.
 
-## Manager onboarding and existing-hub migration
+## Manager onboarding
 
 Open `/manager` and sign in or sign up with Clerk. A new manager creates a workplace through Clerk's native Organization dialog, where the workplace name and logo are configured. The application then completes an idempotent hub setup:
 
@@ -51,25 +51,15 @@ Open `/manager` and sign in or sign up with Clerk. A new manager creates a workp
 4. The client requests an Organization-scoped Clerk token.
 5. Convex creates the mapped hub and optional sample content exactly once.
 
-Existing single-owner hubs keep working while unmapped. Their manager sees an upgrade action that creates the Organization, activates it, and maps the existing hub without replacing its ID or deleting `ownerSubject` / `ownerTokenIdentifier`. Once mapped, manager authorization requires the active matching Organization and `org:admin`; legacy ownership no longer authorizes that mapped hub.
-
-Inspect production rollout state without writing data:
-
-```bash
-bunx convex run migrations:inspectOrganizationMappings --prod
-```
-
-Organization creation cannot be safely batch-created from Convex because the existing Clerk owner must become the first admin. Each existing manager completes the idempotent in-app upgrade. Keep the legacy ownership fields until the inspection reports complete and rollout tests pass.
-
-## Employee profiles, invitations, and claims
+## Employee profiles and invitations
 
 Managers create Convex employee profiles before an account exists. Profiles move through `unclaimed`, `invited`, `active`, and `deactivated`. Optional email, department/team, and job title remain Convex data and are never returned to guests.
 
 Email invitations are Clerk Organization invitations with role `org:member`. A random opaque correlation credential is stored in Clerk invitation public metadata and stored only as a hash in Convex. Clerk transfers that metadata to the accepted membership. The completion route immediately links and activates the matching profile; webhooks reconcile delayed or external lifecycle changes. Sending, resending, revoking, and completion are retry-safe.
 
-Personal claim links are separate from the shared hub join code. The manager generates a high-entropy credential delivered in the URL fragment, so it is not sent in HTTP request logs. Convex stores only its SHA-256 hash. A claim is single-use, expiring, revocable, and bound to one profile and hub. Completing it requires the employee’s own Clerk account, adds that user to the existing Organization as `org:member`, activates the Organization, links the profile, and consumes the credential. The same Clerk user cannot hold two active profiles in one hub.
+Deactivation removes the Organization membership without deleting the global Clerk account, revokes pending invitations, and preserves the profile plus historical event links. Reactivation returns the profile to an unclaimed state. Permanent removal also deletes the workplace-specific profile, pending invitation, employee-linked notifications and read state, and event links, but never deletes the person's global account or their access to other workplaces. Each profile stores one application access tier: `viewer` (published content only), `editor` (update existing content), or `manager` (create, update, and delete content). Existing profiles without the field safely default to `viewer`. Clerk Organization admins are workplace owners and retain exclusive control over employees, invitations, establishment settings, access controls, credentials, help requests, and manager notifications. The application blocks removal of the last Organization admin.
 
-Deactivation removes the Organization membership without deleting the global Clerk account, revokes pending invitations and unused claim links, and preserves the profile plus historical event links. Reactivation returns the profile to an unclaimed state. Promotion and demotion modify the Clerk membership role; Convex does not store a parallel manager boolean. The application blocks demotion or removal of the last Organization admin.
+Permissions are resolved in Convex from the authenticated identity and active employee profile on every protected query or mutation. Editors and full-content employees receive only the employee display-name/status projection needed for event assignment; employee contact, invitation, and access-level data remain owner-only. Editors cannot create or delete content. Per-item edit grants are intentionally not stored; the global tier is the single source of truth.
 
 ## Clerk webhook setup
 
@@ -90,7 +80,7 @@ In Clerk Dashboard → Configure → Webhooks, subscribe to:
 
 Copy the endpoint signing secret into the matching Convex deployment as `CLERK_WEBHOOK_SIGNING_SECRET`. The handler verifies every signature, uses the `svix-id` as an idempotency key, validates event-specific data through Clerk’s typed verified payload, and calls only internal Convex mutations. Use a separate endpoint and signing secret for development and production. Send a test event from Clerk and confirm HTTP 200 and one `clerkWebhookEvents` row even if the same event is replayed.
 
-The immediate invitation and claim experiences do not depend solely on webhooks; they call Clerk and Convex synchronously and webhooks provide reconciliation.
+Invitation completion does not depend solely on webhooks; it calls Clerk and Convex synchronously, while webhooks provide reconciliation.
 
 ## Organization member limit
 
@@ -105,18 +95,16 @@ Employee-facing pages do not require Clerk accounts. A hub is selected with its 
 - Valid anonymous access is remembered in that browser for 30 days.
 - “Leave hub” forgets the saved access.
 - Rotating credentials immediately invalidates previously issued codes and links.
-- A signed-in `org:member` can open the same published workplace content for the active Organization without entering the shared code.
+- A signed-in active `org:member` can open the same published workplace content for the active Organization without entering the shared code.
 - The workplace switcher supports users who belong to multiple Organizations. Personal Account remains available because Organization membership is optional.
 
 Only credential hashes are stored in Convex. The readable code and private link remain in the owner's current browser, so rotating from a different browser creates new credentials there. Draft and expired content are filtered in Convex rather than only hidden by the UI.
 
-Guests never receive employee profile records, email addresses, statuses, invitation data, claim data, or membership records. Published events include only linked employee display names.
+Guests never receive employee profile records, email addresses, statuses, invitation data, or membership records. Published events include only linked employee display names.
 
-## Calendar event employees and legacy migration
+## Calendar event employees
 
 Calendar events use normalized `eventEmployees` rows, allowing zero, one, or multiple employee profiles while enforcing same-hub relationships and preventing duplicates. The manager picker includes active, invited, and unclaimed profiles, excludes deactivated profiles from new links, and keeps existing deactivated links visible for history. Event deletion removes all event-employee rows in the same Convex transaction.
-
-The old `events.owner` value is not discarded or matched to a profile by name. During the widened migration, snapshots render `legacyResponsiblePerson ?? owner` only when no deliberate replacement has occurred. Opening and saving the event editor replaces that text with the selected employee IDs, including an intentional empty selection. The optional `owner` and `legacyResponsiblePerson` fields can be narrowed or removed only after every event has been reviewed and production snapshots no longer depend on them.
 
 ## Development commands
 
@@ -129,7 +117,7 @@ bun run build
 bunx convex dev --once   # validate and sync Convex functions
 ```
 
-For production, configure the production Clerk issuer and webhook secret on the production Convex deployment, deploy the widened schema and functions, deploy the Next.js application, test new-workplace provisioning, then let existing managers complete their in-app Organization migration. Do not remove legacy fields during the same rollout.
+For production, configure the production Clerk issuer and webhook secret on the production Convex deployment, deploy the schema and functions, deploy the Next.js application, and test new-workplace provisioning.
 
 Convex's generated AI guidance and local skills are installed for development. No production MCP access or model credentials are configured by this repository.
 

@@ -29,6 +29,7 @@ export function ManagerOverview() {
     faqs,
     documents,
     employees,
+    managerAccess,
   } = useOperations()
   const sections = [
     {
@@ -102,7 +103,9 @@ export function ManagerOverview() {
         },
       ],
     },
-  ]
+  ].filter(
+    (section) => managerAccess === "owner" || section.title !== "Workforce"
+  )
   const drafts =
     guides.filter((item) => !item.published).length +
     events.filter((item) => !item.published).length +

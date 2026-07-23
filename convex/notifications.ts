@@ -1,6 +1,6 @@
 import { v } from "convex/values"
 
-import type { Doc } from "./_generated/dataModel"
+import type { Doc, Id } from "./_generated/dataModel"
 import {
   mutation,
   query,
@@ -12,7 +12,7 @@ import {
   getIdentity,
   hashCredential,
   requireIdentity,
-  requireOwnedHub,
+  requireHubPermission,
 } from "./lib/access"
 
 const notificationKind = v.union(
@@ -71,7 +71,8 @@ async function setLastReadAt(
   hubId: Doc<"hubs">["_id"],
   viewerKey: string,
   viewerType: "employee" | "manager",
-  lastReadAt: number
+  lastReadAt: number,
+  employeeProfileId?: Id<"employeeProfiles">
 ) {
   const existing = await ctx.db
     .query("notificationReadStates")
@@ -84,10 +85,14 @@ async function setLastReadAt(
     .unique()
   if (!existing && lastReadAt === 0) return 0
   if (existing) {
-    await ctx.db.patch("notificationReadStates", existing._id, { lastReadAt })
+    await ctx.db.patch("notificationReadStates", existing._id, {
+      lastReadAt,
+      employeeProfileId,
+    })
   } else {
     await ctx.db.insert("notificationReadStates", {
       hubId,
+      employeeProfileId,
       viewerKey,
       viewerType,
       lastReadAt,
@@ -161,6 +166,7 @@ async function employeeNotifications(
           .withIndex("by_employeeProfileId", (q) =>
             q.eq("employeeProfileId", viewer.employeeProfileId)
           )
+          .filter((q) => q.eq(q.field("audience"), "employee"))
           .order("desc")
           .take(100)
       : [],
@@ -188,6 +194,7 @@ async function latestEmployeeNotificationTime(
           .withIndex("by_employeeProfileId", (q) =>
             q.eq("employeeProfileId", viewer.employeeProfileId)
           )
+          .filter((q) => q.eq(q.field("audience"), "employee"))
           .order("desc")
           .first()
       : null,
@@ -235,7 +242,8 @@ export const markEmployeeRead = mutation({
       viewer.hub._id,
       viewer.viewerKey,
       "employee",
-      await latestEmployeeNotificationTime(ctx, viewer)
+      await latestEmployeeNotificationTime(ctx, viewer),
+      viewer.employeeProfileId
     )
   },
 })
@@ -244,10 +252,11 @@ export const listManager = query({
   args: { hubId: v.id("hubs") },
   returns: notificationFeed,
   handler: async (ctx, args) => {
-    const [hub, identity] = await Promise.all([
-      requireOwnedHub(ctx, args.hubId),
+    const [access, identity] = await Promise.all([
+      requireHubPermission(ctx, args.hubId, "owner"),
       requireIdentity(ctx),
     ])
+    const { hub } = access
     const notifications = await ctx.db
       .query("notifications")
       .withIndex("by_hubId_and_audience", (q) =>
@@ -271,10 +280,11 @@ export const markManagerRead = mutation({
   args: { hubId: v.id("hubs") },
   returns: v.number(),
   handler: async (ctx, args) => {
-    const [hub, identity] = await Promise.all([
-      requireOwnedHub(ctx, args.hubId),
+    const [access, identity] = await Promise.all([
+      requireHubPermission(ctx, args.hubId, "owner"),
       requireIdentity(ctx),
     ])
+    const { hub } = access
     const latest = await ctx.db
       .query("notifications")
       .withIndex("by_hubId_and_audience", (q) =>

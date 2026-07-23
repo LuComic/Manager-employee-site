@@ -5,8 +5,7 @@ import type { Id } from "@/convex/_generated/dataModel"
 import { convexServerClient, safeErrorMessage } from "@/lib/server/convex"
 import { assertAdminRemovalIsSafe } from "@/lib/server/organization-access"
 
-type EmployeeAction =
-  "deactivate" | "reactivate" | "promote" | "demote" | "reconcile"
+type EmployeeAction = "deactivate" | "reactivate" | "reconcile" | "remove"
 
 function parseBody(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
@@ -14,9 +13,8 @@ function parseBody(value: unknown) {
   const allowed: EmployeeAction[] = [
     "deactivate",
     "reactivate",
-    "promote",
-    "demote",
     "reconcile",
+    "remove",
   ]
   if (
     typeof body.action !== "string" ||
@@ -33,11 +31,11 @@ function parseBody(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const { isAuthenticated, userId, orgId, has, getToken } = await auth()
+  const { isAuthenticated, userId, orgId, getToken } = await auth()
   if (!isAuthenticated || !userId) {
     return Response.json({ error: "Not authenticated" }, { status: 401 })
   }
-  if (!orgId || !has({ role: "org:admin" })) {
+  if (!orgId) {
     return Response.json(
       { error: "Workplace admin access required" },
       { status: 403 }
@@ -52,6 +50,15 @@ export async function POST(request: Request) {
   const clerk = await clerkClient()
 
   try {
+    const authorization = await convex.query(api.hubs.getOwnerAuthorization, {
+      organizationHint: orgId,
+    })
+    if (!authorization.authorized) {
+      return Response.json(
+        { error: "Workplace admin access required" },
+        { status: 403 }
+      )
+    }
     if (body.action === "reconcile") {
       const [memberships, invitations] = await Promise.all([
         clerk.organizations.getOrganizationMembershipList({
@@ -64,12 +71,8 @@ export async function POST(request: Request) {
           limit: 100,
         }),
       ])
-      const snapshot = await convex.query(api.hubs.getOwnedSnapshot, {
-        nowDate: new Date().toISOString().slice(0, 10),
-      })
-      if (snapshot.kind !== "ready") throw new Error("Workplace not found")
       await convex.mutation(api.employees.reconcileMemberships, {
-        hubId: snapshot.hub.id,
+        hubId: authorization.hubId,
         activeClerkUserIds: memberships.data.flatMap((membership) =>
           membership.publicUserData?.userId
             ? [membership.publicUserData.userId]
@@ -77,7 +80,7 @@ export async function POST(request: Request) {
         ),
       })
       const profiles = await convex.query(api.employees.list, {
-        hubId: snapshot.hub.id,
+        hubId: authorization.hubId,
       })
       const statuses = new Map(
         invitations.data.flatMap((invitation) =>
@@ -117,44 +120,14 @@ export async function POST(request: Request) {
 
     const targetUserId = record.profile.clerkUserId
 
-    if (body.action === "deactivate" && !targetUserId) {
-      if (
-        record.profile.invitationId &&
-        record.profile.invitationStatus === "pending"
-      ) {
-        try {
-          await clerk.organizations.revokeOrganizationInvitation({
-            organizationId: orgId,
-            invitationId: record.profile.invitationId,
-            requestingUserId: userId,
-          })
-        } catch (error) {
-          if ((error as { status?: number }).status !== 404) throw error
-        }
-      }
-      await convex.mutation(api.employees.deactivateAfterClerkRemoval, {
-        profileId: body.profileId!,
-      })
-      return Response.json({ status: "deactivated" })
-    }
-    if (!targetUserId)
-      throw new Error("Employee does not have a linked account")
-    const membershipList =
-      await clerk.organizations.getOrganizationMembershipList({
-        organizationId: orgId,
-        userId: [targetUserId],
-        limit: 1,
-      })
-    const membership = membershipList.data[0]
-
-    if (body.action === "promote") {
-      await clerk.organizations.updateOrganizationMembership({
-        organizationId: orgId,
-        userId: targetUserId,
-        role: "org:admin",
-      })
-      return Response.json({ status: "org:admin", refreshSession: true })
-    }
+    const membershipList = targetUserId
+      ? await clerk.organizations.getOrganizationMembershipList({
+          organizationId: orgId,
+          userId: [targetUserId],
+          limit: 1,
+        })
+      : null
+    const membership = membershipList?.data[0]
 
     if (membership?.role === "org:admin") {
       const admins = await clerk.organizations.getOrganizationMembershipList({
@@ -163,15 +136,6 @@ export async function POST(request: Request) {
         limit: 20,
       })
       assertAdminRemovalIsSafe(membership.role, admins.totalCount)
-    }
-
-    if (body.action === "demote") {
-      await clerk.organizations.updateOrganizationMembership({
-        organizationId: orgId,
-        userId: targetUserId,
-        role: "org:member",
-      })
-      return Response.json({ status: "org:member", refreshSession: true })
     }
 
     if (
@@ -188,16 +152,35 @@ export async function POST(request: Request) {
         if ((error as { status?: number }).status !== 404) throw error
       }
     }
-    if (membership) {
+    if (membership && targetUserId) {
       await clerk.organizations.deleteOrganizationMembership({
         organizationId: orgId,
         userId: targetUserId,
       })
     }
+
+    if (body.action === "remove") {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const result = await convex.mutation(api.employees.removeProfileBatch, {
+          profileId: body.profileId!,
+        })
+        if (result.removed) {
+          return Response.json({
+            status: "removed",
+            refreshSession: targetUserId === userId,
+          })
+        }
+      }
+      throw new Error("Employee removal could not be completed")
+    }
+
     await convex.mutation(api.employees.deactivateAfterClerkRemoval, {
       profileId: body.profileId!,
     })
-    return Response.json({ status: "deactivated" })
+    return Response.json({
+      status: "deactivated",
+      refreshSession: targetUserId === userId,
+    })
   } catch (error) {
     return Response.json(
       { error: safeErrorMessage(error, "Could not update the employee") },

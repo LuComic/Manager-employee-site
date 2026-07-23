@@ -22,9 +22,15 @@ import {
 } from "@/components/ui/card"
 
 export function AccessManager() {
-  const { hub, ownerCredentials, rotateCredentials, showFeedback } =
-    useOperations()
+  const {
+    hub,
+    ownerCredentials,
+    rotateCredentials,
+    setAccessMode,
+    showFeedback,
+  } = useOperations()
   const [pending, setPending] = useState(false)
+  const [modePending, setModePending] = useState(false)
   const [copied, setCopied] = useState("")
   if (!hub) return null
 
@@ -54,9 +60,45 @@ export function AccessManager() {
             <ShieldCheck className="size-5 text-primary" /> Access mode
           </CardTitle>
           <CardDescription>
-            The signed-in owner can always open and manage this hub.
+            Public mode opens published content to anyone with the workplace
+            URL. Restricted mode requires the employee join code or private
+            link. Signed-in workplace members keep their normal access.
           </CardDescription>
         </CardHeader>
+        <CardContent className="flex flex-col items-start gap-3">
+          <Button
+            role="switch"
+            aria-checked={hub.accessMode === "restricted"}
+            variant={hub.accessMode === "restricted" ? "default" : "outline"}
+            disabled={modePending}
+            onClick={async () => {
+              const nextMode =
+                hub.accessMode === "restricted" ? "public" : "restricted"
+              setModePending(true)
+              try {
+                await setAccessMode(nextMode)
+                showFeedback(
+                  nextMode === "restricted"
+                    ? "Restricted access enabled. Employees now need the code or private link."
+                    : "Public access enabled. The workplace URL now opens without a code."
+                )
+              } finally {
+                setModePending(false)
+              }
+            }}
+          >
+            <ShieldCheck />
+            {hub.accessMode === "restricted"
+              ? "Restricted access on"
+              : "Require code or private link"}
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            Current mode:{" "}
+            <span className="font-medium text-foreground">
+              {hub.accessMode === "restricted" ? "Restricted" : "Public"}
+            </span>
+          </p>
+        </CardContent>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">

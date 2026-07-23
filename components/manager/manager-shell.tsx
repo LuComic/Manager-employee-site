@@ -20,13 +20,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react"
-import {
-  OrganizationSwitcher,
-  UserButton,
-  useAuth,
-  useClerk,
-  useOrganization,
-} from "@clerk/nextjs"
+import { OrganizationSwitcher, UserButton } from "@clerk/nextjs"
 
 import { Brand } from "@/components/knowledge-base/brand"
 import { HubSetup } from "@/components/manager/hub-setup"
@@ -107,11 +101,25 @@ function isActiveLink(pathname: string, href: string) {
 
 export function ManagerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { hub, hubState, migrateHubToOrganization } = useOperations()
-  const { orgId } = useAuth()
-  const { organization } = useOrganization()
-  const { openCreateOrganization } = useClerk()
+  const { hub, hubState, managerAccess } = useOperations()
   const focusedEditor = pathname.endsWith("/new") || pathname.endsWith("/edit")
+  const visibleMoreNavigationGroups =
+    managerAccess === "owner"
+      ? moreNavigationGroups
+      : moreNavigationGroups.filter((group) => group.label === "Content")
+  const contentRoute =
+    pathname === "/manager" ||
+    pathname.startsWith("/manager/today") ||
+    pathname.startsWith("/manager/guides") ||
+    pathname.startsWith("/manager/categories") ||
+    pathname.startsWith("/manager/calendar") ||
+    pathname.startsWith("/manager/announcements") ||
+    pathname.startsWith("/manager/documents") ||
+    pathname.startsWith("/manager/questions")
+  const routeAllowed =
+    managerAccess === "owner" ||
+    (contentRoute &&
+      (managerAccess === "manager" || !pathname.endsWith("/new")))
   return (
     <div className="min-h-svh bg-muted/40">
       <header className="border-b bg-background">
@@ -137,11 +145,19 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 </Link>
               )}
               <UserButton />
-              {hub && <NotificationButton manager />}
+              {hub && managerAccess === "owner" && (
+                <NotificationButton manager />
+              )}
             </div>
           </div>
           <div>
-            <p className="text-lg font-semibold">Manager area</p>
+            <p className="text-lg font-semibold">
+              {managerAccess === "owner"
+                ? "Manager area"
+                : managerAccess === "manager"
+                  ? "Content manager area"
+                  : "Content editor area"}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {hub
                 ? `${hub.name} · Workplace administration`
@@ -210,7 +226,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuTrigger
                   className={cn(
                     buttonVariants({
-                      variant: moreNavigationGroups.some((group) =>
+                      variant: visibleMoreNavigationGroups.some((group) =>
                         group.items.some(({ href }) =>
                           isActiveLink(pathname, href)
                         )
@@ -225,7 +241,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                   <Menu /> More tools <ChevronDown />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64">
-                  {moreNavigationGroups.map((group, groupIndex) => (
+                  {visibleMoreNavigationGroups.map((group, groupIndex) => (
                     <DropdownMenuGroup key={group.label}>
                       {groupIndex > 0 && <DropdownMenuSeparator />}
                       <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
@@ -265,46 +281,44 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               out and back in, then contact support if the issue continues.
             </p>
           </div>
+        ) : hubState === "forbidden" ? (
+          <div role="alert" className="max-w-2xl border bg-background p-6">
+            <h2 className="font-semibold">Manager access is not enabled</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your employee profile can view the workplace, but it does not have
+              editing or manager access.
+            </p>
+            <Link
+              href="/"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "mt-4 tracking-normal normal-case"
+              )}
+            >
+              Open employee site
+            </Link>
+          </div>
         ) : hubState === "needs-setup" ? (
           <HubSetup />
+        ) : !routeAllowed ? (
+          <div role="alert" className="max-w-2xl border bg-background p-6">
+            <h2 className="font-semibold">Manager access required</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your content role does not include employee administration,
+              workplace settings, access controls, or this page.
+            </p>
+            <Link
+              href="/manager"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "mt-4 tracking-normal normal-case"
+              )}
+            >
+              Back to content
+            </Link>
+          </div>
         ) : (
-          <>
-            {hub && !hub.clerkOrganizationId && (
-              <div className="mb-8 flex flex-col gap-4 border bg-background p-6 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="font-semibold">
-                    Upgrade this workplace to team access
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Enable team access to add employees and additional managers.
-                  </p>
-                </div>
-                {orgId ? (
-                  <button
-                    className={buttonVariants({ size: "sm" })}
-                    onClick={() =>
-                      void migrateHubToOrganization().catch(() => undefined)
-                    }
-                  >
-                    Connect {organization?.name ?? "active workplace"}
-                  </button>
-                ) : (
-                  <button
-                    className={buttonVariants({ size: "sm" })}
-                    onClick={() =>
-                      openCreateOrganization({
-                        afterCreateOrganizationUrl: "/manager",
-                        skipInvitationScreen: true,
-                      })
-                    }
-                  >
-                    Create workplace account
-                  </button>
-                )}
-              </div>
-            )}
-            {children}
-          </>
+          <>{children}</>
         )}
       </main>
     </div>

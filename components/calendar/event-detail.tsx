@@ -80,7 +80,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 ? event.employees
                     .map((employee) => employee.displayName)
                     .join(", ")
-                : event.legacyResponsiblePerson || "No employees assigned"
+                : "No employees assigned"
             }
           />
           <div className="border-t pt-4 sm:col-span-2">

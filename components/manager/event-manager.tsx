@@ -75,6 +75,7 @@ export function EventManager() {
     employees,
     guides,
     hub,
+    canCreateContent,
     saveEvent,
     deleteEvent,
     uploadAttachment,
@@ -139,7 +140,6 @@ export function EventManager() {
         title: editing.title.trim(),
         description: editing.description.trim(),
         location: editing.location.trim(),
-        replaceLegacyResponsiblePerson: true,
         notes: editing.notes.trim(),
       })
       for (const file of pendingFiles) await uploadAttachment(eventSlug, file)
@@ -157,9 +157,11 @@ export function EventManager() {
         title="Manage calendar events"
         description="Maintain shared operational dates and their related information."
         action={
-          <Button onClick={() => openEditor(newEvent(hub?.address ?? ""))}>
-            <Plus /> New event
-          </Button>
+          canCreateContent ? (
+            <Button onClick={() => openEditor(newEvent(hub?.address ?? ""))}>
+              <Plus /> New event
+            </Button>
+          ) : undefined
         }
       />
       <div className="grid gap-4 border bg-background p-4 sm:grid-cols-3">
@@ -252,14 +254,16 @@ export function EventManager() {
                   >
                     <FilePenLine /> Edit
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={() => setDeleteTarget(event)}
-                    aria-label={`Delete ${event.title}`}
-                  >
-                    <Trash2 />
-                  </Button>
+                  {canCreateContent && (
+                    <Button
+                      variant="destructive"
+                      size="icon-sm"
+                      onClick={() => setDeleteTarget(event)}
+                      aria-label={`Delete ${event.title}`}
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -393,13 +397,6 @@ export function EventManager() {
                 </Field>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Employees</Label>
-                  {editing.legacyResponsiblePerson && (
-                    <p className="border bg-muted/40 p-3 text-sm text-muted-foreground">
-                      Previous responsible person:{" "}
-                      {editing.legacyResponsiblePerson}. Saving this form
-                      replaces that legacy text with the selected profiles.
-                    </p>
-                  )}
                   <div
                     className="flex flex-wrap gap-2"
                     aria-label="Select employees"

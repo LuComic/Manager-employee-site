@@ -1,5 +1,5 @@
 ```text
-Implement the complete manager, employee-account, Clerk Organizations, employee-profile, invitation/claiming, and calendar-event employee flow for this project.
+Implement the complete manager, employee-account, Clerk Organizations, employee-profile, email-invitation, and calendar-event employee flow for this project.
 
 Repository:
  /Users/ainurakk/Documents/code stuff/onboarding-site
@@ -76,14 +76,12 @@ Implement:
 - Convex employee profiles
 - Manager-created employee profiles
 - Employee invitations
-- Secure employee profile claiming
+- Secure employee profile activation through Clerk invitations
 - Employee activation and deactivation
-- Multiple managers through org:admin
 - Multiple workplace memberships and active Organization handling
 - Replacement of the calendar event’s free-text “Responsible person” with linked “Employees”
 - Manager UI for adding one or more employees to calendar events
 - Calendar display of the employees connected to an event
-- Existing-hub migration from single owner to Organization membership
 - Preservation of accountless shared hub access
 
 Do not build:
@@ -274,33 +272,6 @@ Do not automatically create an Organization for an employee accepting an invitat
 
 If Clerk session-task, redirect, or token configuration is required, notify me with exact Dashboard instructions.
 
-## Existing manager and hub migration
-
-The current application associates a hub with:
-
-- ownerSubject
-- ownerTokenIdentifier
-
-Current manager authorization is effectively single-owner authorization.
-
-Create a safe, idempotent migration path:
-
-1. Existing managers retain access throughout rollout.
-2. Create one Clerk Organization for each existing hub.
-3. Add the existing owner as org:admin.
-4. Store the Clerk Organization ID on the hub.
-5. Make the Organization available and active for the manager.
-6. Preserve legacy ownership fields during a transitional period.
-7. Support legacy authorization only where necessary during migration.
-8. Do not remove legacy ownership fields until all hubs are mapped and tests confirm the new authorization path.
-
-If production migration requires a command, script, internal action, or dashboard operation:
-
-- make it idempotent
-- explain exactly what it changes
-- do not run it against production without notifying me
-- include a dry-run or inspection path where practical
-
 ## Organization and route authorization
 
 Replace the effective one-owner manager model with Organization membership authorization.
@@ -313,12 +284,9 @@ An Organization admin can:
 - manage hub content
 - manage employee profiles
 - send and revoke employee invitations
-- create and revoke personal claim links
 - add and remove employees from calendar events
 - activate and deactivate employees
-- promote another Organization member to admin
-- demote an admin where safe
-- remove members where safe
+- permanently remove employee workplace records where safe
 
 ### org:member
 
@@ -357,7 +325,7 @@ A guest must never receive:
 - internal profile statuses
 - Organization membership records
 - pending invitations
-- claim records
+- invitation correlation records
 - manager-only data
 
 Authorization must be enforced server-side in Convex and server routes. Hiding controls in the UI is not sufficient.
@@ -432,7 +400,7 @@ Handle:
 - invitation expired
 - invitation revoked
 - manager retries invitation creation
-- profile is already claimed
+- profile is already connected
 - duplicate email entered
 - Clerk succeeds but Convex update fails
 - Convex succeeds but Clerk call fails
@@ -442,44 +410,6 @@ Handle:
 Use idempotent server-side operations and recoverable states.
 
 Do not rely solely on an eventually consistent webhook for the immediate invitation-acceptance experience.
-
-## Personal claim-link flow
-
-The existing shared workplace join code must not claim a named employee profile.
-
-The shared code proves that someone may read the workplace hub. It does not prove that they are a specific employee.
-
-Implement a separate employee-specific claim flow:
-
-1. Manager creates an unclaimed employee profile.
-2. Manager generates a unique high-entropy claim link.
-3. Store only a hash of the claim credential.
-4. Record:
-   - profile ID
-   - hub ID
-   - expiration
-   - createdAt
-   - createdBy
-   - revokedAt where applicable
-   - consumedAt where applicable
-5. Claim links must be:
-   - single-use
-   - expiring
-   - revocable
-   - resistant to enumeration
-6. Opening the link can show limited workplace/profile context.
-7. Completing the claim requires Clerk authentication.
-8. After authentication:
-   - validate the token
-   - ensure it is unused and unexpired
-   - link the Clerk user to the employee profile
-   - add the Clerk user to the correct Organization as org:member
-   - activate the profile
-   - consume the token
-9. Prevent the same account or token from claiming multiple profiles.
-10. Make retries safe after partial Clerk/Convex failure.
-
-Never substitute the shared join code for this personal claim credential.
 
 ## Employee deactivation and Organization removal
 
@@ -491,10 +421,8 @@ When an admin deactivates an employee:
 - mark the Convex profile deactivated
 - preserve the profile for historical calendar records
 - revoke pending invitations
-- revoke unused claim links
 - prevent further authenticated access to the workplace
 - do not delete the employee’s global Clerk account
-- do not hard-delete the employee profile
 
 External Clerk and Convex writes cannot be one transaction. Handle partial failure and make the operation safely retryable.
 
@@ -502,25 +430,11 @@ If an employee is already connected to past events, preserve those event links a
 
 Deactivated employees should not normally appear in the picker for new calendar events, but existing events may continue showing them for historical accuracy.
 
-## Manager promotion and demotion
-
-Support multiple managers through Clerk Organization roles.
-
-Promotion:
-
-- update the Organization member’s role to org:admin
-- manager access must follow the Clerk role
-- refresh/reload the supported session context if required
-
-Demotion:
-
-- update the role to org:member
-- remove manager access
-- handle stale-session behavior correctly
-
-Prevent removal or demotion of the last Organization admin without a deliberate recovery path.
-
-Do not authorize managers through a Convex-only boolean.
+Provide a separate permanent removal action. It removes the employee's
+Organization membership, pending invitation, Convex employee profile,
+employee-linked notifications and read state, and all event links in that
+workplace. It must never delete the person's global Clerk account or affect
+memberships in other workplaces.
 
 ## Employee management UI
 
@@ -539,10 +453,9 @@ Include:
 - create employee form
 - employee detail page, drawer, or dialog consistent with current patterns
 - invitation controls
-- claim-link controls
 - Organization role display
-- promote/demote controls
 - deactivate action with confirmation
+- permanent removal action with explicit confirmation
 - clear loading, empty, error, and retry states
 
 Reuse existing:
@@ -646,28 +559,6 @@ When an employee is deactivated:
 - prevent them from being selected for new events by default
 - allow a manager to remove them from future events manually
 
-## Existing event-owner migration
-
-Do not silently discard existing `events.owner` values.
-
-Do not automatically match free-text names to active employee profiles solely by display-name equality. Names are not stable identifiers and may collide.
-
-Use a safe migration strategy.
-
-A suitable approach is:
-
-1. Widen the schema temporarily.
-2. Add the eventEmployees relationship.
-3. Preserve the previous text in an optional legacy field.
-4. Show the legacy responsible-person text where no employee profiles have yet been linked.
-5. Let the manager replace the legacy value with selected employees when editing.
-6. Clear the legacy value after the manager deliberately saves employee selections.
-7. Update seed/demo content coherently.
-8. Make any migration idempotent.
-9. Document when the legacy field can safely be removed.
-
-If you choose a different strategy, it must preserve existing information and avoid unsafe name matching.
-
 Update all related:
 
 - validators
@@ -728,11 +619,10 @@ Convex:
 - hub and settings
 - hub-to-Organization mapping
 - employee workplace profile
-- claim-link records
+- invitation correlation records
 - profile activation/deactivation
 - calendar events
 - event-to-employee relationships
-- legacy responsible-person migration state
 
 Do not store large or frequently changing application data in Clerk metadata.
 
@@ -768,10 +658,7 @@ Pay particular attention to:
 - guest queries returning employee data
 - invitation/profile mismatch
 - shared join-code misuse
-- claim-token replay
-- claim-token enumeration
-- expired or revoked claim tokens
-- duplicate profile claiming
+- duplicate profile activation
 - stale sessions after role changes
 - deactivated members retaining access
 - last-admin removal
@@ -785,11 +672,7 @@ Pay particular attention to:
 - Clerk secret-key exposure
 - Organization membership-limit errors
 
-Store claim credentials as hashes rather than plaintext.
-
 Keep Clerk secret keys server-side.
-
-Use rate limiting for public claim attempts if appropriate. Follow current Convex guidance rather than building an unsafe ad hoc counter.
 
 ## Clerk included-tier constraints
 
@@ -826,29 +709,19 @@ At minimum, test:
 12. Email invitation/profile correlation is idempotent.
 13. An existing Clerk user can accept an invitation.
 14. A new Clerk user can accept an invitation.
-15. One user cannot claim multiple active profiles in the same hub.
-16. Shared hub join code cannot claim an employee profile.
-17. Personal claim token is hashed.
-18. Personal claim token expires.
-19. Personal claim token is single-use.
-20. Personal claim token can be revoked.
-21. Deactivated employee loses Organization access.
-22. Deactivation preserves event history.
-23. Promotion to org:admin grants manager access.
-24. Demotion removes manager access.
-25. Last-admin protection works.
-26. Manager can add zero, one, or multiple employees to an event.
-27. Duplicate event/employee links are prevented.
-28. An employee from another hub cannot be linked to an event.
-29. org:member cannot edit event employee links.
-30. Event detail returns the correct employee display names.
-31. Event deletion removes eventEmployees relationships.
-32. Deactivated employees are excluded from new event selection.
-33. Existing legacy responsible-person text is preserved.
-34. Replacing legacy text with employee links works.
-35. Event search no longer depends on the removed owner field.
-36. Existing owner-to-Organization migration is idempotent.
-37. Webhook processing tolerates duplicate events, if webhooks are implemented.
+15. One user cannot connect to multiple active profiles in the same hub.
+16. Deactivated employee loses Organization access.
+17. Deactivation preserves event history.
+18. Last-admin protection works.
+19. Manager can add zero, one, or multiple employees to an event.
+20. Duplicate event/employee links are prevented.
+21. An employee from another hub cannot be linked to an event.
+22. org:member cannot edit event employee links.
+23. Event detail returns the correct employee display names.
+24. Event deletion removes eventEmployees relationships.
+25. Deactivated employees are excluded from new event selection.
+26. Permanent employee removal deletes workplace-specific employee records and event links without deleting the person's global account.
+27. Webhook processing tolerates duplicate events, if webhooks are implemented.
 
 Follow the Convex testing instructions in:
 
@@ -857,18 +730,15 @@ convex/_generated/ai/guidelines.md
 Also manually verify:
 
 - new manager workplace creation
-- existing manager migration
 - manager employee creation
 - employee invitation acceptance
-- personal claim-link flow
 - Organization switching
-- manager promotion/demotion
 - employee deactivation
+- permanent employee removal
 - guest hub access
 - manager event creation with employee selection
 - event editing with multiple employees
 - published event display
-- legacy responsible-person display
 - event deletion
 
 ## Validation commands
@@ -892,15 +762,12 @@ Update project documentation with:
 - Clerk/Convex source-of-truth boundaries
 - Organization-to-hub mapping
 - manager onboarding
-- existing-hub migration
 - employee profile lifecycle
 - email invitation flow
-- personal claim-link flow
-- manager promotion and demotion
 - employee deactivation
+- permanent employee removal
 - guest versus authenticated access
 - calendar event employee relationship
-- legacy responsible-person migration
 - required environment variables
 - Clerk Dashboard configuration
 - webhook setup, if used
@@ -913,16 +780,14 @@ At completion, report:
 1. What was implemented.
 2. Files changed.
 3. Schema changes.
-4. Migration requirements.
-5. Authorization changes.
-6. Clerk integration changes.
-7. Event editor and display changes.
-8. Tests and validation commands run.
-9. Limitations or deferred items.
-10. Exact manual actions I must perform.
-11. How to verify each manual action.
-12. Whether Organizations can remain optional.
-13. Any production migration command that still needs my approval.
+4. Authorization changes.
+5. Clerk integration changes.
+6. Event editor and display changes.
+7. Tests and validation commands run.
+8. Limitations or deferred items.
+9. Exact manual actions I must perform.
+10. How to verify each manual action.
+11. Whether Organizations can remain optional.
 
 ## Product decisions already made
 
@@ -934,17 +799,15 @@ Do not reopen these decisions unless implementation reveals a serious security o
 - Employees use their own Clerk accounts.
 - Managers create workplace employee profiles, not employee passwords.
 - Clerk owns identity, Organization membership, invitations, and roles.
-- Convex owns hubs, employee profiles, claim records, events, and event employee links.
+- Convex owns hubs, employee profiles, invitation correlation records, events, and event employee links.
 - Shared accountless hub access remains available.
 - A shared workplace code never proves which employee someone is.
-- Personal profile claiming requires an email invitation or unique secure claim link.
+- Employee profile activation requires a Clerk email invitation.
 - Default Admin and Member roles are sufficient.
-- Existing hubs and managers must be migrated safely.
 - Customer managers manage employees inside this application, not Clerk Dashboard.
 - The free-text calendar “Responsible person” field is being replaced by an “Employees” multi-select tied to real employee profiles.
 - An event may have zero, one, or multiple employees.
-- Existing responsible-person text must not be silently discarded.
 - No other employee-to-content feature is part of this implementation.
 
-Make reasonable implementation decisions consistent with these requirements. If a decision would materially change security, Clerk pricing, onboarding behavior, migration safety, or existing guest access, explain it before proceeding.
+Make reasonable implementation decisions consistent with these requirements. If a decision would materially change security, Clerk pricing, onboarding behavior, or existing guest access, explain it before proceeding.
 ```

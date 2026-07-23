@@ -12,11 +12,13 @@ const ownerIdentity = {
   subject: "owner-a",
   issuer: "https://clerk.example.test",
   tokenIdentifier: "https://clerk.example.test|owner-a",
+  o: { id: "org-a", rol: "admin", slg: "workplace-a" },
 }
 const otherIdentity = {
   subject: "owner-b",
   issuer: "https://clerk.example.test",
   tokenIdentifier: "https://clerk.example.test|owner-b",
+  o: { id: "org-b", rol: "admin", slg: "workplace-b" },
 }
 
 async function createHub(
@@ -48,14 +50,14 @@ describe("hub authorization and anonymous access", () => {
       (
         await t
           .withIdentity(ownerIdentity)
-          .query(api.hubs.getOwnedSnapshot, { nowDate: "2026-07-18" })
+          .query(api.hubs.getManagerSnapshot, { nowDate: "2026-07-18" })
       ).kind
     ).toBe("ready")
     expect(
       (
         await t
           .withIdentity(otherIdentity)
-          .query(api.hubs.getOwnedSnapshot, { nowDate: "2026-07-18" })
+          .query(api.hubs.getManagerSnapshot, { nowDate: "2026-07-18" })
       ).kind
     ).toBe("none")
   })
@@ -99,6 +101,56 @@ describe("hub authorization and anonymous access", () => {
         })
       ).kind
     ).toBe("restricted")
+  })
+
+  test("switches public and restricted accountless access", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+
+    expect(
+      (
+        await t.query(api.hubs.getPublicSnapshot, {
+          slug: "test-hub",
+          nowDate: "2026-07-18",
+        })
+      ).kind
+    ).toBe("ready")
+
+    await owner.mutation(api.hubs.setAccessMode, {
+      hubId,
+      accessMode: "restricted",
+    })
+    expect(
+      (
+        await t.query(api.hubs.getPublicSnapshot, {
+          slug: "test-hub",
+          nowDate: "2026-07-18",
+        })
+      ).kind
+    ).toBe("restricted")
+    expect(
+      (
+        await t.query(api.hubs.getPublicSnapshot, {
+          slug: "test-hub",
+          credential: "ABCD-EFGH",
+          nowDate: "2026-07-18",
+        })
+      ).kind
+    ).toBe("ready")
+
+    await owner.mutation(api.hubs.setAccessMode, {
+      hubId,
+      accessMode: "public",
+    })
+    expect(
+      (
+        await t.query(api.hubs.getPublicSnapshot, {
+          slug: "test-hub",
+          nowDate: "2026-07-18",
+        })
+      ).kind
+    ).toBe("ready")
   })
 
   test("credential rotation revokes old codes and links", async () => {
@@ -237,7 +289,6 @@ describe("hub authorization and anonymous access", () => {
       start: "2026-07-19T10:00",
       end: "2026-07-19T11:00",
       location: "Office",
-      owner: "Manager",
       notes: "",
       published: true,
       guideSlugs: ["published-guide"],
@@ -272,7 +323,7 @@ describe("hub authorization and anonymous access", () => {
       hubId,
       slug: "published-guide",
     })
-    const managerAfter = await owner.query(api.hubs.getOwnedSnapshot, {
+    const managerAfter = await owner.query(api.hubs.getManagerSnapshot, {
       nowDate: "2026-07-18",
     })
     if (managerAfter.kind !== "ready")
@@ -332,7 +383,7 @@ describe("hub authorization and anonymous access", () => {
       "safety-notes",
     ])
 
-    const managerSnapshot = await owner.query(api.hubs.getOwnedSnapshot, {
+    const managerSnapshot = await owner.query(api.hubs.getManagerSnapshot, {
       nowDate: "2026-07-18",
     })
     if (managerSnapshot.kind !== "ready")
@@ -370,7 +421,7 @@ describe("hub authorization and anonymous access", () => {
       hubId,
       slug: "safety-notes",
     })
-    const afterDelete = await owner.query(api.hubs.getOwnedSnapshot, {
+    const afterDelete = await owner.query(api.hubs.getManagerSnapshot, {
       nowDate: "2026-07-18",
     })
     if (afterDelete.kind !== "ready")
@@ -383,7 +434,6 @@ describe("hub authorization and anonymous access", () => {
 
 const orgAdminIdentity = {
   ...ownerIdentity,
-  o: { id: "org-a", rol: "admin", slg: "workplace-a" },
 }
 const orgMemberIdentity = {
   subject: "employee-a",
@@ -391,9 +441,20 @@ const orgMemberIdentity = {
   tokenIdentifier: "https://clerk.example.test|employee-a",
   o: { id: "org-a", rol: "member", slg: "workplace-a" },
 }
+const editorIdentity = {
+  subject: "employee-editor",
+  issuer: "https://clerk.example.test",
+  tokenIdentifier: "https://clerk.example.test|employee-editor",
+  o: { id: "org-a", rol: "member", slg: "workplace-a" },
+}
+const appManagerIdentity = {
+  subject: "employee-manager",
+  issuer: "https://clerk.example.test",
+  tokenIdentifier: "https://clerk.example.test|employee-manager",
+  o: { id: "org-a", rol: "member", slg: "workplace-a" },
+}
 const otherOrgAdminIdentity = {
   ...otherIdentity,
-  o: { id: "org-b", rol: "admin", slg: "workplace-b" },
 }
 
 async function createOrganizationHub(
@@ -401,20 +462,16 @@ async function createOrganizationHub(
   identity = orgAdminIdentity,
   slug = "org-hub"
 ) {
-  return await t
-    .withIdentity(identity)
-    .mutation(api.hubs.createForOrganization, {
-      name:
-        slug === "other-org-hub"
-          ? "Other Organization Hub"
-          : "Organization Hub",
-      slug,
-      accessMode: "public",
-      joinCode: "ORGA-NIZE",
-      privateToken: "organization-private-token-that-is-long-enough",
-      timeZone: "Europe/Tallinn",
-      seedDemoContent: false,
-    })
+  return await t.withIdentity(identity).mutation(api.hubs.create, {
+    name:
+      slug === "other-org-hub" ? "Other Organization Hub" : "Organization Hub",
+    slug,
+    accessMode: "public",
+    joinCode: "ORGA-NIZE",
+    privateToken: "organization-private-token-that-is-long-enough",
+    timeZone: "Europe/Tallinn",
+    seedDemoContent: false,
+  })
 }
 
 async function createEmployee(
@@ -430,7 +487,7 @@ async function createEmployee(
   })
 }
 
-describe("Organization employees, claims, and event links", () => {
+describe("Organization employees, invitations, and event links", () => {
   test("uses the active Organization and rejects org:member manager writes", async () => {
     const t = convexTest(schema, modules)
     const first = await createOrganizationHub(t)
@@ -438,7 +495,7 @@ describe("Organization employees, claims, and event links", () => {
 
     const adminSnapshot = await t
       .withIdentity(orgAdminIdentity)
-      .query(api.hubs.getOwnedSnapshot, {
+      .query(api.hubs.getManagerSnapshot, {
         nowDate: "2026-07-19",
         organizationHint: "org-a",
       })
@@ -460,6 +517,297 @@ describe("Organization employees, claims, and event links", () => {
         hubId: first.hubId,
       })
     ).rejects.toThrow("Unauthorized")
+  })
+
+  test("separates read-only, editing, full-content, and owner access", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const admin = t.withIdentity(orgAdminIdentity)
+    const viewerProfileId = await admin.mutation(api.employees.create, {
+      hubId,
+      displayName: "Read Only",
+      email: "private-viewer@example.test",
+      accessLevel: "viewer",
+    })
+    const editorProfileId = await admin.mutation(api.employees.create, {
+      hubId,
+      displayName: "Content Editor",
+      accessLevel: "editor",
+    })
+    await admin.mutation(api.employees.create, {
+      hubId,
+      displayName: "App Manager",
+      accessLevel: "manager",
+    })
+    await admin.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "service",
+      label: "Service",
+      iconKey: "general",
+      description: "Existing category",
+    })
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", viewerProfileId, {
+        clerkUserId: orgMemberIdentity.subject,
+        status: "active",
+      })
+      await ctx.db.patch("employeeProfiles", editorProfileId, {
+        clerkUserId: editorIdentity.subject,
+        status: "active",
+      })
+      const managerProfile = await ctx.db
+        .query("employeeProfiles")
+        .withIndex("by_hubId_and_displayName", (q) =>
+          q.eq("hubId", hubId).eq("displayName", "App Manager")
+        )
+        .unique()
+      if (!managerProfile) throw new Error("Manager profile not found")
+      await ctx.db.patch("employeeProfiles", managerProfile._id, {
+        clerkUserId: appManagerIdentity.subject,
+        status: "active",
+      })
+    })
+
+    const viewerSnapshot = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.hubs.getManagerSnapshot, { nowDate: "2026-07-19" })
+    expect(viewerSnapshot.kind).toBe("forbidden")
+    expect(
+      await t
+        .withIdentity(orgMemberIdentity)
+        .query(api.hubs.getManagerAccess, { organizationHint: "org-a" })
+    ).toBeNull()
+    await expect(
+      t.withIdentity(orgMemberIdentity).mutation(api.content.saveCategory, {
+        hubId,
+        slug: "service",
+        label: "Viewer edit",
+        iconKey: "general",
+        description: "Must not save",
+      })
+    ).rejects.toThrow("Editing access required")
+
+    const editor = t.withIdentity(editorIdentity)
+    const editorSnapshot = await editor.query(api.hubs.getManagerSnapshot, {
+      nowDate: "2026-07-19",
+    })
+    expect(editorSnapshot).toMatchObject({
+      kind: "ready",
+      managerAccess: "editor",
+    })
+    expect(
+      await editor.query(api.hubs.getManagerAccess, {
+        organizationHint: "org-a",
+      })
+    ).toBe("editor")
+    expect(
+      await editor.query(api.hubs.getOwnerAuthorization, {
+        organizationHint: "org-a",
+      })
+    ).toEqual({ authorized: false })
+    const assignableEmployees = await editor.query(
+      api.employees.listAssignable,
+      { hubId }
+    )
+    expect(assignableEmployees[0]).not.toHaveProperty("email")
+    expect(assignableEmployees[0]).not.toHaveProperty("accessLevel")
+    await editor.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "service",
+      label: "Updated Service",
+      iconKey: "general",
+      description: "Editors can update existing content",
+    })
+    await expect(
+      editor.mutation(api.content.saveCategory, {
+        hubId,
+        slug: "new-category",
+        label: "New category",
+        iconKey: "general",
+        description: "Editors cannot create content",
+      })
+    ).rejects.toThrow("Full content access is required to create content")
+    await expect(
+      editor.mutation(api.content.deleteCategory, {
+        hubId,
+        slug: "service",
+      })
+    ).rejects.toThrow("Full content access required")
+
+    const appManager = t.withIdentity(appManagerIdentity)
+    expect(
+      await appManager.query(api.hubs.getManagerSnapshot, {
+        nowDate: "2026-07-19",
+      })
+    ).toMatchObject({ kind: "ready", managerAccess: "manager" })
+    expect(
+      await appManager.query(api.hubs.getManagerAccess, {
+        organizationHint: "org-a",
+      })
+    ).toBe("manager")
+    expect(
+      await appManager.query(api.hubs.getOwnerAuthorization, {
+        organizationHint: "org-a",
+      })
+    ).toEqual({ authorized: false })
+    await appManager.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "manager-created",
+      label: "Manager created",
+      iconKey: "general",
+      description: "Full access can create content",
+    })
+    await appManager.mutation(api.content.deleteCategory, {
+      hubId,
+      slug: "manager-created",
+    })
+    await expect(
+      appManager.mutation(api.employees.update, {
+        profileId: viewerProfileId,
+        displayName: "Read Only",
+        email: "private-viewer@example.test",
+        accessLevel: "editor",
+      })
+    ).rejects.toThrow("Workplace owner access required")
+    await expect(
+      appManager.mutation(api.hubs.setAccessMode, {
+        hubId,
+        accessMode: "restricted",
+      })
+    ).rejects.toThrow("Workplace owner access required")
+    await expect(
+      appManager.query(api.employees.list, { hubId })
+    ).rejects.toThrow("Workplace owner access required")
+
+    expect(
+      await admin.query(api.hubs.getOwnerAuthorization, {
+        organizationHint: "org-a",
+      })
+    ).toMatchObject({ authorized: true, hubId })
+    expect(
+      await admin.query(api.hubs.getManagerAccess, {
+        organizationHint: "org-a",
+      })
+    ).toBe("owner")
+    await admin.mutation(api.employees.update, {
+      profileId: viewerProfileId,
+      displayName: "Read Only",
+      email: "private-viewer@example.test",
+      accessLevel: "editor",
+    })
+    const profiles = await admin.query(api.employees.list, { hubId })
+    expect(
+      profiles.find((profile) => profile.id === viewerProfileId)?.accessLevel
+    ).toBe("editor")
+  })
+
+  test("permanently removes only the employee's workplace data", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const profileId = await createEmployee(
+      t,
+      hubId,
+      "Former Employee",
+      "former@example.test"
+    )
+    const owner = t.withIdentity(orgAdminIdentity)
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", profileId, {
+        clerkUserId: orgMemberIdentity.subject,
+        status: "active",
+      })
+    })
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "former-employee-event",
+      title: "Former employee event",
+      description: "Used to verify permanent employee cleanup",
+      category: "Training",
+      start: "2026-07-20T10:00",
+      end: "2026-07-20T11:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+      employeeProfileIds: [profileId],
+    })
+    await t
+      .withIdentity(orgMemberIdentity)
+      .mutation(api.notifications.markEmployeeRead, {
+        hubSlug: "org-hub",
+      })
+
+    await expect(
+      t
+        .withIdentity(orgMemberIdentity)
+        .mutation(api.employees.removeProfileBatch, { profileId })
+    ).rejects.toThrow("Workplace owner access required")
+
+    expect(
+      await owner.mutation(api.employees.removeProfileBatch, { profileId })
+    ).toEqual({ removed: false })
+    expect(
+      await owner.mutation(api.employees.removeProfileBatch, { profileId })
+    ).toEqual({ removed: true })
+
+    const relatedRecords = await t.run(async (ctx) => {
+      const event = await ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "former-employee-event")
+        )
+        .unique()
+      return {
+        profile: await ctx.db.get("employeeProfiles", profileId),
+        assignments: await ctx.db
+          .query("eventEmployees")
+          .withIndex("by_employeeProfileId_and_eventId", (q) =>
+            q.eq("employeeProfileId", profileId)
+          )
+          .take(10),
+        notifications: await ctx.db
+          .query("notifications")
+          .withIndex("by_employeeProfileId", (q) =>
+            q.eq("employeeProfileId", profileId)
+          )
+          .take(10),
+        notificationReadStates: await ctx.db
+          .query("notificationReadStates")
+          .withIndex("by_employeeProfileId", (q) =>
+            q.eq("employeeProfileId", profileId)
+          )
+          .take(10),
+        event,
+      }
+    })
+    expect(relatedRecords.profile).toBeNull()
+    expect(relatedRecords.assignments).toEqual([])
+    expect(relatedRecords.notifications).toEqual([])
+    expect(relatedRecords.notificationReadStates).toEqual([])
+    expect(relatedRecords.event).not.toBeNull()
+
+    const snapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "org-hub",
+      nowDate: "2026-07-19",
+    })
+    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
+    expect(snapshot.events[0]?.employees).toEqual([])
+
+    await owner.mutation(api.hubs.setAccessMode, {
+      hubId,
+      accessMode: "restricted",
+    })
+    expect(
+      (
+        await t
+          .withIdentity(orgMemberIdentity)
+          .query(api.hubs.getPublicSnapshot, {
+            slug: "org-hub",
+            nowDate: "2026-07-19",
+          })
+      ).kind
+    ).toBe("restricted")
   })
 
   test("keeps employee records private while published events expose names only", async () => {
@@ -487,7 +835,6 @@ describe("Organization employees, claims, and event links", () => {
       published: true,
       guideSlugs: [],
       employeeProfileIds: [profileId],
-      replaceLegacyResponsiblePerson: true,
     })
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
@@ -533,7 +880,6 @@ describe("Organization employees, claims, and event links", () => {
       notes: "",
       published: true,
       guideSlugs: [],
-      replaceLegacyResponsiblePerson: true,
     }
     await admin.mutation(api.content.saveEvent, {
       ...event,
@@ -558,78 +904,6 @@ describe("Organization employees, claims, and event links", () => {
     ).rejects.toThrow("does not belong")
   })
 
-  test("hashes, expires, revokes, and single-uses personal claim links", async () => {
-    const t = convexTest(schema, modules)
-    const { hubId } = await createOrganizationHub(t)
-    const firstProfile = await createEmployee(t, hubId, "Claim Employee")
-    const secondProfile = await createEmployee(t, hubId, "Second Claim")
-    const admin = t.withIdentity(orgAdminIdentity)
-    const token = "personal-claim-token-with-more-than-thirty-two-characters"
-    const linkId = await admin.mutation(api.employees.createClaimLink, {
-      profileId: firstProfile,
-      credential: token,
-      expiresAt: Date.now() + 60_000,
-    })
-    const stored = await t.run((ctx) =>
-      ctx.db.get("employeeClaimLinks", linkId)
-    )
-    expect(stored?.credentialHash).not.toBe(token)
-    expect(
-      await t.query(api.employees.previewClaim, {
-        credential: token,
-        now: Date.now() + 120_000,
-      })
-    ).toEqual({ kind: "invalid" })
-
-    const validToken = "another-personal-claim-token-that-is-long-enough"
-    await admin.mutation(api.employees.createClaimLink, {
-      profileId: firstProfile,
-      credential: validToken,
-      expiresAt: Date.now() + 60_000,
-    })
-    await t
-      .withIdentity(orgMemberIdentity)
-      .mutation(api.employees.completeClaim, { credential: validToken })
-    const otherMember = {
-      ...orgMemberIdentity,
-      subject: "employee-b",
-      tokenIdentifier: "https://clerk.example.test|employee-b",
-    }
-    await expect(
-      t.withIdentity(otherMember).mutation(api.employees.completeClaim, {
-        credential: validToken,
-      })
-    ).rejects.toThrow("already used")
-
-    const secondToken = "second-profile-claim-token-that-is-long-enough"
-    await admin.mutation(api.employees.createClaimLink, {
-      profileId: secondProfile,
-      credential: secondToken,
-      expiresAt: Date.now() + 60_000,
-    })
-    await expect(
-      t.withIdentity(orgMemberIdentity).mutation(api.employees.completeClaim, {
-        credential: secondToken,
-      })
-    ).rejects.toThrow("already has an active profile")
-
-    const revokedToken = "revoked-personal-claim-token-that-is-long-enough"
-    const revokedId = await admin.mutation(api.employees.createClaimLink, {
-      profileId: secondProfile,
-      credential: revokedToken,
-      expiresAt: Date.now() + 60_000,
-    })
-    await admin.mutation(api.employees.revokeClaimLink, {
-      claimLinkId: revokedId,
-    })
-    expect(
-      await t.query(api.employees.previewClaim, {
-        credential: revokedToken,
-        now: Date.now(),
-      })
-    ).toEqual({ kind: "invalid" })
-  })
-
   test("links invitation metadata idempotently for existing and new Clerk users", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)
@@ -652,12 +926,12 @@ describe("Organization employees, claims, and event links", () => {
     })
     await t
       .withIdentity(orgMemberIdentity)
-      .mutation(api.employees.claimByInvitation, {
+      .mutation(api.employees.activateByInvitation, {
         correlationCredential: existingCredential,
       })
     await t
       .withIdentity(orgMemberIdentity)
-      .mutation(api.employees.claimByInvitation, {
+      .mutation(api.employees.activateByInvitation, {
         correlationCredential: existingCredential,
       })
 
@@ -677,9 +951,11 @@ describe("Organization employees, claims, and event links", () => {
       subject: "employee-new",
       tokenIdentifier: "https://clerk.example.test|employee-new",
     }
-    await t.withIdentity(newMember).mutation(api.employees.claimByInvitation, {
-      correlationCredential: newCredential,
-    })
+    await t
+      .withIdentity(newMember)
+      .mutation(api.employees.activateByInvitation, {
+        correlationCredential: newCredential,
+      })
     const profiles = await admin.query(api.employees.list, { hubId })
     expect(
       profiles.find((profile) => profile.id === existingProfile)
@@ -695,23 +971,6 @@ describe("Organization employees, claims, and event links", () => {
         invitationStatus: "accepted",
       }
     )
-  })
-
-  test("never treats the shared join code as an employee claim credential", async () => {
-    const t = convexTest(schema, modules)
-    const { hubId } = await createOrganizationHub(t)
-    await createEmployee(t, hubId, "Unclaimed Employee")
-    expect(
-      await t.query(api.employees.previewClaim, {
-        credential: "ORGA-NIZE",
-        now: Date.now(),
-      })
-    ).toEqual({ kind: "invalid" })
-    await expect(
-      t.withIdentity(orgMemberIdentity).mutation(api.employees.completeClaim, {
-        credential: "ORGA-NIZE",
-      })
-    ).rejects.toThrow("invalid")
   })
 
   test("deactivation preserves event history and excludes the employee from new links", async () => {
@@ -732,7 +991,6 @@ describe("Organization employees, claims, and event links", () => {
       published: true,
       guideSlugs: [],
       employeeProfileIds: [profileId],
-      replaceLegacyResponsiblePerson: true,
     }
     await admin.mutation(api.content.saveEvent, event)
     await admin.mutation(api.employees.deactivateAfterClerkRemoval, {
@@ -759,17 +1017,22 @@ describe("Organization employees, claims, and event links", () => {
   test("blocks a deactivated linked member even while a stale token names the Organization", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)
-    const profileId = await createEmployee(t, hubId, "Departed Employee")
+    const profileId = await createEmployee(
+      t,
+      hubId,
+      "Departed Employee",
+      "departed@example.test"
+    )
     const admin = t.withIdentity(orgAdminIdentity)
-    const credential = "departed-employee-personal-claim-credential-value"
-    await admin.mutation(api.employees.createClaimLink, {
+    const correlationCredential =
+      "departed-employee-invitation-correlation-credential"
+    await admin.mutation(api.employees.prepareInvitation, {
       profileId,
-      credential,
-      expiresAt: Date.now() + 60_000,
+      correlationCredential,
     })
     await t
       .withIdentity(orgMemberIdentity)
-      .mutation(api.employees.completeClaim, { credential })
+      .mutation(api.employees.activateByInvitation, { correlationCredential })
     expect(
       (
         await t
@@ -793,50 +1056,22 @@ describe("Organization employees, claims, and event links", () => {
           })
       ).kind
     ).toBe("deactivated")
+    expect(
+      (
+        await t
+          .withIdentity({
+            ...orgMemberIdentity,
+            o: { id: "org-a", rol: "admin", slg: "workplace-a" },
+          })
+          .query(api.hubs.getActiveMemberSnapshot, {
+            nowDate: "2026-07-19",
+            organizationHint: "org-a",
+          })
+      ).kind
+    ).toBe("deactivated")
   })
 
-  test("preserves and deliberately replaces legacy responsible-person text", async () => {
-    const t = convexTest(schema, modules)
-    const { hubId } = await createOrganizationHub(t)
-    const admin = t.withIdentity(orgAdminIdentity)
-    const base = {
-      hubId,
-      slug: "legacy-event",
-      title: "Legacy event",
-      description: "Migration test",
-      category: "Training" as const,
-      start: "2026-07-23T10:00",
-      end: "2026-07-23T11:00",
-      location: "Office",
-      owner: "Legacy Manager",
-      notes: "",
-      published: true,
-      guideSlugs: [],
-    }
-    await admin.mutation(api.content.saveEvent, base)
-    let snapshot = await t.query(api.hubs.getPublicSnapshot, {
-      slug: "org-hub",
-      credential: "ORGA-NIZE",
-      nowDate: "2026-07-19",
-    })
-    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
-    expect(snapshot.events[0].legacyResponsiblePerson).toBe("Legacy Manager")
-    await admin.mutation(api.content.saveEvent, {
-      ...base,
-      owner: undefined,
-      employeeProfileIds: [],
-      replaceLegacyResponsiblePerson: true,
-    })
-    snapshot = await t.query(api.hubs.getPublicSnapshot, {
-      slug: "org-hub",
-      credential: "ORGA-NIZE",
-      nowDate: "2026-07-19",
-    })
-    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
-    expect(snapshot.events[0].legacyResponsiblePerson).toBeUndefined()
-  })
-
-  test("searches events through employee relations without depending on owner", async () => {
+  test("searches events through employee relations", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)
     const profileId = await createEmployee(t, hubId, "Searchable Employee")
@@ -853,7 +1088,6 @@ describe("Organization employees, claims, and event links", () => {
       published: true,
       guideSlugs: [],
       employeeProfileIds: [profileId],
-      replaceLegacyResponsiblePerson: true,
     })
     const results = await t.query(api.search.published, {
       hubSlug: "org-hub",
@@ -882,7 +1116,6 @@ describe("Organization employees, claims, and event links", () => {
       published: true,
       guideSlugs: [],
       employeeProfileIds: [profileId],
-      replaceLegacyResponsiblePerson: true,
     })
     await admin.mutation(api.content.deleteEvent, {
       hubId,
@@ -902,38 +1135,6 @@ describe("Organization employees, claims, and event links", () => {
     expect(
       await t.run((ctx) => ctx.db.query("clerkWebhookEvents").take(10))
     ).toHaveLength(1)
-  })
-
-  test("maps an existing owner hub idempotently without deleting legacy ownership", async () => {
-    const t = convexTest(schema, modules)
-    const legacy = await createHub(t)
-    const first = await t
-      .withIdentity(orgAdminIdentity)
-      .mutation(api.hubs.createForOrganization, {
-        name: "Ignored",
-        slug: "ignored",
-        accessMode: "public",
-        joinCode: "ORGA-NIZE",
-        privateToken: "organization-private-token-that-is-long-enough",
-        timeZone: "Europe/Tallinn",
-        seedDemoContent: false,
-      })
-    const second = await t
-      .withIdentity(orgAdminIdentity)
-      .mutation(api.hubs.createForOrganization, {
-        name: "Ignored",
-        slug: "ignored",
-        accessMode: "public",
-        joinCode: "ORGA-NIZE",
-        privateToken: "organization-private-token-that-is-long-enough",
-        timeZone: "Europe/Tallinn",
-        seedDemoContent: false,
-      })
-    expect(first.hubId).toBe(legacy.hubId)
-    expect(second.hubId).toBe(legacy.hubId)
-    const stored = await t.run((ctx) => ctx.db.get("hubs", legacy.hubId))
-    expect(stored?.clerkOrganizationId).toBe("org-a")
-    expect(stored?.ownerTokenIdentifier).toBe(ownerIdentity.tokenIdentifier)
   })
 })
 
@@ -1033,7 +1234,6 @@ describe("notification feeds", () => {
       published: true,
       guideSlugs: [],
       employeeProfileIds: [profileId],
-      replaceLegacyResponsiblePerson: true,
     })
 
     const memberFeed = await t
@@ -1095,7 +1295,6 @@ describe("notification feeds", () => {
       published: true,
       guideSlugs: [],
       employeeProfileIds: profileIds,
-      replaceLegacyResponsiblePerson: true,
     })
 
     const [relations, personalNotifications] = await t.run(

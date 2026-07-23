@@ -10,13 +10,14 @@ import type { Id } from "./_generated/dataModel"
 import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
   canReadPublishedHub,
-  getOwnedHub,
+  getManagedHub,
+  getHubPermission,
+  hasHubAccess,
   hashCredential,
   normalizeJoinCode,
   getActiveOrganizationFromIdentity,
-  isHubOwner,
   requireIdentity,
-  requireOwnedHub,
+  requireHubPermission,
 } from "./lib/access"
 import { buildSnapshot } from "./lib/snapshot"
 import { createNotification } from "./lib/notifications"
@@ -24,6 +25,11 @@ import { createNotification } from "./lib/notifications"
 const accessModeValidator = v.union(
   v.literal("public"),
   v.literal("restricted")
+)
+const managerAccessValidator = v.union(
+  v.literal("editor"),
+  v.literal("manager"),
+  v.literal("owner")
 )
 const todaySectionKeyValidator = v.union(
   v.literal("welcome"),
@@ -99,21 +105,23 @@ async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
 
   const employeeIds = new Map<string, Id<"employeeProfiles">>()
   for (const event of seed.events) {
-    const displayName = event.legacyResponsiblePerson?.trim()
-    if (!displayName || employeeIds.has(displayName)) continue
-    const now = Date.now()
-    employeeIds.set(
-      displayName,
-      await ctx.db.insert("employeeProfiles", {
-        hubId,
+    for (const employee of event.employees) {
+      const displayName = employee.displayName.trim()
+      if (!displayName || employeeIds.has(displayName)) continue
+      const now = Date.now()
+      employeeIds.set(
         displayName,
-        status: "unclaimed",
-        createdBy: identity.subject,
-        createdAt: now,
-        updatedAt: now,
-        invitationStatus: "not-sent",
-      })
-    )
+        await ctx.db.insert("employeeProfiles", {
+          hubId,
+          displayName,
+          status: "unclaimed",
+          createdBy: identity.subject,
+          createdAt: now,
+          updatedAt: now,
+          invitationStatus: "not-sent",
+        })
+      )
+    }
   }
 
   const eventIds = new Map<string, Id<"events">>()
@@ -131,17 +139,17 @@ async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
       published: event.published,
     })
     eventIds.set(event.id, eventId)
-    const employeeId = event.legacyResponsiblePerson
-      ? employeeIds.get(event.legacyResponsiblePerson)
-      : undefined
-    if (employeeId) {
-      await ctx.db.insert("eventEmployees", {
-        hubId,
-        eventId,
-        employeeProfileId: employeeId,
-        addedAt: Date.now(),
-        addedBy: identity.subject,
-      })
+    for (const employee of event.employees) {
+      const employeeId = employeeIds.get(employee.displayName.trim())
+      if (employeeId) {
+        await ctx.db.insert("eventEmployees", {
+          hubId,
+          eventId,
+          employeeProfileId: employeeId,
+          addedAt: Date.now(),
+          addedBy: identity.subject,
+        })
+      }
     }
     for (const guideSlug of event.guideIds) {
       const guideId = guideIds.get(guideSlug)
@@ -195,62 +203,6 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx)
-    const existing = await getOwnedHub(ctx)
-    if (existing)
-      return { hubId: existing._id, slug: existing.slug, created: false }
-
-    const name = args.name.trim()
-    if (name.length < 2 || name.length > 80) {
-      throw new Error("Hub name must be between 2 and 80 characters")
-    }
-    if (normalizeJoinCode(args.joinCode).length < 8) {
-      throw new Error("Join code is too short")
-    }
-    if (args.privateToken.length < 32) {
-      throw new Error("Private link credential is too short")
-    }
-
-    const slug = await availableSlug(ctx, args.slug)
-    const now = Date.now()
-    const timeZone = validateTimeZone(args.timeZone)
-    const hubId = await ctx.db.insert("hubs", {
-      name,
-      slug,
-      description: defaultDescription,
-      address: "",
-      timeZone,
-      contactName: "shift lead",
-      contactEmail: "",
-      contactPhone: "",
-      todaySections: defaultTodaySections.map((section) => ({ ...section })),
-      contentVersion: 2,
-      ownerSubject: identity.subject,
-      ownerTokenIdentifier: identity.tokenIdentifier,
-      accessMode: "restricted",
-      joinCodeHash: hashCredential(normalizeJoinCode(args.joinCode)),
-      privateTokenHash: hashCredential(args.privateToken),
-      credentialVersion: 1,
-      createdAt: now,
-      updatedAt: now,
-    })
-
-    if (args.seedDemoContent) await seedHub(ctx, hubId)
-    return { hubId, slug, created: true }
-  },
-})
-
-export const createForOrganization = mutation({
-  args: {
-    name: v.string(),
-    slug: v.string(),
-    accessMode: accessModeValidator,
-    joinCode: v.string(),
-    privateToken: v.string(),
-    timeZone: v.string(),
-    seedDemoContent: v.boolean(),
-  },
-  handler: async (ctx, args) => {
-    const identity = await requireIdentity(ctx)
     const activeOrganization = getActiveOrganizationFromIdentity(identity)
     if (!activeOrganization) throw new Error("No active organization")
     if (activeOrganization.role !== "org:admin") throw new Error("Unauthorized")
@@ -266,27 +218,6 @@ export const createForOrganization = mutation({
         hubId: mapped._id,
         slug: mapped.slug,
         created: false,
-        migrated: false,
-      }
-    }
-
-    const legacy = await ctx.db
-      .query("hubs")
-      .withIndex("by_ownerTokenIdentifier", (q) =>
-        q.eq("ownerTokenIdentifier", identity.tokenIdentifier)
-      )
-      .unique()
-    if (legacy) {
-      await ctx.db.patch("hubs", legacy._id, {
-        clerkOrganizationId: activeOrganization.organizationId,
-        accessMode: "restricted",
-        updatedAt: Date.now(),
-      })
-      return {
-        hubId: legacy._id,
-        slug: legacy.slug,
-        created: false,
-        migrated: true,
       }
     }
 
@@ -312,11 +243,8 @@ export const createForOrganization = mutation({
       contactEmail: "",
       contactPhone: "",
       todaySections: defaultTodaySections.map((section) => ({ ...section })),
-      contentVersion: 2,
       clerkOrganizationId: activeOrganization.organizationId,
-      ownerSubject: identity.subject,
-      ownerTokenIdentifier: identity.tokenIdentifier,
-      accessMode: "restricted",
+      accessMode: args.accessMode,
       joinCodeHash: hashCredential(normalizeJoinCode(args.joinCode)),
       privateTokenHash: hashCredential(args.privateToken),
       credentialVersion: 1,
@@ -324,7 +252,7 @@ export const createForOrganization = mutation({
       updatedAt: now,
     })
     if (args.seedDemoContent) await seedHub(ctx, hubId)
-    return { hubId, slug, created: true, migrated: false }
+    return { hubId, slug, created: true }
   },
 })
 
@@ -344,44 +272,6 @@ function validateTimeZone(value: string) {
   return clean
 }
 
-export const ensureManagedContent = mutation({
-  args: { hubId: v.id("hubs") },
-  handler: async (ctx, args) => {
-    const hub = await requireOwnedHub(ctx, args.hubId)
-    if ((hub.contentVersion ?? 0) >= 2) return null
-
-    const existingFaq = await ctx.db
-      .query("faqs")
-      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hub._id))
-      .first()
-    if (!existingFaq) {
-      for (const [order, faq] of commonQuestions.entries()) {
-        await ctx.db.insert("faqs", {
-          hubId: hub._id,
-          slug: slugify(faq.question),
-          question: faq.question,
-          answer: faq.answer,
-          order,
-          published: true,
-        })
-      }
-    }
-
-    await ctx.db.patch("hubs", hub._id, {
-      description: hub.description ?? defaultDescription,
-      address: hub.address ?? "",
-      timeZone: hub.timeZone ?? "Europe/Tallinn",
-      contactName: hub.contactName ?? "shift lead",
-      contactEmail: hub.contactEmail ?? "",
-      contactPhone: hub.contactPhone ?? "",
-      accessMode: "restricted",
-      contentVersion: 2,
-      updatedAt: Date.now(),
-    })
-    return null
-  },
-})
-
 export const updateSettings = mutation({
   args: {
     hubId: v.id("hubs"),
@@ -394,7 +284,7 @@ export const updateSettings = mutation({
     contactPhone: v.string(),
   },
   handler: async (ctx, args) => {
-    const hub = await requireOwnedHub(ctx, args.hubId)
+    const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80)
       throw new Error("Hub name must be between 2 and 80 characters")
@@ -431,7 +321,7 @@ export const moveTodaySection = mutation({
     direction: v.union(v.literal(-1), v.literal(1)),
   },
   handler: async (ctx, args) => {
-    const hub = await requireOwnedHub(ctx, args.hubId)
+    const { hub } = await requireHubPermission(ctx, args.hubId, "editor")
     const sections = normalizeTodaySections(hub.todaySections)
     const index = sections.findIndex((section) => section.key === args.key)
     const target = index + args.direction
@@ -454,7 +344,7 @@ export const setTodaySectionVisibility = mutation({
     visible: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const hub = await requireOwnedHub(ctx, args.hubId)
+    const { hub } = await requireHubPermission(ctx, args.hubId, "editor")
     const todaySections = normalizeTodaySections(hub.todaySections).map(
       (section) =>
         section.key === args.key
@@ -469,7 +359,7 @@ export const setTodaySectionVisibility = mutation({
   },
 })
 
-export const getOwnedSnapshot = query({
+export const getManagerSnapshot = query({
   args: {
     nowDate: v.string(),
     organizationHint: v.optional(v.string()),
@@ -484,15 +374,86 @@ export const getOwnedSnapshot = query({
         return { kind: "none" as const }
       }
     }
-    const hub = await getOwnedHub(ctx)
-    if (!hub) return { kind: "none" as const }
+    const managed = await getManagedHub(ctx)
+    if (!managed) return { kind: "none" as const }
+    if (
+      managed.permission !== "editor" &&
+      managed.permission !== "manager" &&
+      managed.permission !== "owner"
+    ) {
+      return { kind: "forbidden" as const }
+    }
     return {
       kind: "ready" as const,
-      ...(await buildSnapshot(ctx, hub, {
+      managerAccess:
+        managed.permission === "editor"
+          ? ("editor" as const)
+          : managed.permission === "manager"
+            ? ("manager" as const)
+            : ("owner" as const),
+      ...(await buildSnapshot(ctx, managed.hub, {
         includeDrafts: true,
         includeOrganizationMapping: true,
         nowDate: args.nowDate,
       })),
+    }
+  },
+})
+
+export const getManagerAccess = query({
+  args: { organizationHint: v.optional(v.string()) },
+  returns: v.union(v.null(), managerAccessValidator),
+  handler: async (ctx, args) => {
+    const managed = await getManagedHub(ctx)
+    if (
+      !managed ||
+      (args.organizationHint &&
+        managed.hub.clerkOrganizationId !== args.organizationHint)
+    ) {
+      return null
+    }
+    return managed.permission === "editor" ||
+      managed.permission === "manager" ||
+      managed.permission === "owner"
+      ? managed.permission
+      : null
+  },
+})
+
+export const getOwnerAuthorization = query({
+  args: { organizationHint: v.string() },
+  returns: v.union(
+    v.object({ authorized: v.literal(false) }),
+    v.object({
+      authorized: v.literal(true),
+      hubId: v.id("hubs"),
+      organizationId: v.string(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    const activeOrganization = getActiveOrganizationFromIdentity(identity)
+    if (
+      !activeOrganization ||
+      activeOrganization.organizationId !== args.organizationHint
+    ) {
+      return { authorized: false as const }
+    }
+    const hub = await ctx.db
+      .query("hubs")
+      .withIndex("by_clerkOrganizationId", (q) =>
+        q.eq("clerkOrganizationId", activeOrganization.organizationId)
+      )
+      .unique()
+    if (!hub) return { authorized: false as const }
+    const permission = await getHubPermission(ctx, hub)
+    if (permission !== "owner") {
+      return { authorized: false as const }
+    }
+    return {
+      authorized: true as const,
+      hubId: hub._id,
+      organizationId: activeOrganization.organizationId,
     }
   },
 })
@@ -554,7 +515,7 @@ export const getActiveMemberSnapshot = query({
       )
       .unique()
     if (!hub) return { kind: "none" as const }
-    if (!(await isHubOwner(ctx, hub))) return { kind: "deactivated" as const }
+    if (!(await hasHubAccess(ctx, hub))) return { kind: "deactivated" as const }
     return {
       kind: "ready" as const,
       ...(await buildSnapshot(ctx, hub, {
@@ -573,7 +534,7 @@ export const rotateCredentials = mutation({
     privateToken: v.string(),
   },
   handler: async (ctx, args) => {
-    const hub = await requireOwnedHub(ctx, args.hubId)
+    const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     if (normalizeJoinCode(args.joinCode).length < 8) {
       throw new Error("Join code is too short")
     }
@@ -588,5 +549,21 @@ export const rotateCredentials = mutation({
       updatedAt: Date.now(),
     })
     return { credentialVersion }
+  },
+})
+
+export const setAccessMode = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    accessMode: accessModeValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
+    await ctx.db.patch("hubs", hub._id, {
+      accessMode: args.accessMode,
+      updatedAt: Date.now(),
+    })
+    return null
   },
 })

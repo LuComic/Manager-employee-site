@@ -24,11 +24,11 @@ function parseBody(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const { isAuthenticated, userId, orgId, has, getToken } = await auth()
+  const { isAuthenticated, userId, orgId, getToken } = await auth()
   if (!isAuthenticated || !userId) {
     return Response.json({ error: "Not authenticated" }, { status: 401 })
   }
-  if (!orgId || !has({ role: "org:admin" })) {
+  if (!orgId) {
     return Response.json(
       { error: "Workplace admin access required" },
       { status: 403 }
@@ -42,6 +42,15 @@ export async function POST(request: Request) {
   const convex = convexServerClient(token)
 
   try {
+    const authorization = await convex.query(api.hubs.getOwnerAuthorization, {
+      organizationHint: orgId,
+    })
+    if (!authorization.authorized) {
+      return Response.json(
+        { error: "Workplace admin access required" },
+        { status: 403 }
+      )
+    }
     const record = await convex.query(api.employees.getForAdmin, {
       profileId: body.profileId,
     })

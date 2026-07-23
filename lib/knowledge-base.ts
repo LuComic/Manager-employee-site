@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 
 import type { CategoryIconKey } from "@/lib/category-icons"
-import type { LegacyGuideStep, RichTextDocument } from "@/lib/rich-text"
+import type { GuideStep, RichTextDocument } from "@/lib/rich-text"
 
 export type CategoryId = string
 
@@ -41,7 +41,7 @@ export type Guide = {
 }
 
 export type SeedGuide = Omit<Guide, "content"> & {
-  steps: LegacyGuideStep[]
+  steps: GuideStep[]
 }
 
 export const categories: Category[] = [

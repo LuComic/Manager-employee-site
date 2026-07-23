@@ -28,6 +28,7 @@ import {
 } from "@/lib/operations"
 
 export type HubAccessMode = "public" | "restricted"
+export type ManagerAccess = "editor" | "manager" | "owner"
 
 export type HubInfo = {
   id: Id<"hubs">
@@ -42,7 +43,6 @@ export type HubInfo = {
   contactEmail: string
   contactPhone: string
   bannerImageUrl?: string
-  contentVersion: number
   clerkOrganizationId?: string
   todaySections: TodaySectionSetting[]
 }
@@ -75,17 +75,20 @@ type OperationsContextValue = OperationsState & {
     | "not-found"
     | "deactivated"
     | "needs-setup"
+    | "forbidden"
     | "auth-error"
   isManagerRoute: boolean
+  managerAccess: ManagerAccess | null
+  canCreateContent: boolean
   ownerCredentials: HubCredentials | null
   employees: EmployeeProfile[]
   createHub: (name: string, slug: string) => Promise<void>
-  migrateHubToOrganization: () => Promise<void>
   createEmployee: (profile: {
     displayName: string
     email?: string
     department?: string
     jobTitle?: string
+    accessLevel: EmployeeProfile["accessLevel"]
   }) => Promise<Id<"employeeProfiles">>
   updateEmployee: (
     profileId: Id<"employeeProfiles">,
@@ -94,19 +97,11 @@ type OperationsContextValue = OperationsState & {
       email?: string
       department?: string
       jobTitle?: string
+      accessLevel: EmployeeProfile["accessLevel"]
     }
   ) => Promise<void>
-  createEmployeeClaimLink: (
-    profileId: Id<"employeeProfiles">,
-    expiresAt: number
-  ) => Promise<{
-    credential: string
-    claimLinkId: Id<"employeeClaimLinks">
-  }>
-  revokeEmployeeClaimLink: (
-    claimLinkId: Id<"employeeClaimLinks">
-  ) => Promise<void>
   rotateCredentials: () => Promise<HubCredentials>
+  setAccessMode: (accessMode: HubAccessMode) => Promise<void>
   saveHubSettings: (settings: HubSettings) => Promise<void>
   uploadHubBanner: (file: File) => Promise<void>
   removeHubBanner: () => Promise<void>
@@ -226,9 +221,15 @@ export function OperationsProvider({
   }, [requestedHubSlug])
 
   const managerSnapshot = useQuery(
-    api.hubs.getOwnedSnapshot,
+    api.hubs.getManagerSnapshot,
     isManagerRoute && isAuthenticated
       ? { nowDate, organizationHint: clerkOrganizationId ?? undefined }
+      : "skip"
+  )
+  const navigationManagerAccess = useQuery(
+    api.hubs.getManagerAccess,
+    !isManagerRoute && !isAuthPage && isAuthenticated
+      ? { organizationHint: clerkOrganizationId ?? undefined }
       : "skip"
   )
   const publicSnapshot = useQuery(
@@ -245,7 +246,7 @@ export function OperationsProvider({
   )
 
   const rotateCredentialsMutation = useMutation(api.hubs.rotateCredentials)
-  const ensureManagedContent = useMutation(api.hubs.ensureManagedContent)
+  const setAccessModeMutation = useMutation(api.hubs.setAccessMode)
   const updateSettingsMutation = useMutation(api.hubs.updateSettings)
   const moveTodaySectionMutation = useMutation(api.hubs.moveTodaySection)
   const setTodaySectionVisibilityMutation = useMutation(
@@ -272,16 +273,27 @@ export function OperationsProvider({
   const discardUpload = useMutation(api.files.discardUpload)
   const attachToHubBanner = useMutation(api.files.attachToHubBanner)
   const removeHubBannerMutation = useMutation(api.files.removeHubBanner)
-  const employeeProfiles = useQuery(
+  const managedEmployeeProfiles = useQuery(
     api.employees.list,
-    isManagerRoute && isAuthenticated && managerSnapshot?.kind === "ready"
+    isManagerRoute &&
+      isAuthenticated &&
+      managerSnapshot?.kind === "ready" &&
+      managerSnapshot.managerAccess === "owner"
+      ? { hubId: managerSnapshot.hub.id }
+      : "skip"
+  )
+  const assignableEmployeeProfiles = useQuery(
+    api.employees.listAssignable,
+    isManagerRoute &&
+      isAuthenticated &&
+      managerSnapshot?.kind === "ready" &&
+      (managerSnapshot.managerAccess === "editor" ||
+        managerSnapshot.managerAccess === "manager")
       ? { hubId: managerSnapshot.hub.id }
       : "skip"
   )
   const createEmployeeMutation = useMutation(api.employees.create)
   const updateEmployeeMutation = useMutation(api.employees.update)
-  const createClaimLinkMutation = useMutation(api.employees.createClaimLink)
-  const revokeClaimLinkMutation = useMutation(api.employees.revokeClaimLink)
 
   const activeSnapshot = isManagerRoute
     ? managerSnapshot?.kind === "ready"
@@ -298,6 +310,10 @@ export function OperationsProvider({
     (publicSnapshot?.kind === "restricted"
       ? publicSnapshot.hub
       : null)) as HubInfo | null
+  const managerAccess =
+    isManagerRoute && managerSnapshot?.kind === "ready"
+      ? (managerSnapshot.managerAccess as ManagerAccess)
+      : ((navigationManagerAccess ?? null) as ManagerAccess | null)
 
   useEffect(() => {
     if (!activeSnapshot?.hub.timeZone) return
@@ -307,17 +323,6 @@ export function OperationsProvider({
     )
     return () => window.clearTimeout(timeout)
   }, [activeSnapshot?.hub.timeZone])
-
-  useEffect(() => {
-    if (!isManagerRoute || !hub || hub.contentVersion >= 2) return
-    void ensureManagedContent({ hubId: hub.id }).catch((error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message.replace(/^.*Uncaught Error: /, "")
-          : "Could not prepare managed content"
-      )
-    })
-  }, [ensureManagedContent, hub, isManagerRoute])
 
   useEffect(() => {
     const fragment = new URLSearchParams(window.location.hash.slice(1))
@@ -469,7 +474,9 @@ export function OperationsProvider({
           ? "auth-error"
           : managerSnapshot?.kind === "none"
             ? "needs-setup"
-            : "ready"
+            : managerSnapshot?.kind === "forbidden"
+              ? "forbidden"
+              : "ready"
       : isAuthenticated && !requestedHubSlug
         ? authLoading || memberSnapshot === undefined
           ? "loading"
@@ -487,8 +494,16 @@ export function OperationsProvider({
     credential,
     hubState,
     isManagerRoute,
+    managerAccess,
+    canCreateContent: managerAccess === "manager" || managerAccess === "owner",
     ownerCredentials,
-    employees: (employeeProfiles ?? []) as EmployeeProfile[],
+    employees: managedEmployeeProfiles
+      ? (managedEmployeeProfiles as EmployeeProfile[])
+      : ((assignableEmployeeProfiles ?? []).map((profile) => ({
+          ...profile,
+          accessLevel: "viewer",
+          invitationStatus: "not-sent",
+        })) as EmployeeProfile[]),
     createHub: async (name, slug) => {
       await run(async () => {
         if (!clerkOrganizationId) {
@@ -511,7 +526,7 @@ export function OperationsProvider({
         if (!token) throw new Error("Could not create a workplace session")
         const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
         convex.setAuth(token)
-        const created = await convex.mutation(api.hubs.createForOrganization, {
+        const created = await convex.mutation(api.hubs.create, {
           name,
           slug,
           accessMode: "restricted",
@@ -529,57 +544,12 @@ export function OperationsProvider({
         setOwnerCredentials(credentials)
       })
     },
-    migrateHubToOrganization: async () => {
-      await run(async () => {
-        if (!hub) throw new Error("Hub not found")
-        if (!clerkOrganizationId) {
-          throw new Error("Create or select a workplace first")
-        }
-        const credentials =
-          ownerCredentials ?? createCredentials(hub.credentialVersion)
-        const response = await fetch("/api/workplaces", {
-          method: "POST",
-        })
-        const result = (await response.json()) as {
-          error?: string
-          organizationId: string
-        }
-        if (!response.ok)
-          throw new Error(result.error ?? "Could not configure workplace")
-        const token = await session?.getToken({
-          organizationId: result.organizationId,
-          skipCache: true,
-        })
-        if (!token) throw new Error("Could not create a workplace session")
-        const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
-        convex.setAuth(token)
-        await convex.mutation(api.hubs.createForOrganization, {
-          name: hub.name,
-          slug: hub.slug,
-          accessMode: "restricted",
-          joinCode: credentials.joinCode,
-          privateToken: credentials.privateToken,
-          timeZone: hub.timeZone,
-          seedDemoContent: false,
-        })
-      })
-    },
     createEmployee: async (profile) =>
       await run(() =>
         createEmployeeMutation({ hubId: managerHubId(), ...profile })
       ),
     updateEmployee: async (profileId, profile) => {
       await run(() => updateEmployeeMutation({ profileId, ...profile }))
-    },
-    createEmployeeClaimLink: async (profileId, expiresAt) => {
-      const credential = createCredentials().privateToken
-      const claimLinkId = await run(() =>
-        createClaimLinkMutation({ profileId, credential, expiresAt })
-      )
-      return { credential, claimLinkId }
-    },
-    revokeEmployeeClaimLink: async (claimLinkId) => {
-      await run(() => revokeClaimLinkMutation({ claimLinkId }))
     },
     rotateCredentials: async () => {
       const hubId = managerHubId()
@@ -598,6 +568,11 @@ export function OperationsProvider({
       localStorage.setItem(ownerCredentialKey(hubId), JSON.stringify(saved))
       setOwnerCredentials(saved)
       return saved
+    },
+    setAccessMode: async (accessMode) => {
+      await run(() =>
+        setAccessModeMutation({ hubId: managerHubId(), accessMode })
+      )
     },
     saveHubSettings: async (settings) => {
       await run(() =>
@@ -692,7 +667,6 @@ export function OperationsProvider({
           employeeProfileIds: event.employees.flatMap((employee) =>
             employee.id ? [employee.id as Id<"employeeProfiles">] : []
           ),
-          replaceLegacyResponsiblePerson: event.replaceLegacyResponsiblePerson,
           notes: event.notes,
           published: event.published,
           guideSlugs: event.guideIds,

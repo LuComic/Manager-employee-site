@@ -25,8 +25,14 @@ import { cn } from "@/lib/utils"
 type Status = "All" | "Published" | "Draft"
 
 export function GuideManager() {
-  const { categories, guides, saveGuide, deleteGuide, showFeedback } =
-    useOperations()
+  const {
+    categories,
+    guides,
+    canCreateContent,
+    saveGuide,
+    deleteGuide,
+    showFeedback,
+  } = useOperations()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [categoryId, setCategoryId] = useState("All")
@@ -53,18 +59,20 @@ export function GuideManager() {
         title="Manage guides"
         description="Create, edit, publish, and remove practical instructions."
         action={
-          categories.length ? (
-            <Link href="/manager/guides/new" className={buttonVariants()}>
-              <Plus /> New guide
-            </Link>
-          ) : (
-            <Link
-              href="/manager/categories"
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <Plus /> Create a category first
-            </Link>
-          )
+          canCreateContent ? (
+            categories.length ? (
+              <Link href="/manager/guides/new" className={buttonVariants()}>
+                <Plus /> New guide
+              </Link>
+            ) : (
+              <Link
+                href="/manager/categories"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                <Plus /> Create a category first
+              </Link>
+            )
+          ) : undefined
         }
       />
       <div className="grid gap-4 border bg-background p-4 sm:grid-cols-3">
@@ -164,14 +172,16 @@ export function GuideManager() {
                   >
                     <FilePenLine /> Edit
                   </Link>
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={() => setDeleteTarget(guide)}
-                    aria-label={`Delete ${guide.title}`}
-                  >
-                    <Trash2 />
-                  </Button>
+                  {canCreateContent && (
+                    <Button
+                      variant="destructive"
+                      size="icon-sm"
+                      onClick={() => setDeleteTarget(guide)}
+                      aria-label={`Delete ${guide.title}`}
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

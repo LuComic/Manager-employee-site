@@ -127,7 +127,6 @@ export const published = query({
             event.description,
             event.category,
             event.location,
-            event.legacyResponsiblePerson,
             employeeNamesByEventId.get(event._id),
             event.notes
           )

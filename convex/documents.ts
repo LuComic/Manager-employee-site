@@ -1,7 +1,7 @@
 import { v, type Infer } from "convex/values"
 
 import { mutation } from "./_generated/server"
-import { requireOwnedHub } from "./lib/access"
+import { requireHubPermission } from "./lib/access"
 import {
   createNotification,
   notifyPublicationChange,
@@ -120,13 +120,16 @@ export const save = mutation({
     published: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     const existing = await ctx.db
       .query("documents")
       .withIndex("by_hubId_and_slug", (q) =>
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    if (!existing && permission === "editor") {
+      throw new Error("Full content access is required to create content")
+    }
     const value = {
       title: required(args.title, "Document title", 140),
       description: required(args.description, "Document description", 500),
@@ -162,7 +165,7 @@ export const save = mutation({
 export const remove = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   handler: async (ctx, args) => {
-    await requireOwnedHub(ctx, args.hubId)
+    await requireHubPermission(ctx, args.hubId, "manager")
     const document = await ctx.db
       .query("documents")
       .withIndex("by_hubId_and_slug", (q) =>

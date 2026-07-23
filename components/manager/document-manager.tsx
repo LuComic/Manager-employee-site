@@ -31,8 +31,13 @@ type Status = "All" | "Published" | "Draft"
 type TypeFilter = "all" | DocumentType
 
 export function DocumentManager() {
-  const { documents, saveDocument, deleteDocument, showFeedback } =
-    useOperations()
+  const {
+    documents,
+    canCreateContent,
+    saveDocument,
+    deleteDocument,
+    showFeedback,
+  } = useOperations()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [type, setType] = useState<TypeFilter>("all")
@@ -63,9 +68,11 @@ export function DocumentManager() {
         title="Manage documents"
         description="Create, edit, publish, and remove shared texts, tables, and presentations."
         action={
-          <Link href="/manager/documents/new" className={buttonVariants()}>
-            <Plus /> New document
-          </Link>
+          canCreateContent ? (
+            <Link href="/manager/documents/new" className={buttonVariants()}>
+              <Plus /> New document
+            </Link>
+          ) : undefined
         }
       />
       <div className="grid gap-4 border bg-background p-4 sm:grid-cols-3">
@@ -170,14 +177,16 @@ export function DocumentManager() {
                   >
                     <FilePenLine /> Edit
                   </Link>
-                  <Button
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={() => setDeleteTarget(document)}
-                    aria-label={`Delete ${document.title}`}
-                  >
-                    <Trash2 />
-                  </Button>
+                  {canCreateContent && (
+                    <Button
+                      variant="destructive"
+                      size="icon-sm"
+                      onClick={() => setDeleteTarget(document)}
+                      aria-label={`Delete ${document.title}`}
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -194,8 +203,16 @@ export function DocumentManager() {
               ? "Clear the search or choose another filter."
               : "Create a text, table, or presentation to share with the team."
           }
-          actionLabel={documents.length ? undefined : "Create document"}
-          actionHref={documents.length ? undefined : "/manager/documents/new"}
+          actionLabel={
+            documents.length || !canCreateContent
+              ? undefined
+              : "Create document"
+          }
+          actionHref={
+            documents.length || !canCreateContent
+              ? undefined
+              : "/manager/documents/new"
+          }
         />
       )}
       <ConfirmDeleteDialog
