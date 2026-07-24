@@ -244,19 +244,22 @@ export async function buildSnapshot(
     })),
     documents: await Promise.all(
       documents.map(async (document) => {
+        const storedResource = document.resource
         const resource =
-          document.resource?.kind === "file"
+          storedResource.kind === "file"
             ? await ctx.storage
-                .getUrl(document.resource.storageId)
-                .then((url) =>
-                  url
-                    ? {
-                        ...document.resource,
-                        url,
-                      }
-                    : undefined
-                )
-            : document.resource
+                .getUrl(storedResource.storageId)
+                .then((url) => {
+                  if (!url) throw new Error("Document file not found")
+                  return {
+                    kind: "file" as const,
+                    name: storedResource.name,
+                    contentType: storedResource.contentType,
+                    size: storedResource.size,
+                    url,
+                  }
+                })
+            : storedResource
         const bannerImageUrl = document.bannerStorageId
           ? await ctx.storage.getUrl(document.bannerStorageId)
           : null
@@ -271,9 +274,6 @@ export async function buildSnapshot(
                 ? employee
                 : { displayName: employee.displayName }
           ),
-          ...(options.includeDrafts && document.bannerStorageId
-            ? { bannerStorageId: document.bannerStorageId }
-            : {}),
           bannerImageUrl: bannerImageUrl ?? undefined,
           published: document.published,
           updatedAt: document.updatedAt,

@@ -23,16 +23,16 @@ import { BANNER_IMAGE_ACCEPT } from "@/lib/banner-image"
 import {
   formatFileSize,
   isValidSharedLink,
-  type WorkspaceDocument,
+  type EditableDocument,
 } from "@/lib/documents"
 import { slugify } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
-function cloneDocument(document: WorkspaceDocument) {
-  return JSON.parse(JSON.stringify(document)) as WorkspaceDocument
+function cloneDocument(document: EditableDocument) {
+  return JSON.parse(JSON.stringify(document)) as EditableDocument
 }
 
-function newDocument(): WorkspaceDocument {
+function newDocument(): EditableDocument {
   return {
     id: "",
     title: "",
@@ -48,7 +48,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
   const existing = documentId
     ? documents.find((document) => document.id === documentId)
     : undefined
-  const [draft, setDraft] = useState<WorkspaceDocument | null>(() =>
+  const [draft, setDraft] = useState<EditableDocument | null>(() =>
     documentId ? (existing ? cloneDocument(existing) : null) : newDocument()
   )
   const [resourceMode, setResourceMode] = useState<"file" | "link">(
@@ -85,7 +85,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
 
   function changeBase(
     patch: Partial<
-      Pick<WorkspaceDocument, "title" | "description" | "published">
+      Pick<EditableDocument, "title" | "description" | "published">
     >
   ) {
     if (!draft) return

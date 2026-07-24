@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
+import { hubStorageBindingValidator } from "./lib/hub-storage"
+
 const accessMode = v.union(v.literal("public"), v.literal("restricted"))
 const employeeStatus = v.union(
   v.literal("unclaimed"),
@@ -37,30 +39,6 @@ const richTextDocument = v.object({
   type: v.literal("doc"),
   content: v.optional(v.array(v.any())),
 })
-const documentContent = v.union(
-  v.object({
-    kind: v.literal("text"),
-    body: richTextDocument,
-  }),
-  v.object({
-    kind: v.literal("table"),
-    columns: v.array(v.string()),
-    showColumnHeaders: v.optional(v.boolean()),
-    showRowHeaders: v.optional(v.boolean()),
-    rowHeaders: v.optional(v.array(v.string())),
-    rows: v.array(v.array(v.string())),
-  }),
-  v.object({
-    kind: v.literal("presentation"),
-    slides: v.array(
-      v.object({
-        id: v.string(),
-        title: v.string(),
-        body: richTextDocument,
-      })
-    ),
-  })
-)
 const documentResource = v.union(
   v.object({
     kind: v.literal("file"),
@@ -246,12 +224,7 @@ export default defineSchema({
     slug: v.string(),
     title: v.string(),
     description: v.string(),
-    // Legacy authoring fields stay optional while existing rows are migrated.
-    type: v.optional(
-      v.union(v.literal("text"), v.literal("table"), v.literal("presentation"))
-    ),
-    content: v.optional(documentContent),
-    resource: v.optional(documentResource),
+    resource: documentResource,
     bannerStorageId: v.optional(v.id("_storage")),
     published: v.boolean(),
     updatedAt: v.number(),
@@ -280,6 +253,22 @@ export default defineSchema({
       "documentId",
     ])
     .index("by_hubId_and_documentId", ["hubId", "documentId"]),
+
+  uploadIntents: defineTable({
+    hubId: v.id("hubs"),
+    requestedBy: v.string(),
+    sha256: v.string(),
+    size: v.number(),
+    createdAt: v.number(),
+  }),
+
+  hubStorage: defineTable({
+    hubId: v.id("hubs"),
+    storageId: v.id("_storage"),
+    uploadedBy: v.string(),
+    createdAt: v.number(),
+    binding: v.optional(hubStorageBindingValidator),
+  }).index("by_storageId", ["storageId"]),
 
   attachments: defineTable({
     hubId: v.id("hubs"),

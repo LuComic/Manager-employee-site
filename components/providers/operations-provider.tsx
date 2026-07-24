@@ -15,7 +15,11 @@ import {
 } from "@/lib/banner-image"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
 import type { Category, Guide } from "@/lib/knowledge-base"
-import type { DocumentUploadChanges, WorkspaceDocument } from "@/lib/documents"
+import type {
+  DocumentUploadChanges,
+  EditableDocument,
+  WorkspaceDocument,
+} from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
 import {
   toDateKey,
@@ -127,7 +131,7 @@ type OperationsContextValue = OperationsState & {
   moveFaq: (id: string, direction: -1 | 1) => Promise<void>
   deleteFaq: (id: string) => Promise<void>
   saveDocument: (
-    document: WorkspaceDocument,
+    document: EditableDocument,
     uploads?: DocumentUploadChanges
   ) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
@@ -271,6 +275,8 @@ export function OperationsProvider({
   const saveDocumentMutation = useMutation(api.documents.save)
   const deleteDocumentMutation = useMutation(api.documents.remove)
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
+  const registerUpload = useMutation(api.files.registerUpload)
+  const cancelUploadIntent = useMutation(api.files.cancelUploadIntent)
   const attachToEvent = useMutation(api.files.attachToEvent)
   const removeAttachment = useMutation(api.files.remove)
   const discardUpload = useMutation(api.files.discardUpload)
@@ -462,18 +468,41 @@ export function OperationsProvider({
     file: File,
     failureMessage: string
   ) {
-    const uploadUrl = await generateUploadUrl({ hubId })
-    const response = await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": file.type || "application/octet-stream",
-      },
-      body: file,
+    const contentType = file.type || "application/octet-stream"
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      await file.arrayBuffer()
+    )
+    const sha256 = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0")
+    ).join("")
+    const { uploadUrl, uploadIntentId } = await generateUploadUrl({
+      hubId,
+      sha256,
+      size: file.size,
     })
-    if (!response.ok) throw new Error(failureMessage)
-    const result = (await response.json()) as { storageId?: unknown }
-    if (typeof result.storageId !== "string") throw new Error(failureMessage)
-    return result.storageId as Id<"_storage">
+    let storageId: Id<"_storage"> | undefined
+    try {
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": contentType,
+        },
+        body: file,
+      })
+      if (!response.ok) throw new Error(failureMessage)
+      const result = (await response.json()) as { storageId?: unknown }
+      if (typeof result.storageId !== "string") throw new Error(failureMessage)
+      storageId = result.storageId as Id<"_storage">
+      await registerUpload({ hubId, uploadIntentId, storageId })
+      return storageId
+    } catch (error) {
+      if (storageId) {
+        await discardUpload({ hubId, storageId }).catch(() => undefined)
+      }
+      await cancelUploadIntent({ hubId, uploadIntentId }).catch(() => undefined)
+      throw error
+    }
   }
 
   const hubState: OperationsContextValue["hubState"] = isAuthPage
@@ -697,7 +726,6 @@ export function OperationsProvider({
             storageId,
             name: file.name,
             contentType: file.type || "application/octet-stream",
-            size: file.size,
           })
         )
       )
@@ -786,36 +814,28 @@ export function OperationsProvider({
             : undefined
           if (bannerStorageId) uploadedStorageIds.push(bannerStorageId)
 
+          const resource = uploads.resourceFile
+            ? {
+                kind: "file" as const,
+                storageId: resourceStorageId!,
+                name: uploads.resourceFile.name,
+                contentType:
+                  uploads.resourceFile.type || "application/octet-stream",
+              }
+            : document.resource?.kind === "link"
+              ? document.resource
+              : undefined
           await saveDocumentMutation({
             hubId,
             slug: document.id,
             title: document.title,
             description: document.description,
-            resource: uploads.resourceFile
-              ? {
-                  kind: "file",
-                  storageId: resourceStorageId!,
-                  name: uploads.resourceFile.name,
-                  contentType:
-                    uploads.resourceFile.type || "application/octet-stream",
-                  size: uploads.resourceFile.size,
-                }
-              : document.resource?.kind === "file"
-                ? {
-                    kind: "file",
-                    storageId: document.resource.storageId as Id<"_storage">,
-                    name: document.resource.name,
-                    contentType: document.resource.contentType,
-                    size: document.resource.size,
-                  }
-                : document.resource,
-            bannerStorageId:
-              bannerStorageId ??
-              (uploads.removeBanner
-                ? null
-                : document.bannerStorageId
-                  ? (document.bannerStorageId as Id<"_storage">)
-                  : null),
+            ...(resource ? { resource } : {}),
+            ...(bannerStorageId
+              ? { bannerStorageId }
+              : uploads.removeBanner
+                ? { bannerStorageId: null }
+                : {}),
             employeeProfileIds: document.employees.flatMap((employee) =>
               employee.id ? [employee.id as Id<"employeeProfiles">] : []
             ),

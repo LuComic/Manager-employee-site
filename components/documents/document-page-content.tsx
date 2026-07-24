@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, FileText, Files, Users } from "lucide-react"
+import { ArrowLeft, ExternalLink, Files, Users } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -29,7 +29,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
       />
     )
 
-  const resourceHref = document.resource?.url
+  const resourceHref = document.resource.url
 
   return (
     <article className="space-y-6">
@@ -75,44 +75,34 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
         )}
       </div>
 
-      {document.resource ? (
-        <Card className="max-w-4xl shadow-none">
-          <CardContent className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <span className="flex size-12 shrink-0 items-center justify-center bg-primary/10 text-primary">
-              <DocumentResourceIcon resource={document.resource} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">
-                {document.resource.kind === "file"
-                  ? document.resource.name
-                  : documentResourceLabel(document.resource)}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {document.resource.kind === "file"
-                  ? `${formatFileSize(document.resource.size)} · Opens in a new tab`
-                  : "Shared externally · Opens in a new tab"}
-              </p>
-            </div>
-            <a
-              href={resourceHref}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants()}
-            >
-              {document.resource.kind === "file" ? "Open file" : "Open link"}
-              <ExternalLink />
-            </a>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="max-w-4xl border-dashed shadow-none">
-          <CardContent className="flex items-center gap-3 text-muted-foreground">
-            <FileText className="size-5" />
-            This legacy document needs a file or shared link before it can be
-            opened.
-          </CardContent>
-        </Card>
-      )}
+      <Card className="max-w-4xl shadow-none">
+        <CardContent className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <span className="flex size-12 shrink-0 items-center justify-center bg-primary/10 text-primary">
+            <DocumentResourceIcon resource={document.resource} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">
+              {document.resource.kind === "file"
+                ? document.resource.name
+                : documentResourceLabel(document.resource)}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {document.resource.kind === "file"
+                ? `${formatFileSize(document.resource.size)} · Opens in a new tab`
+                : "Shared externally · Opens in a new tab"}
+            </p>
+          </div>
+          <a
+            href={resourceHref}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonVariants()}
+          >
+            {document.resource.kind === "file" ? "Open file" : "Open link"}
+            <ExternalLink />
+          </a>
+        </CardContent>
+      </Card>
 
       {document.resource?.kind === "file" &&
         document.resource.contentType.startsWith("image/") && (

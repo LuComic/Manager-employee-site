@@ -5,7 +5,6 @@ export type DocumentEmployee = {
 
 export type UploadedDocumentResource = {
   kind: "file"
-  storageId: string
   name: string
   contentType: string
   size: number
@@ -23,12 +22,15 @@ export type WorkspaceDocument = {
   id: string
   title: string
   description: string
-  resource?: DocumentResource
+  resource: DocumentResource
   employees: DocumentEmployee[]
-  bannerStorageId?: string
   bannerImageUrl?: string
   published: boolean
   updatedAt: number
+}
+
+export type EditableDocument = Omit<WorkspaceDocument, "resource"> & {
+  resource?: DocumentResource
 }
 
 export type DocumentUploadChanges = {
@@ -52,8 +54,7 @@ export function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`
 }
 
-export function documentResourceLabel(resource?: DocumentResource) {
-  if (!resource) return "Resource needed"
+export function documentResourceLabel(resource: DocumentResource) {
   if (resource.kind === "link") {
     try {
       return new URL(resource.url).hostname.replace(/^www\./, "")

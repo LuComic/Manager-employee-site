@@ -4,21 +4,26 @@ import {
   isBannerImageContentType,
   MAX_BANNER_IMAGE_SIZE_BYTES,
 } from "../lib/banner-image"
-import type { Id } from "./_generated/dataModel"
+import type { Doc, Id } from "./_generated/dataModel"
 import { mutation, type MutationCtx } from "./_generated/server"
 import { requireHubPermission, requireIdentity } from "./lib/access"
+import {
+  bindHubStorage,
+  deleteReferencedHubStorage,
+  requireBoundHubStorage,
+  requirePendingHubStorage,
+} from "./lib/hub-storage"
 import {
   createNotification,
   notifyPublicationChange,
 } from "./lib/notifications"
 
-const documentResource = v.union(
+const documentResourceInput = v.union(
   v.object({
     kind: v.literal("file"),
     storageId: v.id("_storage"),
     name: v.string(),
     contentType: v.string(),
-    size: v.number(),
   }),
   v.object({
     kind: v.literal("link"),
@@ -26,7 +31,7 @@ const documentResource = v.union(
   })
 )
 
-type DocumentResource = Infer<typeof documentResource>
+type DocumentResourceInput = Infer<typeof documentResourceInput>
 
 function required(value: string, label: string, max: number) {
   const clean = value.trim()
@@ -51,14 +56,18 @@ function sharedLink(value: string) {
 
 async function validateResource(
   ctx: MutationCtx,
-  resource: DocumentResource
-): Promise<DocumentResource> {
+  hubId: Id<"hubs">,
+  resource: DocumentResourceInput
+): Promise<Doc<"documents">["resource"]> {
   if (resource.kind === "link") {
     return { kind: "link", url: sharedLink(resource.url) }
   }
 
-  const stored = await ctx.db.system.get("_storage", resource.storageId)
-  if (!stored) throw new Error("Uploaded file not found")
+  const { stored } = await requirePendingHubStorage(
+    ctx,
+    hubId,
+    resource.storageId
+  )
   const suppliedContentType = resource.contentType.trim().slice(0, 200)
   return {
     kind: "file",
@@ -76,8 +85,8 @@ export const save = mutation({
     slug: v.string(),
     title: v.string(),
     description: v.string(),
-    resource: v.optional(documentResource),
-    bannerStorageId: v.union(v.id("_storage"), v.null()),
+    resource: v.optional(documentResourceInput),
+    bannerStorageId: v.optional(v.union(v.id("_storage"), v.null())),
     employeeProfileIds: v.array(v.id("employeeProfiles")),
     published: v.boolean(),
   },
@@ -96,18 +105,33 @@ export const save = mutation({
     }
 
     const resource = args.resource
-      ? await validateResource(ctx, args.resource)
+      ? await validateResource(ctx, args.hubId, args.resource)
       : existing?.resource
-    if (!resource && !existing) {
-      throw new Error("Upload a file or add a shared link")
+    if (!resource) throw new Error("Upload a file or add a shared link")
+
+    if (!args.resource && existing?.resource.kind === "file") {
+      await requireBoundHubStorage(
+        ctx,
+        args.hubId,
+        existing.resource.storageId,
+        {
+          kind: "documentResource",
+          documentId: existing._id,
+        }
+      )
     }
 
+    const bannerStorageId =
+      args.bannerStorageId === undefined
+        ? existing?.bannerStorageId
+        : (args.bannerStorageId ?? undefined)
+
     if (args.bannerStorageId) {
-      const storedBanner = await ctx.db.system.get(
-        "_storage",
+      const { stored: storedBanner } = await requirePendingHubStorage(
+        ctx,
+        args.hubId,
         args.bannerStorageId
       )
-      if (!storedBanner) throw new Error("Uploaded banner not found")
       if (!isBannerImageContentType(storedBanner.contentType ?? "")) {
         throw new Error("Use a JPG, PNG, WebP, or AVIF banner image")
       }
@@ -115,17 +139,31 @@ export const save = mutation({
         throw new Error("Banner images must be 10 MB or smaller")
       }
     }
+    if (args.bannerStorageId === undefined && existing?.bannerStorageId) {
+      await requireBoundHubStorage(ctx, args.hubId, existing.bannerStorageId, {
+        kind: "documentBanner",
+        documentId: existing._id,
+      })
+    }
+
+    const selectedIds = [...new Set(args.employeeProfileIds)].slice(0, 100)
+    const selectedProfiles = await Promise.all(
+      selectedIds.map(async (employeeProfileId) => {
+        const profile = await ctx.db.get("employeeProfiles", employeeProfileId)
+        if (!profile || profile.hubId !== args.hubId) {
+          throw new Error("Employee does not belong to this workplace")
+        }
+        return profile
+      })
+    )
 
     const value = {
       title: required(args.title, "Document name", 140),
       description: required(args.description, "Document description", 500),
       resource,
-      bannerStorageId: args.bannerStorageId ?? undefined,
+      bannerStorageId,
       published: args.published,
       updatedAt: Date.now(),
-      // Remove authored content when a legacy row is next saved.
-      type: undefined,
-      content: undefined,
     }
     const documentId = existing
       ? (await ctx.db.patch("documents", existing._id, value), existing._id)
@@ -135,7 +173,19 @@ export const save = mutation({
           ...value,
         })
 
-    const selectedIds = [...new Set(args.employeeProfileIds)].slice(0, 100)
+    if (args.resource?.kind === "file") {
+      await bindHubStorage(ctx, args.hubId, args.resource.storageId, {
+        kind: "documentResource",
+        documentId,
+      })
+    }
+    if (args.bannerStorageId) {
+      await bindHubStorage(ctx, args.hubId, args.bannerStorageId, {
+        kind: "documentBanner",
+        documentId,
+      })
+    }
+
     const oldEmployeeRelations = await ctx.db
       .query("documentEmployees")
       .withIndex("by_documentId_and_employeeProfileId", (q) =>
@@ -148,11 +198,8 @@ export const save = mutation({
         relation,
       ])
     )
-    for (const employeeProfileId of selectedIds) {
-      const profile = await ctx.db.get("employeeProfiles", employeeProfileId)
-      if (!profile || profile.hubId !== args.hubId) {
-        throw new Error("Employee does not belong to this workplace")
-      }
+    for (const profile of selectedProfiles) {
+      const employeeProfileId = profile._id
       if (
         profile.status === "deactivated" &&
         !oldByEmployeeId.has(employeeProfileId)
@@ -165,7 +212,7 @@ export const save = mutation({
           documentId,
           employeeProfileId,
           addedAt: Date.now(),
-          addedBy: identity.subject,
+          addedBy: identity.tokenIdentifier,
         })
       }
     }
@@ -176,21 +223,32 @@ export const save = mutation({
       }
     }
 
-    const oldStorageIds = new Set<Id<"_storage">>()
-    if (existing?.resource?.kind === "file") {
-      oldStorageIds.add(existing.resource.storageId)
+    if (
+      existing?.resource.kind === "file" &&
+      (resource.kind !== "file" ||
+        resource.storageId !== existing.resource.storageId)
+    ) {
+      await deleteReferencedHubStorage(ctx, {
+        hubId: args.hubId,
+        storageId: existing.resource.storageId,
+        binding: {
+          kind: "documentResource",
+          documentId: existing._id,
+        },
+      })
     }
-    if (existing?.bannerStorageId) {
-      oldStorageIds.add(existing.bannerStorageId)
-    }
-    const retainedStorageIds = new Set<Id<"_storage">>()
-    if (resource?.kind === "file") retainedStorageIds.add(resource.storageId)
-    if (args.bannerStorageId)
-      retainedStorageIds.add(args.bannerStorageId as Id<"_storage">)
-    for (const storageId of oldStorageIds) {
-      if (!retainedStorageIds.has(storageId)) {
-        await ctx.storage.delete(storageId)
-      }
+    if (
+      existing?.bannerStorageId &&
+      existing.bannerStorageId !== bannerStorageId
+    ) {
+      await deleteReferencedHubStorage(ctx, {
+        hubId: args.hubId,
+        storageId: existing.bannerStorageId,
+        binding: {
+          kind: "documentBanner",
+          documentId: existing._id,
+        },
+      })
     }
 
     await notifyPublicationChange(ctx, {
@@ -230,13 +288,25 @@ export const remove = mutation({
       for (const relation of relations) {
         await ctx.db.delete("documentEmployees", relation._id)
       }
-      const storageIds = new Set<Id<"_storage">>()
-      if (document.resource?.kind === "file") {
-        storageIds.add(document.resource.storageId)
+      if (document.resource.kind === "file") {
+        await deleteReferencedHubStorage(ctx, {
+          hubId: args.hubId,
+          storageId: document.resource.storageId,
+          binding: {
+            kind: "documentResource",
+            documentId: document._id,
+          },
+        })
       }
-      if (document.bannerStorageId) storageIds.add(document.bannerStorageId)
-      for (const storageId of storageIds) {
-        await ctx.storage.delete(storageId)
+      if (document.bannerStorageId) {
+        await deleteReferencedHubStorage(ctx, {
+          hubId: args.hubId,
+          storageId: document.bannerStorageId,
+          binding: {
+            kind: "documentBanner",
+            documentId: document._id,
+          },
+        })
       }
       await ctx.db.delete("documents", document._id)
       if (document.published) {

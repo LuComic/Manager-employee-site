@@ -52,7 +52,7 @@ export function DocumentManager() {
         return (
           matchesQuery &&
           matchesStatus &&
-          (resourceType === "all" || document.resource?.kind === resourceType)
+          (resourceType === "all" || document.resource.kind === resourceType)
         )
       }),
     [documents, query, status, resourceType]
