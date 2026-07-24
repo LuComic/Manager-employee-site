@@ -15,7 +15,11 @@ import {
 } from "@/lib/banner-image"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
 import type { Category, Guide } from "@/lib/knowledge-base"
-import type { WorkspaceDocument } from "@/lib/documents"
+import type {
+  DocumentUploadChanges,
+  EditableDocument,
+  WorkspaceDocument,
+} from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
 import {
   toDateKey,
@@ -126,7 +130,10 @@ type OperationsContextValue = OperationsState & {
   saveFaq: (faq: Faq) => Promise<void>
   moveFaq: (id: string, direction: -1 | 1) => Promise<void>
   deleteFaq: (id: string) => Promise<void>
-  saveDocument: (document: WorkspaceDocument) => Promise<void>
+  saveDocument: (
+    document: EditableDocument,
+    uploads?: DocumentUploadChanges
+  ) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
   submitHelpRequest: (topic: string, message: string) => Promise<void>
   showFeedback: (message: string) => void
@@ -268,6 +275,8 @@ export function OperationsProvider({
   const saveDocumentMutation = useMutation(api.documents.save)
   const deleteDocumentMutation = useMutation(api.documents.remove)
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
+  const registerUpload = useMutation(api.files.registerUpload)
+  const cancelUploadIntent = useMutation(api.files.cancelUploadIntent)
   const attachToEvent = useMutation(api.files.attachToEvent)
   const removeAttachment = useMutation(api.files.remove)
   const discardUpload = useMutation(api.files.discardUpload)
@@ -445,22 +454,53 @@ export function OperationsProvider({
     failureMessage: string,
     attach: (storageId: Id<"_storage">) => Promise<unknown>
   ) {
-    const uploadUrl = await generateUploadUrl({ hubId })
-    const response = await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": file.type || "application/octet-stream",
-      },
-      body: file,
-    })
-    if (!response.ok) throw new Error(failureMessage)
-    const result = (await response.json()) as { storageId?: unknown }
-    if (typeof result.storageId !== "string") throw new Error(failureMessage)
-    const storageId = result.storageId as Id<"_storage">
+    const storageId = await uploadStoredFile(hubId, file, failureMessage)
     try {
       await attach(storageId)
     } catch (error) {
       await discardUpload({ hubId, storageId }).catch(() => undefined)
+      throw error
+    }
+  }
+
+  async function uploadStoredFile(
+    hubId: Id<"hubs">,
+    file: File,
+    failureMessage: string
+  ) {
+    const contentType = file.type || "application/octet-stream"
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      await file.arrayBuffer()
+    )
+    const sha256 = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, "0")
+    ).join("")
+    const { uploadUrl, uploadIntentId } = await generateUploadUrl({
+      hubId,
+      sha256,
+      size: file.size,
+    })
+    let storageId: Id<"_storage"> | undefined
+    try {
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": contentType,
+        },
+        body: file,
+      })
+      if (!response.ok) throw new Error(failureMessage)
+      const result = (await response.json()) as { storageId?: unknown }
+      if (typeof result.storageId !== "string") throw new Error(failureMessage)
+      storageId = result.storageId as Id<"_storage">
+      await registerUpload({ hubId, uploadIntentId, storageId })
+      return storageId
+    } catch (error) {
+      if (storageId) {
+        await discardUpload({ hubId, storageId }).catch(() => undefined)
+      }
+      await cancelUploadIntent({ hubId, uploadIntentId }).catch(() => undefined)
       throw error
     }
   }
@@ -686,7 +726,6 @@ export function OperationsProvider({
             storageId,
             name: file.name,
             contentType: file.type || "application/octet-stream",
-            size: file.size,
           })
         )
       )
@@ -740,18 +779,77 @@ export function OperationsProvider({
     deleteFaq: async (slug) => {
       await run(() => deleteFaqMutation({ hubId: managerHubId(), slug }))
     },
-    saveDocument: async (document) => {
-      await run(() =>
-        saveDocumentMutation({
-          hubId: managerHubId(),
-          slug: document.id,
-          title: document.title,
-          description: document.description,
-          type: document.type,
-          content: document.content,
-          published: document.published,
-        })
-      )
+    saveDocument: async (document, uploads = {}) => {
+      const hubId = managerHubId()
+      await run(async () => {
+        const uploadedStorageIds: Id<"_storage">[] = []
+        try {
+          const resourceStorageId = uploads.resourceFile
+            ? await uploadStoredFile(
+                hubId,
+                uploads.resourceFile,
+                "File upload failed"
+              )
+            : undefined
+          if (resourceStorageId) uploadedStorageIds.push(resourceStorageId)
+
+          if (
+            uploads.bannerFile &&
+            !isBannerImageContentType(uploads.bannerFile.type)
+          ) {
+            throw new Error("Use a JPG, PNG, WebP, or AVIF banner image")
+          }
+          if (
+            uploads.bannerFile &&
+            uploads.bannerFile.size > MAX_BANNER_IMAGE_SIZE_BYTES
+          ) {
+            throw new Error("Banner images must be 10 MB or smaller")
+          }
+          const bannerStorageId = uploads.bannerFile
+            ? await uploadStoredFile(
+                hubId,
+                uploads.bannerFile,
+                "Banner upload failed"
+              )
+            : undefined
+          if (bannerStorageId) uploadedStorageIds.push(bannerStorageId)
+
+          const resource = uploads.resourceFile
+            ? {
+                kind: "file" as const,
+                storageId: resourceStorageId!,
+                name: uploads.resourceFile.name,
+                contentType:
+                  uploads.resourceFile.type || "application/octet-stream",
+              }
+            : document.resource?.kind === "link"
+              ? document.resource
+              : undefined
+          await saveDocumentMutation({
+            hubId,
+            slug: document.id,
+            title: document.title,
+            description: document.description,
+            ...(resource ? { resource } : {}),
+            ...(bannerStorageId
+              ? { bannerStorageId }
+              : uploads.removeBanner
+                ? { bannerStorageId: null }
+                : {}),
+            employeeProfileIds: document.employees.flatMap((employee) =>
+              employee.id ? [employee.id as Id<"employeeProfiles">] : []
+            ),
+            published: document.published,
+          })
+        } catch (error) {
+          await Promise.all(
+            uploadedStorageIds.map((storageId) =>
+              discardUpload({ hubId, storageId }).catch(() => undefined)
+            )
+          )
+          throw error
+        }
+      })
     },
     deleteDocument: async (slug) => {
       await run(() => deleteDocumentMutation({ hubId: managerHubId(), slug }))

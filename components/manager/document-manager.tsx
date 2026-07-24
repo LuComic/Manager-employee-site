@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { FilePenLine, Files, Plus, Search, Trash2 } from "lucide-react"
 
-import { DocumentTypeIcon } from "@/components/documents/document-card"
+import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -20,15 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  documentTypeLabel,
-  type DocumentType,
-  type WorkspaceDocument,
-} from "@/lib/documents"
+import { documentResourceLabel, type WorkspaceDocument } from "@/lib/documents"
 import { cn } from "@/lib/utils"
 
 type Status = "All" | "Published" | "Draft"
-type TypeFilter = "all" | DocumentType
+type ResourceFilter = "all" | "file" | "link"
 
 export function DocumentManager() {
   const {
@@ -40,7 +36,7 @@ export function DocumentManager() {
   } = useOperations()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
-  const [type, setType] = useState<TypeFilter>("all")
+  const [resourceType, setResourceType] = useState<ResourceFilter>("all")
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceDocument | null>(
     null
   )
@@ -56,21 +52,21 @@ export function DocumentManager() {
         return (
           matchesQuery &&
           matchesStatus &&
-          (type === "all" || document.type === type)
+          (resourceType === "all" || document.resource.kind === resourceType)
         )
       }),
-    [documents, query, status, type]
+    [documents, query, status, resourceType]
   )
 
   return (
     <div className="space-y-6">
       <ManagerHeading
         title="Manage documents"
-        description="Create, edit, publish, and remove shared texts, tables, and presentations."
+        description="Share files and external links with the right employees."
         action={
           canCreateContent ? (
             <Link href="/manager/documents/new" className={buttonVariants()}>
-              <Plus /> New document
+              <Plus /> Share document
             </Link>
           ) : undefined
         }
@@ -87,20 +83,19 @@ export function DocumentManager() {
           />
         </div>
         <Select
-          value={type}
-          onValueChange={(value) => setType(value as TypeFilter)}
+          value={resourceType}
+          onValueChange={(value) => setResourceType(value as ResourceFilter)}
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter documents by type"
+            aria-label="Filter documents by resource type"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="text">Text</SelectItem>
-            <SelectItem value="table">Table</SelectItem>
-            <SelectItem value="presentation">Presentation</SelectItem>
+            <SelectItem value="all">All resources</SelectItem>
+            <SelectItem value="file">Uploaded files</SelectItem>
+            <SelectItem value="link">Shared links</SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -126,7 +121,7 @@ export function DocumentManager() {
             <Card key={document.id} size="sm" className="shadow-none">
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                  <DocumentTypeIcon type={document.type} />
+                  <DocumentResourceIcon resource={document.resource} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -137,7 +132,7 @@ export function DocumentManager() {
                       {document.published ? "Published" : "Draft"}
                     </Badge>
                     <Badge variant="outline">
-                      {documentTypeLabel(document.type)}
+                      {documentResourceLabel(document.resource)}
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -201,12 +196,10 @@ export function DocumentManager() {
           description={
             documents.length
               ? "Clear the search or choose another filter."
-              : "Create a text, table, or presentation to share with the team."
+              : "Upload a file or share a link with the team."
           }
           actionLabel={
-            documents.length || !canCreateContent
-              ? undefined
-              : "Create document"
+            documents.length || !canCreateContent ? undefined : "Share document"
           }
           actionHref={
             documents.length || !canCreateContent

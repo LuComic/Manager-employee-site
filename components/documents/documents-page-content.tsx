@@ -15,7 +15,7 @@ export function DocumentsPageContent() {
     <div>
       <PageHeading
         title="Documents"
-        description="Shared texts, tables, and presentations."
+        description="Files and shared links your team needs."
       />
       {publishedDocuments.length ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

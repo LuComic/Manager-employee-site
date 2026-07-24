@@ -7,6 +7,7 @@ import {
   requireIdentity,
   requireHubPermission,
 } from "./lib/access"
+import { deleteReferencedHubStorage } from "./lib/hubStorage"
 import {
   createNotification,
   notifyPublicationChange,
@@ -389,6 +390,7 @@ export const saveEvent = mutation({
 
 export const deleteEvent = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "manager")
     const event = await ctx.db
@@ -424,7 +426,15 @@ export const deleteEvent = mutation({
     for (const relation of employeeRelations)
       await ctx.db.delete("eventEmployees", relation._id)
     for (const attachment of attachments) {
-      await ctx.storage.delete(attachment.storageId)
+      await deleteReferencedHubStorage(ctx, {
+        hubId: args.hubId,
+        storageId: attachment.storageId,
+        binding: {
+          kind: "eventAttachment",
+          attachmentId: attachment._id,
+        },
+        allowUntracked: true,
+      })
       await ctx.db.delete("attachments", attachment._id)
     }
     for (const announcement of announcements) {

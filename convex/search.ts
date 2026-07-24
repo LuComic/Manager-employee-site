@@ -42,6 +42,7 @@ export const published = query({
       faqs,
       documents,
       eventEmployees,
+      documentEmployees,
       employeeProfiles,
     ] = await Promise.all([
       ctx.db
@@ -81,6 +82,10 @@ export const published = query({
         .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
         .take(2000),
       ctx.db
+        .query("documentEmployees")
+        .withIndex("by_hubId_and_documentId", (q) => q.eq("hubId", hub._id))
+        .take(2000),
+      ctx.db
         .query("employeeProfiles")
         .withIndex("by_hubId_and_displayName", (q) => q.eq("hubId", hub._id))
         .take(500),
@@ -98,6 +103,14 @@ export const published = query({
       const current = employeeNamesByEventId.get(relation.eventId) ?? []
       current.push(name)
       employeeNamesByEventId.set(relation.eventId, current)
+    }
+    const employeeNamesByDocumentId = new Map<string, string[]>()
+    for (const relation of documentEmployees) {
+      const name = employeeNameById.get(relation.employeeProfileId)
+      if (!name) continue
+      const current = employeeNamesByDocumentId.get(relation.documentId) ?? []
+      current.push(name)
+      employeeNamesByDocumentId.set(relation.documentId, current)
     }
 
     return [
@@ -174,8 +187,16 @@ export const published = query({
             cleanQuery,
             document.title,
             document.description,
-            document.type,
-            document.content
+            document.resource?.kind === "file"
+              ? [
+                  document.resource.name,
+                  document.resource.contentType,
+                  employeeNamesByDocumentId.get(document._id),
+                ]
+              : [
+                  document.resource?.url,
+                  employeeNamesByDocumentId.get(document._id),
+                ]
           )
         )
         .map((document) => ({
