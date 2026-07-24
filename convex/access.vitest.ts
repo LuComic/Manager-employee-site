@@ -336,23 +336,27 @@ describe("hub authorization and anonymous access", () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t)
     const owner = t.withIdentity(ownerIdentity)
-    const body = {
-      type: "doc" as const,
-      content: [
-        {
-          type: "paragraph",
-          content: [{ type: "text", text: "Emergency contact details" }],
-        },
-      ],
-    }
+    const employeeProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Safety Lead",
+    })
+    const storageId = await t.run(async (ctx) => {
+      return await ctx.storage.store(
+        new Blob(["Monday,Opening"], { type: "text/csv" })
+      )
+    })
 
     await owner.mutation(api.documents.save, {
       hubId,
       slug: "safety-notes",
       title: "Safety notes",
       description: "Important emergency information",
-      type: "text",
-      content: { kind: "text", body },
+      resource: {
+        kind: "link",
+        url: "https://docs.google.com/document/d/safety-notes",
+      },
+      bannerStorageId: null,
+      employeeProfileIds: [employeeProfileId],
       published: true,
     })
     await owner.mutation(api.documents.save, {
@@ -360,14 +364,15 @@ describe("hub authorization and anonymous access", () => {
       slug: "private-rota",
       title: "Private rota",
       description: "Still being prepared",
-      type: "table",
-      content: {
-        kind: "table",
-        columns: ["Day", "Team"],
-        showColumnHeaders: false,
-        showRowHeaders: false,
-        rows: [["Monday", "Opening"]],
+      resource: {
+        kind: "file",
+        storageId,
+        name: "rota.csv",
+        contentType: "text/csv",
+        size: 1,
       },
+      bannerStorageId: null,
+      employeeProfileIds: [],
       published: false,
     })
 
@@ -392,13 +397,18 @@ describe("hub authorization and anonymous access", () => {
     expect(
       managerSnapshot.documents.find(
         (document) => document.id === "private-rota"
-      )?.content
+      )?.resource
     ).toMatchObject({
-      kind: "table",
-      showColumnHeaders: false,
-      showRowHeaders: false,
-      rowHeaders: ["Row 1"],
+      kind: "file",
+      name: "rota.csv",
+      contentType: "text/csv",
+      size: 14,
     })
+    expect(
+      managerSnapshot.documents.find(
+        (document) => document.id === "safety-notes"
+      )?.employees
+    ).toEqual([{ id: employeeProfileId, displayName: "Safety Lead" }])
 
     const searchResults = await t.query(api.search.published, {
       hubSlug: "test-hub",
@@ -407,6 +417,15 @@ describe("hub authorization and anonymous access", () => {
       nowDate: "2026-07-18",
     })
     expect(searchResults).toMatchObject([
+      { id: "safety-notes", type: "Document" },
+    ])
+    const employeeSearchResults = await t.query(api.search.published, {
+      hubSlug: "test-hub",
+      credential: "ABCD-EFGH",
+      query: "Safety Lead",
+      nowDate: "2026-07-18",
+    })
+    expect(employeeSearchResults).toMatchObject([
       { id: "safety-notes", type: "Document" },
     ])
 

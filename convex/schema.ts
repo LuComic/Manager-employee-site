@@ -61,6 +61,19 @@ const documentContent = v.union(
     ),
   })
 )
+const documentResource = v.union(
+  v.object({
+    kind: v.literal("file"),
+    storageId: v.id("_storage"),
+    name: v.string(),
+    contentType: v.string(),
+    size: v.number(),
+  }),
+  v.object({
+    kind: v.literal("link"),
+    url: v.string(),
+  })
+)
 
 export default defineSchema({
   hubs: defineTable({
@@ -233,12 +246,13 @@ export default defineSchema({
     slug: v.string(),
     title: v.string(),
     description: v.string(),
-    type: v.union(
-      v.literal("text"),
-      v.literal("table"),
-      v.literal("presentation")
+    // Legacy authoring fields stay optional while existing rows are migrated.
+    type: v.optional(
+      v.union(v.literal("text"), v.literal("table"), v.literal("presentation"))
     ),
-    content: documentContent,
+    content: v.optional(documentContent),
+    resource: v.optional(documentResource),
+    bannerStorageId: v.optional(v.id("_storage")),
     published: v.boolean(),
     updatedAt: v.number(),
   })
@@ -249,6 +263,23 @@ export default defineSchema({
       searchField: "title",
       filterFields: ["hubId", "published"],
     }),
+
+  documentEmployees: defineTable({
+    hubId: v.id("hubs"),
+    documentId: v.id("documents"),
+    employeeProfileId: v.id("employeeProfiles"),
+    addedAt: v.number(),
+    addedBy: v.string(),
+  })
+    .index("by_documentId_and_employeeProfileId", [
+      "documentId",
+      "employeeProfileId",
+    ])
+    .index("by_employeeProfileId_and_documentId", [
+      "employeeProfileId",
+      "documentId",
+    ])
+    .index("by_hubId_and_documentId", ["hubId", "documentId"]),
 
   attachments: defineTable({
     hubId: v.id("hubs"),

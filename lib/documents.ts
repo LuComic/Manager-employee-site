@@ -1,90 +1,83 @@
-import { paragraphDocument, type RichTextDocument } from "@/lib/rich-text"
+export type DocumentEmployee = {
+  id?: string
+  displayName: string
+}
 
-export const documentTypes = ["text", "table", "presentation"] as const
+export type UploadedDocumentResource = {
+  kind: "file"
+  storageId: string
+  name: string
+  contentType: string
+  size: number
+  url: string
+}
 
-export type DocumentType = (typeof documentTypes)[number]
+export type LinkedDocumentResource = {
+  kind: "link"
+  url: string
+}
 
-type DocumentBase = {
+export type DocumentResource = UploadedDocumentResource | LinkedDocumentResource
+
+export type WorkspaceDocument = {
   id: string
   title: string
   description: string
+  resource?: DocumentResource
+  employees: DocumentEmployee[]
+  bannerStorageId?: string
+  bannerImageUrl?: string
   published: boolean
   updatedAt: number
 }
 
-export type TextDocumentContent = {
-  kind: "text"
-  body: RichTextDocument
+export type DocumentUploadChanges = {
+  resourceFile?: File
+  bannerFile?: File
+  removeBanner?: boolean
 }
 
-export type TableDocumentContent = {
-  kind: "table"
-  columns: string[]
-  showColumnHeaders?: boolean
-  showRowHeaders?: boolean
-  rowHeaders?: string[]
-  rows: string[][]
+export function isValidSharedLink(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || url.protocol === "http:"
+  } catch {
+    return false
+  }
 }
 
-export type PresentationSlide = {
-  id: string
-  title: string
-  body: RichTextDocument
+export function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`
+  return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`
 }
 
-export type PresentationDocumentContent = {
-  kind: "presentation"
-  slides: PresentationSlide[]
-}
-
-export type WorkspaceDocument =
-  | (DocumentBase & { type: "text"; content: TextDocumentContent })
-  | (DocumentBase & { type: "table"; content: TableDocumentContent })
-  | (DocumentBase & {
-      type: "presentation"
-      content: PresentationDocumentContent
-    })
-
-export function documentTypeLabel(type: DocumentType) {
-  if (type === "text") return "Text"
-  if (type === "table") return "Table"
-  return "Presentation"
-}
-
-export function createDefaultDocumentContent(type: "text"): TextDocumentContent
-export function createDefaultDocumentContent(
-  type: "table"
-): TableDocumentContent
-export function createDefaultDocumentContent(
-  type: "presentation"
-): PresentationDocumentContent
-export function createDefaultDocumentContent(
-  type: DocumentType
-): TextDocumentContent | TableDocumentContent | PresentationDocumentContent {
-  if (type === "table") {
-    return {
-      kind: "table" as const,
-      columns: ["Column 1", "Column 2", "Column 3"],
-      showColumnHeaders: true,
-      showRowHeaders: true,
-      rowHeaders: ["Row 1", "Row 2"],
-      rows: [
-        ["", "", ""],
-        ["", "", ""],
-      ],
+export function documentResourceLabel(resource?: DocumentResource) {
+  if (!resource) return "Resource needed"
+  if (resource.kind === "link") {
+    try {
+      return new URL(resource.url).hostname.replace(/^www\./, "")
+    } catch {
+      return "Shared link"
     }
   }
-  if (type === "presentation") {
-    return {
-      kind: "presentation" as const,
-      slides: [
-        {
-          id: "slide-1",
-          title: "Opening slide",
-          body: paragraphDocument("Add the main point for this slide."),
-        },
-      ],
-    }
-  }
-  return { kind: "text" as const, body: paragraphDocument("") }
+  if (resource.contentType.startsWith("image/")) return "Image"
+  if (resource.contentType === "application/pdf") return "PDF"
+  if (
+    resource.contentType.includes("presentation") ||
+    resource.contentType.includes("powerpoint")
+  )
+    return "Presentation"
+  if (
+    resource.contentType.includes("spreadsheet") ||
+    resource.contentType.includes("excel") ||
+    resource.contentType === "text/csv"
+  )
+    return "Spreadsheet"
+  if (
+    resource.contentType.includes("document") ||
+    resource.contentType.includes("word")
+  )
+    return "Document"
+  return "File"
 }
