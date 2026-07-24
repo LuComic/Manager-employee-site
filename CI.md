@@ -26,6 +26,11 @@ test -z "$(git status --porcelain)"
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
 ```
 
+Exception: when addressing feedback on or adding to an existing pull request,
+continue on that pull request's existing task branch. Fetch the remote state
+and require a clean worktree, but do not require `HEAD` to equal `origin/main`.
+Confirm the branch belongs to the intended pull request before editing.
+
 For the Local-mode fallback, create the task branch directly from
 `origin/main`:
 
@@ -78,11 +83,16 @@ working tree must be clean.
 
 ## 3. Push and create the pull request
 
-Push only the task branch:
+Every implementation branch must use the `codex/<short-task-name>` naming
+pattern. Push only the task branch; the checks below refuse `main`, branches
+outside the `codex/` namespace, and an empty name after the prefix:
 
 ```sh
 TASK_BRANCH="$(git branch --show-current)"
 test -n "$TASK_BRANCH"
+test "$TASK_BRANCH" != "main"
+test "${TASK_BRANCH#codex/}" != "$TASK_BRANCH"
+test -n "${TASK_BRANCH#codex/}"
 git push -u origin "$TASK_BRANCH"
 ```
 
