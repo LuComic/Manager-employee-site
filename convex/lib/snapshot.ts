@@ -22,6 +22,7 @@ export async function buildSnapshot(
     allFaqs,
     allDocuments,
     eventEmployees,
+    documentEmployees,
     employeeProfiles,
   ] = await Promise.all([
     hub.bannerStorageId ? ctx.storage.getUrl(hub.bannerStorageId) : null,
@@ -61,6 +62,10 @@ export async function buildSnapshot(
     ctx.db
       .query("eventEmployees")
       .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
+      .take(2000),
+    ctx.db
+      .query("documentEmployees")
+      .withIndex("by_hubId_and_documentId", (q) => q.eq("hubId", hub._id))
       .take(2000),
     ctx.db
       .query("employeeProfiles")
@@ -139,6 +144,17 @@ export async function buildSnapshot(
     const current = employeesByEventId.get(relation.eventId) ?? []
     current.push({ id: profile._id, displayName: profile.displayName })
     employeesByEventId.set(relation.eventId, current)
+  }
+  const employeesByDocumentId = new Map<
+    string,
+    Array<{ id: string; displayName: string }>
+  >()
+  for (const relation of documentEmployees) {
+    const profile = employeeById.get(relation.employeeProfileId)
+    if (!profile) continue
+    const current = employeesByDocumentId.get(relation.documentId) ?? []
+    current.push({ id: profile._id, displayName: profile.displayName })
+    employeesByDocumentId.set(relation.documentId, current)
   }
 
   return {
@@ -226,14 +242,43 @@ export async function buildSnapshot(
       order: faq.order,
       published: faq.published,
     })),
-    documents: documents.map((document) => ({
-      id: document.slug,
-      title: document.title,
-      description: document.description,
-      type: document.type,
-      content: document.content,
-      published: document.published,
-      updatedAt: document.updatedAt,
-    })),
+    documents: await Promise.all(
+      documents.map(async (document) => {
+        const storedResource = document.resource
+        const resource =
+          storedResource.kind === "file"
+            ? await ctx.storage
+                .getUrl(storedResource.storageId)
+                .then((url) => {
+                  if (!url) throw new Error("Document file not found")
+                  return {
+                    kind: "file" as const,
+                    name: storedResource.name,
+                    contentType: storedResource.contentType,
+                    size: storedResource.size,
+                    url,
+                  }
+                })
+            : storedResource
+        const bannerImageUrl = document.bannerStorageId
+          ? await ctx.storage.getUrl(document.bannerStorageId)
+          : null
+        return {
+          id: document.slug,
+          title: document.title,
+          description: document.description,
+          resource,
+          employees: (employeesByDocumentId.get(document._id) ?? []).map(
+            (employee) =>
+              options.includeDrafts
+                ? employee
+                : { displayName: employee.displayName }
+          ),
+          bannerImageUrl: bannerImageUrl ?? undefined,
+          published: document.published,
+          updatedAt: document.updatedAt,
+        }
+      })
+    ),
   }
 }

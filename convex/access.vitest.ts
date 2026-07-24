@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test"
+import { sha256 } from "@noble/hashes/sha2.js"
+import { bytesToHex } from "@noble/hashes/utils.js"
 import { describe, expect, test } from "vitest"
 
 import { api, internal } from "./_generated/api"
@@ -39,6 +41,32 @@ async function createHub(
     timeZone: "Europe/Tallinn",
     seedDemoContent: false,
   })
+}
+
+async function createRegisteredUpload(
+  t: ReturnType<typeof convexTest>,
+  args: {
+    hubId: Id<"hubs">
+    identity: typeof ownerIdentity
+    blob: Blob
+  }
+) {
+  const bytes = new Uint8Array(await args.blob.arrayBuffer())
+  const owner = t.withIdentity(args.identity)
+  const intent = await owner.mutation(api.files.generateUploadUrl, {
+    hubId: args.hubId,
+    sha256: bytesToHex(sha256(bytes)),
+    size: args.blob.size,
+  })
+  const storageId = await t.run(async (ctx) => {
+    return await ctx.storage.store(args.blob)
+  })
+  await owner.mutation(api.files.registerUpload, {
+    hubId: args.hubId,
+    uploadIntentId: intent.uploadIntentId,
+    storageId,
+  })
+  return storageId
 }
 
 describe("hub authorization and anonymous access", () => {
@@ -336,23 +364,27 @@ describe("hub authorization and anonymous access", () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t)
     const owner = t.withIdentity(ownerIdentity)
-    const body = {
-      type: "doc" as const,
-      content: [
-        {
-          type: "paragraph",
-          content: [{ type: "text", text: "Emergency contact details" }],
-        },
-      ],
-    }
+    const employeeProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Safety Lead",
+    })
+    const storageId = await createRegisteredUpload(t, {
+      hubId,
+      identity: ownerIdentity,
+      blob: new Blob(["Monday,Opening"], { type: "text/csv" }),
+    })
 
     await owner.mutation(api.documents.save, {
       hubId,
       slug: "safety-notes",
       title: "Safety notes",
       description: "Important emergency information",
-      type: "text",
-      content: { kind: "text", body },
+      resource: {
+        kind: "link",
+        url: "https://docs.google.com/document/d/safety-notes",
+      },
+      bannerStorageId: null,
+      employeeProfileIds: [employeeProfileId],
       published: true,
     })
     await owner.mutation(api.documents.save, {
@@ -360,14 +392,14 @@ describe("hub authorization and anonymous access", () => {
       slug: "private-rota",
       title: "Private rota",
       description: "Still being prepared",
-      type: "table",
-      content: {
-        kind: "table",
-        columns: ["Day", "Team"],
-        showColumnHeaders: false,
-        showRowHeaders: false,
-        rows: [["Monday", "Opening"]],
+      resource: {
+        kind: "file",
+        storageId,
+        name: "rota.csv",
+        contentType: "text/csv",
       },
+      bannerStorageId: null,
+      employeeProfileIds: [],
       published: false,
     })
 
@@ -392,13 +424,23 @@ describe("hub authorization and anonymous access", () => {
     expect(
       managerSnapshot.documents.find(
         (document) => document.id === "private-rota"
-      )?.content
+      )?.resource
     ).toMatchObject({
-      kind: "table",
-      showColumnHeaders: false,
-      showRowHeaders: false,
-      rowHeaders: ["Row 1"],
+      kind: "file",
+      name: "rota.csv",
+      contentType: "text/csv",
+      size: 14,
     })
+    expect(
+      managerSnapshot.documents.find(
+        (document) => document.id === "private-rota"
+      )?.resource
+    ).not.toHaveProperty("storageId")
+    expect(
+      managerSnapshot.documents.find(
+        (document) => document.id === "safety-notes"
+      )?.employees
+    ).toEqual([{ id: employeeProfileId, displayName: "Safety Lead" }])
 
     const searchResults = await t.query(api.search.published, {
       hubSlug: "test-hub",
@@ -407,6 +449,15 @@ describe("hub authorization and anonymous access", () => {
       nowDate: "2026-07-18",
     })
     expect(searchResults).toMatchObject([
+      { id: "safety-notes", type: "Document" },
+    ])
+    const employeeSearchResults = await t.query(api.search.published, {
+      hubSlug: "test-hub",
+      credential: "ABCD-EFGH",
+      query: "Safety Lead",
+      nowDate: "2026-07-18",
+    })
+    expect(employeeSearchResults).toMatchObject([
       { id: "safety-notes", type: "Document" },
     ])
 
@@ -429,6 +480,82 @@ describe("hub authorization and anonymous access", () => {
     expect(afterDelete.documents.map((document) => document.id)).toEqual([
       "private-rota",
     ])
+  })
+
+  test("binds uploads to one workplace and protects attached files", async () => {
+    const t = convexTest(schema, modules)
+    const first = await createHub(t)
+    const second = await createHub(t, {
+      identity: otherIdentity,
+      slug: "other",
+    })
+    const firstOwner = t.withIdentity(ownerIdentity)
+    const secondOwner = t.withIdentity(otherIdentity)
+    const storageId = await createRegisteredUpload(t, {
+      hubId: first.hubId,
+      identity: ownerIdentity,
+      blob: new Blob(["private workplace file"], {
+        type: "text/plain",
+      }),
+    })
+    const resource = {
+      kind: "file" as const,
+      storageId,
+      name: "private.txt",
+      contentType: "text/plain",
+    }
+
+    await expect(
+      secondOwner.mutation(api.documents.save, {
+        hubId: second.hubId,
+        slug: "stolen-file",
+        title: "Stolen file",
+        description: "Must not attach across workplaces",
+        resource,
+        employeeProfileIds: [],
+        published: true,
+      })
+    ).rejects.toThrow("File does not belong to this workplace")
+    await expect(
+      secondOwner.mutation(api.files.discardUpload, {
+        hubId: second.hubId,
+        storageId,
+      })
+    ).rejects.toThrow("File does not belong to this workplace")
+
+    await firstOwner.mutation(api.documents.save, {
+      hubId: first.hubId,
+      slug: "owned-file",
+      title: "Owned file",
+      description: "Safe workplace file",
+      resource,
+      employeeProfileIds: [],
+      published: true,
+    })
+    await expect(
+      firstOwner.mutation(api.files.discardUpload, {
+        hubId: first.hubId,
+        storageId,
+      })
+    ).rejects.toThrow("File is already in use")
+
+    const snapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "test-hub",
+      nowDate: "2026-07-18",
+    })
+    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
+    expect(snapshot.documents[0]?.resource).not.toHaveProperty("storageId")
+
+    await firstOwner.mutation(api.documents.remove, {
+      hubId: first.hubId,
+      slug: "owned-file",
+    })
+    expect(
+      await t.run((ctx) => ctx.db.system.get("_storage", storageId))
+    ).toBeNull()
+    expect(
+      await t.run((ctx) => ctx.db.query("hubStorage").take(10))
+    ).toHaveLength(0)
   })
 })
 

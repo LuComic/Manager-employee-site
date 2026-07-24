@@ -1,5 +1,12 @@
 import Link from "next/link"
-import { ArrowRight, FileText, Presentation, Table2 } from "lucide-react"
+import {
+  ArrowRight,
+  File,
+  FileSpreadsheet,
+  Image as ImageIcon,
+  Link2,
+  Presentation,
+} from "lucide-react"
 
 import {
   Card,
@@ -9,19 +16,31 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  documentTypeLabel,
-  type DocumentType,
+  documentResourceLabel,
+  type DocumentResource,
   type WorkspaceDocument,
 } from "@/lib/documents"
 
-export function DocumentTypeIcon({ type }: { type: DocumentType }) {
-  const Icon =
-    type === "table"
-      ? Table2
-      : type === "presentation"
-        ? Presentation
-        : FileText
-  return <Icon className="size-5" />
+export function DocumentResourceIcon({
+  resource,
+}: {
+  resource: DocumentResource
+}) {
+  if (resource.kind === "link") return <Link2 className="size-5" />
+  if (resource.contentType.startsWith("image/"))
+    return <ImageIcon className="size-5" />
+  if (
+    resource.contentType.includes("spreadsheet") ||
+    resource.contentType.includes("excel") ||
+    resource.contentType === "text/csv"
+  )
+    return <FileSpreadsheet className="size-5" />
+  if (
+    resource.contentType.includes("presentation") ||
+    resource.contentType.includes("powerpoint")
+  )
+    return <Presentation className="size-5" />
+  return <File className="size-5" />
 }
 
 export function DocumentCard({ document }: { document: WorkspaceDocument }) {
@@ -32,20 +51,31 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
     >
       <Card
         size="sm"
-        className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+        className="h-full overflow-hidden py-0 shadow-none transition-colors group-hover:bg-muted/40"
       >
-        <CardHeader>
+        {document.bannerImageUrl && (
+          <div
+            className="aspect-[16/6] border-b bg-muted bg-cover bg-center"
+            style={{
+              backgroundImage: `url("${document.bannerImageUrl}")`,
+            }}
+          />
+        )}
+        <CardHeader className="pt-4">
           <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
-            <DocumentTypeIcon type={document.type} />
+            <DocumentResourceIcon resource={document.resource} />
           </span>
           <CardTitle className="text-base tracking-normal normal-case">
             {document.title}
           </CardTitle>
           <CardDescription>{document.description}</CardDescription>
         </CardHeader>
-        <CardFooter className="mt-auto justify-between">
+        <CardFooter className="mt-auto justify-between pb-4">
           <span className="text-xs text-muted-foreground">
-            {documentTypeLabel(document.type)}
+            {documentResourceLabel(document.resource)}
+            {document.employees.length
+              ? ` · ${document.employees.length} ${document.employees.length === 1 ? "employee" : "employees"}`
+              : ""}
           </span>
           <span className="flex size-9 items-center justify-center text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-foreground">
             <ArrowRight className="size-4" />

@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
+import { hubStorageBindingValidator } from "./lib/hubStorage"
+
 const accessMode = v.union(v.literal("public"), v.literal("restricted"))
 const employeeStatus = v.union(
   v.literal("unclaimed"),
@@ -37,28 +39,17 @@ const richTextDocument = v.object({
   type: v.literal("doc"),
   content: v.optional(v.array(v.any())),
 })
-const documentContent = v.union(
+const documentResource = v.union(
   v.object({
-    kind: v.literal("text"),
-    body: richTextDocument,
+    kind: v.literal("file"),
+    storageId: v.id("_storage"),
+    name: v.string(),
+    contentType: v.string(),
+    size: v.number(),
   }),
   v.object({
-    kind: v.literal("table"),
-    columns: v.array(v.string()),
-    showColumnHeaders: v.optional(v.boolean()),
-    showRowHeaders: v.optional(v.boolean()),
-    rowHeaders: v.optional(v.array(v.string())),
-    rows: v.array(v.array(v.string())),
-  }),
-  v.object({
-    kind: v.literal("presentation"),
-    slides: v.array(
-      v.object({
-        id: v.string(),
-        title: v.string(),
-        body: richTextDocument,
-      })
-    ),
+    kind: v.literal("link"),
+    url: v.string(),
   })
 )
 
@@ -233,12 +224,8 @@ export default defineSchema({
     slug: v.string(),
     title: v.string(),
     description: v.string(),
-    type: v.union(
-      v.literal("text"),
-      v.literal("table"),
-      v.literal("presentation")
-    ),
-    content: documentContent,
+    resource: documentResource,
+    bannerStorageId: v.optional(v.id("_storage")),
     published: v.boolean(),
     updatedAt: v.number(),
   })
@@ -249,6 +236,39 @@ export default defineSchema({
       searchField: "title",
       filterFields: ["hubId", "published"],
     }),
+
+  documentEmployees: defineTable({
+    hubId: v.id("hubs"),
+    documentId: v.id("documents"),
+    employeeProfileId: v.id("employeeProfiles"),
+    addedAt: v.number(),
+    addedBy: v.string(),
+  })
+    .index("by_documentId_and_employeeProfileId", [
+      "documentId",
+      "employeeProfileId",
+    ])
+    .index("by_employeeProfileId_and_documentId", [
+      "employeeProfileId",
+      "documentId",
+    ])
+    .index("by_hubId_and_documentId", ["hubId", "documentId"]),
+
+  uploadIntents: defineTable({
+    hubId: v.id("hubs"),
+    requestedBy: v.string(),
+    sha256: v.string(),
+    size: v.number(),
+    createdAt: v.number(),
+  }),
+
+  hubStorage: defineTable({
+    hubId: v.id("hubs"),
+    storageId: v.id("_storage"),
+    uploadedBy: v.string(),
+    createdAt: v.number(),
+    binding: v.optional(hubStorageBindingValidator),
+  }).index("by_storageId", ["storageId"]),
 
   attachments: defineTable({
     hubId: v.id("hubs"),

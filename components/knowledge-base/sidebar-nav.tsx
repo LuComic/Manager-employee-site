@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
-import { DocumentTypeIcon } from "@/components/documents/document-card"
+import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -101,7 +101,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
               label={document.title}
               active={pathname === href}
             >
-              <DocumentTypeIcon type={document.type} />
+              <DocumentResourceIcon resource={document.resource} />
             </NavLink>
           )
         })}

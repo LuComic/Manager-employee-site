@@ -412,30 +412,43 @@ export const removeProfileBatch = mutation({
     if (!profile) throw new Error("Employee not found")
     await requireHubPermission(ctx, profile.hubId, "owner")
 
-    const [eventAssignments, employeeNotifications, notificationReadStates] =
-      await Promise.all([
-        ctx.db
-          .query("eventEmployees")
-          .withIndex("by_employeeProfileId_and_eventId", (q) =>
-            q.eq("employeeProfileId", profile._id)
-          )
-          .take(100),
-        ctx.db
-          .query("notifications")
-          .withIndex("by_employeeProfileId", (q) =>
-            q.eq("employeeProfileId", profile._id)
-          )
-          .take(100),
-        ctx.db
-          .query("notificationReadStates")
-          .withIndex("by_employeeProfileId", (q) =>
-            q.eq("employeeProfileId", profile._id)
-          )
-          .take(100),
-      ])
+    const [
+      eventAssignments,
+      documentAssignments,
+      employeeNotifications,
+      notificationReadStates,
+    ] = await Promise.all([
+      ctx.db
+        .query("eventEmployees")
+        .withIndex("by_employeeProfileId_and_eventId", (q) =>
+          q.eq("employeeProfileId", profile._id)
+        )
+        .take(100),
+      ctx.db
+        .query("documentEmployees")
+        .withIndex("by_employeeProfileId_and_documentId", (q) =>
+          q.eq("employeeProfileId", profile._id)
+        )
+        .take(100),
+      ctx.db
+        .query("notifications")
+        .withIndex("by_employeeProfileId", (q) =>
+          q.eq("employeeProfileId", profile._id)
+        )
+        .take(100),
+      ctx.db
+        .query("notificationReadStates")
+        .withIndex("by_employeeProfileId", (q) =>
+          q.eq("employeeProfileId", profile._id)
+        )
+        .take(100),
+    ])
 
     for (const assignment of eventAssignments) {
       await ctx.db.delete("eventEmployees", assignment._id)
+    }
+    for (const assignment of documentAssignments) {
+      await ctx.db.delete("documentEmployees", assignment._id)
     }
     for (const notification of employeeNotifications) {
       await ctx.db.delete("notifications", notification._id)
@@ -446,6 +459,7 @@ export const removeProfileBatch = mutation({
 
     if (
       eventAssignments.length > 0 ||
+      documentAssignments.length > 0 ||
       employeeNotifications.length > 0 ||
       notificationReadStates.length > 0
     ) {
