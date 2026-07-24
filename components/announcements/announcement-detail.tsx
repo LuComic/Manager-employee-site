@@ -125,7 +125,9 @@ export function AnnouncementArticle({
         <section>
           <h2 className="mb-4 text-xl font-semibold">Related information</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {event && <EventCard event={event} compact />}
+            {event && (
+              <EventCard event={event} timeZone={hub?.timeZone} compact />
+            )}
             {guide && <GuideCard guide={guide} />}
           </div>
         </section>

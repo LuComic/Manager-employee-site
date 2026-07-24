@@ -703,6 +703,10 @@ export function OperationsProvider({
           category: event.category,
           start: event.start,
           end: event.end,
+          allDay: event.allDay,
+          startUtc: event.startUtc ?? null,
+          endUtc: event.endUtc ?? null,
+          icalUid: event.icalUid ?? null,
           location: event.location,
           employeeProfileIds: event.employees.flatMap((employee) =>
             employee.id ? [employee.id as Id<"employeeProfiles">] : []

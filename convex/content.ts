@@ -246,16 +246,40 @@ export const saveEvent = mutation({
     category: eventCategory,
     start: v.string(),
     end: v.string(),
+    allDay: v.optional(v.boolean()),
+    startUtc: v.optional(v.union(v.string(), v.null())),
+    endUtc: v.optional(v.union(v.string(), v.null())),
+    icalUid: v.optional(v.union(v.string(), v.null())),
     location: v.string(),
     employeeProfileIds: v.optional(v.array(v.id("employeeProfiles"))),
     notes: v.string(),
     published: v.boolean(),
     guideSlugs: v.array(v.string()),
   },
+  returns: v.string(),
   handler: async (ctx, args) => {
     const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     const identity = await requireIdentity(ctx)
-    if (args.end <= args.start)
+    const hasExactInstants = Boolean(args.startUtc && args.endUtc)
+    if (Boolean(args.startUtc) !== Boolean(args.endUtc)) {
+      throw new Error("Event start and end instants must be provided together")
+    }
+    if (args.allDay && hasExactInstants) {
+      throw new Error("All-day events cannot include timed instants")
+    }
+    const startsAt = args.startUtc ? Date.parse(args.startUtc) : null
+    const endsAt = args.endUtc ? Date.parse(args.endUtc) : null
+    if (
+      (startsAt !== null && Number.isNaN(startsAt)) ||
+      (endsAt !== null && Number.isNaN(endsAt))
+    ) {
+      throw new Error("Event contains an invalid exact date")
+    }
+    if (
+      hasExactInstants
+        ? (endsAt as number) <= (startsAt as number)
+        : args.end <= args.start
+    )
       throw new Error("Event end must be after its start")
     const existing = await ctx.db
       .query("events")
@@ -272,6 +296,12 @@ export const saveEvent = mutation({
       category: args.category,
       start: required(args.start, "Event start", 40),
       end: required(args.end, "Event end", 40),
+      allDay: args.allDay ?? false,
+      startUtc: args.startUtc ?? undefined,
+      endUtc: args.endUtc ?? undefined,
+      icalUid: args.icalUid
+        ? required(args.icalUid, "iCalendar UID", 512)
+        : undefined,
       location: required(args.location, "Event location", 140),
       notes: args.notes.trim().slice(0, 4000),
       published: args.published,

@@ -35,6 +35,10 @@ export type CalendarEvent = {
   category: EventCategory
   start: string
   end: string
+  allDay: boolean
+  startUtc?: string
+  endUtc?: string
+  icalUid?: string
   location: string
   employees: Array<{ id?: string; displayName: string }>
   notes: string
@@ -150,6 +154,7 @@ export function createSeedState(): OperationsState {
         category: "Reservation",
         start: atDate(0, "12:30"),
         end: atDate(0, "15:00"),
+        allDay: false,
         location: "Terrace",
         employees: [{ displayName: "Marta" }],
         notes:
@@ -166,6 +171,7 @@ export function createSeedState(): OperationsState {
         category: "Training",
         start: atDate(0, "16:00"),
         end: atDate(0, "17:00"),
+        allDay: false,
         location: "Bar",
         employees: [{ displayName: "Joonas" }],
         notes: "The bar remains open. Training will use the left-hand machine.",
@@ -181,6 +187,7 @@ export function createSeedState(): OperationsState {
         category: "Delivery",
         start: atDate(1, "07:30"),
         end: atDate(1, "08:15"),
+        allDay: false,
         location: "Rear entrance",
         employees: [{ displayName: "Sofia" }],
         notes:
@@ -196,6 +203,7 @@ export function createSeedState(): OperationsState {
         category: "Promotion",
         start: atDate(3, "10:00"),
         end: atDate(3, "23:00"),
+        allDay: false,
         location: "Whole venue",
         employees: [{ displayName: "Anu" }],
         notes:
@@ -212,6 +220,7 @@ export function createSeedState(): OperationsState {
         category: "Maintenance",
         start: atDate(7, "08:00"),
         end: atDate(7, "10:30"),
+        allDay: false,
         location: "Wash area",
         employees: [{ displayName: "Rasmus" }],
         notes: "Use the prep sink only if the engineer confirms it is safe.",
@@ -226,6 +235,7 @@ export function createSeedState(): OperationsState {
         category: "Inspection",
         start: atDate(12, "09:30"),
         end: atDate(12, "11:00"),
+        allDay: false,
         location: "Whole venue",
         employees: [{ displayName: "Marta" }],
         notes: "Keep all corridors and exits fully clear before opening.",
@@ -240,6 +250,7 @@ export function createSeedState(): OperationsState {
         category: "Promotion",
         start: atDate(5, "14:00"),
         end: atDate(5, "15:00"),
+        allDay: false,
         location: "Private room",
         employees: [{ displayName: "Anu" }],
         notes: "Draft only.",
@@ -343,6 +354,28 @@ export function toDateKey(value: string | Date, timeZone = HUB_TIME_ZONE) {
   return `${parts.year}-${parts.month}-${parts.day}`
 }
 
+export function addCalendarDays(value: string, days: number) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return ""
+  const [year, month, day] = value.split("-").map(Number)
+  const result = new Date(Date.UTC(year, month - 1, day + days))
+  return result.toISOString().slice(0, 10)
+}
+
+export function eventLastDateKey(event: CalendarEvent) {
+  const startKey = event.start.slice(0, 10)
+  const endKey = event.end.slice(0, 10)
+  const endsAtMidnight = event.end.slice(11, 16) === "00:00"
+  const lastKey =
+    event.allDay || endsAtMidnight ? addCalendarDays(endKey, -1) : endKey
+  return lastKey < startKey ? startKey : lastKey
+}
+
+export function eventOccursOnDate(event: CalendarEvent, dateKey: string) {
+  return (
+    event.start.slice(0, 10) <= dateKey && eventLastDateKey(event) >= dateKey
+  )
+}
+
 export function startOfToday() {
   const date = new Date()
   date.setHours(0, 0, 0, 0)
@@ -401,6 +434,48 @@ export function formatTime(value: string, timeZone = HUB_TIME_ZONE) {
     minute: "2-digit",
     timeZone: isWallTime ? "UTC" : timeZone,
   }).format(isWallTime ? localWallTimeDate(value) : new Date(value))
+}
+
+export function formatEventDate(
+  event: CalendarEvent,
+  options?: Intl.DateTimeFormatOptions,
+  timeZone = HUB_TIME_ZONE
+) {
+  const startKey = event.start.slice(0, 10)
+  const lastKey = eventLastDateKey(event)
+  const start = formatDate(event.start, options, timeZone)
+  return startKey === lastKey
+    ? start
+    : `${start}–${formatDate(`${lastKey}T00:00`, options, timeZone)}`
+}
+
+export function formatEventTime(
+  event: CalendarEvent,
+  timeZone = HUB_TIME_ZONE
+) {
+  if (event.allDay) return "All day"
+  if (event.startUtc && event.endUtc) {
+    const startZone = formatTimeZoneName(event.startUtc, timeZone)
+    const endZone = formatTimeZoneName(event.endUtc, timeZone)
+    if (event.end <= event.start || startZone !== endZone) {
+      return `${formatTime(event.startUtc, timeZone)} ${startZone}–${formatTime(
+        event.endUtc,
+        timeZone
+      )} ${endZone}`
+    }
+  }
+  return `${formatTime(event.start)}–${formatTime(event.end)}`
+}
+
+function formatTimeZoneName(value: string, timeZone: string) {
+  return (
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      timeZoneName: "short",
+    })
+      .formatToParts(new Date(value))
+      .find((part) => part.type === "timeZoneName")?.value ?? timeZone
+  )
 }
 
 export function slugify(value: string) {

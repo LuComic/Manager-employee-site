@@ -17,7 +17,12 @@ import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Card, CardContent } from "@/components/ui/card"
-import { formatDate, isAnnouncementActive, toDateKey } from "@/lib/operations"
+import {
+  eventOccursOnDate,
+  formatDate,
+  isAnnouncementActive,
+  toDateKey,
+} from "@/lib/operations"
 import {
   defaultTodaySections,
   type TodaySectionKey,
@@ -49,7 +54,7 @@ export default function TodayPage() {
   const timeZone = hub?.timeZone
   const today = toDateKey(new Date(), timeZone)
   const todayEvents = events
-    .filter((event) => event.published && toDateKey(event.start) === today)
+    .filter((event) => event.published && eventOccursOnDate(event, today))
     .sort((a, b) => a.start.localeCompare(b.start))
   const upcomingEvents = events
     .filter((event) => event.published && toDateKey(event.start) > today)
@@ -157,7 +162,7 @@ export default function TodayPage() {
             {todayEvents.length ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 {todayEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCard key={event.id} event={event} timeZone={timeZone} />
                 ))}
               </div>
             ) : (
@@ -208,7 +213,12 @@ export default function TodayPage() {
             {upcomingEvents.length ? (
               <div className="grid gap-3 lg:grid-cols-3">
                 {upcomingEvents.map((event) => (
-                  <EventCard key={event.id} event={event} compact />
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    timeZone={timeZone}
+                    compact
+                  />
                 ))}
               </div>
             ) : (

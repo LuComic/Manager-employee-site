@@ -1,12 +1,32 @@
 import { describe, expect, test } from "bun:test"
 
 import {
+  eventOccursOnDate,
   formatDate,
+  formatEventDate,
+  formatEventTime,
   formatTime,
   getAnnouncementState,
   normalizeReadingTime,
   toDateKey,
+  type CalendarEvent,
 } from "@/lib/operations"
+
+const calendarEvent: CalendarEvent = {
+  id: "event",
+  title: "Event",
+  description: "Description",
+  category: "Training",
+  start: "2026-07-24T00:00",
+  end: "2026-07-27T00:00",
+  allDay: true,
+  location: "Office",
+  employees: [],
+  notes: "",
+  attachments: [],
+  guideIds: [],
+  published: true,
+}
 
 describe("normalizeReadingTime", () => {
   test("adds minutes to a number-only reading time", () => {
@@ -52,5 +72,38 @@ describe("Europe/Tallinn dates", () => {
     expect(
       getAnnouncementState(announcement, new Date("2026-07-19T00:01:00+03:00"))
     ).toBe("Expired")
+  })
+})
+
+describe("calendar event presentation", () => {
+  test("shows all dates covered by a multi-day all-day event", () => {
+    expect(eventOccursOnDate(calendarEvent, "2026-07-23")).toBeFalse()
+    expect(eventOccursOnDate(calendarEvent, "2026-07-24")).toBeTrue()
+    expect(eventOccursOnDate(calendarEvent, "2026-07-25")).toBeTrue()
+    expect(eventOccursOnDate(calendarEvent, "2026-07-26")).toBeTrue()
+    expect(eventOccursOnDate(calendarEvent, "2026-07-27")).toBeFalse()
+    expect(
+      formatEventDate(calendarEvent, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    ).toBe("24/07/2026–26/07/2026")
+  })
+
+  test("disambiguates repeated wall-clock times during DST fallback", () => {
+    expect(
+      formatEventTime(
+        {
+          ...calendarEvent,
+          start: "2026-10-25T03:30",
+          end: "2026-10-25T03:15",
+          startUtc: "2026-10-25T00:30:00.000Z",
+          endUtc: "2026-10-25T01:15:00.000Z",
+          allDay: false,
+        },
+        "Europe/Tallinn"
+      )
+    ).toBe("03:30 EEST–03:15 EET")
   })
 })
