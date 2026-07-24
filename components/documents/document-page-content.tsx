@@ -29,7 +29,10 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
       />
     )
 
-  const resourceHref = document.resource.url
+  const resource = document.resource
+  if (!resource) {
+    throw new Error("Published document is missing a resource")
+  }
 
   return (
     <article className="space-y-6">
@@ -52,16 +55,14 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
         />
       )}
 
-      <div className="max-w-4xl">
-        <Badge variant="secondary">
-          {documentResourceLabel(document.resource)}
-        </Badge>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+      <div className="max-w-4xl space-y-4">
+        <Badge variant="secondary">{documentResourceLabel(resource)}</Badge>
+        <h1 className="text-2xl font-semibold tracking-tight">
           {document.title}
         </h1>
-        <p className="mt-3 text-muted-foreground">{document.description}</p>
+        <p className="text-muted-foreground">{document.description}</p>
         {document.employees.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Users className="size-4 text-muted-foreground" />
             {document.employees.map((employee) => (
               <Badge
@@ -76,38 +77,38 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
       </div>
 
       <Card className="max-w-4xl shadow-none">
-        <CardContent className="flex flex-col gap-5 sm:flex-row sm:items-center">
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span className="flex size-12 shrink-0 items-center justify-center bg-primary/10 text-primary">
-            <DocumentResourceIcon resource={document.resource} />
+            <DocumentResourceIcon resource={resource} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">
-              {document.resource.kind === "file"
-                ? document.resource.name
-                : documentResourceLabel(document.resource)}
+              {resource.kind === "file"
+                ? resource.name
+                : documentResourceLabel(resource)}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {document.resource.kind === "file"
-                ? `${formatFileSize(document.resource.size)} · Opens in a new tab`
+              {resource.kind === "file"
+                ? `${formatFileSize(resource.size)} · Opens in a new tab`
                 : "Shared externally · Opens in a new tab"}
             </p>
           </div>
           <a
-            href={resourceHref}
+            href={resource.url}
             target="_blank"
             rel="noreferrer"
             className={buttonVariants()}
           >
-            {document.resource.kind === "file" ? "Open file" : "Open link"}
+            {resource.kind === "file" ? "Open file" : "Open link"}
             <ExternalLink />
           </a>
         </CardContent>
       </Card>
 
-      {document.resource?.kind === "file" &&
-        document.resource.contentType.startsWith("image/") && (
+      {resource.kind === "file" &&
+        resource.contentType.startsWith("image/") && (
           <a
-            href={document.resource.url}
+            href={resource.url}
             target="_blank"
             rel="noreferrer"
             className="block max-w-4xl outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
@@ -115,10 +116,10 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             <div
               className="aspect-video border bg-muted bg-contain bg-center bg-no-repeat"
               style={{
-                backgroundImage: `url("${document.resource.url}")`,
+                backgroundImage: `url("${resource.url}")`,
               }}
               role="img"
-              aria-label={document.resource.name}
+              aria-label={resource.name}
             />
           </a>
         )}
