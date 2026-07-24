@@ -8,32 +8,31 @@ request. The agent must not merge the pull request or modify `main`.
 
 ## 1. Isolate the task
 
-Each implementation agent must work in its own Git worktree. Never run two
-implementation agents in the same checkout, and never switch branches in the
-primary checkout while another agent is using it.
+Start each implementation task in Codex **Worktree** mode, based on `main`.
+Codex creates and manages the isolated worktree. If the task is already running
+in a Codex-managed worktree, use it; do not create another nested worktree with
+`git worktree add`.
 
-Fetch the remote state and create a uniquely named task branch directly from
+Never run concurrent implementation agents in the shared **Local** checkout.
+Local mode is acceptable for one sequential task only, and that task must
+create and switch to its own branch before editing.
+
+Before editing in a managed worktree, fetch the remote state and verify that
+the task starts cleanly from the current remote `main`:
+
+```sh
+git fetch origin
+test -z "$(git status --porcelain)"
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+```
+
+For the Local-mode fallback, create the task branch directly from
 `origin/main`:
 
 ```sh
 git fetch origin
-
-TASK_BRANCH="codex/<short-task-name>"
-TASK_WORKTREE="$(mktemp -d "/tmp/onboarding-site-${TASK_BRANCH##*/}.XXXXXX")"
-
-git worktree add -b "$TASK_BRANCH" "$TASK_WORKTREE" origin/main
-cd "$TASK_WORKTREE"
-```
-
-Do not create the task branch from a local `main`. Local `main` may contain
-unpublished commits that do not belong in the pull request.
-
-Before editing, verify that the worktree is clean and starts exactly at the
-current remote `main`:
-
-```sh
 test -z "$(git status --porcelain)"
-test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+git switch -c codex/<short-task-name> origin/main
 ```
 
 If either check fails, stop and report the problem. Do not reset, discard, or
@@ -43,6 +42,17 @@ overwrite existing work.
 
 Make only the requested changes. Use `bun` and `bunx` for project commands.
 Run the relevant tests, lint checks, type checks, or build before committing.
+
+When work in a Codex-managed worktree is ready, use **Create branch here** and
+name the branch `codex/<short-task-name>`. The shell equivalent for a detached
+worktree is:
+
+```sh
+git switch -c codex/<short-task-name>
+```
+
+If the worktree is already on its unique task branch, keep using that branch;
+do not create a second branch.
 
 Stage only the files that belong to this task:
 
@@ -71,6 +81,8 @@ working tree must be clean.
 Push only the task branch:
 
 ```sh
+TASK_BRANCH="$(git branch --show-current)"
+test -n "$TASK_BRANCH"
 git push -u origin "$TASK_BRANCH"
 ```
 
