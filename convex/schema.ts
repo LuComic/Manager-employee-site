@@ -1,7 +1,7 @@
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
-import { hubStorageBindingValidator } from "./lib/hub-storage"
+import { hubStorageBindingValidator } from "./lib/hubStorage"
 
 const accessMode = v.union(v.literal("public"), v.literal("restricted"))
 const employeeStatus = v.union(

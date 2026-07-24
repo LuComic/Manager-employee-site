@@ -18,7 +18,7 @@ import {
   discardPendingHubStorage,
   registerHubStorage,
   requirePendingHubStorage,
-} from "./lib/hub-storage"
+} from "./lib/hubStorage"
 import { createNotification } from "./lib/notifications"
 
 const UPLOAD_INTENT_LIFETIME_MS = 15 * 60 * 1_000

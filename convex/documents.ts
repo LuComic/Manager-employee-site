@@ -12,7 +12,7 @@ import {
   deleteReferencedHubStorage,
   requireBoundHubStorage,
   requirePendingHubStorage,
-} from "./lib/hub-storage"
+} from "./lib/hubStorage"
 import {
   createNotification,
   notifyPublicationChange,

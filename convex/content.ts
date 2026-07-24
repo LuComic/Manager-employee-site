@@ -7,7 +7,7 @@ import {
   requireIdentity,
   requireHubPermission,
 } from "./lib/access"
-import { deleteReferencedHubStorage } from "./lib/hub-storage"
+import { deleteReferencedHubStorage } from "./lib/hubStorage"
 import {
   createNotification,
   notifyPublicationChange,
