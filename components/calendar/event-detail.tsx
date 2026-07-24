@@ -23,7 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { formatDate, formatEventTime } from "@/lib/operations"
+import { formatEventDate, formatEventTime } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
@@ -82,14 +82,22 @@ export function EventDetail({ eventId }: { eventId: string }) {
           <Detail
             icon={CalendarDays}
             label="Date"
-            value={formatDate(event.start, {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            value={formatEventDate(
+              event,
+              {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              },
+              hub?.timeZone
+            )}
           />
-          <Detail icon={Clock3} label="Time" value={formatEventTime(event)} />
+          <Detail
+            icon={Clock3}
+            label="Time"
+            value={formatEventTime(event, hub?.timeZone)}
+          />
           <Detail icon={MapPin} label="Location" value={event.location} />
           <Detail
             icon={UsersRound}

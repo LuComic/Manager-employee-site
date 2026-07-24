@@ -147,6 +147,7 @@ export default defineSchema({
     allDay: v.optional(v.boolean()),
     startUtc: v.optional(v.string()),
     endUtc: v.optional(v.string()),
+    icalUid: v.optional(v.string()),
     location: v.string(),
     notes: v.string(),
     published: v.boolean(),

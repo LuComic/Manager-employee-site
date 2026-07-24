@@ -1,17 +1,23 @@
 import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex } from "@noble/hashes/utils.js"
+import ICAL from "ical.js"
 
 import {
+  addCalendarDays,
   eventCategories,
   slugify,
   type CalendarEvent,
   type EventCategory,
 } from "@/lib/operations"
 
-const MAX_IMPORTED_EVENTS = 500
+export const MAX_IMPORTED_EVENTS = 25
+export const MAX_ICALENDAR_FILE_SIZE_BYTES = 1024 * 1024
 const EVENT_TITLE_LIMIT = 140
 const EVENT_DESCRIPTION_LIMIT = 500
 const EVENT_LOCATION_LIMIT = 140
+const EVENT_NOTES_LIMIT = 4000
+const ICALENDAR_UID_LIMIT = 512
+const OPERATIONS_UID_DOMAIN = "operations-hub.local"
 
 type CalendarOptions = {
   calendarName: string
@@ -32,19 +38,20 @@ export type CalendarImportIssue = {
 
 export type CalendarImportResult = {
   events: CalendarEvent[]
+  cancellations: CalendarCancellation[]
   issues: CalendarImportIssue[]
 }
 
-type ContentLine = {
-  name: string
-  params: Record<string, string>
-  value: string
+export type CalendarCancellation = {
+  id: string
+  title: string
 }
 
 type ParsedCalendarDate = {
   local: string
   instant: Date
   allDay: boolean
+  sourceTimeZone?: string
 }
 
 export function serializeICalendar(
@@ -78,28 +85,27 @@ export function parseICalendar(
   { timeZone, published = false }: ImportOptions
 ): CalendarImportResult {
   const issues: CalendarImportIssue[] = []
-  const calendarLines = unfoldLines(source)
-  const eventGroups: ContentLine[][] = []
-  let current: ContentLine[] | null = null
-
-  for (const rawLine of calendarLines) {
-    const line = parseContentLine(rawLine)
-    if (!line) continue
-    if (line.name === "BEGIN" && line.value.toUpperCase() === "VEVENT") {
-      current = []
-      continue
-    }
-    if (line.name === "END" && line.value.toUpperCase() === "VEVENT") {
-      if (current) eventGroups.push(current)
-      current = null
-      continue
-    }
-    if (current) current.push(line)
-  }
-
-  if (!eventGroups.length) {
+  let calendar: ICAL.Component
+  try {
+    calendar = new ICAL.Component(ICAL.parse(source))
+  } catch {
     return {
       events: [],
+      cancellations: [],
+      issues: [
+        {
+          severity: "error",
+          message: "This file is not valid iCalendar data.",
+        },
+      ],
+    }
+  }
+  const eventComponents = calendar.getAllSubcomponents("vevent")
+
+  if (!eventComponents.length) {
+    return {
+      events: [],
+      cancellations: [],
       issues: [
         {
           severity: "error",
@@ -109,7 +115,7 @@ export function parseICalendar(
     }
   }
 
-  if (eventGroups.length > MAX_IMPORTED_EVENTS) {
+  if (eventComponents.length > MAX_IMPORTED_EVENTS) {
     issues.push({
       severity: "warning",
       message: `Only the first ${MAX_IMPORTED_EVENTS} events were read from this file.`,
@@ -117,15 +123,33 @@ export function parseICalendar(
   }
 
   const events: CalendarEvent[] = []
+  const cancellations: CalendarCancellation[] = []
   const seenIds = new Set<string>()
 
-  for (const [index, lines] of eventGroups
+  for (const [index, component] of eventComponents
     .slice(0, MAX_IMPORTED_EVENTS)
     .entries()) {
     try {
+      const status = textValue(component, "status").toUpperCase()
+      if (status === "CANCELLED") {
+        const cancellation = parseCancellation(component)
+        if (seenIds.has(cancellation.id)) {
+          throw new Error(
+            `“${cancellation.title}” has the same calendar identity as another event in this file.`
+          )
+        }
+        seenIds.add(cancellation.id)
+        cancellations.push(cancellation)
+        continue
+      }
+
       const eventWarnings: string[] = []
-      const event = parseEvent(lines, timeZone, published, (message) =>
-        eventWarnings.push(message)
+      const event = parseEvent(
+        component,
+        calendar,
+        timeZone,
+        published,
+        (message) => eventWarnings.push(message)
       )
       if (seenIds.has(event.id)) {
         throw new Error(
@@ -135,7 +159,7 @@ export function parseICalendar(
       seenIds.add(event.id)
       events.push(event)
 
-      if (getLine(lines, "RRULE")) {
+      if (component.hasProperty("rrule")) {
         eventWarnings.push(
           "is recurring and was imported as a single event; recurrence rules are not expanded."
         )
@@ -156,7 +180,7 @@ export function parseICalendar(
     }
   }
 
-  return { events, issues }
+  return { events, cancellations, issues }
 }
 
 export function mergeImportedEvent(
@@ -194,9 +218,14 @@ function serializeEvent(
   uidDomain: string,
   now: Date
 ) {
-  const description = [event.description, event.notes]
+  const calendarDescription = [event.description, event.notes]
     .filter(Boolean)
     .join("\n\nNotes:\n")
+  const uid =
+    event.icalUid ||
+    `${stableEventHash(event.id)}@${
+      safeUid(uidDomain) || OPERATIONS_UID_DOMAIN
+    }`
   const dates = event.allDay
     ? [
         `DTSTART;VALUE=DATE:${formatDateValue(event.start)}`,
@@ -213,11 +242,14 @@ function serializeEvent(
 
   return [
     "BEGIN:VEVENT",
-    `UID:${stableEventHash(event.id)}@${safeUid(uidDomain) || "operations-hub.local"}`,
+    `UID:${escapeText(uid)}`,
     `DTSTAMP:${formatUtcDate(now)}`,
+    `X-OPERATIONS-HUB-ID:${escapeText(event.id)}`,
     ...dates,
     `SUMMARY:${escapeText(event.title)}`,
-    `DESCRIPTION:${escapeText(description)}`,
+    `DESCRIPTION:${escapeText(calendarDescription)}`,
+    `X-OPERATIONS-HUB-DESCRIPTION:${escapeText(event.description)}`,
+    `X-OPERATIONS-HUB-NOTES:${escapeText(event.notes)}`,
     `LOCATION:${escapeText(event.location)}`,
     `CATEGORIES:${escapeText(event.category)}`,
     `STATUS:${event.published ? "CONFIRMED" : "TENTATIVE"}`,
@@ -226,15 +258,15 @@ function serializeEvent(
 }
 
 function parseEvent(
-  lines: ContentLine[],
+  component: ICAL.Component,
+  calendar: ICAL.Component,
   targetTimeZone: string,
   published: boolean,
   warn: (message: string) => void
 ): CalendarEvent {
-  const rawSummary = getValue(lines, "SUMMARY")
-  const summary = unescapeText(rawSummary ?? "").trim()
-  const startLine = getLine(lines, "DTSTART")
-  const endLine = getLine(lines, "DTEND")
+  const summary = textValue(component, "summary").trim()
+  const startProperty = component.getFirstProperty("dtstart")
+  const endProperty = component.getFirstProperty("dtend")
 
   if (!summary) throw new Error("Missing an event title.")
   if (summary.length > EVENT_TITLE_LIMIT) {
@@ -242,12 +274,20 @@ function parseEvent(
       `“${summary.slice(0, 60)}…” failed because its title is ${summary.length} characters; the maximum is ${EVENT_TITLE_LIMIT}.`
     )
   }
-  if (!startLine) throw new Error(`“${summary}” is missing a start date.`)
+  if (!startProperty) throw new Error(`“${summary}” is missing a start date.`)
 
-  const start = parseCalendarDate(startLine, targetTimeZone)
+  const start = parseCalendarDate(startProperty, calendar, targetTimeZone)
   let end: ParsedCalendarDate
-  if (endLine) {
-    end = parseCalendarDate(endLine, targetTimeZone)
+  if (endProperty) {
+    end = parseCalendarDate(endProperty, calendar, targetTimeZone)
+  } else if (component.hasProperty("duration")) {
+    const calculatedEnd = new ICAL.Event(component).endDate
+    end = parseCalendarTime(
+      calculatedEnd,
+      start.sourceTimeZone,
+      calendar,
+      targetTimeZone
+    )
   } else if (start.allDay) {
     const local = `${addCalendarDays(start.local.slice(0, 10), 1)}T00:00`
     end = {
@@ -275,8 +315,12 @@ function parseEvent(
     throw new Error(`“${summary}” ends before it starts.`)
   }
 
-  const rawDescription = unescapeText(
-    getValue(lines, "DESCRIPTION") ?? ""
+  const structuredDescription = textValue(
+    component,
+    "x-operations-hub-description"
+  ).trim()
+  const rawDescription = (
+    structuredDescription || textValue(component, "description")
   ).trim()
   const description = rawDescription || "Imported from an external calendar."
   if (!rawDescription) {
@@ -288,7 +332,18 @@ function parseEvent(
     )
   }
 
-  const rawLocation = unescapeText(getValue(lines, "LOCATION") ?? "").trim()
+  const rawNotes = textValue(component, "x-operations-hub-notes").trim()
+  const notes =
+    rawNotes.length > EVENT_NOTES_LIMIT
+      ? rawNotes.slice(0, EVENT_NOTES_LIMIT)
+      : rawNotes
+  if (rawNotes.length > EVENT_NOTES_LIMIT) {
+    warn(
+      `had notes longer than ${EVENT_NOTES_LIMIT} characters, so they were shortened.`
+    )
+  }
+
+  const rawLocation = textValue(component, "location").trim()
   const location = rawLocation || "No location specified"
   if (!rawLocation) {
     warn("had no location, so “No location specified” was used.")
@@ -299,7 +354,7 @@ function parseEvent(
     )
   }
 
-  const rawCategories = unescapeText(getValue(lines, "CATEGORIES") ?? "")
+  const rawCategories = textValue(component, "categories")
   const category = matchCategory(rawCategories)
   if (!category.matched) {
     warn(
@@ -309,11 +364,13 @@ function parseEvent(
     )
   }
 
-  const uid = getValue(lines, "UID")?.trim()
-  const recurrenceId = getValue(lines, "RECURRENCE-ID")?.trim()
-  const identity = uid
-    ? `uid:${uid}\u0000recurrence:${recurrenceId ?? ""}`
-    : `fallback:${summary}\u0000${start.instant.toISOString()}\u0000${end.instant.toISOString()}`
+  const uid = normalizedUid(component)
+  const recurrenceId = recurrenceIdentity(component)
+  const id = calendarEventId(component, uid, recurrenceId, {
+    summary,
+    start,
+    end,
+  })
   if (!uid) {
     warn(
       "had no UID, so a stable identity was derived from its title and dates; changing those externally may create a new event."
@@ -321,7 +378,7 @@ function parseEvent(
   }
 
   return {
-    id: `external-${stableEventHash(identity)}`,
+    id,
     title: summary,
     description,
     category: category.value,
@@ -336,104 +393,156 @@ function parseEvent(
         }),
     location,
     employees: [],
-    notes: "",
+    notes,
     attachments: [],
     guideIds: [],
     published,
+    ...(uid && !recurrenceId ? { icalUid: uid } : {}),
   }
 }
 
-function getLine(lines: ContentLine[], name: string) {
-  return lines.find((line) => line.name === name)
-}
-
-function getValue(lines: ContentLine[], name: string) {
-  return getLine(lines, name)?.value
-}
-
-function parseContentLine(rawLine: string): ContentLine | null {
-  const separator = rawLine.indexOf(":")
-  if (separator < 0) return null
-  const [rawName, ...rawParams] = rawLine.slice(0, separator).split(";")
-  const params = Object.fromEntries(
-    rawParams.map((param) => {
-      const equals = param.indexOf("=")
-      if (equals < 0) return [param.toUpperCase(), ""]
-      return [
-        param.slice(0, equals).toUpperCase(),
-        param.slice(equals + 1).replace(/^"|"$/g, ""),
-      ]
-    })
-  )
+function parseCancellation(component: ICAL.Component): CalendarCancellation {
+  const uid = normalizedUid(component)
+  if (!uid) {
+    throw new Error("A cancelled event is missing its calendar UID.")
+  }
+  const title = textValue(component, "summary").trim() || "Cancelled event"
+  const recurrenceId = recurrenceIdentity(component)
   return {
-    name: rawName.toUpperCase(),
-    params,
-    value: rawLine.slice(separator + 1),
+    id: calendarEventId(component, uid, recurrenceId),
+    title,
   }
+}
+
+function calendarEventId(
+  component: ICAL.Component,
+  uid: string | undefined,
+  recurrenceId: string,
+  fallback?: {
+    summary: string
+    start: ParsedCalendarDate
+    end: ParsedCalendarDate
+  }
+) {
+  const operationsId = textValue(component, "x-operations-hub-id").trim()
+  const expectedUidPrefix = operationsId
+    ? `${stableEventHash(operationsId)}@`
+    : ""
+  if (
+    operationsId.length <= 100 &&
+    /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/.test(operationsId) &&
+    uid?.startsWith(expectedUidPrefix) &&
+    !recurrenceId
+  ) {
+    return operationsId
+  }
+
+  if (uid) {
+    return `external-${stableEventHash(
+      `uid:${uid}\u0000recurrence:${recurrenceId}`
+    )}`
+  }
+  if (!fallback) {
+    throw new Error("The event has no stable calendar identity.")
+  }
+  return `external-${stableEventHash(
+    `fallback:${fallback.summary}\u0000${fallback.start.instant.toISOString()}\u0000${fallback.end.instant.toISOString()}`
+  )}`
+}
+
+function normalizedUid(component: ICAL.Component) {
+  const uid = textValue(component, "uid").trim()
+  if (!uid) return undefined
+  if (uid.length > ICALENDAR_UID_LIMIT) {
+    throw new Error(
+      `“${uid.slice(0, 60)}…” has a calendar UID longer than ${ICALENDAR_UID_LIMIT} characters.`
+    )
+  }
+  return uid
+}
+
+function recurrenceIdentity(component: ICAL.Component) {
+  const property = component.getFirstProperty("recurrence-id")
+  return property ? property.toICALString() : ""
+}
+
+function textValue(component: ICAL.Component, name: string) {
+  const value = component.getFirstPropertyValue(name)
+  return typeof value === "string" ? value : ""
 }
 
 function parseCalendarDate(
-  line: ContentLine,
+  property: ICAL.Property,
+  calendar: ICAL.Component,
   targetTimeZone: string
 ): ParsedCalendarDate {
-  const value = line.value.trim()
-  const match = value.match(
-    /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?)?(Z)?$/
-  )
-  if (!match) throw new Error(`Unsupported date value “${value}”.`)
-
-  const [, year, month, day, hour, minute, second = "00", utc] = match
-  const allDay =
-    line.params.VALUE?.toUpperCase() === "DATE" || hour === undefined
-  if (line.params.VALUE?.toUpperCase() === "DATE" && hour !== undefined) {
-    throw new Error(`Invalid all-day date value “${value}”.`)
+  const rawValue = property.toJSON()[3]
+  if (typeof rawValue !== "string") {
+    throw new Error(`Unsupported date value in ${property.name.toUpperCase()}.`)
   }
+  assertValidNormalizedCalendarDate(rawValue)
+  const value = property.getFirstValue()
+  if (!(value instanceof ICAL.Time)) {
+    throw new Error(`Unsupported date value “${rawValue}”.`)
+  }
+  const sourceTimeZone = property.getFirstParameter("tzid") || undefined
+  return parseCalendarTime(value, sourceTimeZone, calendar, targetTimeZone)
+}
 
-  assertValidDateParts({
-    value,
-    year,
-    month,
-    day,
-    hour: hour ?? "00",
-    minute: minute ?? "00",
-    second,
-  })
-
-  if (allDay) {
-    const local = `${year}-${month}-${day}T00:00`
+function parseCalendarTime(
+  value: ICAL.Time,
+  sourceTimeZone: string | undefined,
+  calendar: ICAL.Component,
+  targetTimeZone: string
+): ParsedCalendarDate {
+  const normalized = `${fourDigits(value.year)}-${twoDigits(
+    value.month
+  )}-${twoDigits(value.day)}T${twoDigits(value.hour)}:${twoDigits(
+    value.minute
+  )}:${twoDigits(value.second)}`
+  if (value.isDate) {
+    const local = normalized.slice(0, 10) + "T00:00"
     return {
       local,
       instant: zonedDateTimeToDate(`${local}:00`, targetTimeZone),
       allDay: true,
+      sourceTimeZone,
     }
   }
 
-  const normalized = `${year}-${month}-${day}T${hour}:${minute}:${second}`
-  if (utc) {
-    const instant = new Date(
-      Date.UTC(
-        Number(year),
-        Number(month) - 1,
-        Number(day),
-        Number(hour),
-        Number(minute),
-        Number(second)
-      )
-    )
-    return {
-      local: formatInTimeZone(instant, targetTimeZone),
-      instant,
-      allDay: false,
-    }
-  }
-
-  const sourceTimeZone = line.params.TZID || targetTimeZone
-  const instant = zonedDateTimeToDate(normalized, sourceTimeZone)
+  const embeddedTimeZone =
+    sourceTimeZone && calendar.getTimeZoneByID(sourceTimeZone)
+  const instant =
+    value.zone.tzid === "UTC" || embeddedTimeZone
+      ? new Date(value.toUnixTime() * 1000)
+      : zonedDateTimeToDate(normalized, sourceTimeZone || targetTimeZone)
   return {
     local: formatInTimeZone(instant, targetTimeZone),
     instant,
     allDay: false,
+    sourceTimeZone,
   }
+}
+
+function assertValidNormalizedCalendarDate(value: string) {
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})Z?)?$/
+  )
+  if (!match) throw new Error(`Unsupported date value “${value}”.`)
+  const [, year, month, day, hour = "00", minute = "00", second = "00"] = match
+  assertValidDateParts({
+    value: compactCalendarDate(value),
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+  })
+}
+
+function compactCalendarDate(value: string) {
+  return value.replaceAll("-", "").replaceAll(":", "")
 }
 
 function assertValidDateParts({
@@ -475,6 +584,14 @@ function assertValidDateParts({
   }
 }
 
+function twoDigits(value: number) {
+  return String(value).padStart(2, "0")
+}
+
+function fourDigits(value: number) {
+  return String(value).padStart(4, "0")
+}
+
 function matchCategory(value: string): {
   value: EventCategory
   matched: boolean
@@ -489,20 +606,12 @@ function matchCategory(value: string): {
   }
 }
 
-function unfoldLines(source: string) {
-  return source.replace(/\r?\n[ \t]/g, "").split(/\r?\n/)
-}
-
 function escapeText(value: string) {
   return value
     .replaceAll("\\", "\\\\")
     .replace(/\r?\n/g, "\\n")
     .replaceAll(",", "\\,")
     .replaceAll(";", "\\;")
-}
-
-function unescapeText(value: string) {
-  return value.replace(/\\[nN]/g, "\n").replace(/\\([\\,;])/g, "$1")
 }
 
 function safeUid(value: string) {
@@ -640,10 +749,4 @@ function dateTimeParts(date: Date, timeZone: string) {
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value])
   ) as Record<"year" | "month" | "day" | "hour" | "minute" | "second", string>
-}
-
-function addCalendarDays(value: string, days: number) {
-  const [year, month, day] = value.split("-").map(Number)
-  const result = new Date(Date.UTC(year, month - 1, day + days))
-  return result.toISOString().slice(0, 10)
 }

@@ -58,13 +58,35 @@ describe("iCalendar export", () => {
     })
 
     expect(result.events[0]).toMatchObject({
+      id: event.id,
       title: event.title,
+      description: event.description,
+      notes: event.notes,
       start: event.start,
       end: event.end,
       allDay: false,
       location: event.location,
       category: event.category,
     })
+  })
+
+  test("keeps long descriptions and notes in separate fields", () => {
+    const detailedEvent: CalendarEvent = {
+      ...event,
+      description: "D".repeat(500),
+      notes: "N".repeat(4000),
+    }
+    const result = parseICalendar(
+      serializeICalendar([detailedEvent], {
+        calendarName: "Venue calendar",
+        timeZone: "Europe/Tallinn",
+      }),
+      { timeZone: "Europe/Tallinn" }
+    )
+
+    expect(result.issues).toEqual([])
+    expect(result.events[0]?.description).toBe(detailedEvent.description)
+    expect(result.events[0]?.notes).toBe(detailedEvent.notes)
   })
 
   test("keeps all-day events all day across export and import", () => {
@@ -128,6 +150,72 @@ describe("iCalendar import", () => {
       published: false,
     })
     expect(result.events[0]?.id).toMatch(/^external-[a-f0-9]{64}$/)
+  })
+
+  test("uses embedded Outlook VTIMEZONE definitions", () => {
+    const result = parseICalendar(
+      [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "BEGIN:VTIMEZONE",
+        "TZID:FLE Standard Time",
+        "BEGIN:STANDARD",
+        "DTSTART:19701025T040000",
+        "TZOFFSETFROM:+0300",
+        "TZOFFSETTO:+0200",
+        "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU",
+        "END:STANDARD",
+        "BEGIN:DAYLIGHT",
+        "DTSTART:19700329T030000",
+        "TZOFFSETFROM:+0200",
+        "TZOFFSETTO:+0300",
+        "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU",
+        "END:DAYLIGHT",
+        "END:VTIMEZONE",
+        "BEGIN:VEVENT",
+        "UID:outlook-event",
+        "DTSTART;TZID=FLE Standard Time:20260724T100000",
+        "DTEND;TZID=FLE Standard Time:20260724T110000",
+        "SUMMARY:Outlook event",
+        "DESCRIPTION:Imported from Outlook",
+        "LOCATION:Office",
+        "CATEGORIES:Training",
+        "END:VEVENT",
+        "END:VCALENDAR",
+      ].join("\r\n"),
+      { timeZone: "Europe/Tallinn" }
+    )
+
+    expect(result.issues).toEqual([])
+    expect(result.events[0]).toMatchObject({
+      start: "2026-07-24T10:00",
+      end: "2026-07-24T11:00",
+      startUtc: "2026-07-24T07:00:00.000Z",
+      endUtc: "2026-07-24T08:00:00.000Z",
+    })
+  })
+
+  test("returns cancellations separately from importable events", () => {
+    const active = parseICalendar(
+      calendar(eventLines("cancelled-uid", "Scheduled event").slice(1, -1)),
+      { timeZone: "UTC" }
+    )
+    const cancelled = parseICalendar(
+      calendar([
+        "UID:cancelled-uid",
+        "STATUS:CANCELLED",
+        "SUMMARY:Scheduled event",
+      ]),
+      { timeZone: "UTC" }
+    )
+
+    expect(cancelled.events).toEqual([])
+    expect(cancelled.cancellations).toEqual([
+      {
+        id: active.events[0]?.id,
+        title: "Scheduled event",
+      },
+    ])
   })
 
   test("imports all-day events and defaults their exclusive end", () => {
@@ -295,6 +383,25 @@ describe("iCalendar import", () => {
       severity: "error",
       message:
         "Event 1: “Too much detail” failed because its description is 501 characters; the maximum is 500.",
+    })
+  })
+
+  test("limits free-tier imports to a bounded number of calendar changes", () => {
+    const result = parseICalendar(
+      [
+        "BEGIN:VCALENDAR",
+        ...Array.from({ length: 30 }, (_, index) =>
+          eventLines(`event-${index}`, `Event ${index}`)
+        ).flat(),
+        "END:VCALENDAR",
+      ].join("\r\n"),
+      { timeZone: "UTC" }
+    )
+
+    expect(result.events).toHaveLength(25)
+    expect(result.issues).toContainEqual({
+      severity: "warning",
+      message: "Only the first 25 events were read from this file.",
     })
   })
 })

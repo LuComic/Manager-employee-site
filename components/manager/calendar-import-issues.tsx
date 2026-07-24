@@ -38,6 +38,7 @@ export function CalendarImportIssues({
           title={preview ? "Example failed event" : "Could not import"}
           issues={errors}
           tone="error"
+          announce={!preview}
         />
       )}
       {warnings.length > 0 && (
@@ -55,16 +56,18 @@ function IssueGroup({
   title,
   issues,
   tone,
+  announce = true,
 }: {
   title: string
   issues: CalendarImportIssue[]
   tone: "error" | "warning"
+  announce?: boolean
 }) {
   const Icon = tone === "error" ? CircleAlert : TriangleAlert
 
   return (
     <section
-      role={tone === "error" ? "alert" : "status"}
+      role={announce ? (tone === "error" ? "alert" : "status") : undefined}
       className={
         tone === "error"
           ? "border border-destructive/30 bg-destructive/5 p-3"

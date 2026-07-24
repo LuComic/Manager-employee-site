@@ -1010,6 +1010,7 @@ describe("Organization employees, invitations, and event links", () => {
       allDay: false,
       startUtc: "2026-10-25T00:30:00.000Z",
       endUtc: "2026-10-25T01:15:00.000Z",
+      icalUid: "outlook-event@example.test",
     })
 
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
@@ -1030,6 +1031,7 @@ describe("Organization employees, invitations, and event links", () => {
       allDay: false,
       startUtc: "2026-10-25T00:30:00.000Z",
       endUtc: "2026-10-25T01:15:00.000Z",
+      icalUid: "outlook-event@example.test",
     })
 
     await expect(

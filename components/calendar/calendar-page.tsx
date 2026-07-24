@@ -30,11 +30,13 @@ import {
 } from "@/components/ui/select"
 import {
   eventCategories,
-  formatDate,
+  eventLastDateKey,
+  eventOccursOnDate,
+  formatEventDate,
   formatEventTime,
   formatTime,
-  toDateKey,
   type EventCategory,
+  toDateKey,
 } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
@@ -69,14 +71,16 @@ export function CalendarPage() {
       event.published && (category === "All" || event.category === category)
   )
   const allPublished = events.filter((event) => event.published)
+  const visibleMonthStart = calendarKey(firstOfMonth(visibleDate))
+  const visibleMonthEnd = calendarKey(
+    new Date(visibleDate.getFullYear(), visibleDate.getMonth() + 1, 0)
+  )
   const monthEvents = published
-    .filter((event) => {
-      const [year, month] = toDateKey(event.start).split("-").map(Number)
-      return (
-        year === visibleDate.getFullYear() &&
-        month - 1 === visibleDate.getMonth()
-      )
-    })
+    .filter(
+      (event) =>
+        event.start.slice(0, 10) <= visibleMonthEnd &&
+        eventLastDateKey(event) >= visibleMonthStart
+    )
     .sort((a, b) => a.start.localeCompare(b.start))
 
   const days = useMemo(() => {
@@ -201,8 +205,8 @@ export function CalendarPage() {
             <div className="grid grid-cols-7">
               {days.map((day) => {
                 const key = calendarKey(day)
-                const dayEvents = published.filter(
-                  (event) => toDateKey(event.start) === key
+                const dayEvents = published.filter((event) =>
+                  eventOccursOnDate(event, key)
                 )
                 const inMonth = day.getMonth() === visibleDate.getMonth()
                 const isToday = key === todayKey
@@ -231,7 +235,12 @@ export function CalendarPage() {
                           className="block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
                         >
                           <span className="block truncate">
-                            {event.allDay ? "All day" : formatTime(event.start)}{" "}
+                            {event.allDay
+                              ? "All day"
+                              : formatTime(
+                                  event.startUtc ?? event.start,
+                                  hub?.timeZone
+                                )}{" "}
                             {event.title}
                           </span>
                         </Link>
@@ -257,9 +266,11 @@ export function CalendarPage() {
               className="group flex flex-col gap-4 border bg-background p-4 outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex-row sm:items-center"
             >
               <div className="sm:w-40">
-                <p className="font-semibold">{formatDate(event.start)}</p>
+                <p className="font-semibold">
+                  {formatEventDate(event, undefined, hub?.timeZone)}
+                </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatEventTime(event)}
+                  {formatEventTime(event, hub?.timeZone)}
                 </p>
               </div>
               <div className="min-w-0 flex-1">
@@ -291,7 +302,12 @@ export function CalendarPage() {
           <h2 className="mb-4 text-xl font-semibold">This month</h2>
           <div className="grid gap-3 lg:grid-cols-2">
             {monthEvents.slice(0, 4).map((event) => (
-              <EventCard key={event.id} event={event} compact />
+              <EventCard
+                key={event.id}
+                event={event}
+                timeZone={hub?.timeZone}
+                compact
+              />
             ))}
           </div>
         </section>

@@ -42,14 +42,18 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  MAX_ICALENDAR_FILE_SIZE_BYTES,
+  MAX_IMPORTED_EVENTS,
   mergeImportedEvent,
   parseICalendar,
+  type CalendarCancellation,
   type CalendarImportIssue,
   type CalendarImportResult,
 } from "@/lib/icalendar"
 import {
+  addCalendarDays,
   eventCategories,
-  formatDate,
+  formatEventDate,
   formatEventTime,
   slugify,
   toLocalDateTimeValue,
@@ -119,6 +123,9 @@ export function EventManager() {
     completed: number
     total: number
   } | null>(null)
+  const importReadyCount =
+    (importResult?.events.length ?? 0) +
+    (importResult?.cancellations.length ?? 0)
   const visible = useMemo(
     () =>
       events
@@ -193,8 +200,8 @@ export function EventManager() {
   async function readCalendarFile(file?: File) {
     resetImport()
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setImportError("Choose a calendar file smaller than 5 MB.")
+    if (file.size > MAX_ICALENDAR_FILE_SIZE_BYTES) {
+      setImportError("Choose a calendar file no larger than 1 MB.")
       return
     }
     if (
@@ -216,12 +223,20 @@ export function EventManager() {
   }
 
   async function importEvents() {
-    if (!importResult?.events.length) return
+    if (
+      !importResult ||
+      (!importResult.events.length && !importResult.cancellations.length)
+    )
+      return
     const pendingResult = importResult
-    const total = pendingResult.events.length
+    const total =
+      pendingResult.events.length + pendingResult.cancellations.length
     const failedEvents: CalendarEvent[] = []
+    const failedCancellations: CalendarCancellation[] = []
     const saveIssues: CalendarImportIssue[] = []
     let importedCount = 0
+    let cancelledCount = 0
+    let skippedCancellationCount = 0
     setImporting(true)
     setImportSaveIssues([])
     setImportOutcome("")
@@ -245,30 +260,76 @@ export function EventManager() {
           )
         }
       }
+      for (const cancellation of pendingResult.cancellations) {
+        const existing = existingById.get(cancellation.id)
+        if (!existing) {
+          skippedCancellationCount += 1
+          saveIssues.push({
+            severity: "warning",
+            message: `“${cancellation.title}” was cancelled externally, but no matching local event was found.`,
+          })
+          setImportProgress((current) =>
+            current ? { ...current, completed: current.completed + 1 } : current
+          )
+          continue
+        }
+        try {
+          await saveEvent({ ...existing, published: false })
+          cancelledCount += 1
+        } catch (error) {
+          failedCancellations.push(cancellation)
+          saveIssues.push({
+            severity: "error",
+            message: importCancellationFailureMessage(cancellation, error),
+          })
+        } finally {
+          setImportProgress((current) =>
+            current ? { ...current, completed: current.completed + 1 } : current
+          )
+        }
+      }
       const fileErrors = pendingResult.issues.filter(
         (issue) => issue.severity === "error"
       ).length
-      if (saveIssues.length || fileErrors) {
+      const saveErrors = saveIssues.filter(
+        (issue) => issue.severity === "error"
+      ).length
+      const needsReview = saveIssues.length > 0 || fileErrors > 0
+      const outcome = [
+        `${importedCount} ${
+          importedCount === 1 ? "event was" : "events were"
+        } imported.`,
+        cancelledCount
+          ? `${cancelledCount} ${
+              cancelledCount === 1 ? "cancellation was" : "cancellations were"
+            } applied.`
+          : "",
+        skippedCancellationCount
+          ? `${skippedCancellationCount} unmatched ${
+              skippedCancellationCount === 1
+                ? "cancellation was"
+                : "cancellations were"
+            } skipped.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+      if (needsReview) {
         setImportSaveIssues(saveIssues)
-        setImportResult({ ...pendingResult, events: failedEvents })
-        setImportOutcome(
-          `${importedCount} ${
-            importedCount === 1 ? "event was" : "events were"
-          } imported successfully. ${
-            saveIssues.length + fileErrors
-          } need attention.`
-        )
+        setImportResult({
+          ...pendingResult,
+          events: failedEvents,
+          cancellations: failedCancellations,
+        })
+        setImportOutcome(outcome)
+        const attentionCount = saveErrors + fileErrors
         showFeedback(
-          `${importedCount} imported; ${
-            saveIssues.length + fileErrors
-          } need attention.`
+          attentionCount > 0
+            ? `${outcome} ${attentionCount} need attention.`
+            : outcome
         )
       } else {
-        showFeedback(
-          `${importedCount} ${
-            importedCount === 1 ? "event" : "events"
-          } imported.`
-        )
+        showFeedback(outcome)
         setImportOpen(false)
         resetImport()
       }
@@ -374,8 +435,8 @@ export function EventManager() {
                     <Badge variant="secondary">{event.category}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {formatDate(event.start)}, {formatEventTime(event)} ·{" "}
-                    {event.location}
+                    {formatEventDate(event, undefined, hub?.timeZone)},{" "}
+                    {formatEventTime(event, hub?.timeZone)} · {event.location}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -800,6 +861,14 @@ export function EventManager() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="border border-warning/40 bg-warning/10 p-3 text-sm">
+              <p className="font-semibold">Small-project import limits</p>
+              <p className="mt-1 text-muted-foreground">
+                Files can be up to 1 MB and the first {MAX_IMPORTED_EVENTS}{" "}
+                calendar changes are processed. Publishing imported events may
+                add one employee notification per event.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="calendar-import">iCalendar file</Label>
               <Input
@@ -813,26 +882,35 @@ export function EventManager() {
                 className="border border-input px-3"
               />
             </div>
-            {importResult?.events.length ? (
+            {importReadyCount ? (
               <div className="border bg-muted/30 p-4">
                 <p className="font-semibold">
-                  {importResult.events.length}{" "}
-                  {importResult.events.length === 1 ? "event" : "events"} ready
-                  to import
+                  {importReadyCount} calendar{" "}
+                  {importReadyCount === 1 ? "change" : "changes"} ready
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {importFileName}
                 </p>
                 <ul className="mt-3 space-y-1 text-sm">
-                  {importResult.events.slice(0, 5).map((event) => (
+                  {importResult?.events.slice(0, 5).map((event) => (
                     <li key={event.id}>
-                      {formatDate(event.start)} · {event.title}
+                      {formatEventDate(event, undefined, hub?.timeZone)} ·{" "}
+                      {event.title}
                       {event.allDay ? " · All day" : ""}
                     </li>
                   ))}
-                  {importResult.events.length > 5 && (
+                  {(importResult?.cancellations.length ?? 0) > 0 && (
+                    <li className="text-warning">
+                      {importResult?.cancellations.length} external{" "}
+                      {importResult?.cancellations.length === 1
+                        ? "cancellation"
+                        : "cancellations"}{" "}
+                      will unpublish matching local events
+                    </li>
+                  )}
+                  {(importResult?.events.length ?? 0) > 5 && (
                     <li className="text-muted-foreground">
-                      +{importResult.events.length - 5} more
+                      +{(importResult?.events.length ?? 0) - 5} more
                     </li>
                   )}
                 </ul>
@@ -883,17 +961,17 @@ export function EventManager() {
                 resetImport()
               }}
             >
-              {importOutcome && !importResult?.events.length ? "Done" : "Cancel"}
+              {importOutcome && !importReadyCount ? "Done" : "Cancel"}
             </Button>
             <Button
               type="button"
-              disabled={!importResult?.events.length || importing}
+              disabled={!importReadyCount || importing}
               onClick={() => void importEvents()}
             >
               {importing && importProgress
                 ? `Importing ${importProgress.completed} of ${importProgress.total}…`
-                : `Import ${importResult?.events.length ?? 0} ${
-                    importResult?.events.length === 1 ? "event" : "events"
+                : `Apply ${importReadyCount} calendar ${
+                    importReadyCount === 1 ? "change" : "changes"
                   }`}
             </Button>
           </DialogFooter>
@@ -969,19 +1047,24 @@ function updateAllDayStart(event: CalendarEvent, value: string): CalendarEvent {
   }
 }
 
-function addCalendarDays(value: string, days: number) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return ""
-  const [year, month, day] = value.split("-").map(Number)
-  const result = new Date(Date.UTC(year, month - 1, day + days))
-  return result.toISOString().slice(0, 10)
-}
-
 function importFailureMessage(event: CalendarEvent, error: unknown) {
   const fallback = "The event could not be saved. Try again."
   if (!(error instanceof Error)) return `“${event.title}” failed: ${fallback}`
   const match = error.message.match(/(?:Uncaught )?Error:\s*([^\n]+)/)
   const message = (match?.[1] ?? error.message).trim() || fallback
   return `“${event.title}” failed: ${message}`
+}
+
+function importCancellationFailureMessage(
+  cancellation: CalendarCancellation,
+  error: unknown
+) {
+  const fallback = "The cancellation could not be applied. Try again."
+  if (!(error instanceof Error))
+    return `“${cancellation.title}” failed: ${fallback}`
+  const match = error.message.match(/(?:Uncaught )?Error:\s*([^\n]+)/)
+  const message = (match?.[1] ?? error.message).trim() || fallback
+  return `“${cancellation.title}” failed: ${message}`
 }
 
 function Field({

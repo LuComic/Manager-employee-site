@@ -249,6 +249,7 @@ export const saveEvent = mutation({
     allDay: v.optional(v.boolean()),
     startUtc: v.optional(v.union(v.string(), v.null())),
     endUtc: v.optional(v.union(v.string(), v.null())),
+    icalUid: v.optional(v.union(v.string(), v.null())),
     location: v.string(),
     employeeProfileIds: v.optional(v.array(v.id("employeeProfiles"))),
     notes: v.string(),
@@ -298,6 +299,9 @@ export const saveEvent = mutation({
       allDay: args.allDay ?? false,
       startUtc: args.startUtc ?? undefined,
       endUtc: args.endUtc ?? undefined,
+      icalUid: args.icalUid
+        ? required(args.icalUid, "iCalendar UID", 512)
+        : undefined,
       location: required(args.location, "Event location", 140),
       notes: args.notes.trim().slice(0, 4000),
       published: args.published,

@@ -10,16 +10,18 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  formatDate,
+  formatEventDate,
   formatEventTime,
   type CalendarEvent,
 } from "@/lib/operations"
 
 export function EventCard({
   event,
+  timeZone,
   compact = false,
 }: {
   event: CalendarEvent
+  timeZone?: string
   compact?: boolean
 }) {
   return (
@@ -41,8 +43,9 @@ export function EventCard({
         <CardFooter className="mt-auto flex-wrap justify-between gap-4 text-xs text-muted-foreground">
           <span className="flex flex-wrap items-center gap-4">
             <span className="flex items-center gap-2">
-              <Clock3 className="size-4" /> {formatDate(event.start)},{" "}
-              {formatEventTime(event)}
+              <Clock3 className="size-4" />{" "}
+              {formatEventDate(event, undefined, timeZone)},{" "}
+              {formatEventTime(event, timeZone)}
             </span>
             <span className="flex items-center gap-2">
               <MapPin className="size-4" /> {event.location}

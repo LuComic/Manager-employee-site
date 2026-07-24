@@ -213,6 +213,7 @@ export async function buildSnapshot(
       allDay: event.allDay ?? false,
       ...(event.startUtc ? { startUtc: event.startUtc } : {}),
       ...(event.endUtc ? { endUtc: event.endUtc } : {}),
+      ...(event.icalUid ? { icalUid: event.icalUid } : {}),
       location: event.location,
       employees: (employeesByEventId.get(event._id) ?? []).map((employee) =>
         options.includeDrafts ? employee : { displayName: employee.displayName }
