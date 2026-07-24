@@ -31,6 +31,7 @@ import {
 import {
   eventCategories,
   formatDate,
+  formatEventTime,
   formatTime,
   toDateKey,
   type EventCategory,
@@ -230,7 +231,8 @@ export function CalendarPage() {
                           className="block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
                         >
                           <span className="block truncate">
-                            {formatTime(event.start)} {event.title}
+                            {event.allDay ? "All day" : formatTime(event.start)}{" "}
+                            {event.title}
                           </span>
                         </Link>
                       ))}
@@ -257,7 +259,7 @@ export function CalendarPage() {
               <div className="sm:w-40">
                 <p className="font-semibold">{formatDate(event.start)}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatTime(event.start)}–{formatTime(event.end)}
+                  {formatEventTime(event)}
                 </p>
               </div>
               <div className="min-w-0 flex-1">

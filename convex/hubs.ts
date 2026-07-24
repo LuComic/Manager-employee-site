@@ -134,6 +134,7 @@ async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
       category: event.category,
       start: event.start,
       end: event.end,
+      allDay: event.allDay,
       location: event.location,
       notes: event.notes,
       published: event.published,

@@ -9,7 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { formatDate, formatTime, type CalendarEvent } from "@/lib/operations"
+import {
+  formatDate,
+  formatEventTime,
+  type CalendarEvent,
+} from "@/lib/operations"
 
 export function EventCard({
   event,
@@ -38,7 +42,7 @@ export function EventCard({
           <span className="flex flex-wrap items-center gap-4">
             <span className="flex items-center gap-2">
               <Clock3 className="size-4" /> {formatDate(event.start)},{" "}
-              {formatTime(event.start)}
+              {formatEventTime(event)}
             </span>
             <span className="flex items-center gap-2">
               <MapPin className="size-4" /> {event.location}

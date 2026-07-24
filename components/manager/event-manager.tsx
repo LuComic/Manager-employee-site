@@ -12,6 +12,10 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import {
+  CalendarImportIssues,
+  calendarImportErrorPreview,
+} from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -37,11 +41,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { parseICalendar, type CalendarImportResult } from "@/lib/icalendar"
+import {
+  mergeImportedEvent,
+  parseICalendar,
+  type CalendarImportIssue,
+  type CalendarImportResult,
+} from "@/lib/icalendar"
 import {
   eventCategories,
   formatDate,
-  formatTime,
+  formatEventTime,
   slugify,
   toLocalDateTimeValue,
   type CalendarEvent,
@@ -63,6 +72,7 @@ function newEvent(location = ""): CalendarEvent {
     category: "Reservation",
     start: toLocalDateTimeValue(start),
     end: toLocalDateTimeValue(end),
+    allDay: false,
     location,
     employees: [],
     notes: "",
@@ -101,6 +111,14 @@ export function EventManager() {
   const [importError, setImportError] = useState("")
   const [importing, setImporting] = useState(false)
   const [publishImported, setPublishImported] = useState(false)
+  const [importSaveIssues, setImportSaveIssues] = useState<
+    CalendarImportIssue[]
+  >([])
+  const [importOutcome, setImportOutcome] = useState("")
+  const [importProgress, setImportProgress] = useState<{
+    completed: number
+    total: number
+  } | null>(null)
   const visible = useMemo(
     () =>
       events
@@ -138,7 +156,7 @@ export function EventManager() {
       return setError("Add a title, description, and location.")
     if (!editing.start || !editing.end)
       return setError("Add a start and end date and time.")
-    if (new Date(editing.end) <= new Date(editing.start))
+    if (!eventEndsAfterStart(editing))
       return setError("The end must be later than the start.")
     let id = editing.id || slugify(editing.title)
     if (!editing.id && events.some((event) => event.id === id))
@@ -167,6 +185,9 @@ export function EventManager() {
     setImportFileName("")
     setImportError("")
     setPublishImported(false)
+    setImportSaveIssues([])
+    setImportOutcome("")
+    setImportProgress(null)
   }
 
   async function readCalendarFile(file?: File) {
@@ -189,11 +210,6 @@ export function EventManager() {
       })
       setImportFileName(file.name)
       setImportResult(result)
-      if (!result.events.length) {
-        setImportError(
-          result.errors[0] ?? "No importable events were found in this file."
-        )
-      }
     } catch {
       setImportError("This calendar file could not be read.")
     }
@@ -201,25 +217,64 @@ export function EventManager() {
 
   async function importEvents() {
     if (!importResult?.events.length) return
+    const pendingResult = importResult
+    const total = pendingResult.events.length
+    const failedEvents: CalendarEvent[] = []
+    const saveIssues: CalendarImportIssue[] = []
+    let importedCount = 0
     setImporting(true)
+    setImportSaveIssues([])
+    setImportOutcome("")
+    setImportProgress({ completed: 0, total })
     try {
       const existingById = new Map(events.map((event) => [event.id, event]))
-      for (const event of importResult.events) {
+      for (const event of pendingResult.events) {
         const existing = existingById.get(event.id)
-        await saveEvent({
-          ...event,
-          published: publishImported || existing?.published || false,
-        })
+        try {
+          await saveEvent(mergeImportedEvent(event, existing, publishImported))
+          importedCount += 1
+        } catch (error) {
+          failedEvents.push(event)
+          saveIssues.push({
+            severity: "error",
+            message: importFailureMessage(event, error),
+          })
+        } finally {
+          setImportProgress((current) =>
+            current ? { ...current, completed: current.completed + 1 } : current
+          )
+        }
       }
-      showFeedback(
-        `${importResult.events.length} ${
-          importResult.events.length === 1 ? "event" : "events"
-        } imported.`
-      )
-      setImportOpen(false)
-      resetImport()
+      const fileErrors = pendingResult.issues.filter(
+        (issue) => issue.severity === "error"
+      ).length
+      if (saveIssues.length || fileErrors) {
+        setImportSaveIssues(saveIssues)
+        setImportResult({ ...pendingResult, events: failedEvents })
+        setImportOutcome(
+          `${importedCount} ${
+            importedCount === 1 ? "event was" : "events were"
+          } imported successfully. ${
+            saveIssues.length + fileErrors
+          } need attention.`
+        )
+        showFeedback(
+          `${importedCount} imported; ${
+            saveIssues.length + fileErrors
+          } need attention.`
+        )
+      } else {
+        showFeedback(
+          `${importedCount} ${
+            importedCount === 1 ? "event" : "events"
+          } imported.`
+        )
+        setImportOpen(false)
+        resetImport()
+      }
     } finally {
       setImporting(false)
+      setImportProgress(null)
     }
   }
 
@@ -319,7 +374,7 @@ export function EventManager() {
                     <Badge variant="secondary">{event.category}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {formatDate(event.start)}, {formatTime(event.start)} ·{" "}
+                    {formatDate(event.start)}, {formatEventTime(event)} ·{" "}
                     {event.location}
                   </p>
                 </div>
@@ -453,28 +508,82 @@ export function EventManager() {
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field label="Starts" id="event-start">
+                <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={editing.allDay}
+                    onChange={(event) =>
+                      setEditing(
+                        toggleAllDayEvent(editing, event.target.checked)
+                      )
+                    }
+                  />
+                  All-day event
+                </label>
+                <Field
+                  label={editing.allDay ? "Start date" : "Starts"}
+                  id="event-start"
+                >
                   <Input
                     id="event-start"
-                    type="datetime-local"
-                    value={editing.start}
-                    onChange={(event) =>
-                      setEditing({ ...editing, start: event.target.value })
+                    type={editing.allDay ? "date" : "datetime-local"}
+                    value={
+                      editing.allDay
+                        ? editing.start.slice(0, 10)
+                        : editing.start
                     }
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setEditing(
+                        editing.allDay
+                          ? updateAllDayStart(editing, value)
+                          : clearEventInstants({
+                              ...editing,
+                              start: value,
+                            })
+                      )
+                    }}
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field label="Ends" id="event-end">
+                <Field
+                  label={editing.allDay ? "Last day" : "Ends"}
+                  id="event-end"
+                >
                   <Input
                     id="event-end"
-                    type="datetime-local"
-                    value={editing.end}
-                    onChange={(event) =>
-                      setEditing({ ...editing, end: event.target.value })
+                    type={editing.allDay ? "date" : "datetime-local"}
+                    min={
+                      editing.allDay ? editing.start.slice(0, 10) : undefined
                     }
+                    value={
+                      editing.allDay
+                        ? addCalendarDays(editing.end.slice(0, 10), -1)
+                        : editing.end
+                    }
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setEditing(
+                        editing.allDay
+                          ? {
+                              ...editing,
+                              end: `${addCalendarDays(value, 1)}T00:00`,
+                            }
+                          : clearEventInstants({
+                              ...editing,
+                              end: value,
+                            })
+                      )
+                    }}
                     className="border border-input px-3"
                   />
                 </Field>
+                {editing.allDay && (
+                  <p className="text-xs text-muted-foreground sm:col-span-2">
+                    All-day events remain all day when imported and exported.
+                    The last day is inclusive.
+                  </p>
+                )}
                 <Field label="Add attachments" id="event-attachments">
                   <Input
                     id="event-attachments"
@@ -675,6 +784,7 @@ export function EventManager() {
       <Dialog
         open={importOpen}
         onOpenChange={(open) => {
+          if (importing) return
           setImportOpen(open)
           if (!open) resetImport()
         }}
@@ -684,8 +794,9 @@ export function EventManager() {
             <DialogTitle>Import calendar events</DialogTitle>
             <DialogDescription>
               Upload an .ics file exported from Google Calendar, Apple Calendar,
-              Outlook, or another iCalendar app. Re-importing the same events
-              updates their details.
+              Outlook, or another iCalendar app. Re-importing updates calendar
+              details while preserving manager-owned categories, publishing,
+              assignments, notes, attachments, and guide links.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -695,6 +806,7 @@ export function EventManager() {
                 id="calendar-import"
                 type="file"
                 accept=".ics,text/calendar"
+                disabled={importing}
                 onChange={(event) =>
                   void readCalendarFile(event.target.files?.[0])
                 }
@@ -715,6 +827,7 @@ export function EventManager() {
                   {importResult.events.slice(0, 5).map((event) => (
                     <li key={event.id}>
                       {formatDate(event.start)} · {event.title}
+                      {event.allDay ? " · All day" : ""}
                     </li>
                   ))}
                   {importResult.events.length > 5 && (
@@ -725,16 +838,25 @@ export function EventManager() {
                 </ul>
               </div>
             ) : null}
-            {importResult?.events.length && importResult.errors.length ? (
-              <div className="text-sm text-warning">
-                <p className="font-semibold">Some items need attention</p>
-                <ul className="mt-1 list-disc space-y-1 pl-5">
-                  {importResult.errors.slice(0, 3).map((message, index) => (
-                    <li key={`${message}-${index}`}>{message}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
+            {!importResult && !importError && (
+              <CalendarImportIssues
+                issues={calendarImportErrorPreview}
+                preview
+              />
+            )}
+            {importResult && (
+              <CalendarImportIssues
+                issues={[...importResult.issues, ...importSaveIssues]}
+              />
+            )}
+            {importOutcome && (
+              <p
+                role="status"
+                className="border border-success/30 bg-success/10 p-3 text-sm font-medium"
+              >
+                {importOutcome}
+              </p>
+            )}
             {importResult?.events.length ? (
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -755,20 +877,21 @@ export function EventManager() {
             <Button
               type="button"
               variant="outline"
+              disabled={importing}
               onClick={() => {
                 setImportOpen(false)
                 resetImport()
               }}
             >
-              Cancel
+              {importOutcome && !importResult?.events.length ? "Done" : "Cancel"}
             </Button>
             <Button
               type="button"
               disabled={!importResult?.events.length || importing}
               onClick={() => void importEvents()}
             >
-              {importing
-                ? "Importing…"
+              {importing && importProgress
+                ? `Importing ${importProgress.completed} of ${importProgress.total}…`
                 : `Import ${importResult?.events.length ?? 0} ${
                     importResult?.events.length === 1 ? "event" : "events"
                   }`}
@@ -791,6 +914,74 @@ export function EventManager() {
       />
     </div>
   )
+}
+
+function eventEndsAfterStart(event: CalendarEvent) {
+  if (event.startUtc && event.endUtc) {
+    const start = new Date(event.startUtc).getTime()
+    const end = new Date(event.endUtc).getTime()
+    if (!Number.isNaN(start) && !Number.isNaN(end)) return end > start
+  }
+  return event.end > event.start
+}
+
+function clearEventInstants(event: CalendarEvent): CalendarEvent {
+  return {
+    ...event,
+    startUtc: undefined,
+    endUtc: undefined,
+  }
+}
+
+function toggleAllDayEvent(
+  event: CalendarEvent,
+  allDay: boolean
+): CalendarEvent {
+  const startDate = event.start.slice(0, 10)
+  const endDate = event.end.slice(0, 10)
+
+  if (allDay) {
+    const lastDay = endDate >= startDate ? endDate : startDate
+    return {
+      ...clearEventInstants(event),
+      allDay: true,
+      start: `${startDate}T00:00`,
+      end: `${addCalendarDays(lastDay, 1)}T00:00`,
+    }
+  }
+
+  const lastDay = addCalendarDays(endDate, -1)
+  return {
+    ...clearEventInstants(event),
+    allDay: false,
+    start: `${startDate}T09:00`,
+    end: lastDay > startDate ? `${lastDay}T17:00` : `${startDate}T10:00`,
+  }
+}
+
+function updateAllDayStart(event: CalendarEvent, value: string): CalendarEvent {
+  if (!value) return { ...clearEventInstants(event), start: "" }
+  const minimumEnd = `${addCalendarDays(value, 1)}T00:00`
+  return {
+    ...clearEventInstants(event),
+    start: `${value}T00:00`,
+    end: event.end > `${value}T00:00` ? event.end : minimumEnd,
+  }
+}
+
+function addCalendarDays(value: string, days: number) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return ""
+  const [year, month, day] = value.split("-").map(Number)
+  const result = new Date(Date.UTC(year, month - 1, day + days))
+  return result.toISOString().slice(0, 10)
+}
+
+function importFailureMessage(event: CalendarEvent, error: unknown) {
+  const fallback = "The event could not be saved. Try again."
+  if (!(error instanceof Error)) return `“${event.title}” failed: ${fallback}`
+  const match = error.message.match(/(?:Uncaught )?Error:\s*([^\n]+)/)
+  const message = (match?.[1] ?? error.message).trim() || fallback
+  return `“${event.title}” failed: ${message}`
 }
 
 function Field({

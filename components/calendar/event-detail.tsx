@@ -23,7 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { formatDate, formatTime } from "@/lib/operations"
+import { formatDate, formatEventTime } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
@@ -89,11 +89,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
               year: "numeric",
             })}
           />
-          <Detail
-            icon={Clock3}
-            label="Time"
-            value={`${formatTime(event.start)}–${formatTime(event.end)}`}
-          />
+          <Detail icon={Clock3} label="Time" value={formatEventTime(event)} />
           <Detail icon={MapPin} label="Location" value={event.location} />
           <Detail
             icon={UsersRound}
