@@ -133,9 +133,15 @@ export function GuideManager() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">{guide.title}</h3>
+                    <span aria-hidden="true" className="text-border">
+                      |
+                    </span>
                     <Badge variant={guide.published ? "secondary" : "outline"}>
                       {guide.published ? "Published" : "Draft"}
                     </Badge>
+                    <span aria-hidden="true" className="text-border">
+                      |
+                    </span>
                     <Badge variant="outline">
                       {categories.find((item) => item.id === guide.category)
                         ?.label ?? "Unknown work area"}

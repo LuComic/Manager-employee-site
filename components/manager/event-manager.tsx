@@ -1,10 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import {
   CalendarDays,
   FilePenLine,
-  Paperclip,
   Plus,
   Search,
   Trash2,
@@ -18,7 +18,7 @@ import { ManagerHeading } from "@/components/manager/manager-heading"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
@@ -37,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import {
   MAX_ICALENDAR_FILE_SIZE_BYTES,
   MAX_IMPORTED_EVENTS,
@@ -48,62 +47,29 @@ import {
   type CalendarImportResult,
 } from "@/lib/icalendar"
 import {
-  addCalendarDays,
   eventCategories,
   formatEventDate,
   formatEventTime,
-  slugify,
-  toLocalDateTimeValue,
   type CalendarEvent,
   type EventCategory,
 } from "@/lib/operations"
+import { cn } from "@/lib/utils"
 
 type Status = "All" | "Published" | "Draft"
-
-function newEvent(location = ""): CalendarEvent {
-  const start = new Date()
-  start.setDate(start.getDate() + 1)
-  start.setHours(10, 0, 0, 0)
-  const end = new Date(start)
-  end.setHours(11, 0)
-  return {
-    id: "",
-    title: "",
-    description: "",
-    category: "Reservation",
-    start: toLocalDateTimeValue(start),
-    end: toLocalDateTimeValue(end),
-    allDay: false,
-    location,
-    employees: [],
-    notes: "",
-    attachments: [],
-    guideIds: [],
-    published: false,
-  }
-}
 
 export function EventManager() {
   const {
     events,
-    employees,
-    guides,
     hub,
     canCreateContent,
     saveEvent,
     deleteEvent,
-    uploadAttachment,
-    deleteAttachment,
     showFeedback,
   } = useOperations()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [category, setCategory] = useState<EventCategory | "All">("All")
-  const [editing, setEditing] = useState<CalendarEvent | null>(null)
-  const [pendingFiles, setPendingFiles] = useState<File[]>([])
-  const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
-  const [error, setError] = useState("")
   const [importOpen, setImportOpen] = useState(false)
   const [importResult, setImportResult] = useState<CalendarImportResult | null>(
     null
@@ -138,51 +104,6 @@ export function EventManager() {
         .sort((a, b) => a.start.localeCompare(b.start)),
     [events, query, status, category]
   )
-
-  function openEditor(event: CalendarEvent) {
-    setEditing({
-      ...event,
-      attachments: [...event.attachments],
-      employees: [...event.employees],
-      guideIds: [...event.guideIds],
-    })
-    setPendingFiles([])
-    setError("")
-  }
-
-  async function submit() {
-    if (!editing) return
-    if (
-      !editing.title.trim() ||
-      !editing.description.trim() ||
-      !editing.location.trim()
-    )
-      return setError("Add a title, description, and location.")
-    if (!editing.start || !editing.end)
-      return setError("Add a start and end date and time.")
-    if (!eventEndsAfterStart(editing))
-      return setError("The end must be later than the start.")
-    let id = editing.id || slugify(editing.title)
-    if (!editing.id && events.some((event) => event.id === id))
-      id = `${id}-${Date.now()}`
-    setSaving(true)
-    try {
-      const eventSlug = await saveEvent({
-        ...editing,
-        id,
-        title: editing.title.trim(),
-        description: editing.description.trim(),
-        location: editing.location.trim(),
-        notes: editing.notes.trim(),
-      })
-      for (const file of pendingFiles) await uploadAttachment(eventSlug, file)
-      showFeedback(editing.id ? "Event saved." : "Event created.")
-      setEditing(null)
-      setPendingFiles([])
-    } finally {
-      setSaving(false)
-    }
-  }
 
   function resetImport() {
     setImportResult(null)
@@ -357,12 +278,12 @@ export function EventManager() {
                 >
                   <Upload /> Import .ics
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => openEditor(newEvent(hub?.address ?? ""))}
+                <Link
+                  href="/manager/calendar/new"
+                  className={buttonVariants({ size: "sm" })}
                 >
                   <Plus /> New event
-                </Button>
+                </Link>
               </>
             )}
           </div>
@@ -426,9 +347,15 @@ export function EventManager() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">{event.title}</h3>
+                    <span aria-hidden="true" className="text-border">
+                      |
+                    </span>
                     <Badge variant={event.published ? "secondary" : "outline"}>
                       {event.published ? "Published" : "Draft"}
                     </Badge>
+                    <span aria-hidden="true" className="text-border">
+                      |
+                    </span>
                     <Badge variant="secondary">{event.category}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -451,13 +378,14 @@ export function EventManager() {
                   >
                     {event.published ? "Unpublish" : "Publish"}
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditor(event)}
+                  <Link
+                    href={`/manager/calendar/${event.id}/edit`}
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" })
+                    )}
                   >
                     <FilePenLine /> Edit
-                  </Button>
+                  </Link>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
@@ -481,364 +409,6 @@ export function EventManager() {
         />
       )}
 
-      <Dialog
-        open={Boolean(editing)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditing(null)
-            setError("")
-          }
-        }}
-      >
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
-          {editing && (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault()
-                submit()
-              }}
-            >
-              <DialogHeader>
-                <DialogTitle>
-                  {editing.id ? "Edit event" : "Create event"}
-                </DialogTitle>
-                <DialogDescription>
-                  Published events appear immediately in Today, Calendar, and
-                  search.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="my-6 grid gap-4 sm:grid-cols-2">
-                <Field label="Title" id="event-title" wide>
-                  <Input
-                    id="event-title"
-                    value={editing.title}
-                    onChange={(event) =>
-                      setEditing({ ...editing, title: event.target.value })
-                    }
-                    className="border border-input px-3"
-                  />
-                </Field>
-                <Field label="Description" id="event-description" wide>
-                  <Textarea
-                    id="event-description"
-                    value={editing.description}
-                    onChange={(event) =>
-                      setEditing({
-                        ...editing,
-                        description: event.target.value,
-                      })
-                    }
-                    className="min-h-20 border border-input px-3"
-                  />
-                </Field>
-                <Field label="Event type" id="event-type">
-                  <Select
-                    value={editing.category}
-                    onValueChange={(value) =>
-                      setEditing({
-                        ...editing,
-                        category: value as EventCategory,
-                      })
-                    }
-                  >
-                    <SelectTrigger
-                      id="event-type"
-                      className="w-full border border-input bg-background px-3"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {eventCategories.map((item) => (
-                        <SelectItem key={item} value={item}>
-                          {item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Location" id="event-location">
-                  <Input
-                    id="event-location"
-                    value={editing.location}
-                    onChange={(event) =>
-                      setEditing({ ...editing, location: event.target.value })
-                    }
-                    className="border border-input px-3"
-                  />
-                </Field>
-                <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={editing.allDay}
-                    onChange={(event) =>
-                      setEditing(
-                        toggleAllDayEvent(editing, event.target.checked)
-                      )
-                    }
-                  />
-                  All-day event
-                </label>
-                <Field
-                  label={editing.allDay ? "Start date" : "Starts"}
-                  id="event-start"
-                >
-                  <Input
-                    id="event-start"
-                    type={editing.allDay ? "date" : "datetime-local"}
-                    value={
-                      editing.allDay
-                        ? editing.start.slice(0, 10)
-                        : editing.start
-                    }
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setEditing(
-                        editing.allDay
-                          ? updateAllDayStart(editing, value)
-                          : clearEventInstants({
-                              ...editing,
-                              start: value,
-                            })
-                      )
-                    }}
-                    className="border border-input px-3"
-                  />
-                </Field>
-                <Field
-                  label={editing.allDay ? "Last day" : "Ends"}
-                  id="event-end"
-                >
-                  <Input
-                    id="event-end"
-                    type={editing.allDay ? "date" : "datetime-local"}
-                    min={
-                      editing.allDay ? editing.start.slice(0, 10) : undefined
-                    }
-                    value={
-                      editing.allDay
-                        ? addCalendarDays(editing.end.slice(0, 10), -1)
-                        : editing.end
-                    }
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setEditing(
-                        editing.allDay
-                          ? {
-                              ...editing,
-                              end: `${addCalendarDays(value, 1)}T00:00`,
-                            }
-                          : clearEventInstants({
-                              ...editing,
-                              end: value,
-                            })
-                      )
-                    }}
-                    className="border border-input px-3"
-                  />
-                </Field>
-                {editing.allDay && (
-                  <p className="text-xs text-muted-foreground sm:col-span-2">
-                    All-day events remain all day when imported and exported.
-                    The last day is inclusive.
-                  </p>
-                )}
-                <Field label="Add attachments" id="event-attachments">
-                  <Input
-                    id="event-attachments"
-                    type="file"
-                    multiple
-                    onChange={(event) =>
-                      setPendingFiles(Array.from(event.target.files ?? []))
-                    }
-                    className="border border-input px-3"
-                  />
-                </Field>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Employees</Label>
-                  <div
-                    className="flex flex-wrap gap-2"
-                    aria-label="Select employees"
-                  >
-                    {employees
-                      .filter(
-                        (employee) =>
-                          employee.status !== "deactivated" ||
-                          editing.employees.some(
-                            (selected) => selected.id === employee.id
-                          )
-                      )
-                      .map((employee) => {
-                        const selected = editing.employees.some(
-                          (item) => item.id === employee.id
-                        )
-                        return (
-                          <Button
-                            key={employee.id}
-                            type="button"
-                            size="xs"
-                            variant={selected ? "default" : "outline"}
-                            className={selected ? undefined : "bg-background"}
-                            aria-pressed={selected}
-                            onClick={() =>
-                              setEditing({
-                                ...editing,
-                                employees: selected
-                                  ? editing.employees.filter(
-                                      (item) => item.id !== employee.id
-                                    )
-                                  : [
-                                      ...editing.employees,
-                                      {
-                                        id: employee.id,
-                                        displayName: employee.displayName,
-                                      },
-                                    ],
-                              })
-                            }
-                          >
-                            {employee.displayName}
-                          </Button>
-                        )
-                      })}
-                    {!employees.length && (
-                      <p className="text-sm text-muted-foreground">
-                        Create employee profiles in Employees, or save this
-                        event with no employees.
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {(editing.attachments.length > 0 ||
-                  pendingFiles.length > 0) && (
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label>Attachments</Label>
-                    <ul className="space-y-2 border p-3 text-sm">
-                      {editing.attachments.map((attachment) => (
-                        <li
-                          key={attachment.id}
-                          className="flex items-center justify-between gap-3"
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <Paperclip className="size-4 shrink-0" />
-                            <span className="truncate">{attachment.name}</span>
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Remove ${attachment.name}`}
-                            onClick={async () => {
-                              await deleteAttachment(attachment)
-                              setEditing({
-                                ...editing,
-                                attachments: editing.attachments.filter(
-                                  (item) => item.id !== attachment.id
-                                ),
-                              })
-                            }}
-                          >
-                            <Trash2 />
-                          </Button>
-                        </li>
-                      ))}
-                      {pendingFiles.map((file) => (
-                        <li
-                          key={`${file.name}-${file.size}`}
-                          className="flex items-center gap-2 text-muted-foreground"
-                        >
-                          <Paperclip className="size-4" /> {file.name}{" "}
-                          <span>(uploads on save)</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <Field label="Notes" id="event-notes" wide>
-                  <Textarea
-                    id="event-notes"
-                    value={editing.notes}
-                    onChange={(event) =>
-                      setEditing({ ...editing, notes: event.target.value })
-                    }
-                    className="min-h-24 border border-input px-3"
-                  />
-                </Field>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Related guides</Label>
-                  <div
-                    className="flex flex-wrap gap-2"
-                    aria-label="Select related guides"
-                  >
-                    {guides
-                      .filter((guide) => guide.published)
-                      .map((guide) => {
-                        const selected = editing.guideIds.includes(guide.id)
-                        return (
-                          <Button
-                            key={guide.id}
-                            type="button"
-                            size="xs"
-                            variant={selected ? "default" : "outline"}
-                            className={selected ? undefined : "bg-background"}
-                            aria-pressed={selected}
-                            onClick={() =>
-                              setEditing({
-                                ...editing,
-                                guideIds: selected
-                                  ? editing.guideIds.filter(
-                                      (id) => id !== guide.id
-                                    )
-                                  : [...editing.guideIds, guide.id],
-                              })
-                            }
-                          >
-                            {guide.title}
-                          </Button>
-                        )
-                      })}
-                  </div>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={editing.published}
-                    onChange={(event) =>
-                      setEditing({
-                        ...editing,
-                        published: event.target.checked,
-                      })
-                    }
-                  />{" "}
-                  Publish now
-                </label>
-                {error && (
-                  <p
-                    role="alert"
-                    className="text-sm text-destructive sm:col-span-2"
-                  >
-                    {error}
-                  </p>
-                )}
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setEditing(null)
-                    setError("")
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? "Saving…" : "Save event"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
       <Dialog
         open={importOpen}
         onOpenChange={(open) => {
@@ -985,59 +555,6 @@ export function EventManager() {
   )
 }
 
-function eventEndsAfterStart(event: CalendarEvent) {
-  if (event.startUtc && event.endUtc) {
-    const start = new Date(event.startUtc).getTime()
-    const end = new Date(event.endUtc).getTime()
-    if (!Number.isNaN(start) && !Number.isNaN(end)) return end > start
-  }
-  return event.end > event.start
-}
-
-function clearEventInstants(event: CalendarEvent): CalendarEvent {
-  return {
-    ...event,
-    startUtc: undefined,
-    endUtc: undefined,
-  }
-}
-
-function toggleAllDayEvent(
-  event: CalendarEvent,
-  allDay: boolean
-): CalendarEvent {
-  const startDate = event.start.slice(0, 10)
-  const endDate = event.end.slice(0, 10)
-
-  if (allDay) {
-    const lastDay = endDate >= startDate ? endDate : startDate
-    return {
-      ...clearEventInstants(event),
-      allDay: true,
-      start: `${startDate}T00:00`,
-      end: `${addCalendarDays(lastDay, 1)}T00:00`,
-    }
-  }
-
-  const lastDay = addCalendarDays(endDate, -1)
-  return {
-    ...clearEventInstants(event),
-    allDay: false,
-    start: `${startDate}T09:00`,
-    end: lastDay > startDate ? `${lastDay}T17:00` : `${startDate}T10:00`,
-  }
-}
-
-function updateAllDayStart(event: CalendarEvent, value: string): CalendarEvent {
-  if (!value) return { ...clearEventInstants(event), start: "" }
-  const minimumEnd = `${addCalendarDays(value, 1)}T00:00`
-  return {
-    ...clearEventInstants(event),
-    start: `${value}T00:00`,
-    end: event.end > `${value}T00:00` ? event.end : minimumEnd,
-  }
-}
-
 function importFailureMessage(event: CalendarEvent, error: unknown) {
   const fallback = "The event could not be saved. Try again."
   if (!(error instanceof Error)) return `“${event.title}” failed: ${fallback}`
@@ -1056,23 +573,4 @@ function importCancellationFailureMessage(
   const match = error.message.match(/(?:Uncaught )?Error:\s*([^\n]+)/)
   const message = (match?.[1] ?? error.message).trim() || fallback
   return `“${cancellation.title}” failed: ${message}`
-}
-
-function Field({
-  label,
-  id,
-  wide,
-  children,
-}: {
-  label: string
-  id: string
-  wide?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <div className={`space-y-2 ${wide ? "sm:col-span-2" : ""}`}>
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-    </div>
-  )
 }

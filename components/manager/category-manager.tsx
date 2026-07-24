@@ -136,6 +136,9 @@ export function CategoryManager() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold">{category.label}</h2>
+                      <span aria-hidden="true" className="text-border">
+                        |
+                      </span>
                       <Badge variant="secondary">
                         {guideCount} {guideCount === 1 ? "guide" : "guides"}
                       </Badge>
