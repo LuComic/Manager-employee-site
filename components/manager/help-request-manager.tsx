@@ -95,6 +95,9 @@ export function HelpRequestManager() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-semibold">{request.topic}</h2>
+                    <span aria-hidden="true" className="text-border">
+                      |
+                    </span>
                     <Badge
                       variant={
                         request.status === "open" ? "secondary" : "outline"

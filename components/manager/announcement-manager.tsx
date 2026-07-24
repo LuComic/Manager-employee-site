@@ -128,11 +128,17 @@ export function AnnouncementManager() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold">{announcement.title}</h3>
+                      <span aria-hidden="true" className="text-border">
+                        |
+                      </span>
                       <Badge
                         variant={state === "Draft" ? "outline" : "secondary"}
                       >
                         {state}
                       </Badge>
+                      <span aria-hidden="true" className="text-border">
+                        |
+                      </span>
                       <Badge
                         variant={
                           announcement.priority === "Urgent"
@@ -143,9 +149,14 @@ export function AnnouncementManager() {
                         {announcement.priority}
                       </Badge>
                       {announcement.pinned && (
-                        <Badge variant="secondary">
-                          <Pin /> Pinned
-                        </Badge>
+                        <>
+                          <span aria-hidden="true" className="text-border">
+                            |
+                          </span>
+                          <Badge variant="secondary">
+                            <Pin /> Pinned
+                          </Badge>
+                        </>
                       )}
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">

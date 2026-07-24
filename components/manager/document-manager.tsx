@@ -126,11 +126,17 @@ export function DocumentManager() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">{document.title}</h3>
+                    <span aria-hidden="true" className="text-border">
+                      |
+                    </span>
                     <Badge
                       variant={document.published ? "secondary" : "outline"}
                     >
                       {document.published ? "Published" : "Draft"}
                     </Badge>
+                    <span aria-hidden="true" className="text-border">
+                      |
+                    </span>
                     <Badge variant="outline">
                       {documentResourceLabel(document.resource)}
                     </Badge>
