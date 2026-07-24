@@ -35,6 +35,9 @@ export type CalendarEvent = {
   category: EventCategory
   start: string
   end: string
+  allDay: boolean
+  startUtc?: string
+  endUtc?: string
   location: string
   employees: Array<{ id?: string; displayName: string }>
   notes: string
@@ -150,6 +153,7 @@ export function createSeedState(): OperationsState {
         category: "Reservation",
         start: atDate(0, "12:30"),
         end: atDate(0, "15:00"),
+        allDay: false,
         location: "Terrace",
         employees: [{ displayName: "Marta" }],
         notes:
@@ -166,6 +170,7 @@ export function createSeedState(): OperationsState {
         category: "Training",
         start: atDate(0, "16:00"),
         end: atDate(0, "17:00"),
+        allDay: false,
         location: "Bar",
         employees: [{ displayName: "Joonas" }],
         notes: "The bar remains open. Training will use the left-hand machine.",
@@ -181,6 +186,7 @@ export function createSeedState(): OperationsState {
         category: "Delivery",
         start: atDate(1, "07:30"),
         end: atDate(1, "08:15"),
+        allDay: false,
         location: "Rear entrance",
         employees: [{ displayName: "Sofia" }],
         notes:
@@ -196,6 +202,7 @@ export function createSeedState(): OperationsState {
         category: "Promotion",
         start: atDate(3, "10:00"),
         end: atDate(3, "23:00"),
+        allDay: false,
         location: "Whole venue",
         employees: [{ displayName: "Anu" }],
         notes:
@@ -212,6 +219,7 @@ export function createSeedState(): OperationsState {
         category: "Maintenance",
         start: atDate(7, "08:00"),
         end: atDate(7, "10:30"),
+        allDay: false,
         location: "Wash area",
         employees: [{ displayName: "Rasmus" }],
         notes: "Use the prep sink only if the engineer confirms it is safe.",
@@ -226,6 +234,7 @@ export function createSeedState(): OperationsState {
         category: "Inspection",
         start: atDate(12, "09:30"),
         end: atDate(12, "11:00"),
+        allDay: false,
         location: "Whole venue",
         employees: [{ displayName: "Marta" }],
         notes: "Keep all corridors and exits fully clear before opening.",
@@ -240,6 +249,7 @@ export function createSeedState(): OperationsState {
         category: "Promotion",
         start: atDate(5, "14:00"),
         end: atDate(5, "15:00"),
+        allDay: false,
         location: "Private room",
         employees: [{ displayName: "Anu" }],
         notes: "Draft only.",
@@ -401,6 +411,12 @@ export function formatTime(value: string, timeZone = HUB_TIME_ZONE) {
     minute: "2-digit",
     timeZone: isWallTime ? "UTC" : timeZone,
   }).format(isWallTime ? localWallTimeDate(value) : new Date(value))
+}
+
+export function formatEventTime(event: CalendarEvent) {
+  return event.allDay
+    ? "All day"
+    : `${formatTime(event.start)}–${formatTime(event.end)}`
 }
 
 export function slugify(value: string) {

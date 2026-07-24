@@ -10,6 +10,7 @@ import {
   MapPin,
 } from "lucide-react"
 
+import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { EventCard } from "@/components/operations/event-card"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -30,6 +31,7 @@ import {
 import {
   eventCategories,
   formatDate,
+  formatEventTime,
   formatTime,
   toDateKey,
   type EventCategory,
@@ -66,6 +68,7 @@ export function CalendarPage() {
     (event) =>
       event.published && (category === "All" || event.category === category)
   )
+  const allPublished = events.filter((event) => event.published)
   const monthEvents = published
     .filter((event) => {
       const [year, month] = toDateKey(event.start).split("-").map(Number)
@@ -99,7 +102,14 @@ export function CalendarPage() {
     <div className="space-y-6">
       <PageHeading
         title="Calendar"
-        description="Shared dates for reservations, training, deliveries, visits, and other operational events."
+        description="Shared dates for reservations, training, deliveries, visits, and other operational events. Export them to any iCalendar app."
+        action={
+          <CalendarExportButton
+            events={allPublished}
+            calendarName={`${hub?.name ?? "Workplace"} calendar`}
+            timeZone={hub?.timeZone ?? "UTC"}
+          />
+        }
       />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
@@ -221,7 +231,8 @@ export function CalendarPage() {
                           className="block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
                         >
                           <span className="block truncate">
-                            {formatTime(event.start)} {event.title}
+                            {event.allDay ? "All day" : formatTime(event.start)}{" "}
+                            {event.title}
                           </span>
                         </Link>
                       ))}
@@ -248,7 +259,7 @@ export function CalendarPage() {
               <div className="sm:w-40">
                 <p className="font-semibold">{formatDate(event.start)}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatTime(event.start)}–{formatTime(event.end)}
+                  {formatEventTime(event)}
                 </p>
               </div>
               <div className="min-w-0 flex-1">

@@ -10,17 +10,24 @@ import {
   UsersRound,
 } from "lucide-react"
 
+import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatDate, formatTime } from "@/lib/operations"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { formatDate, formatEventTime } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
-  const { events, guides } = useOperations()
+  const { events, guides, hub } = useOperations()
   const event = events.find((item) => item.id === eventId && item.published)
   if (!event)
     return (
@@ -54,6 +61,22 @@ export function EventDetail({ eventId }: { eventId: string }) {
           <p className="mt-2 max-w-2xl text-muted-foreground">
             {event.description}
           </p>
+          <CardAction className="hidden sm:block">
+            <CalendarExportButton
+              events={[event]}
+              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              timeZone={hub?.timeZone ?? "UTC"}
+              mode="event"
+            />
+          </CardAction>
+          <div className="mt-4 sm:hidden">
+            <CalendarExportButton
+              events={[event]}
+              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              timeZone={hub?.timeZone ?? "UTC"}
+              mode="event"
+            />
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Detail
@@ -66,11 +89,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
               year: "numeric",
             })}
           />
-          <Detail
-            icon={Clock3}
-            label="Time"
-            value={`${formatTime(event.start)}–${formatTime(event.end)}`}
-          />
+          <Detail icon={Clock3} label="Time" value={formatEventTime(event)} />
           <Detail icon={MapPin} label="Location" value={event.location} />
           <Detail
             icon={UsersRound}

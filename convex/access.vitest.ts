@@ -978,6 +978,72 @@ describe("Organization employees, invitations, and event links", () => {
     )
   })
 
+  test("persists all-day state and validates exact timed instants", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const admin = t.withIdentity(orgAdminIdentity)
+    const baseEvent = {
+      hubId,
+      title: "Calendar interoperability",
+      description: "Calendar date semantics",
+      category: "Training" as const,
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+    }
+
+    await admin.mutation(api.content.saveEvent, {
+      ...baseEvent,
+      slug: "all-day-event",
+      start: "2026-07-24T00:00",
+      end: "2026-07-25T00:00",
+      allDay: true,
+      startUtc: null,
+      endUtc: null,
+    })
+    await admin.mutation(api.content.saveEvent, {
+      ...baseEvent,
+      slug: "fallback-event",
+      start: "2026-10-25T03:30",
+      end: "2026-10-25T03:15",
+      allDay: false,
+      startUtc: "2026-10-25T00:30:00.000Z",
+      endUtc: "2026-10-25T01:15:00.000Z",
+    })
+
+    const snapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "org-hub",
+      nowDate: "2026-07-19",
+    })
+    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
+    expect(
+      snapshot.events.find((event) => event.id === "all-day-event")
+    ).toMatchObject({
+      allDay: true,
+      start: "2026-07-24T00:00",
+      end: "2026-07-25T00:00",
+    })
+    expect(
+      snapshot.events.find((event) => event.id === "fallback-event")
+    ).toMatchObject({
+      allDay: false,
+      startUtc: "2026-10-25T00:30:00.000Z",
+      endUtc: "2026-10-25T01:15:00.000Z",
+    })
+
+    await expect(
+      admin.mutation(api.content.saveEvent, {
+        ...baseEvent,
+        slug: "invalid-instant-event",
+        start: "2026-07-24T10:00",
+        end: "2026-07-24T11:00",
+        startUtc: "2026-07-24T07:00:00.000Z",
+        endUtc: null,
+      })
+    ).rejects.toThrow("must be provided together")
+  })
+
   test("adds zero or multiple employees idempotently and rejects cross-hub links", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)
