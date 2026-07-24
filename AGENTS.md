@@ -1,3 +1,8 @@
+## Implementation workflow
+
+For every implementation task, follow [CI.md](CI.md). It defines the required
+worktree isolation, branch, verification, pull-request, and no-merge workflow.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
