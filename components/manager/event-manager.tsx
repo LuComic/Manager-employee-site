@@ -12,10 +12,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
-import {
-  CalendarImportIssues,
-  calendarImportErrorPreview,
-} from "@/components/manager/calendar-import-issues"
+import { CalendarImportIssues } from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -916,12 +913,6 @@ export function EventManager() {
                 </ul>
               </div>
             ) : null}
-            {!importResult && !importError && (
-              <CalendarImportIssues
-                issues={calendarImportErrorPreview}
-                preview
-              />
-            )}
             {importResult && (
               <CalendarImportIssues
                 issues={[...importResult.issues, ...importSaveIssues]}
