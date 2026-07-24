@@ -10,6 +10,7 @@ import {
   MapPin,
 } from "lucide-react"
 
+import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { EventCard } from "@/components/operations/event-card"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -66,6 +67,7 @@ export function CalendarPage() {
     (event) =>
       event.published && (category === "All" || event.category === category)
   )
+  const allPublished = events.filter((event) => event.published)
   const monthEvents = published
     .filter((event) => {
       const [year, month] = toDateKey(event.start).split("-").map(Number)
@@ -99,7 +101,14 @@ export function CalendarPage() {
     <div className="space-y-6">
       <PageHeading
         title="Calendar"
-        description="Shared dates for reservations, training, deliveries, visits, and other operational events."
+        description="Shared dates for reservations, training, deliveries, visits, and other operational events. Export them to any iCalendar app."
+        action={
+          <CalendarExportButton
+            events={allPublished}
+            calendarName={`${hub?.name ?? "Workplace"} calendar`}
+            timeZone={hub?.timeZone ?? "UTC"}
+          />
+        }
       />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">

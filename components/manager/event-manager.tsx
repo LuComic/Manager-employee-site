@@ -8,8 +8,10 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
 } from "lucide-react"
 
+import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -35,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { parseICalendar, type CalendarImportResult } from "@/lib/icalendar"
 import {
   eventCategories,
   formatDate,
@@ -90,6 +93,14 @@ export function EventManager() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
   const [error, setError] = useState("")
+  const [importOpen, setImportOpen] = useState(false)
+  const [importResult, setImportResult] = useState<CalendarImportResult | null>(
+    null
+  )
+  const [importFileName, setImportFileName] = useState("")
+  const [importError, setImportError] = useState("")
+  const [importing, setImporting] = useState(false)
+  const [publishImported, setPublishImported] = useState(false)
   const visible = useMemo(
     () =>
       events
@@ -151,17 +162,97 @@ export function EventManager() {
     }
   }
 
+  function resetImport() {
+    setImportResult(null)
+    setImportFileName("")
+    setImportError("")
+    setPublishImported(false)
+  }
+
+  async function readCalendarFile(file?: File) {
+    resetImport()
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setImportError("Choose a calendar file smaller than 5 MB.")
+      return
+    }
+    if (
+      !file.name.toLowerCase().endsWith(".ics") &&
+      file.type !== "text/calendar"
+    ) {
+      setImportError("Choose an iCalendar file ending in .ics.")
+      return
+    }
+    try {
+      const result = parseICalendar(await file.text(), {
+        timeZone: hub?.timeZone ?? "UTC",
+      })
+      setImportFileName(file.name)
+      setImportResult(result)
+      if (!result.events.length) {
+        setImportError(
+          result.errors[0] ?? "No importable events were found in this file."
+        )
+      }
+    } catch {
+      setImportError("This calendar file could not be read.")
+    }
+  }
+
+  async function importEvents() {
+    if (!importResult?.events.length) return
+    setImporting(true)
+    try {
+      const existingById = new Map(events.map((event) => [event.id, event]))
+      for (const event of importResult.events) {
+        const existing = existingById.get(event.id)
+        await saveEvent({
+          ...event,
+          published: publishImported || existing?.published || false,
+        })
+      }
+      showFeedback(
+        `${importResult.events.length} ${
+          importResult.events.length === 1 ? "event" : "events"
+        } imported.`
+      )
+      setImportOpen(false)
+      resetImport()
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <ManagerHeading
         title="Manage calendar events"
-        description="Maintain shared operational dates and their related information."
+        description="Maintain shared operational dates, import events from other calendars, or export published events as iCalendar."
         action={
-          canCreateContent ? (
-            <Button onClick={() => openEditor(newEvent(hub?.address ?? ""))}>
-              <Plus /> New event
-            </Button>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            <CalendarExportButton
+              events={events.filter((event) => event.published)}
+              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              timeZone={hub?.timeZone ?? "UTC"}
+            />
+            {canCreateContent && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload /> Import .ics
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => openEditor(newEvent(hub?.address ?? ""))}
+                >
+                  <Plus /> New event
+                </Button>
+              </>
+            )}
+          </div>
         }
       />
       <div className="grid gap-4 border bg-background p-4 sm:grid-cols-3">
@@ -579,6 +670,110 @@ export function EventManager() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open)
+          if (!open) resetImport()
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import calendar events</DialogTitle>
+            <DialogDescription>
+              Upload an .ics file exported from Google Calendar, Apple Calendar,
+              Outlook, or another iCalendar app. Re-importing the same events
+              updates their details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="calendar-import">iCalendar file</Label>
+              <Input
+                id="calendar-import"
+                type="file"
+                accept=".ics,text/calendar"
+                onChange={(event) =>
+                  void readCalendarFile(event.target.files?.[0])
+                }
+                className="border border-input px-3"
+              />
+            </div>
+            {importResult?.events.length ? (
+              <div className="border bg-muted/30 p-4">
+                <p className="font-semibold">
+                  {importResult.events.length}{" "}
+                  {importResult.events.length === 1 ? "event" : "events"} ready
+                  to import
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {importFileName}
+                </p>
+                <ul className="mt-3 space-y-1 text-sm">
+                  {importResult.events.slice(0, 5).map((event) => (
+                    <li key={event.id}>
+                      {formatDate(event.start)} · {event.title}
+                    </li>
+                  ))}
+                  {importResult.events.length > 5 && (
+                    <li className="text-muted-foreground">
+                      +{importResult.events.length - 5} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+            ) : null}
+            {importResult?.events.length && importResult.errors.length ? (
+              <div className="text-sm text-warning">
+                <p className="font-semibold">Some items need attention</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {importResult.errors.slice(0, 3).map((message, index) => (
+                    <li key={`${message}-${index}`}>{message}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {importResult?.events.length ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={publishImported}
+                  onChange={(event) => setPublishImported(event.target.checked)}
+                />
+                Publish imported events immediately
+              </label>
+            ) : null}
+            {importError && (
+              <p role="alert" className="text-sm text-destructive">
+                {importError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setImportOpen(false)
+                resetImport()
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!importResult?.events.length || importing}
+              onClick={() => void importEvents()}
+            >
+              {importing
+                ? "Importing…"
+                : `Import ${importResult?.events.length ?? 0} ${
+                    importResult?.events.length === 1 ? "event" : "events"
+                  }`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <ConfirmDeleteDialog
