@@ -102,9 +102,9 @@ export function SearchField({
         name="q"
         value={value}
         onChange={(event) => updateValue(event.target.value)}
-        placeholder="searchGuidesEventsAnnouncementsDocumentsQuestions"
+        placeholder={t("searchGuidesEventsAnnouncementsDocumentsQuestions")}
         className="h-10 border border-input bg-background pr-10 pl-10 focus-visible:border-ring"
-        aria-label="searchWorkhal"
+        aria-label={t("searchWorkhal")}
       />
       {value && (
         <button

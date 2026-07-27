@@ -99,7 +99,7 @@ export function CategoryManager() {
       }
     }
     saveCategory({ id, label, description, iconKey: editing.iconKey })
-    showFeedback(editing.id ? "Category saved." : "Category created.")
+    showFeedback(editing.id ? "categorySaved" : "categoryCreated")
     setEditing(null)
     setError("")
   }

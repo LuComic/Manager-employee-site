@@ -1,6 +1,7 @@
 import type { Category, Guide } from "@/lib/knowledge-base"
 import type { RichTextDocument } from "@/lib/rich-text"
 import type { WorkspaceDocument } from "@/lib/documents"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export const eventCategories = [
   "Reservation",
@@ -11,6 +12,14 @@ export const eventCategories = [
 ] as const
 
 export type EventCategory = (typeof eventCategories)[number]
+
+export const eventCategoryMessageKeys = {
+  Reservation: "reservation",
+  Training: "training",
+  Maintenance: "maintenance",
+  Inspection: "inspection",
+  "Opening hours": "openingHours",
+} satisfies Record<EventCategory, AppMessageKey>
 
 export type Attachment = {
   id: string
@@ -58,6 +67,19 @@ export type EmployeeProfile = {
 }
 
 export type AnnouncementPriority = "Normal" | "Important" | "Urgent"
+
+export const announcementPriorityMessageKeys = {
+  Normal: "normal",
+  Important: "important",
+  Urgent: "urgent",
+} satisfies Record<AnnouncementPriority, AppMessageKey>
+
+export const announcementStateMessageKeys = {
+  Draft: "draft",
+  Upcoming: "upcoming",
+  Expired: "expired",
+  Active: "active",
+} satisfies Record<ReturnType<typeof getAnnouncementState>, AppMessageKey>
 
 export type Announcement = {
   id: string
@@ -239,9 +261,10 @@ export function formatEventDate(
 export function formatEventTime(
   event: CalendarEvent,
   timeZone = HUB_TIME_ZONE,
-  locale = "en-GB"
+  locale = "en-GB",
+  allDayLabel = "All day"
 ) {
-  if (event.allDay) return "All day"
+  if (event.allDay) return allDayLabel
   if (event.startUtc && event.endUtc) {
     const startZone = formatTimeZoneName(event.startUtc, timeZone, locale)
     const endZone = formatTimeZoneName(event.endUtc, timeZone, locale)

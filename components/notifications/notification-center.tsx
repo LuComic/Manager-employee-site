@@ -2,6 +2,7 @@
 
 import { T } from "@/components/translated-text"
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
+import type { AppMessageKey } from "@/i18n/messages"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Link } from "@/i18n/navigation"
@@ -148,6 +149,7 @@ export function NotificationButton({
 }
 
 export function NotificationCenter({ manager = false }: { manager?: boolean }) {
+  const t = useAppTranslations()
   const languageTag = useLanguageTag()
   const { hub } = useOperations()
   const { feed, markAllRead } = useNotificationFeed(manager)
@@ -210,7 +212,11 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-semibold">{notification.title}</h2>
+                        <h2 className="font-semibold">
+                          {notification.titleKey
+                            ? t(notification.titleKey as AppMessageKey)
+                            : notification.title}
+                        </h2>
                         {wasUnread && (
                           <Badge variant="secondary">
                             <T>new</T>
@@ -218,7 +224,12 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
                         )}
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {notification.message}
+                        {notification.messageKey
+                          ? t(
+                              notification.messageKey as AppMessageKey,
+                              notification.messageValues
+                            )
+                          : notification.message}
                       </p>
                       <p className="mt-3 text-xs text-muted-foreground">
                         {dateTimeFormatter.format(notification.createdAt)}

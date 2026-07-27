@@ -2,7 +2,6 @@
 
 import * as React from "react"
 
-import { useAppTranslations } from "@/i18n/use-app-translations"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -10,9 +9,6 @@ function SegmentedControl({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const t = useAppTranslations()
-  const ariaLabel = props["aria-label"]
-
   return (
     <div
       data-slot="segmented-control"
@@ -22,7 +18,6 @@ function SegmentedControl({
         className
       )}
       {...props}
-      aria-label={typeof ariaLabel === "string" ? t(ariaLabel) : ariaLabel}
     />
   )
 }

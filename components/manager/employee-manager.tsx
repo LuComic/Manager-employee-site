@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Id } from "@/convex/_generated/dataModel"
+import type { AppMessageKey } from "@/i18n/messages"
 import type {
   EmployeeAccessLevel,
   EmployeeProfile,
@@ -61,12 +62,27 @@ const emptyForm: FormValue = {
   accessLevel: "viewer",
 }
 
-const employeeStatusLabels: Record<EmployeeStatus, string> = {
-  unclaimed: "Not joined",
-  invited: "Email invite sent",
-  active: "Active",
-  deactivated: "Deactivated",
+const employeeStatusLabelKeys: Record<EmployeeStatus, AppMessageKey> = {
+  unclaimed: "notJoined",
+  invited: "emailInviteSent",
+  active: "active",
+  deactivated: "deactivated",
 }
+
+const employeeAccessLabelKeys = {
+  manager: "employeeAccessFull",
+  editor: "employeeAccessEditing",
+  viewer: "employeeAccessReadOnly",
+} satisfies Record<EmployeeProfile["accessLevel"], AppMessageKey>
+
+const invitationStatusLabelKeys = {
+  "not-sent": "invitationStatusNotSent",
+  pending: "invitationStatusPending",
+  accepted: "invitationStatusAccepted",
+  expired: "invitationStatusExpired",
+  revoked: "invitationStatusRevoked",
+  failed: "invitationStatusFailed",
+} satisfies Record<EmployeeProfile["invitationStatus"], AppMessageKey>
 
 export function EmployeeManager() {
   const t = useAppTranslations()
@@ -133,14 +149,10 @@ export function EmployeeManager() {
       else if (editing) {
         await updateEmployee(editing.id as Id<"employeeProfiles">, value)
       }
-      showFeedback(editing === "new" ? "Employee created." : "Employee saved.")
+      showFeedback(editing === "new" ? "employeeCreated" : "employeeSaved")
       setEditing(null)
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message.replace(/^.*Uncaught Error: /, "")
-          : "Could not save employee"
-      )
+    } catch {
+      setError("couldNotSaveEmployee")
     } finally {
       setPending(false)
     }
@@ -176,18 +188,18 @@ export function EmployeeManager() {
       if (result.refreshSession) await session?.reload()
       showFeedback(
         action === "reconcile"
-          ? "Employee access reconciled."
+          ? "employeeAccessReconciled"
           : action === "invite"
-            ? "Invitation email sent."
+            ? "invitationEmailSent"
             : action === "revoke-invite"
-              ? "Email invitation canceled."
+              ? "emailInvitationCanceled"
               : action === "remove"
-                ? "Employee removed from this workplace."
-                : "Employee access updated."
+                ? "employeeRemovedFromThisWorkplace"
+                : "employeeAccessUpdated"
       )
       return true
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Action failed")
+    } catch {
+      setError("actionFailed")
       return false
     } finally {
       setActionId(null)
@@ -234,7 +246,7 @@ export function EmployeeManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="searchEmployees"
+            placeholder={t("searchEmployees")}
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -298,29 +310,28 @@ export function EmployeeManager() {
                                 : "text-danger"
                         }
                       >
-                        {employeeStatusLabels[employee.status]}
+                        {t(employeeStatusLabelKeys[employee.status])}
                       </Badge>
                       <span aria-hidden="true" className="text-border">
                         |
                       </span>
                       <Badge variant="outline">
-                        {employee.accessLevel === "manager"
-                          ? "Full access"
-                          : employee.accessLevel === "editor"
-                            ? "Editing"
-                            : "Read only"}
+                        {t(employeeAccessLabelKeys[employee.accessLevel])}
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {[employee.jobTitle, employee.department, employee.email]
                         .filter(Boolean)
-                        .join(" · ") || "No additional profile details"}
+                        .join(" · ") || t("noAdditionalProfileDetails")}
                     </p>
                     {employee.invitationStatus !== "not-sent" && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        <T>emailInvitation</T> {employee.invitationStatus}
+                        <T>emailInvitation</T>{" "}
+                        {t(
+                          invitationStatusLabelKeys[employee.invitationStatus]
+                        )}
                         {employee.invitationError
-                          ? ` · ${employee.invitationError}`
+                          ? ` · ${t("invitationDeliveryFailed")}`
                           : ""}
                       </p>
                     )}
@@ -427,14 +438,14 @@ export function EmployeeManager() {
             </DialogHeader>
             <div className="my-6 space-y-4">
               <EmployeeField
-                label="Display name"
+                label="displayName"
                 id="employee-name"
                 value={form.displayName}
                 onChange={(displayName) => setForm({ ...form, displayName })}
                 required
               />
               <EmployeeField
-                label="Email"
+                label="email"
                 id="employee-email"
                 type="email"
                 value={form.email}
@@ -442,13 +453,13 @@ export function EmployeeManager() {
                 required
               />
               <EmployeeField
-                label="Department or team"
+                label="departmentOrTeam"
                 id="employee-department"
                 value={form.department}
                 onChange={(department) => setForm({ ...form, department })}
               />
               <EmployeeField
-                label="Job title"
+                label="jobTitle"
                 id="employee-title"
                 value={form.jobTitle}
                 onChange={(jobTitle) => setForm({ ...form, jobTitle })}
@@ -634,17 +645,18 @@ function EmployeeField({
   type = "text",
   required = false,
 }: {
-  label: string
+  label: AppMessageKey
   id: string
   value: string
   onChange: (value: string) => void
   type?: string
   required?: boolean
 }) {
+  const t = useAppTranslations()
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>
-        {label}
+        {t(label)}
         {required && (
           <span className="-ml-1 text-xs text-destructive" aria-hidden="true">
             *

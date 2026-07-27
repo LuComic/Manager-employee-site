@@ -31,6 +31,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import {
   addCalendarDays,
+  eventCategoryMessageKeys,
   eventCategories,
   slugify,
   toLocalDateTimeValue,
@@ -160,7 +161,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         await uploadAttachment(eventSlug, file)
       }
       setDirty(false)
-      showFeedback(draft.id ? "Event saved." : "Event created.")
+      showFeedback(draft.id ? "eventSaved" : "eventCreated")
       leaveWithoutPrompt("/manager/calendar")
     } finally {
       setSaving(false)
@@ -465,7 +466,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   <SelectContent>
                     {eventCategories.map((item) => (
                       <SelectItem key={item} value={item}>
-                        {item}
+                        {t(eventCategoryMessageKeys[item])}
                       </SelectItem>
                     ))}
                   </SelectContent>

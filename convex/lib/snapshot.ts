@@ -166,10 +166,10 @@ export async function buildSnapshot(
       credentialVersion: hub.credentialVersion,
       description:
         hub.description ??
-        "Current updates, important times, and practical guides for each shift.",
+        "Praegused uuendused, olulised kellaajad ja praktilised juhendid igaks vahetuseks.",
       address: hub.address ?? "",
       timeZone: hub.timeZone ?? "Europe/Tallinn",
-      contactName: hub.contactName ?? "shift lead",
+      contactName: hub.contactName ?? "vahetusvanem",
       contactEmail: hub.contactEmail ?? "",
       contactPhone: hub.contactPhone ?? "",
       bannerImageUrl: bannerImageUrl ?? undefined,

@@ -88,7 +88,7 @@ Every created workplace Organization sets `maxAllowedMemberships` to 20, matchin
 
 ## Employee access
 
-Employee-facing pages do not require Clerk accounts. A hub is selected with its stable slug, for example `/?hub=north-pine`.
+Employee-facing pages do not require Clerk accounts. A workplace is selected with its stable slug, for example `/?hub=sample-workplace`.
 
 - Public mode allows anyone with the hub URL to read published content.
 - Restricted mode accepts the hub join code or a private link carrying a separate bearer credential in its URL fragment, which is not sent to server logs.

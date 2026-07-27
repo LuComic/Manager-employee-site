@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 
 import {
   calendarFileName,
+  ICALENDAR_UID_DOMAIN,
   mergeImportedEvent,
   parseICalendar,
   serializeICalendar,
@@ -33,6 +34,10 @@ describe("iCalendar export", () => {
     })
 
     expect(calendar).toContain("BEGIN:VCALENDAR\r\nVERSION:2.0")
+    expect(ICALENDAR_UID_DOMAIN).toBe("workhal.local")
+    expect(calendar.replaceAll("\r\n ", "")).toContain(
+      `@${ICALENDAR_UID_DOMAIN}`
+    )
     expect(calendar).toContain("DTSTART:20260724T070000Z")
     expect(calendar).toContain("DTEND:20260724T083000Z")
     expect(calendar).toContain("SUMMARY:Team training\\, session")
@@ -237,7 +242,8 @@ describe("iCalendar import", () => {
     })
     expect(result.issues).toContainEqual({
       severity: "warning",
-      message: expect.stringContaining("set to the next day"),
+      key: "calendarEventNoEndDate",
+      values: expect.objectContaining({ index: 1, title: "Closed" }),
     })
   })
 
@@ -260,7 +266,8 @@ describe("iCalendar import", () => {
     expect(result.events).toHaveLength(1)
     expect(result.issues).toContainEqual({
       severity: "error",
-      message: "Event 1: “Missing start” is missing a start date.",
+      key: "calendarEventCouldNotBeImported",
+      values: { index: 1 },
     })
     expect(
       result.issues.some((issue) => issue.severity === "warning")
@@ -282,7 +289,8 @@ describe("iCalendar import", () => {
     expect(result.issues).toEqual([
       {
         severity: "error",
-        message: "Event 1: Invalid calendar date “20260231T090000Z”.",
+        key: "calendarEventCouldNotBeImported",
+        values: { index: 1 },
       },
     ])
   })
@@ -360,9 +368,8 @@ describe("iCalendar import", () => {
     expect(result.events).toHaveLength(1)
     expect(result.issues).toContainEqual({
       severity: "error",
-      message: expect.stringContaining(
-        "same calendar identity as another event"
-      ),
+      key: "calendarEventCouldNotBeImported",
+      values: { index: 2 },
     })
   })
 
@@ -381,8 +388,8 @@ describe("iCalendar import", () => {
     expect(result.events).toEqual([])
     expect(result.issues[0]).toEqual({
       severity: "error",
-      message:
-        "Event 1: “Too much detail” failed because its description is 501 characters; the maximum is 500.",
+      key: "calendarEventCouldNotBeImported",
+      values: { index: 1 },
     })
   })
 
@@ -401,7 +408,8 @@ describe("iCalendar import", () => {
     expect(result.events).toHaveLength(25)
     expect(result.issues).toContainEqual({
       severity: "warning",
-      message: "Only the first 25 events were read from this file.",
+      key: "calendarOnlyFirstEventsRead",
+      values: { count: 25 },
     })
   })
 })

@@ -4,7 +4,6 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { useAppTranslations } from "@/i18n/use-app-translations"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
@@ -34,14 +33,12 @@ function Badge({
   children,
   ...props
 }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
-  const t = useAppTranslations()
-
   return useRender({
     defaultTagName: "span",
     props: mergeProps<"span">(
       {
         className: cn(badgeVariants({ variant }), className),
-        children: typeof children === "string" ? t(children) : children,
+        children,
       },
       props
     ),

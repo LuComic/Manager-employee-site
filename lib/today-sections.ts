@@ -1,35 +1,41 @@
+import type { AppMessageKey } from "@/i18n/messages"
+
 export const todaySectionDefinitions = [
   {
     key: "welcome",
-    title: "Welcome banner",
-    description: "The date, establishment details, and daily introduction.",
+    titleKey: "todayWelcomeBanner",
+    descriptionKey: "todayWelcomeBannerDescription",
   },
   {
     key: "quick-links",
-    title: "Quick links",
-    description: "Shortcuts to guides, the calendar, and announcements.",
+    titleKey: "quickLinks",
+    descriptionKey: "todayQuickLinksDescription",
   },
   {
     key: "happening-today",
-    title: "Happening today",
-    description: "Published events scheduled for the current day.",
+    titleKey: "happeningToday",
+    descriptionKey: "todayHappeningDescription",
   },
   {
     key: "current-announcements",
-    title: "Current announcements",
-    description: "Active operational updates and notices.",
+    titleKey: "currentAnnouncements",
+    descriptionKey: "todayAnnouncementsDescription",
   },
   {
     key: "coming-next",
-    title: "Coming next",
-    description: "A preview of the next three upcoming events.",
+    titleKey: "comingNext",
+    descriptionKey: "todayComingNextDescription",
   },
   {
     key: "useful-guides",
-    title: "Useful guides",
-    description: "Featured instructions selected for quick access.",
+    titleKey: "usefulGuides",
+    descriptionKey: "todayUsefulGuidesDescription",
   },
-] as const
+] as const satisfies ReadonlyArray<{
+  key: string
+  titleKey: AppMessageKey
+  descriptionKey: AppMessageKey
+}>
 
 export type TodaySectionKey = (typeof todaySectionDefinitions)[number]["key"]
 

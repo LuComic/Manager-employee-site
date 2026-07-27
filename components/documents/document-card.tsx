@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/card"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import {
-  documentResourceLabel,
+  documentResourceLabelKey,
+  sharedLinkHost,
   type DocumentResource,
   type WorkspaceDocument,
 } from "@/lib/documents"
@@ -76,7 +77,9 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
         </CardHeader>
         <CardFooter className="mt-auto justify-between pb-4">
           <span className="text-xs text-muted-foreground">
-            {t(documentResourceLabel(document.resource))}
+            {document.resource.kind === "link"
+              ? (sharedLinkHost(document.resource) ?? t("sharedLink"))
+              : t(documentResourceLabelKey(document.resource))}
             {document.employees.length
               ? t(
                   document.employees.length === 1

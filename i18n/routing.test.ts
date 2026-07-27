@@ -3,7 +3,6 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import ts from "typescript"
 
-import { getMessageKey, resolveMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
 import { SITE_NAME } from "@/lib/branding"
@@ -84,20 +83,13 @@ function translatedSourceMessages() {
   return messages
 }
 
-function implicitlyTranslatedSourceMessages() {
+function untranslatedPrimitiveMessages() {
   const messages = new Set<string>()
   const translatedAttributes: Record<string, Set<string>> = {
     Button: new Set(["aria-label", "title"]),
-    CredentialCard: new Set(["description", "title"]),
-    Detail: new Set(["label"]),
-    EmptyState: new Set(["actionLabel", "description", "title"]),
-    Field: new Set(["label"]),
     Input: new Set(["aria-label", "placeholder", "title"]),
-    ManagerHeading: new Set(["description", "title"]),
-    PageHeading: new Set(["description", "title"]),
-    SectionHeading: new Set(["description", "title"]),
     SegmentedControl: new Set(["aria-label"]),
-    Select: new Set(["aria-label", "title"]),
+    SelectTrigger: new Set(["aria-label", "title"]),
     Textarea: new Set(["aria-label", "placeholder", "title"]),
   }
   const translatedChildren = new Set(["Badge", "Button", "SelectItem"])
@@ -112,10 +104,7 @@ function implicitlyTranslatedSourceMessages() {
     )
 
     const visit = (node: ts.Node) => {
-      if (
-        ts.isJsxOpeningElement(node) ||
-        ts.isJsxSelfClosingElement(node)
-      ) {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const attributes = translatedAttributes[node.tagName.getText(source)]
         if (attributes) {
           for (const property of node.attributes.properties) {
@@ -154,6 +143,19 @@ function implicitlyTranslatedSourceMessages() {
   return messages
 }
 
+function notificationMessageKeys() {
+  const keys = new Set<string>()
+  for (const file of sourceFiles("convex")) {
+    const source = readFileSync(file, "utf8")
+    for (const match of source.matchAll(
+      /(?:titleKey|messageKey|publishedTitleKey|updatedTitleKey|unpublishedTitleKey):\s*"([^"]+)"/g
+    )) {
+      keys.add(match[1])
+    }
+  }
+  return keys
+}
+
 describe("locale paths", () => {
   test("uses Estonian as the default and supports English", () => {
     expect(routing.defaultLocale).toBe("et")
@@ -179,7 +181,6 @@ describe("translation dictionaries", () => {
     expect(
       Object.keys(en.App).every((key) => /^[a-z][A-Za-z0-9]*$/.test(key))
     ).toBeTrue()
-    expect(new Set(Object.values(en.App)).size).toBe(Object.keys(en.App).length)
   })
 
   test("avoids the rejected Estonian hub terminology", () => {
@@ -194,24 +195,12 @@ describe("translation dictionaries", () => {
     expect(Object.values(et.App)).not.toContain(SITE_NAME)
   })
 
-  test("keeps English source-copy lookup as a runtime compatibility fallback", () => {
-    expect(resolveMessageKey("bannerImageSizeLimit")).toBe(
-      "bannerImageSizeLimit"
-    )
-    expect(resolveMessageKey("Banner images must be 10 MB or smaller")).toBe(
-      "bannerImageSizeLimit"
-    )
-    expect(
-      getMessageKey(
-        "calendar changes are processed. Publishing imported events may add one employee notification per event."
-      )
-    ).toBe("calendarProcessingAndNotifications")
-  })
-
-  test("rejects unknown messages in server-rendered metadata", () => {
-    expect(() => getMessageKey("Missing message")).toThrow(
-      'Unknown app message: "Missing message"'
-    )
+  test("does not ship an English-value reverse lookup", () => {
+    const source = readFileSync("i18n/messages.ts", "utf8")
+    expect(source).not.toContain("new Map")
+    expect(source).not.toContain("Object.entries")
+    expect(source).not.toContain("resolveMessageKey")
+    expect(source).toContain("import type en")
   })
 
   test("uses semantic keys in statically declared T and t calls", () => {
@@ -222,13 +211,20 @@ describe("translation dictionaries", () => {
     expect(nonSemantic).toEqual([])
   })
 
-  test("uses semantic keys on implicit translation surfaces", () => {
+  test("requires explicit translations on passive UI primitives", () => {
     const literalPassthroughs = new Set(["+372 5555 5555"])
-    const nonSemantic = [...implicitlyTranslatedSourceMessages()].filter(
-      (message) =>
-        !Object.hasOwn(en.App, message) && !literalPassthroughs.has(message)
+    const nonSemantic = [...untranslatedPrimitiveMessages()].filter(
+      (message) => !literalPassthroughs.has(message)
     )
 
     expect(nonSemantic).toEqual([])
+  })
+
+  test("keeps stored notification keys in both locale catalogs", () => {
+    const missing = [...notificationMessageKeys()].filter(
+      (key) => !Object.hasOwn(en.App, key) || !Object.hasOwn(et.App, key)
+    )
+
+    expect(missing).toEqual([])
   })
 })

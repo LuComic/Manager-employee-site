@@ -30,7 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getAnnouncementState, type Announcement } from "@/lib/operations"
+import {
+  announcementPriorityMessageKeys,
+  getAnnouncementState,
+  type Announcement,
+} from "@/lib/operations"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
@@ -91,8 +95,8 @@ export function AnnouncementManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="searchAnnouncementsPlaceholder"
-            aria-label="searchAnnouncements"
+            placeholder={t("searchAnnouncementsPlaceholder")}
+            aria-label={t("searchAnnouncements")}
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -160,7 +164,9 @@ export function AnnouncementManager() {
                             : "secondary"
                         }
                       >
-                        {announcement.priority}
+                        {t(
+                          announcementPriorityMessageKeys[announcement.priority]
+                        )}
                       </Badge>
                       {announcement.pinned && (
                         <>
@@ -188,8 +194,8 @@ export function AnnouncementManager() {
                         })
                         showFeedback(
                           announcement.pinned
-                            ? "Announcement unpinned."
-                            : "Announcement pinned."
+                            ? "announcementUnpinned"
+                            : "announcementPinned"
                         )
                       }}
                     >
@@ -213,8 +219,8 @@ export function AnnouncementManager() {
                         })
                         showFeedback(
                           announcement.published
-                            ? "Announcement unpublished."
-                            : "Announcement published."
+                            ? "announcementUnpublished"
+                            : "announcementPublished"
                         )
                       }}
                     >

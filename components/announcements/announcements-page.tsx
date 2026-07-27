@@ -13,6 +13,7 @@ import {
   SegmentedControlItem,
 } from "@/components/ui/segmented-control"
 import type { AppMessageKey } from "@/i18n/messages"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { getAnnouncementState } from "@/lib/operations"
 
 type Filter = "Active" | "Upcoming" | "Expired"
@@ -24,6 +25,7 @@ const filterLabelKeys = {
 } satisfies Record<Filter, AppMessageKey>
 
 export function AnnouncementsPage() {
+  const t = useAppTranslations()
   const { announcements, hub } = useOperations()
   const [filter, setFilter] = useState<Filter>("Active")
   const visible = announcements
@@ -44,7 +46,7 @@ export function AnnouncementsPage() {
         description="temporaryOperationalUpdatesChangesNoticesWholeEstablishment"
       />
       <div className="border-b pb-4">
-        <SegmentedControl aria-label="announcementStatus">
+        <SegmentedControl aria-label={t("announcementStatus")}>
           {(["Active", "Upcoming", "Expired"] as const).map((item) => {
             const count = announcements.filter(
               (announcement) =>

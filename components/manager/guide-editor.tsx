@@ -185,7 +185,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         featured: draft.featured,
       })
       setDirty(false)
-      showFeedback(draft.id ? "Guide saved." : "Guide created.")
+      showFeedback(draft.id ? "guideSaved" : "guideCreated")
       leaveWithoutPrompt("/manager/guides")
     } finally {
       setSaving(false)
@@ -216,12 +216,12 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
 
   const previewGuide: Guide = {
     id: draft.id || "preview",
-    title: draft.title || "Untitled guide",
-    description: draft.description || "Add a short guide description.",
+    title: draft.title || t("untitledGuide"),
+    description: draft.description || t("addShortGuideDescription"),
     category: draft.category,
     icon: draft.icon,
-    duration: normalizeReadingTime(draft.duration) || "Reading time",
-    updated: draft.id ? "Updated just now" : "New guide",
+    duration: normalizeReadingTime(draft.duration) || t("readingTime"),
+    updated: draft.id ? t("updatedJustNow") : t("newGuide"),
     keywords: uniqueKeywords(draft.keywords),
     content: draft.content,
     published: draft.published,
@@ -242,7 +242,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
             <T>writeClearInstructionsPreviewHowEmployeesRead</T>
           </p>
         </div>
-        <SegmentedControl aria-label="guideEditorView">
+        <SegmentedControl aria-label={t("guideEditorView")}>
           <SegmentedControlItem
             type="button"
             selected={mode === "edit"}
@@ -353,7 +353,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                     if (duration && duration !== draft.duration)
                       change({ duration })
                   }}
-                  placeholder="fiveMinutes"
+                  placeholder={t("fiveMinutes")}
                   className="border border-input px-3"
                 />
               </Field>
@@ -368,7 +368,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                       event.preventDefault()
                       addKeyword()
                     }}
-                    placeholder="typeAKeyword"
+                    placeholder={t("typeAKeyword")}
                     className="min-w-0 border border-input px-3"
                   />
                   <Button
@@ -387,7 +387,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                 {draft.keywords.length ? (
                   <div
                     className="flex flex-wrap gap-2"
-                    aria-label="Guide keywords"
+                    aria-label={t("guideKeywords")}
                   >
                     {draft.keywords.map((keyword, index) => (
                       <button

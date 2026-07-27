@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  eventCategoryMessageKeys,
   eventCategories,
   eventLastDateKey,
   eventOccursOnDate,
@@ -128,7 +129,7 @@ export function CalendarPage() {
             variant="outline"
             size="icon-sm"
             onClick={() => moveMonth(-1)}
-            aria-label="previousMonth"
+            aria-label={t("previousMonth")}
           >
             <ChevronLeft />
           </Button>
@@ -143,7 +144,7 @@ export function CalendarPage() {
             variant="outline"
             size="icon-sm"
             onClick={() => moveMonth(1)}
-            aria-label="nextMonth"
+            aria-label={t("nextMonth")}
           >
             <ChevronRight />
           </Button>
@@ -177,7 +178,7 @@ export function CalendarPage() {
               </SelectItem>
               {eventCategories.map((item) => (
                 <SelectItem key={item} value={item}>
-                  {item}
+                  {t(eventCategoryMessageKeys[item])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -287,13 +288,20 @@ export function CalendarPage() {
                   )}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatEventTime(event, hub?.timeZone, languageTag)}
+                  {formatEventTime(
+                    event,
+                    hub?.timeZone,
+                    languageTag,
+                    t("allDay")
+                  )}
                 </p>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold">{event.title}</h3>
-                  <Badge variant="secondary">{event.category}</Badge>
+                  <Badge variant="secondary">
+                    {t(eventCategoryMessageKeys[event.category])}
+                  </Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {event.description}

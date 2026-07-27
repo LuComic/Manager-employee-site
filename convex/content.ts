@@ -184,9 +184,9 @@ export const saveGuide = mutation({
       contentTitle: value.title,
       detailHref: `/guides/${args.slug}`,
       listHref: "/guides",
-      publishedTitle: "New guide published",
-      updatedTitle: "Guide updated",
-      unpublishedTitle: "Guide unpublished",
+      publishedTitleKey: "notificationNewGuidePublished",
+      updatedTitleKey: "notificationGuideUpdated",
+      unpublishedTitleKey: "notificationGuideUnpublished",
     })
     return args.slug
   },
@@ -226,8 +226,9 @@ export const deleteGuide = mutation({
         hubId: args.hubId,
         audience: "employees",
         kind: "guide",
-        title: "Guide removed",
-        message: `${guide.title} is no longer available.`,
+        titleKey: "notificationGuideRemoved",
+        messageKey: "notificationContentNoLongerAvailable",
+        messageValues: { title: guide.title },
         href: "/guides",
       })
     }
@@ -385,9 +386,9 @@ export const saveEvent = mutation({
       contentTitle: value.title,
       detailHref: `/calendar/${args.slug}`,
       listHref: "/calendar",
-      publishedTitle: "New event added",
-      updatedTitle: "Event updated",
-      unpublishedTitle: "Event unpublished",
+      publishedTitleKey: "notificationNewEventAdded",
+      updatedTitleKey: "notificationEventUpdated",
+      unpublishedTitleKey: "notificationEventUnpublished",
     })
     if (args.published) {
       const assignmentRecipients = !existing?.published
@@ -406,7 +407,7 @@ export const saveEvent = mutation({
           audience: "employee",
           employeeProfileId,
           kind: "event",
-          title: "You were assigned to an event",
+          titleKey: "notificationAssignedToEvent",
           message: value.title,
           href: `/calendar/${args.slug}`,
         })
@@ -476,8 +477,9 @@ export const deleteEvent = mutation({
         hubId: args.hubId,
         audience: "employees",
         kind: "event",
-        title: "Event removed",
-        message: `${event.title} is no longer on the calendar.`,
+        titleKey: "notificationEventRemoved",
+        messageKey: "notificationEventNoLongerOnCalendar",
+        messageValues: { title: event.title },
         href: "/calendar",
       })
     }
@@ -558,9 +560,9 @@ export const saveAnnouncement = mutation({
       contentTitle: value.title,
       detailHref: `/announcements/${args.slug}`,
       listHref: "/announcements",
-      publishedTitle: "New announcement",
-      updatedTitle: "Announcement updated",
-      unpublishedTitle: "Announcement unpublished",
+      publishedTitleKey: "notificationNewAnnouncement",
+      updatedTitleKey: "notificationAnnouncementUpdated",
+      unpublishedTitleKey: "notificationAnnouncementUnpublished",
     })
     return args.slug
   },
@@ -583,7 +585,7 @@ export const deleteAnnouncement = mutation({
           hubId: args.hubId,
           audience: "employees",
           kind: "announcement",
-          title: "Announcement removed",
+          titleKey: "notificationAnnouncementRemoved",
           message: announcement.title,
           href: "/announcements",
         })
@@ -638,9 +640,9 @@ export const saveFaq = mutation({
       contentTitle: value.question,
       detailHref: `/questions#${args.slug}`,
       listHref: "/questions",
-      publishedTitle: "New common answer",
-      updatedTitle: "Common answer updated",
-      unpublishedTitle: "Common answer unpublished",
+      publishedTitleKey: "notificationNewCommonAnswer",
+      updatedTitleKey: "notificationCommonAnswerUpdated",
+      unpublishedTitleKey: "notificationCommonAnswerUnpublished",
     })
     return args.slug
   },
@@ -684,7 +686,7 @@ export const deleteFaq = mutation({
           hubId: args.hubId,
           audience: "employees",
           kind: "question",
-          title: "Common answer removed",
+          titleKey: "notificationCommonAnswerRemoved",
           message: faq.question,
           href: "/questions",
         })
@@ -720,7 +722,7 @@ export const submitHelpRequest = mutation({
       hubId: hub._id,
       audience: "managers",
       kind: "question",
-      title: "New employee question",
+      titleKey: "notificationNewEmployeeQuestion",
       message: topic,
       href: "/manager/help",
     })

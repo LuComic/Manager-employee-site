@@ -82,7 +82,7 @@ export function AccessManager() {
                 await setAccessMode(nextMode)
                 showFeedback(
                   nextMode === "restricted"
-                    ? "restrictedAccessEnabledEmployeesNowNeedCodePrivateLink"
+                    ? "restrictedAccessEnabledEmployeesNowNeedCodeMessage"
                     : "publicAccessEnabledWorkplaceurlNowOpensMessage"
                 )
               } finally {

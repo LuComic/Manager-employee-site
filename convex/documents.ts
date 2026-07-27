@@ -259,9 +259,9 @@ export const save = mutation({
       contentTitle: value.title,
       detailHref: `/documents/${args.slug}`,
       listHref: "/documents",
-      publishedTitle: "New document shared",
-      updatedTitle: "Document updated",
-      unpublishedTitle: "Document unpublished",
+      publishedTitleKey: "notificationNewDocumentShared",
+      updatedTitleKey: "notificationDocumentUpdated",
+      unpublishedTitleKey: "notificationDocumentUnpublished",
     })
     return args.slug
   },
@@ -314,7 +314,7 @@ export const remove = mutation({
           hubId: args.hubId,
           audience: "employees",
           kind: "document",
-          title: "Document removed",
+          titleKey: "notificationDocumentRemoved",
           message: document.title,
           href: "/documents",
         })

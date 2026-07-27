@@ -121,8 +121,6 @@ Only the workplace owner can manage employees, invitations, establishment settin
 - Preserve the existing routes and working guide functionality while adding the new features.
 - Follow `STYLE_GUIDE.md` throughout the implementation.
 
-## Development seed and AI assessment
-
-A signed-in development manager can create an owned hub containing the North & Pine seed once. There is no unauthenticated ownership or takeover path.
+## AI assessment
 
 Grounded staff Q&A is the preferred future AI enhancement, but it remains disabled until model credentials are available. It must retrieve only published records from the currently authorized hub and link answers to their sources. Convex-backed keyword search remains the active search implementation; there is no fake AI surface.

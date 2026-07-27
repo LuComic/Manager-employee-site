@@ -15,7 +15,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider"
 import { OperationsProvider } from "@/components/providers/operations-provider"
 import { Toaster } from "@/components/ui/sonner"
-import { getMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
 import { SITE_NAME } from "@/lib/branding"
@@ -47,9 +46,7 @@ export async function generateMetadata({
       template: `%s | ${SITE_NAME}`,
     },
     applicationName: SITE_NAME,
-    description: t(
-      getMessageKey("todaySInformationPracticalGuidesSmoothShifts")
-    ),
+    description: t("todaySInformationPracticalGuidesSmoothShifts"),
   }
 }
 

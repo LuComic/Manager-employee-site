@@ -37,8 +37,18 @@ const todaySectionKeyValidator = v.union(
   v.literal("useful-guides")
 )
 
-const defaultDescription =
-  "Current updates, important times, and practical guides for each shift."
+const defaultHubCopy = {
+  et: {
+    description:
+      "Praegused uuendused, olulised kellaajad ja praktilised juhendid igaks vahetuseks.",
+    contactName: "vahetusvanem",
+  },
+  en: {
+    description:
+      "Current updates, important times, and practical guides for each shift.",
+    contactName: "shift lead",
+  },
+} as const
 
 function slugify(value: string) {
   return value
@@ -72,6 +82,7 @@ export const create = mutation({
     joinCode: v.string(),
     privateToken: v.string(),
     timeZone: v.string(),
+    locale: v.optional(v.union(v.literal("et"), v.literal("en"))),
   },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx)
@@ -105,13 +116,14 @@ export const create = mutation({
     }
     const slug = await availableSlug(ctx, args.slug)
     const now = Date.now()
+    const defaultCopy = defaultHubCopy[args.locale ?? "et"]
     const hubId = await ctx.db.insert("hubs", {
       name,
       slug,
-      description: defaultDescription,
+      description: defaultCopy.description,
       address: "",
       timeZone: validateTimeZone(args.timeZone),
-      contactName: "shift lead",
+      contactName: defaultCopy.contactName,
       contactEmail: "",
       contactPhone: "",
       todaySections: defaultTodaySections.map((section) => ({ ...section })),
@@ -168,7 +180,8 @@ export const updateSettings = mutation({
       description: optional(args.description, 500),
       address: optional(args.address, 500),
       timeZone: validateTimeZone(args.timeZone),
-      contactName: optional(args.contactName, 100) || "shift lead",
+      contactName:
+        optional(args.contactName, 100) || defaultHubCopy.et.contactName,
       contactEmail,
       contactPhone: optional(args.contactPhone, 80),
       updatedAt: Date.now(),
@@ -177,8 +190,8 @@ export const updateSettings = mutation({
       hubId: hub._id,
       audience: "employees",
       kind: "workplace",
-      title: "Workplace details updated",
-      message: "The establishment information on the Today page has changed.",
+      titleKey: "notificationWorkplaceDetailsUpdated",
+      messageKey: "notificationTodayInformationChanged",
       href: "/",
     })
     return null

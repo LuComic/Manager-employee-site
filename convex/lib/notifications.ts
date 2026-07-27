@@ -7,8 +7,10 @@ type NotificationKind =
 type NotificationDetails = {
   hubId: Id<"hubs">
   kind: NotificationKind
-  title: string
-  message: string
+  titleKey: string
+  message?: string
+  messageKey?: string
+  messageValues?: Record<string, string | number>
   href: string
 }
 
@@ -45,9 +47,9 @@ export async function notifyPublicationChange(
     contentTitle: string
     detailHref: string
     listHref: string
-    publishedTitle: string
-    updatedTitle: string
-    unpublishedTitle: string
+    publishedTitleKey: string
+    updatedTitleKey: string
+    unpublishedTitleKey: string
   }
 ) {
   if (change.isPublished) {
@@ -55,7 +57,9 @@ export async function notifyPublicationChange(
       hubId: change.hubId,
       audience: "employees",
       kind: change.kind,
-      title: change.wasPublished ? change.updatedTitle : change.publishedTitle,
+      titleKey: change.wasPublished
+        ? change.updatedTitleKey
+        : change.publishedTitleKey,
       message: change.contentTitle,
       href: change.detailHref,
     })
@@ -64,8 +68,9 @@ export async function notifyPublicationChange(
       hubId: change.hubId,
       audience: "employees",
       kind: change.kind,
-      title: change.unpublishedTitle,
-      message: `${change.contentTitle} is no longer available.`,
+      titleKey: change.unpublishedTitleKey,
+      messageKey: "notificationContentNoLongerAvailable",
+      messageValues: { title: change.contentTitle },
       href: change.listHref,
     })
   }

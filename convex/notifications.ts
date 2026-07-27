@@ -27,8 +27,13 @@ const notificationKind = v.union(
 const notificationItem = v.object({
   id: v.id("notifications"),
   kind: notificationKind,
-  title: v.string(),
-  message: v.string(),
+  title: v.optional(v.string()),
+  message: v.optional(v.string()),
+  titleKey: v.optional(v.string()),
+  messageKey: v.optional(v.string()),
+  messageValues: v.optional(
+    v.record(v.string(), v.union(v.string(), v.number()))
+  ),
   href: v.string(),
   createdAt: v.number(),
 })
@@ -44,6 +49,9 @@ const notificationFields = (notification: Doc<"notifications">) => ({
   kind: notification.kind,
   title: notification.title,
   message: notification.message,
+  titleKey: notification.titleKey,
+  messageKey: notification.messageKey,
+  messageValues: notification.messageValues,
   href: notification.href,
   createdAt: notification._creationTime,
 })

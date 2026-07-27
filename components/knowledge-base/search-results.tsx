@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { toDateKey } from "@/lib/operations"
+import type { AppMessageKey } from "@/i18n/messages"
 
 type Result = {
   id: string
@@ -33,6 +34,14 @@ type Result = {
   description: string
   type: "Guide" | "Event" | "Announcement" | "Question" | "Document"
 }
+
+const resultTypeKeys = {
+  Guide: "guide",
+  Event: "event",
+  Announcement: "announcement",
+  Question: "question",
+  Document: "document",
+} satisfies Record<Result["type"], AppMessageKey>
 
 export function SearchResults({ query }: { query: string }) {
   const t = useAppTranslations()
@@ -104,7 +113,9 @@ export function SearchResults({ query }: { query: string }) {
                       <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
                         <Icon className="size-4" />
                       </span>
-                      <Badge variant="secondary">{result.type}</Badge>
+                      <Badge variant="secondary">
+                        {t(resultTypeKeys[result.type])}
+                      </Badge>
                       <CardTitle className="text-base">
                         {result.title}
                       </CardTitle>

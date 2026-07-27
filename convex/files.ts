@@ -224,8 +224,9 @@ export const attachToEvent = mutation({
         hubId: args.hubId,
         audience: "employees",
         kind: "event",
-        title: "Event attachment added",
-        message: `${event.title} has a new attachment.`,
+        titleKey: "notificationEventAttachmentAdded",
+        messageKey: "notificationEventHasNewAttachment",
+        messageValues: { title: event.title },
         href: `/calendar/${event.slug}`,
       })
     }
@@ -258,8 +259,9 @@ export const remove = mutation({
         hubId: args.hubId,
         audience: "employees",
         kind: "event",
-        title: "Event attachment removed",
-        message: `${event.title} has updated attachments.`,
+        titleKey: "notificationEventAttachmentRemoved",
+        messageKey: "notificationEventAttachmentsUpdated",
+        messageValues: { title: event.title },
         href: `/calendar/${event.slug}`,
       })
     }
@@ -322,8 +324,8 @@ export const attachToHubBanner = mutation({
       hubId: hub._id,
       audience: "employees",
       kind: "workplace",
-      title: "Workplace banner updated",
-      message: "The image on the Today page has been changed.",
+      titleKey: "notificationWorkplaceBannerUpdated",
+      messageKey: "notificationTodayImageChanged",
       href: "/",
     })
     return null
@@ -350,8 +352,8 @@ export const removeHubBanner = mutation({
       hubId: hub._id,
       audience: "employees",
       kind: "workplace",
-      title: "Workplace banner updated",
-      message: "The Today page banner has been reset.",
+      titleKey: "notificationWorkplaceBannerUpdated",
+      messageKey: "notificationTodayBannerReset",
       href: "/",
     })
     return null

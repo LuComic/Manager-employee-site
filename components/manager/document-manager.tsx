@@ -23,7 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { documentResourceLabel, type WorkspaceDocument } from "@/lib/documents"
+import {
+  documentResourceLabelKey,
+  type WorkspaceDocument,
+} from "@/lib/documents"
 import { cn } from "@/lib/utils"
 
 type Status = "All" | "Published" | "Draft"
@@ -81,8 +84,8 @@ export function DocumentManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="searchDocumentsPlaceholder"
-            aria-label="searchDocuments"
+            placeholder={t("searchDocumentsPlaceholder")}
+            aria-label={t("searchDocuments")}
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -154,7 +157,7 @@ export function DocumentManager() {
                       |
                     </span>
                     <Badge variant="outline">
-                      {documentResourceLabel(document.resource)}
+                      {t(documentResourceLabelKey(document.resource))}
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -175,8 +178,8 @@ export function DocumentManager() {
                           })
                           showFeedback(
                             document.published
-                              ? "Document unpublished."
-                              : "Document published."
+                              ? "documentUnpublished"
+                              : "documentPublished"
                           )
                         } catch {
                           // The shared operation runner already shows the error.

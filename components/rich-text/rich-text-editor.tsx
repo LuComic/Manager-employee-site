@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { RichTextDocument } from "@/lib/rich-text"
+import type { AppMessageKey } from "@/i18n/messages"
 import { normalizeRichTextLink } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
@@ -45,7 +46,7 @@ export function RichTextEditor({
   const t = useAppTranslations()
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState("")
-  const [linkError, setLinkError] = useState("")
+  const [linkError, setLinkError] = useState<AppMessageKey | "">("")
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -87,7 +88,7 @@ export function RichTextEditor({
     if (!editor) return
     const href = normalizeRichTextLink(linkValue)
     if (!href) {
-      setLinkError("Enter an http, https, or email link.")
+      setLinkError("enterValidWebOrEmailLink")
       return
     }
     editor.chain().focus().extendMarkRange("link").setLink({ href }).run()
@@ -131,49 +132,49 @@ export function RichTextEditor({
           </SelectContent>
         </Select>
         <FormatButton
-          label="Bold"
+          label="bold"
           active={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
         >
           <Bold />
         </FormatButton>
         <FormatButton
-          label="Italic"
+          label="italic"
           active={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         >
           <Italic />
         </FormatButton>
         <FormatButton
-          label="Underline"
+          label="underline"
           active={editor.isActive("underline")}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
         >
           <Underline />
         </FormatButton>
         <FormatButton
-          label="Bulleted list"
+          label="bulletedList"
           active={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
         >
           <List />
         </FormatButton>
         <FormatButton
-          label="Numbered list"
+          label="numberedList"
           active={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
         >
           <ListOrdered />
         </FormatButton>
         <FormatButton
-          label="Block quote"
+          label="blockQuote"
           active={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         >
           <Quote />
         </FormatButton>
         <FormatButton
-          label="Link"
+          label="link"
           active={editor.isActive("link")}
           onClick={() => {
             setLinkValue(String(editor.getAttributes("link").href ?? ""))
@@ -185,14 +186,14 @@ export function RichTextEditor({
         </FormatButton>
         <span className="mx-1 h-6 border-l" aria-hidden="true" />
         <FormatButton
-          label="Undo"
+          label="undo"
           disabled={!editor.can().chain().focus().undo().run()}
           onClick={() => editor.chain().focus().undo().run()}
         >
           <Undo2 />
         </FormatButton>
         <FormatButton
-          label="Redo"
+          label="redo"
           disabled={!editor.can().chain().focus().redo().run()}
           onClick={() => editor.chain().focus().redo().run()}
         >
@@ -211,12 +212,12 @@ export function RichTextEditor({
                   applyLink()
                 }
               }}
-              placeholder="linkOrEmailUrlExample"
-              aria-label="linkAddress"
+              placeholder={t("linkOrEmailUrlExample")}
+              aria-label={t("linkAddress")}
               className="border border-input px-3"
             />
             {linkError && (
-              <p className="mt-2 text-xs text-destructive">{linkError}</p>
+              <p className="mt-2 text-xs text-destructive">{t(linkError)}</p>
             )}
           </div>
           <div className="flex gap-2">
@@ -251,18 +252,19 @@ function FormatButton({
   onClick,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   active?: boolean
   disabled?: boolean
   onClick: () => void
   children: React.ReactNode
 }) {
+  const t = useAppTranslations()
   return (
     <Button
       type="button"
       variant={active ? "selected" : "ghost"}
       size="icon-sm"
-      aria-label={label}
+      aria-label={t(label)}
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}

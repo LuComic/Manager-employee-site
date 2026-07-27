@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { AppMessageKey } from "@/i18n/messages"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import {
   Select,
   SelectContent,
@@ -66,6 +67,7 @@ export function AnnouncementEditor({
 }: {
   announcementId?: string
 }) {
+  const t = useAppTranslations()
   const { hub, announcements, guides, events, saveAnnouncement, showFeedback } =
     useOperations()
   const existing = announcementId
@@ -128,7 +130,7 @@ export function AnnouncementEditor({
         eventId: draft.eventId || undefined,
       })
       setDirty(false)
-      showFeedback(draft.id ? "Announcement saved." : "Announcement created.")
+      showFeedback(draft.id ? "announcementSaved" : "announcementCreated")
       leaveWithoutPrompt("/manager/announcements")
     } finally {
       setSaving(false)
@@ -149,7 +151,7 @@ export function AnnouncementEditor({
   const previewAnnouncement: Announcement = {
     ...draft,
     id: draft.id || "preview",
-    title: draft.title || "Untitled announcement",
+    title: draft.title || t("untitledAnnouncement"),
   }
   const previewGuide = guides.find(
     (guide) => guide.id === draft.guideId && guide.published
@@ -172,7 +174,7 @@ export function AnnouncementEditor({
             <T>writeClearUpdateControlEmployeesSee</T>
           </p>
         </div>
-        <SegmentedControl aria-label="announcementEditorView">
+        <SegmentedControl aria-label={t("announcementEditorView")}>
           <SegmentedControlItem
             type="button"
             selected={mode === "edit"}

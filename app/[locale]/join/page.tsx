@@ -5,7 +5,6 @@ import { getTranslations } from "next-intl/server"
 
 import { HubEntryScreen } from "@/components/operations/hub-access-gate"
 import { routing } from "@/i18n/routing"
-import { getMessageKey } from "@/i18n/messages"
 
 export async function generateMetadata({
   params,
@@ -15,8 +14,8 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: t(getMessageKey("joinAWorkplace")),
-    description: t(getMessageKey("signInCreateAccountOpenWorkplace")),
+    title: t("joinAWorkplace"),
+    description: t("signInCreateAccountOpenWorkplace"),
   }
 }
 

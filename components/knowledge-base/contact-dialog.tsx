@@ -119,7 +119,7 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                     required
                     value={topic}
                     onChange={(event) => setTopic(event.target.value)}
-                    placeholder="forExampleRefundApproval"
+                    placeholder={t("forExampleRefundApproval")}
                     className="border border-input px-3 focus-visible:border-ring"
                   />
                 </div>
@@ -132,7 +132,7 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                     required
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
-                    placeholder="describeWhatYouNeedHelpWith"
+                    placeholder={t("describeWhatYouNeedHelpWith")}
                     className="min-h-28 border border-input px-3 focus-visible:border-ring"
                   />
                 </div>

@@ -154,7 +154,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
         }
       )
       setDirty(false)
-      showFeedback(draft.id ? "Document saved." : "Document shared.")
+      showFeedback(draft.id ? "documentSaved" : "documentShared")
       leaveWithoutPrompt("/manager/documents")
     } finally {
       setSaving(false)
@@ -209,7 +209,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                   onChange={(event) =>
                     changeBase({ title: event.target.value })
                   }
-                  placeholder="openingChecklist"
+                  placeholder={t("openingChecklist")}
                   className="border border-input px-3 text-base"
                 />
               </Field>
@@ -220,7 +220,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                   onChange={(event) =>
                     changeBase({ description: event.target.value })
                   }
-                  placeholder="explainWhatResourceContainsUse"
+                  placeholder={t("explainWhatResourceContainsUse")}
                   className="min-h-24 border border-input px-3"
                 />
               </Field>
@@ -314,7 +314,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                       setLinkUrl(event.target.value)
                       markChanged()
                     }}
-                    placeholder="sharedDocumentUrlExample"
+                    placeholder={t("sharedDocumentUrlExample")}
                     className="border border-input px-3"
                   />
                 </Field>
@@ -407,7 +407,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                 }
                 role={visibleBanner ? "img" : undefined}
                 aria-label={
-                  visibleBanner ? "Document banner preview" : undefined
+                  visibleBanner ? t("documentBannerPreview") : undefined
                 }
               >
                 {!visibleBanner && (

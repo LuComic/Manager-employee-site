@@ -1,5 +1,5 @@
 import { T } from "@/components/translated-text"
-import { useLanguageTag } from "@/i18n/use-app-translations"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
 import { ArrowRight, Pin } from "lucide-react"
@@ -12,7 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { formatDate, type Announcement } from "@/lib/operations"
+import {
+  announcementPriorityMessageKeys,
+  formatDate,
+  type Announcement,
+} from "@/lib/operations"
 import { richTextToPlainText } from "@/lib/rich-text"
 
 export function AnnouncementCard({
@@ -21,6 +25,7 @@ export function AnnouncementCard({
   announcement: Announcement
 }) {
   const languageTag = useLanguageTag()
+  const t = useAppTranslations()
 
   return (
     <Link
@@ -38,7 +43,7 @@ export function AnnouncementCard({
                 announcement.priority === "Urgent" ? "destructive" : "secondary"
               }
             >
-              {announcement.priority}
+              {t(announcementPriorityMessageKeys[announcement.priority])}
             </Badge>
             {announcement.pinned && (
               <span className="flex items-center gap-2 text-xs font-semibold text-primary">

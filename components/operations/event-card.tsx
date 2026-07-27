@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation"
 import { ArrowRight, Clock3, MapPin } from "lucide-react"
 
-import { useLanguageTag } from "@/i18n/use-app-translations"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
+  eventCategoryMessageKeys,
   formatEventDate,
   formatEventTime,
   type CalendarEvent,
@@ -26,6 +27,7 @@ export function EventCard({
   compact?: boolean
 }) {
   const languageTag = useLanguageTag()
+  const t = useAppTranslations()
 
   return (
     <Link
@@ -37,7 +39,9 @@ export function EventCard({
         className="h-full shadow-none transition-colors group-hover:bg-muted/40"
       >
         <CardHeader>
-          <Badge variant="secondary">{event.category}</Badge>
+          <Badge variant="secondary">
+            {t(eventCategoryMessageKeys[event.category])}
+          </Badge>
           <CardTitle className="text-base">{event.title}</CardTitle>
           <CardDescription className={compact ? "line-clamp-2" : undefined}>
             {event.description}
@@ -48,7 +52,7 @@ export function EventCard({
             <span className="flex items-center gap-2">
               <Clock3 className="size-4" />{" "}
               {formatEventDate(event, undefined, timeZone, languageTag)},{" "}
-              {formatEventTime(event, timeZone, languageTag)}
+              {formatEventTime(event, timeZone, languageTag, t("allDay"))}
             </span>
             <span className="flex items-center gap-2">
               <MapPin className="size-4" /> {event.location}

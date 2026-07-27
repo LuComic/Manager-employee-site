@@ -97,8 +97,9 @@ async function activateProfile(
       audience: "managers",
       employeeProfileId: profile._id,
       kind: "workplace",
-      title: "Employee account connected",
-      message: `${profile.displayName} joined the workplace.`,
+      titleKey: "notificationEmployeeAccountConnected",
+      messageKey: "notificationEmployeeJoinedWorkplace",
+      messageValues: { name: profile.displayName },
       href: "/manager/employees",
     })
   }

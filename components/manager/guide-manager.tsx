@@ -85,8 +85,8 @@ export function GuideManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="searchGuidesPlaceholder"
-            aria-label="searchGuides"
+            placeholder={t("searchGuidesPlaceholder")}
+            aria-label={t("searchGuides")}
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -174,9 +174,7 @@ export function GuideManager() {
                         updated: "Updated just now",
                       })
                       showFeedback(
-                        guide.published
-                          ? "Guide unpublished."
-                          : "Guide published."
+                        guide.published ? "guideUnpublished" : "guidePublished"
                       )
                     }}
                   >

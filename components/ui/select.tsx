@@ -4,7 +4,6 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-import { useAppTranslations } from "@/i18n/use-app-translations"
 import { cn } from "@/lib/utils"
 
 const Select = SelectPrimitive.Root
@@ -37,16 +36,6 @@ function SelectTrigger({
 }: SelectPrimitive.Trigger.Props & {
   size?: "sm" | "default"
 }) {
-  const t = useAppTranslations()
-  const translatedProps = {
-    ...props,
-    "aria-label":
-      typeof props["aria-label"] === "string"
-        ? t(props["aria-label"])
-        : props["aria-label"],
-    title: typeof props.title === "string" ? t(props.title) : props.title,
-  }
-
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
@@ -55,7 +44,7 @@ function SelectTrigger({
         "flex w-fit items-center justify-between gap-1.5 rounded-none border border-transparent border-b-input bg-transparent px-0 py-2 text-sm whitespace-nowrap transition-[color,border-color] outline-none focus-visible:border-b-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-b-destructive data-placeholder:text-muted-foreground data-[size=default]:h-10 data-[size=sm]:h-9 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:aria-invalid:border-b-destructive/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
         className
       )}
-      {...translatedProps}
+      {...props}
     >
       {children}
       <SelectPrimitive.Icon
@@ -130,8 +119,6 @@ function SelectItem({
   children,
   ...props
 }: SelectPrimitive.Item.Props) {
-  const t = useAppTranslations()
-
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -142,7 +129,7 @@ function SelectItem({
       {...props}
     >
       <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
-        {typeof children === "string" ? t(children) : children}
+        {children}
       </SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator
         render={

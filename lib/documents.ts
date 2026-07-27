@@ -54,32 +54,39 @@ export function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`
 }
 
-export function documentResourceLabel(resource?: DocumentResource) {
-  if (!resource) return "File"
+export function documentResourceLabelKey(
+  resource?: DocumentResource
+): AppMessageKey {
+  if (!resource) return "file"
   if (resource.kind === "link") {
-    try {
-      return new URL(resource.url).hostname.replace(/^www\./, "")
-    } catch {
-      return "Shared link"
-    }
+    return "sharedLink"
   }
-  if (resource.contentType.startsWith("image/")) return "Image"
-  if (resource.contentType === "application/pdf") return "PDF"
+  if (resource.contentType.startsWith("image/")) return "image"
+  if (resource.contentType === "application/pdf") return "pdf"
   if (
     resource.contentType.includes("presentation") ||
     resource.contentType.includes("powerpoint")
   )
-    return "Presentation"
+    return "presentation"
   if (
     resource.contentType.includes("spreadsheet") ||
     resource.contentType.includes("excel") ||
     resource.contentType === "text/csv"
   )
-    return "Spreadsheet"
+    return "spreadsheet"
   if (
     resource.contentType.includes("document") ||
     resource.contentType.includes("word")
   )
-    return "Document"
-  return "File"
+    return "document"
+  return "file"
 }
+
+export function sharedLinkHost(resource: LinkedDocumentResource) {
+  try {
+    return new URL(resource.url).hostname.replace(/^www\./, "")
+  } catch {
+    return undefined
+  }
+}
+import type { AppMessageKey } from "@/i18n/messages"

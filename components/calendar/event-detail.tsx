@@ -27,7 +27,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { formatEventDate, formatEventTime } from "@/lib/operations"
+import {
+  eventCategoryMessageKeys,
+  formatEventDate,
+  formatEventTime,
+} from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
@@ -60,7 +64,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
       </Link>
       <Card className="shadow-none">
         <CardHeader className="border-b">
-          <Badge variant="secondary">{event.category}</Badge>
+          <Badge variant="secondary">
+            {t(eventCategoryMessageKeys[event.category])}
+          </Badge>
           <CardTitle>
             <h1 className="text-2xl tracking-tight">{event.title}</h1>
           </CardTitle>
@@ -110,7 +116,12 @@ export function EventDetail({ eventId }: { eventId: string }) {
             value={
               event.allDay
                 ? t("allDay")
-                : formatEventTime(event, hub?.timeZone, languageTag)
+                : formatEventTime(
+                    event,
+                    hub?.timeZone,
+                    languageTag,
+                    t("allDay")
+                  )
             }
           />
           <Detail icon={MapPin} label="location" value={event.location} />

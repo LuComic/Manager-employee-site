@@ -58,6 +58,7 @@ export function TodayManager() {
         {sections.map((section, index) => {
           const detail = sectionDetails.get(section.key)
           const Icon = sectionIcons[section.key]
+          const sectionName = detail ? t(detail.titleKey) : ""
 
           return (
             <Card
@@ -76,7 +77,7 @@ export function TodayManager() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold">{detail?.title}</h2>
+                    <h2 className="font-semibold">{sectionName}</h2>
                     <span aria-hidden="true" className="text-border">
                       |
                     </span>
@@ -85,7 +86,7 @@ export function TodayManager() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {detail?.description}
+                    {detail ? t(detail.descriptionKey) : ""}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -95,10 +96,10 @@ export function TodayManager() {
                     disabled={index === 0}
                     onClick={() => {
                       void moveTodaySection(section.key, -1)
-                      showFeedback(`${detail?.title} moved up.`)
+                      showFeedback("sectionMovedUp", { name: sectionName })
                     }}
                     aria-label={t("moveNameUp", {
-                      name: detail?.title ?? "",
+                      name: sectionName,
                     })}
                   >
                     <ArrowUp />
@@ -109,10 +110,10 @@ export function TodayManager() {
                     disabled={index === sections.length - 1}
                     onClick={() => {
                       void moveTodaySection(section.key, 1)
-                      showFeedback(`${detail?.title} moved down.`)
+                      showFeedback("sectionMovedDown", { name: sectionName })
                     }}
                     aria-label={t("moveNameDown", {
-                      name: detail?.title ?? "",
+                      name: sectionName,
                     })}
                   >
                     <ArrowDown />
@@ -126,7 +127,8 @@ export function TodayManager() {
                         !section.visible
                       )
                       showFeedback(
-                        `${detail?.title} ${section.visible ? "hidden" : "shown"}.`
+                        section.visible ? "sectionHidden" : "sectionShown",
+                        { name: sectionName }
                       )
                     }}
                   >

@@ -155,7 +155,7 @@ export function HubSettingsManager() {
                 value={settings.timeZone}
                 onChange={(event) => update("timeZone", event.target.value)}
                 className="border border-input px-3"
-                placeholder="tallinnTimeZone"
+                placeholder={t("tallinnTimeZone")}
                 required
               />
               <p className="text-xs text-muted-foreground">
@@ -183,7 +183,7 @@ export function HubSettingsManager() {
                 value={settings.address}
                 onChange={(event) => update("address", event.target.value)}
                 className="min-h-20 border border-input px-3"
-                placeholder="streetCityPostalCode"
+                placeholder={t("streetCityPostalCode")}
                 maxLength={500}
               />
             </div>
@@ -216,7 +216,7 @@ export function HubSettingsManager() {
                   <T>bannerPreview</T>
                 </p>
                 <p className="mt-1 font-semibold text-white">
-                  <T>todayAt</T> {settings.name || "your workplace"}
+                  <T>todayAt</T> {settings.name || t("yourWorkplaceLowercase")}
                 </p>
               </div>
             </div>
@@ -294,7 +294,7 @@ export function HubSettingsManager() {
                 value={settings.contactEmail}
                 onChange={(event) => update("contactEmail", event.target.value)}
                 className="border border-input px-3"
-                placeholder="operationsEmailExample"
+                placeholder={t("operationsEmailExample")}
                 maxLength={200}
               />
             </Field>

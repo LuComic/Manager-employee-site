@@ -1,7 +1,7 @@
 "use client"
 
 import { T } from "@/components/translated-text"
-import { useLanguageTag } from "@/i18n/use-app-translations"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
 import { ArrowLeft, CalendarDays, Megaphone, Pin } from "lucide-react"
@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
+  announcementPriorityMessageKeys,
+  announcementStateMessageKeys,
   formatDate,
   getAnnouncementState,
   type Announcement,
@@ -66,6 +68,7 @@ export function AnnouncementArticle({
   event?: CalendarEvent
   preview?: boolean
 }) {
+  const t = useAppTranslations()
   const { hub } = useOperations()
   const languageTag = useLanguageTag()
   const state = getAnnouncementState(announcement, new Date(), hub?.timeZone)
@@ -90,9 +93,11 @@ export function AnnouncementArticle({
                 announcement.priority === "Urgent" ? "destructive" : "secondary"
               }
             >
-              {announcement.priority}
+              {t(announcementPriorityMessageKeys[announcement.priority])}
             </Badge>
-            <Badge variant="secondary">{state}</Badge>
+            <Badge variant="secondary">
+              {t(announcementStateMessageKeys[state])}
+            </Badge>
             {announcement.pinned && (
               <span className="flex items-center gap-2 text-xs font-semibold text-primary">
                 <Pin className="size-3" /> <T>pinned</T>

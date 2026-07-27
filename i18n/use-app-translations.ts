@@ -2,7 +2,7 @@ import { useCallback } from "react"
 import { useLocale, useTranslations } from "next-intl"
 import type { TranslationValues } from "next-intl"
 
-import { resolveMessageKey } from "@/i18n/messages"
+import type { AppMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { languageTags, type Locale } from "@/i18n/routing"
 
@@ -10,9 +10,27 @@ export function useAppTranslations() {
   const translations = useTranslations("App")
 
   return useCallback(
-    (message: string, values?: TranslationValues) => {
-      const key = resolveMessageKey(message)
-      return key && translations.has(key) ? translations(key, values) : message
+    (key: AppMessageKey, values?: TranslationValues) =>
+      translations(key, values),
+    [translations]
+  )
+}
+
+export function useAppErrorTranslation() {
+  const translations = useTranslations("App")
+
+  return useCallback(
+    (error: unknown) => {
+      const raw =
+        error instanceof Error
+          ? error.message.replace(/^.*Uncaught Error: /, "").trim()
+          : typeof error === "string"
+            ? error.trim()
+            : ""
+      const key = raw as AppMessageKey
+      return raw && translations.has(key)
+        ? translations(key)
+        : translations("somethingWentWrong")
     },
     [translations]
   )

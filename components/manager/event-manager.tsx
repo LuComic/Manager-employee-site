@@ -50,6 +50,7 @@ import {
   type CalendarImportResult,
 } from "@/lib/icalendar"
 import {
+  eventCategoryMessageKeys,
   eventCategories,
   formatEventDate,
   formatEventTime,
@@ -57,8 +58,14 @@ import {
   type EventCategory,
 } from "@/lib/operations"
 import { cn } from "@/lib/utils"
+import type { AppMessageKey } from "@/i18n/messages"
+import type { TranslationValues } from "next-intl"
 
 type Status = "All" | "Published" | "Draft"
+type LocalizedMessage = {
+  key: AppMessageKey
+  values?: TranslationValues
+}
 
 export function EventManager() {
   const t = useAppTranslations()
@@ -80,13 +87,15 @@ export function EventManager() {
     null
   )
   const [importFileName, setImportFileName] = useState("")
-  const [importError, setImportError] = useState("")
+  const [importError, setImportError] = useState<LocalizedMessage | null>(null)
   const [importing, setImporting] = useState(false)
   const [publishImported, setPublishImported] = useState(false)
   const [importSaveIssues, setImportSaveIssues] = useState<
     CalendarImportIssue[]
   >([])
-  const [importOutcome, setImportOutcome] = useState("")
+  const [importOutcome, setImportOutcome] = useState<LocalizedMessage | null>(
+    null
+  )
   const [importProgress, setImportProgress] = useState<{
     completed: number
     total: number
@@ -113,10 +122,10 @@ export function EventManager() {
   function resetImport() {
     setImportResult(null)
     setImportFileName("")
-    setImportError("")
+    setImportError(null)
     setPublishImported(false)
     setImportSaveIssues([])
-    setImportOutcome("")
+    setImportOutcome(null)
     setImportProgress(null)
   }
 
@@ -124,24 +133,27 @@ export function EventManager() {
     resetImport()
     if (!file) return
     if (file.size > MAX_ICALENDAR_FILE_SIZE_BYTES) {
-      setImportError("Choose a calendar file no larger than 1 MB.")
+      setImportError({ key: "calendarFileTooLarge" })
       return
     }
     if (
       !file.name.toLowerCase().endsWith(".ics") &&
       file.type !== "text/calendar"
     ) {
-      setImportError("Choose an iCalendar file ending in .ics.")
+      setImportError({ key: "calendarChooseIcsFile" })
       return
     }
     try {
       const result = parseICalendar(await file.text(), {
         timeZone: hub?.timeZone ?? "UTC",
+        defaultDescription: t("calendarImportedExternalDescription"),
+        defaultLocation: t("calendarNoLocationSpecified"),
+        cancelledEventTitle: t("calendarCancelledEvent"),
       })
       setImportFileName(file.name)
       setImportResult(result)
     } catch {
-      setImportError("This calendar file could not be read.")
+      setImportError({ key: "calendarFileCouldNotBeRead" })
     }
   }
 
@@ -162,7 +174,7 @@ export function EventManager() {
     let skippedCancellationCount = 0
     setImporting(true)
     setImportSaveIssues([])
-    setImportOutcome("")
+    setImportOutcome(null)
     setImportProgress({ completed: 0, total })
     try {
       const existingById = new Map(events.map((event) => [event.id, event]))
@@ -171,11 +183,12 @@ export function EventManager() {
         try {
           await saveEvent(mergeImportedEvent(event, existing, publishImported))
           importedCount += 1
-        } catch (error) {
+        } catch {
           failedEvents.push(event)
           saveIssues.push({
             severity: "error",
-            message: importFailureMessage(event, error),
+            key: "calendarEventSaveFailed",
+            values: { title: event.title },
           })
         } finally {
           setImportProgress((current) =>
@@ -189,7 +202,8 @@ export function EventManager() {
           skippedCancellationCount += 1
           saveIssues.push({
             severity: "warning",
-            message: `“${cancellation.title}” was cancelled externally, but no matching local event was found.`,
+            key: "calendarCancellationNoMatch",
+            values: { title: cancellation.title },
           })
           setImportProgress((current) =>
             current ? { ...current, completed: current.completed + 1 } : current
@@ -199,11 +213,12 @@ export function EventManager() {
         try {
           await saveEvent({ ...existing, published: false })
           cancelledCount += 1
-        } catch (error) {
+        } catch {
           failedCancellations.push(cancellation)
           saveIssues.push({
             severity: "error",
-            message: importCancellationFailureMessage(cancellation, error),
+            key: "calendarCancellationApplyFailed",
+            values: { title: cancellation.title },
           })
         } finally {
           setImportProgress((current) =>
@@ -218,25 +233,16 @@ export function EventManager() {
         (issue) => issue.severity === "error"
       ).length
       const needsReview = saveIssues.length > 0 || fileErrors > 0
-      const outcome = [
-        `${importedCount} ${
-          importedCount === 1 ? "event was" : "events were"
-        } imported.`,
-        cancelledCount
-          ? `${cancelledCount} ${
-              cancelledCount === 1 ? "cancellation was" : "cancellations were"
-            } applied.`
-          : "",
-        skippedCancellationCount
-          ? `${skippedCancellationCount} unmatched ${
-              skippedCancellationCount === 1
-                ? "cancellation was"
-                : "cancellations were"
-            } skipped.`
-          : "",
-      ]
-        .filter(Boolean)
-        .join(" ")
+      const attentionCount = saveErrors + fileErrors
+      const outcome: LocalizedMessage = {
+        key: "calendarImportOutcome",
+        values: {
+          importedCount,
+          cancelledCount,
+          skippedCancellationCount,
+          attentionCount,
+        },
+      }
       if (needsReview) {
         setImportSaveIssues(saveIssues)
         setImportResult({
@@ -245,14 +251,9 @@ export function EventManager() {
           cancellations: failedCancellations,
         })
         setImportOutcome(outcome)
-        const attentionCount = saveErrors + fileErrors
-        showFeedback(
-          attentionCount > 0
-            ? `${outcome} ${attentionCount} need attention.`
-            : outcome
-        )
+        showFeedback(outcome.key, outcome.values)
       } else {
-        showFeedback(outcome)
+        showFeedback(outcome.key, outcome.values)
         setImportOpen(false)
         resetImport()
       }
@@ -302,8 +303,8 @@ export function EventManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="searchEventsPlaceholder"
-            aria-label="searchEvents"
+            placeholder={t("searchEventsPlaceholder")}
+            aria-label={t("searchEvents")}
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -345,7 +346,7 @@ export function EventManager() {
             </SelectItem>
             {eventCategories.map((item) => (
               <SelectItem key={item} value={item}>
-                {item}
+                {t(eventCategoryMessageKeys[item])}
               </SelectItem>
             ))}
           </SelectContent>
@@ -371,7 +372,9 @@ export function EventManager() {
                     <span aria-hidden="true" className="text-border">
                       |
                     </span>
-                    <Badge variant="secondary">{event.category}</Badge>
+                    <Badge variant="secondary">
+                      {t(eventCategoryMessageKeys[event.category])}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {formatEventDate(
@@ -380,8 +383,14 @@ export function EventManager() {
                       hub?.timeZone,
                       languageTag
                     )}
-                    , {formatEventTime(event, hub?.timeZone, languageTag)} ·{" "}
-                    {event.location}
+                    ,{" "}
+                    {formatEventTime(
+                      event,
+                      hub?.timeZone,
+                      languageTag,
+                      t("allDay")
+                    )}{" "}
+                    · {event.location}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -391,9 +400,7 @@ export function EventManager() {
                     onClick={() => {
                       saveEvent({ ...event, published: !event.published })
                       showFeedback(
-                        event.published
-                          ? "Event unpublished."
-                          : "Event published."
+                        event.published ? "eventUnpublished" : "eventPublished"
                       )
                     }}
                   >
@@ -535,7 +542,7 @@ export function EventManager() {
                 role="status"
                 className="border border-success/30 bg-success/10 p-3 text-sm font-medium"
               >
-                {importOutcome}
+                {t(importOutcome.key, importOutcome.values)}
               </p>
             )}
             {importResult?.events.length ? (
@@ -550,7 +557,7 @@ export function EventManager() {
             ) : null}
             {importError && (
               <p role="alert" className="text-sm text-destructive">
-                {importError}
+                {t(importError.key, importError.values)}
               </p>
             )}
           </div>
@@ -572,10 +579,8 @@ export function EventManager() {
               onClick={() => void importEvents()}
             >
               {importing && importProgress
-                ? `Importing ${importProgress.completed} of ${importProgress.total}…`
-                : `Apply ${importReadyCount} calendar ${
-                    importReadyCount === 1 ? "change" : "changes"
-                  }`}
+                ? t("calendarImportProgress", importProgress)
+                : t("calendarApplyChanges", { count: importReadyCount })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -595,24 +600,4 @@ export function EventManager() {
       />
     </div>
   )
-}
-
-function importFailureMessage(event: CalendarEvent, error: unknown) {
-  const fallback = "The event could not be saved. Try again."
-  if (!(error instanceof Error)) return `“${event.title}” failed: ${fallback}`
-  const match = error.message.match(/(?:Uncaught )?Error:\s*([^\n]+)/)
-  const message = (match?.[1] ?? error.message).trim() || fallback
-  return `“${event.title}” failed: ${message}`
-}
-
-function importCancellationFailureMessage(
-  cancellation: CalendarCancellation,
-  error: unknown
-) {
-  const fallback = "The cancellation could not be applied. Try again."
-  if (!(error instanceof Error))
-    return `“${cancellation.title}” failed: ${fallback}`
-  const match = error.message.match(/(?:Uncaught )?Error:\s*([^\n]+)/)
-  const message = (match?.[1] ?? error.message).trim() || fallback
-  return `“${cancellation.title}” failed: ${message}`
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { CalendarPlus, Download } from "lucide-react"
 
@@ -19,6 +20,7 @@ export function CalendarExportButton({
   timeZone: string
   mode?: "calendar" | "event"
 }) {
+  const t = useAppTranslations()
   const isEvent = mode === "event"
   return (
     <Button
@@ -26,7 +28,7 @@ export function CalendarExportButton({
       variant="outline"
       size={isEvent ? "default" : "sm"}
       disabled={!events.length}
-      title="worksGoogleCalendarAppleCalendarOutlookOtherMessage"
+      title={t("worksGoogleCalendarAppleCalendarOutlookOtherMessage")}
       onClick={() => {
         const contents = serializeICalendar(events, {
           calendarName,

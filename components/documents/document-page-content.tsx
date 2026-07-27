@@ -12,7 +12,11 @@ import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { documentResourceLabel, formatFileSize } from "@/lib/documents"
+import {
+  documentResourceLabelKey,
+  formatFileSize,
+  sharedLinkHost,
+} from "@/lib/documents"
 import { cn } from "@/lib/utils"
 
 export function DocumentPageContent({ documentId }: { documentId: string }) {
@@ -60,7 +64,9 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
       )}
 
       <div className="max-w-4xl space-y-4">
-        <Badge variant="secondary">{documentResourceLabel(resource)}</Badge>
+        <Badge variant="secondary">
+          {t(documentResourceLabelKey(resource))}
+        </Badge>
         <h1 className="text-2xl font-semibold tracking-tight">
           {document.title}
         </h1>
@@ -89,7 +95,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             <p className="truncate font-medium">
               {resource.kind === "file"
                 ? resource.name
-                : t(documentResourceLabel(resource))}
+                : (sharedLinkHost(resource) ?? t("sharedLink"))}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {resource.kind === "file"

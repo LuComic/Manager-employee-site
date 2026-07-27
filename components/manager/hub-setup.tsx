@@ -2,6 +2,7 @@
 
 import { T } from "@/components/translated-text"
 import {
+  useAppErrorTranslation,
   useAppTranslations,
   useLocalizedHref,
 } from "@/i18n/use-app-translations"
@@ -29,6 +30,7 @@ import { slugify } from "@/lib/operations"
 export function HubSetup() {
   const href = useLocalizedHref()
   const t = useAppTranslations()
+  const translateError = useAppErrorTranslation()
   const afterOrganizationCreated = href("/manager")
   const { createHub } = useOperations()
   const { orgId } = useAuth()
@@ -124,7 +126,7 @@ export function HubSetup() {
         </div>
         {error && (
           <p role="alert" className="text-sm text-destructive">
-            <T>{error}</T>
+            {error}
           </p>
         )}
         <Button
@@ -138,7 +140,7 @@ export function HubSetup() {
             } catch (caught) {
               setError(
                 caught instanceof Error
-                  ? t(caught.message)
+                  ? translateError(caught)
                   : t("couldNotCreateWorkplace")
               )
             } finally {

@@ -142,7 +142,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
                   onChange={(event) =>
                     setCode(event.target.value.toUpperCase())
                   }
-                  placeholder="employeeCodeExample"
+                  placeholder={t("employeeCodeExample")}
                   autoComplete="one-time-code"
                   className="border border-input px-3 font-mono uppercase"
                   required
@@ -334,7 +334,7 @@ export function HubEntryScreen({
                   window.location.origin
                 )
                 if (!entry) {
-                  setError(t("enterValidWorkplaceLinkid"))
+                  setError("enterValidWorkplaceLinkid")
                   return
                 }
                 window.location.assign(href(hubEntryHref(entry)))
@@ -351,7 +351,7 @@ export function HubEntryScreen({
                     setWorkplace(event.target.value)
                     setError("")
                   }}
-                  placeholder="northPinePasteFullLinkLowercase"
+                  placeholder={t("workplaceIdOrPasteFullLink")}
                   autoComplete="url"
                   className="border border-input px-3"
                   required
@@ -365,7 +365,7 @@ export function HubEntryScreen({
                   id="employee-code"
                   value={employeeCode}
                   onChange={(event) => setEmployeeCode(event.target.value)}
-                  placeholder="enterTheEmployeeCode"
+                  placeholder={t("enterTheEmployeeCode")}
                   autoComplete="one-time-code"
                   className="border border-input px-3 font-mono uppercase"
                 />

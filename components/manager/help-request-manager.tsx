@@ -1,7 +1,11 @@
 "use client"
 
 import { T } from "@/components/translated-text"
-import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
+import {
+  useAppErrorTranslation,
+  useAppTranslations,
+  useLanguageTag,
+} from "@/i18n/use-app-translations"
 
 import { useState } from "react"
 import { CheckCircle2, Headphones, RotateCcw, Trash2 } from "lucide-react"
@@ -32,6 +36,7 @@ type HelpRequest = {
 
 export function HelpRequestManager() {
   const t = useAppTranslations()
+  const translateError = useAppErrorTranslation()
   const languageTag = useLanguageTag()
   const { hub } = useOperations()
   const requests = useQuery(
@@ -54,7 +59,9 @@ export function HelpRequestManager() {
       )
     } catch (error) {
       toast.error(
-        error instanceof Error ? t(error.message) : t("couldNotUpdateRequest")
+        error instanceof Error
+          ? translateError(error)
+          : t("couldNotUpdateRequest")
       )
     }
   }
@@ -67,7 +74,7 @@ export function HelpRequestManager() {
       />
 
       <div className="border-b pb-4">
-        <SegmentedControl aria-label="helpRequestStatus">
+        <SegmentedControl aria-label={t("helpRequestStatus")}>
           {(["open", "resolved"] as const).map((status) => (
             <SegmentedControlItem
               key={status}
@@ -171,7 +178,7 @@ export function HelpRequestManager() {
         onConfirm={async () => {
           if (!hub || !deleteTarget) return
           await remove({ hubId: hub.id, requestId: deleteTarget.id })
-          toast.success("Help request deleted.")
+          toast.success(t("helpRequestDeleted"))
           setDeleteTarget(null)
         }}
       />

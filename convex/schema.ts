@@ -310,8 +310,14 @@ export default defineSchema({
       v.literal("question"),
       v.literal("workplace")
     ),
-    title: v.string(),
-    message: v.string(),
+    // Transitional: existing development rows may still use rendered copy.
+    title: v.optional(v.string()),
+    message: v.optional(v.string()),
+    titleKey: v.optional(v.string()),
+    messageKey: v.optional(v.string()),
+    messageValues: v.optional(
+      v.record(v.string(), v.union(v.string(), v.number()))
+    ),
     href: v.string(),
     // Transitional: older notification rows stored this redundantly.
     createdAt: v.optional(v.number()),

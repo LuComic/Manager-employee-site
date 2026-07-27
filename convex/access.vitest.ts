@@ -1370,7 +1370,9 @@ describe("notification feeds", () => {
       employeeArgs
     )
     expect(firstFeed.unreadCount).toBe(1)
-    expect(firstFeed.notifications[0]?.title).toBe("New guide published")
+    expect(firstFeed.notifications[0]?.titleKey).toBe(
+      "notificationNewGuidePublished"
+    )
 
     const secondFeed = await t.query(api.notifications.listEmployee, {
       ...employeeArgs,
@@ -1435,10 +1437,10 @@ describe("notification feeds", () => {
         hubSlug: "org-hub",
         guestDeviceId: "unused-for-an-authenticated-member",
       })
-    expect(memberFeed.notifications.map((item) => item.title)).toEqual(
+    expect(memberFeed.notifications.map((item) => item.titleKey)).toEqual(
       expect.arrayContaining([
-        "New event added",
-        "You were assigned to an event",
+        "notificationNewEventAdded",
+        "notificationAssignedToEvent",
       ])
     )
 

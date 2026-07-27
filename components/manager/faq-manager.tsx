@@ -63,7 +63,7 @@ export function FaqManager() {
     setPending(true)
     try {
       await saveFaq({ ...editing, id, question, answer })
-      showFeedback(editing.id ? "Question saved." : "Question created.")
+      showFeedback(editing.id ? "questionSaved" : "questionCreated")
       setEditing(null)
       setError("")
     } finally {
@@ -144,8 +144,8 @@ export function FaqManager() {
                       await saveFaq({ ...faq, published: !faq.published })
                       showFeedback(
                         faq.published
-                          ? "Question unpublished."
-                          : "Question published."
+                          ? "questionUnpublished"
+                          : "questionPublished"
                       )
                     }}
                   >

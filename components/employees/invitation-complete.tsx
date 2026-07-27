@@ -2,6 +2,7 @@
 
 import { T } from "@/components/translated-text"
 import {
+  useAppErrorTranslation,
   useAppTranslations,
   useLocalizedHref,
 } from "@/i18n/use-app-translations"
@@ -20,6 +21,7 @@ import {
 export function InvitationComplete() {
   const href = useLocalizedHref()
   const t = useAppTranslations()
+  const translateError = useAppErrorTranslation()
   const { isLoaded, isSignedIn } = useAuth()
   const [error, setError] = useState("")
 
@@ -33,7 +35,7 @@ export function InvitationComplete() {
           hubSlug?: string
         }
         if (!response.ok || !result.hubSlug)
-          throw new Error(result.error ?? "Could not activate profile")
+          throw new Error(result.error ?? "couldNotActivateProfile")
         if (!cancelled)
           window.location.assign(
             href(`/?hub=${encodeURIComponent(result.hubSlug)}`)
@@ -43,14 +45,14 @@ export function InvitationComplete() {
         if (!cancelled)
           setError(
             caught instanceof Error
-              ? t(caught.message)
+              ? translateError(caught)
               : t("couldNotActivateProfile")
           )
       })
     return () => {
       cancelled = true
     }
-  }, [href, isLoaded, isSignedIn, t])
+  }, [href, isLoaded, isSignedIn, t, translateError])
 
   if (isLoaded && !isSignedIn) {
     return (
@@ -77,7 +79,7 @@ export function InvitationComplete() {
         <CardContent>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
-              <T>{error}</T>
+              {error}
             </p>
           ) : (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
