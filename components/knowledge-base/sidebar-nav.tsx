@@ -158,7 +158,9 @@ function LanguageSelector() {
     <a
       href={href}
       hrefLang={nextLocale}
-      aria-label={`${t("language")}: ${currentLanguage}`}
+      aria-label={t(
+        nextLocale === "en" ? "switchToEnglish" : "switchToEstonian"
+      )}
       className={cn(
         buttonVariants({ variant: "ghost" }),
         "h-10 w-full justify-start gap-3 px-3 tracking-normal normal-case"
