@@ -138,7 +138,7 @@ export function AccessManager() {
               Rotation immediately invalidates the previous code and link,
               including copies remembered by employee browsers. Only credential
               hashes are stored in Convex; the readable values are kept in this
-              owner browser.
+              owner’s browser.
             </T>
           </CardDescription>
         </CardHeader>

@@ -2,7 +2,7 @@ import { useCallback } from "react"
 import { useLocale, useTranslations } from "next-intl"
 import type { TranslationValues } from "next-intl"
 
-import { toMessageKey } from "@/i18n/messages"
+import { resolveMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { languageTags, type Locale } from "@/i18n/routing"
 
@@ -11,8 +11,8 @@ export function useAppTranslations() {
 
   return useCallback(
     (message: string, values?: TranslationValues) => {
-      const key = toMessageKey(message)
-      return translations.has(key) ? translations(key, values) : message
+      const key = resolveMessageKey(message)
+      return key && translations.has(key) ? translations(key, values) : message
     },
     [translations]
   )

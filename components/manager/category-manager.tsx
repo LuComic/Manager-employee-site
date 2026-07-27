@@ -116,7 +116,7 @@ export function CategoryManager() {
                 setError("")
               }}
             >
-              <Plus /> <T>New category</T>
+              <Plus /> <T>Create category</T>
             </Button>
           ) : undefined
         }

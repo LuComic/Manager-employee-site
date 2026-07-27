@@ -7,7 +7,7 @@ import { SearchResults } from "@/components/knowledge-base/search-results"
 import { PageHeading } from "@/components/operations/page-heading"
 import { T } from "@/components/translated-text"
 import { routing } from "@/i18n/routing"
-import { toMessageKey } from "@/i18n/messages"
+import { getMessageKey } from "@/i18n/messages"
 
 export async function generateMetadata({
   params,
@@ -17,9 +17,11 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: t(toMessageKey("Search | Operations hub")),
+    title: t(getMessageKey("Search | Operations hub")),
     description: t(
-      toMessageKey("Search the operations hub for published workplace content.")
+      getMessageKey(
+        "Search the operations hub for published workplace content."
+      )
     ),
     robots: {
       index: false,

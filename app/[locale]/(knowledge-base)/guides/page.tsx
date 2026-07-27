@@ -23,7 +23,7 @@ export default function GuidesPage() {
       />
       <section>
         <SectionHeading
-          title="Browse by work area"
+          title="By work area"
           description="Choose the area that best matches the task in front of you."
         />
         {categories.length ? (

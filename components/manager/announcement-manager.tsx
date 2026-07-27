@@ -80,7 +80,7 @@ export function AnnouncementManager() {
               href="/manager/announcements/new"
               className={buttonVariants()}
             >
-              <Plus /> <T>New announcement</T>
+              <Plus /> <T>Create announcement</T>
             </Link>
           ) : undefined
         }

@@ -90,7 +90,7 @@ export function FaqManager() {
                 setError("")
               }}
             >
-              <Plus /> <T>New question</T>
+              <Plus /> <T>Create question</T>
             </Button>
           ) : undefined
         }

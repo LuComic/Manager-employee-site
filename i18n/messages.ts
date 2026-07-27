@@ -1,26 +1,27 @@
-const dotEscape = "․"
+import en from "@/messages/en.json"
 
-export type AppMessages = {
-  [key: string]: AppMessages | string
-}
+export type AppMessageKey = keyof typeof en.App
 
-export function toMessageKey(message: string) {
-  return message.replaceAll(".", dotEscape)
-}
+const messageKeyByEnglish = new Map(
+  Object.entries(en.App).map(([key, message]) => [
+    message,
+    key as AppMessageKey,
+  ])
+)
 
-export function normalizeMessageKeys<T extends AppMessages>(messages: T): T {
-  const normalized: AppMessages = {}
-
-  for (const [key, value] of Object.entries(messages)) {
-    const normalizedKey = toMessageKey(key)
-    if (Object.hasOwn(normalized, normalizedKey)) {
-      throw new Error(
-        `Message keys "${key}" and another key both normalize to "${normalizedKey}"`
-      )
-    }
-    normalized[normalizedKey] =
-      typeof value === "string" ? value : normalizeMessageKeys(value)
+export function resolveMessageKey(messageOrKey: string) {
+  if (Object.hasOwn(en.App, messageOrKey)) {
+    return messageOrKey as AppMessageKey
   }
 
-  return normalized as T
+  return messageKeyByEnglish.get(messageOrKey)
+}
+
+export function getMessageKey(messageOrKey: string) {
+  const key = resolveMessageKey(messageOrKey)
+  if (!key) {
+    throw new Error(`Unknown app message: ${JSON.stringify(messageOrKey)}`)
+  }
+
+  return key
 }

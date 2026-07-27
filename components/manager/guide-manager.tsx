@@ -66,7 +66,7 @@ export function GuideManager() {
           canCreateContent ? (
             categories.length ? (
               <Link href="/manager/guides/new" className={buttonVariants()}>
-                <Plus /> <T>New guide</T>
+                <Plus /> <T>Create guide</T>
               </Link>
             ) : (
               <Link

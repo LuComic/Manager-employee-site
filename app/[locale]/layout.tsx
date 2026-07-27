@@ -15,7 +15,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider"
 import { OperationsProvider } from "@/components/providers/operations-provider"
 import { Toaster } from "@/components/ui/sonner"
-import { toMessageKey } from "@/i18n/messages"
+import { getMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
 import { clerkAppearance } from "@/lib/clerk-appearance"
@@ -40,9 +40,9 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: t(toMessageKey("Operations hub")),
+    title: t(getMessageKey("Operations hub")),
     description: t(
-      toMessageKey(
+      getMessageKey(
         "Today’s information and practical guides for smooth shifts."
       )
     ),

@@ -49,11 +49,11 @@ export function useUnsavedChanges({
           description: t("Your changes will not be saved."),
           duration: Infinity,
           cancel: {
-            label: t("Keep editing"),
+            label: t("No, keep editing"),
             onClick: () => undefined,
           },
           action: {
-            label: t("Discard"),
+            label: t("Yes, discard"),
             onClick: discard,
           },
         }

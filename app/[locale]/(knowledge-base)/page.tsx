@@ -191,7 +191,7 @@ export default function TodayPage() {
               title="Current announcements"
               description="Temporary information that matters right now."
               action={{
-                label: "View announcements",
+                label: "All announcements",
                 href: "/announcements",
               }}
             />
@@ -246,7 +246,7 @@ export default function TodayPage() {
             <SectionHeading
               title="Useful guides"
               description="Frequently used instructions for a smooth shift."
-              action={{ label: "Browse all guides", href: "/guides" }}
+              action={{ label: "All guides", href: "/guides" }}
             />
             {usefulGuides.length ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

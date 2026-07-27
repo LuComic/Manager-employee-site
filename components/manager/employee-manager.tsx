@@ -220,10 +220,10 @@ export function EmployeeManager() {
               <RefreshCw
                 className={actionId === "reconcile" ? "animate-spin" : ""}
               />{" "}
-              <T>Reconcile access</T>
+              <T>Sync access</T>
             </Button>
             <Button onClick={() => openForm("new")}>
-              <Plus /> <T>New employee</T>
+              <Plus /> <T>Create employee</T>
             </Button>
           </div>
         }
@@ -506,13 +506,13 @@ export function EmployeeManager() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="viewer">
-                      <T>Nothing - view published content only</T>
+                      <T>View only – published content</T>
                     </SelectItem>
                     <SelectItem value="editor">
-                      <T>Editing - update existing content</T>
+                      <T>Content editing – update existing content</T>
                     </SelectItem>
                     <SelectItem value="manager">
-                      <T>Full access - create and manage all content</T>
+                      <T>Full access – create and manage all content</T>
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -569,7 +569,7 @@ export function EmployeeManager() {
               variant="outline"
               onClick={() => setDeactivateTarget(null)}
             >
-              <T>Cancel</T>
+              <T>No, keep active</T>
             </Button>
             <Button
               type="button"
@@ -582,7 +582,7 @@ export function EmployeeManager() {
                 }
               }}
             >
-              <T>Deactivate employee</T>
+              <T>Yes, deactivate</T>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -612,7 +612,7 @@ export function EmployeeManager() {
               variant="outline"
               onClick={() => setRemoveTarget(null)}
             >
-              <T>Cancel</T>
+              <T>No, keep employee</T>
             </Button>
             <Button
               type="button"
@@ -625,7 +625,7 @@ export function EmployeeManager() {
                 }
               }}
             >
-              <T>Permanently remove</T>
+              <T>Yes, remove</T>
             </Button>
           </DialogFooter>
         </DialogContent>

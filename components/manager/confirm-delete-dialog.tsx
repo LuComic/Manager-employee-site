@@ -44,7 +44,7 @@ export function ConfirmDeleteDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            <T>Cancel</T>
+            <T>No, keep it</T>
           </Button>
           <Button
             type="button"
@@ -54,7 +54,7 @@ export function ConfirmDeleteDialog({
               onOpenChange(false)
             }}
           >
-            <T>Delete</T>
+            <T>Yes, delete</T>
           </Button>
         </DialogFooter>
       </DialogContent>

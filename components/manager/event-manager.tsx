@@ -289,7 +289,7 @@ export function EventManager() {
                   href="/manager/calendar/new"
                   className={buttonVariants({ size: "sm" })}
                 >
-                  <Plus /> <T>New event</T>
+                  <Plus /> <T>Create event</T>
                 </Link>
               </>
             )}

@@ -107,7 +107,7 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="topic">
-                    <T>What is this about?</T>
+                    <T>Topic</T>
                   </Label>
                   <Input
                     id="topic"
