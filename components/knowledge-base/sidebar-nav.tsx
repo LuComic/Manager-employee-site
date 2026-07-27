@@ -19,7 +19,7 @@ import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Link, usePathname } from "@/i18n/navigation"
+import { getPathname, Link, usePathname } from "@/i18n/navigation"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
@@ -144,14 +144,19 @@ function LanguageSelector() {
   const locale = useLocale()
   const t = useAppTranslations()
   const search = searchParams.toString()
-  const href = `${pathname}${search ? `?${search}` : ""}`
   const nextLocale = locale === "et" ? "en" : "et"
+  const localizedPathname = getPathname({
+    locale: nextLocale,
+    href: pathname,
+  })
+  const href = `${localizedPathname}${search ? `?${search}` : ""}`
   const currentLanguage = locale === "et" ? t("Estonian") : t("English")
 
+  // Locale changes replace the root document language and must let next-themes
+  // run its bootstrap script during document parsing rather than a client render.
   return (
-    <Link
+    <a
       href={href}
-      locale={nextLocale}
       hrefLang={nextLocale}
       aria-label={`${t("Language")}: ${currentLanguage}`}
       className={cn(
@@ -163,7 +168,7 @@ function LanguageSelector() {
         {locale === "et" ? "🇪🇪" : "🇬🇧"}
       </span>
       {currentLanguage}
-    </Link>
+    </a>
   )
 }
 
