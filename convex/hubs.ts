@@ -1,12 +1,9 @@
 import { v } from "convex/values"
 
-import { createSeedState } from "../lib/operations"
-import { commonQuestions } from "../lib/knowledge-base"
 import {
   defaultTodaySections,
   normalizeTodaySections,
 } from "../lib/today-sections"
-import type { Id } from "./_generated/dataModel"
 import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
   canReadPublishedHub,
@@ -40,8 +37,18 @@ const todaySectionKeyValidator = v.union(
   v.literal("useful-guides")
 )
 
-const defaultDescription =
-  "Current updates, important times, and practical guides for each shift."
+const defaultHubCopy = {
+  et: {
+    description:
+      "Praegused uuendused, olulised kellaajad ja praktilised juhendid igaks vahetuseks.",
+    contactName: "vahetusvanem",
+  },
+  en: {
+    description:
+      "Current updates, important times, and practical guides for each shift.",
+    contactName: "shift lead",
+  },
+} as const
 
 function slugify(value: string) {
   return value
@@ -52,7 +59,7 @@ function slugify(value: string) {
 }
 
 async function availableSlug(ctx: MutationCtx, requested: string) {
-  const base = slugify(requested) || "operations-hub"
+  const base = slugify(requested) || "workhal"
   let candidate = base
   let suffix = 2
   while (
@@ -67,131 +74,6 @@ async function availableSlug(ctx: MutationCtx, requested: string) {
   return candidate
 }
 
-async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
-  const seed = createSeedState()
-  const identity = await requireIdentity(ctx)
-  const categoryIds = new Map<string, Id<"categories">>()
-  for (const [order, category] of seed.categories.entries()) {
-    const categoryId = await ctx.db.insert("categories", {
-      hubId,
-      slug: category.id,
-      label: category.label,
-      iconKey: category.iconKey,
-      description: category.description,
-      order,
-    })
-    categoryIds.set(category.id, categoryId)
-  }
-
-  const guideIds = new Map<string, Id<"guides">>()
-  for (const guide of seed.guides) {
-    const categoryId = categoryIds.get(guide.category)
-    if (!categoryId) continue
-    const guideId = await ctx.db.insert("guides", {
-      hubId,
-      slug: guide.id,
-      title: guide.title,
-      description: guide.description,
-      categoryId,
-      duration: guide.duration,
-      updatedLabel: guide.updated,
-      featured: Boolean(guide.featured),
-      published: Boolean(guide.published),
-      keywords: guide.keywords ?? [],
-      content: guide.content,
-    })
-    guideIds.set(guide.id, guideId)
-  }
-
-  const employeeIds = new Map<string, Id<"employeeProfiles">>()
-  for (const event of seed.events) {
-    for (const employee of event.employees) {
-      const displayName = employee.displayName.trim()
-      if (!displayName || employeeIds.has(displayName)) continue
-      const now = Date.now()
-      employeeIds.set(
-        displayName,
-        await ctx.db.insert("employeeProfiles", {
-          hubId,
-          displayName,
-          status: "unclaimed",
-          createdBy: identity.subject,
-          createdAt: now,
-          updatedAt: now,
-          invitationStatus: "not-sent",
-        })
-      )
-    }
-  }
-
-  const eventIds = new Map<string, Id<"events">>()
-  for (const event of seed.events) {
-    const eventId = await ctx.db.insert("events", {
-      hubId,
-      slug: event.id,
-      title: event.title,
-      description: event.description,
-      category: event.category,
-      start: event.start,
-      end: event.end,
-      allDay: event.allDay,
-      location: event.location,
-      notes: event.notes,
-      published: event.published,
-    })
-    eventIds.set(event.id, eventId)
-    for (const employee of event.employees) {
-      const employeeId = employeeIds.get(employee.displayName.trim())
-      if (employeeId) {
-        await ctx.db.insert("eventEmployees", {
-          hubId,
-          eventId,
-          employeeProfileId: employeeId,
-          addedAt: Date.now(),
-          addedBy: identity.subject,
-        })
-      }
-    }
-    for (const guideSlug of event.guideIds) {
-      const guideId = guideIds.get(guideSlug)
-      if (guideId) {
-        await ctx.db.insert("eventGuides", { hubId, eventId, guideId })
-      }
-    }
-  }
-
-  for (const announcement of seed.announcements) {
-    await ctx.db.insert("announcements", {
-      hubId,
-      slug: announcement.id,
-      title: announcement.title,
-      content: announcement.content,
-      publishedAt: announcement.publishedAt,
-      expiresAt: announcement.expiresAt,
-      priority: announcement.priority,
-      pinned: announcement.pinned,
-      published: announcement.published,
-      guideId: announcement.guideId
-        ? guideIds.get(announcement.guideId)
-        : undefined,
-      eventId: announcement.eventId
-        ? eventIds.get(announcement.eventId)
-        : undefined,
-    })
-  }
-
-  for (const [order, faq] of commonQuestions.entries()) {
-    await ctx.db.insert("faqs", {
-      hubId,
-      slug: slugify(faq.question),
-      question: faq.question,
-      answer: faq.answer,
-      order,
-      published: true,
-    })
-  }
-}
-
 export const create = mutation({
   args: {
     name: v.string(),
@@ -200,13 +82,13 @@ export const create = mutation({
     joinCode: v.string(),
     privateToken: v.string(),
     timeZone: v.string(),
-    seedDemoContent: v.boolean(),
+    locale: v.optional(v.union(v.literal("et"), v.literal("en"))),
   },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx)
     const activeOrganization = getActiveOrganizationFromIdentity(identity)
-    if (!activeOrganization) throw new Error("No active organization")
-    if (activeOrganization.role !== "org:admin") throw new Error("Unauthorized")
+    if (!activeOrganization) throw new Error("noActiveOrganization")
+    if (activeOrganization.role !== "org:admin") throw new Error("unauthorized")
 
     const mapped = await ctx.db
       .query("hubs")
@@ -224,23 +106,24 @@ export const create = mutation({
 
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80) {
-      throw new Error("Hub name must be between 2 and 80 characters")
+      throw new Error("hubNameBetween280Characters")
     }
     if (normalizeJoinCode(args.joinCode).length < 8) {
-      throw new Error("Join code is too short")
+      throw new Error("joinCodeIsTooShort")
     }
     if (args.privateToken.length < 32) {
-      throw new Error("Private link credential is too short")
+      throw new Error("privateLinkCredentialIsTooShort")
     }
     const slug = await availableSlug(ctx, args.slug)
     const now = Date.now()
+    const defaultCopy = defaultHubCopy[args.locale ?? "et"]
     const hubId = await ctx.db.insert("hubs", {
       name,
       slug,
-      description: defaultDescription,
+      description: defaultCopy.description,
       address: "",
       timeZone: validateTimeZone(args.timeZone),
-      contactName: "shift lead",
+      contactName: defaultCopy.contactName,
       contactEmail: "",
       contactPhone: "",
       todaySections: defaultTodaySections.map((section) => ({ ...section })),
@@ -252,14 +135,13 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     })
-    if (args.seedDemoContent) await seedHub(ctx, hubId)
     return { hubId, slug, created: true }
   },
 })
 
 function optional(value: string, max: number) {
   const clean = value.trim()
-  if (clean.length > max) throw new Error("A hub detail is too long")
+  if (clean.length > max) throw new Error("aHubDetailIsTooLong")
   return clean
 }
 
@@ -268,7 +150,7 @@ function validateTimeZone(value: string) {
   try {
     new Intl.DateTimeFormat("en", { timeZone: clean }).format()
   } catch {
-    throw new Error("Choose a valid time zone")
+    throw new Error("chooseAValidTimeZone")
   }
   return clean
 }
@@ -288,17 +170,18 @@ export const updateSettings = mutation({
     const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80)
-      throw new Error("Hub name must be between 2 and 80 characters")
+      throw new Error("hubNameBetween280Characters")
     const contactEmail = optional(args.contactEmail, 200)
     if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail))
-      throw new Error("Enter a valid contact email")
+      throw new Error("enterAValidContactEmail")
 
     await ctx.db.patch("hubs", args.hubId, {
       name,
       description: optional(args.description, 500),
       address: optional(args.address, 500),
       timeZone: validateTimeZone(args.timeZone),
-      contactName: optional(args.contactName, 100) || "shift lead",
+      contactName:
+        optional(args.contactName, 100) || defaultHubCopy.et.contactName,
       contactEmail,
       contactPhone: optional(args.contactPhone, 80),
       updatedAt: Date.now(),
@@ -307,8 +190,8 @@ export const updateSettings = mutation({
       hubId: hub._id,
       audience: "employees",
       kind: "workplace",
-      title: "Workplace details updated",
-      message: "The establishment information on the Today page has changed.",
+      titleKey: "notificationWorkplaceDetailsUpdated",
+      messageKey: "notificationTodayInformationChanged",
       href: "/",
     })
     return null
@@ -537,10 +420,10 @@ export const rotateCredentials = mutation({
   handler: async (ctx, args) => {
     const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     if (normalizeJoinCode(args.joinCode).length < 8) {
-      throw new Error("Join code is too short")
+      throw new Error("joinCodeIsTooShort")
     }
     if (args.privateToken.length < 32) {
-      throw new Error("Private link credential is too short")
+      throw new Error("privateLinkCredentialIsTooShort")
     }
     const credentialVersion = hub.credentialVersion + 1
     await ctx.db.patch("hubs", hub._id, {

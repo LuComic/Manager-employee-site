@@ -2,7 +2,7 @@
 
 ## Product direction
 
-Expand the current worker manual into a simple operations hub for an establishment. The site should remain calm and easy to use on a shared workplace computer. Guides are still central, but the home page should also explain what is happening today.
+Expand the current worker manual into workhal, a simple operations portal for an establishment. The site should remain calm and easy to use on a shared workplace computer. Guides are still central, but the home page should also explain what is happening today.
 
 Workers do not need accounts. Managers use individual Clerk accounts, and Convex persists each hub's content. Every record is isolated by `hubId`, and only the owning Clerk identity can use that hub's manager tools.
 
@@ -39,8 +39,7 @@ Provide a shared operational calendar for information relevant to the whole esta
 
 - Private events and large reservations
 - Training sessions
-- Promotions and menu launches
-- Deliveries and maintenance visits
+- Maintenance visits
 - Inspections, holidays, and unusual opening hours
 
 Support a clear month view and list view. Users should be able to move between dates, return to today, filter events, and open an event for its full details. Event details can include the time, location, responsible person, notes, Convex-hosted attachments, and related guides.
@@ -97,6 +96,7 @@ Only the workplace owner can manage employees, invitations, establishment settin
 ### Hub access
 
 - Every hub has a stable public slug and is either public or restricted.
+- New hubs start with empty content libraries and calendars.
 - Public hubs expose published employee content without an account.
 - Restricted hubs accept a cryptographically generated join code or private-link credential.
 - Anonymous access is remembered for 30 days and can be forgotten with “Leave hub”.
@@ -122,8 +122,6 @@ Only the workplace owner can manage employees, invitations, establishment settin
 - Preserve the existing routes and working guide functionality while adding the new features.
 - Follow `STYLE_GUIDE.md` throughout the implementation.
 
-## Development seed and AI assessment
-
-A signed-in development manager can create an owned hub containing the North & Pine seed once. There is no unauthenticated ownership or takeover path.
+## AI assessment
 
 Grounded staff Q&A is the preferred future AI enhancement, but it remains disabled until model credentials are available. It must retrieve only published records from the currently authorized hub and link answers to their sources. Convex-backed keyword search remains the active search implementation; there is no fake AI surface.

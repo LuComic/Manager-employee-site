@@ -1,6 +1,9 @@
 "use client"
 
-import Link from "next/link"
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
+
+import { Link } from "@/i18n/navigation"
 import { ArrowLeft, CalendarDays, Megaphone, Pin } from "lucide-react"
 
 import { EmptyState } from "@/components/operations/empty-state"
@@ -12,6 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
+  announcementPriorityMessageKeys,
+  announcementStateMessageKeys,
   formatDate,
   getAnnouncementState,
   type Announcement,
@@ -33,8 +38,8 @@ export function AnnouncementDetail({
     return (
       <EmptyState
         icon={Megaphone}
-        title="Announcement not available"
-        description="This announcement may be unpublished or removed. Return to announcements for current updates."
+        title="announcementNotAvailable"
+        description="announcementUnpublishedRemovedReturnAnnouncementsCurrentUpdates"
       />
     )
   const guide = guides.find(
@@ -63,7 +68,9 @@ export function AnnouncementArticle({
   event?: CalendarEvent
   preview?: boolean
 }) {
+  const t = useAppTranslations()
   const { hub } = useOperations()
+  const languageTag = useLanguageTag()
   const state = getAnnouncementState(announcement, new Date(), hub?.timeZone)
   return (
     <article className="mx-auto max-w-4xl space-y-6">
@@ -75,7 +82,7 @@ export function AnnouncementArticle({
             "tracking-normal normal-case"
           )}
         >
-          <ArrowLeft /> Back to announcements
+          <ArrowLeft /> <T>backToAnnouncements</T>
         </Link>
       )}
       <Card className="shadow-none">
@@ -86,12 +93,14 @@ export function AnnouncementArticle({
                 announcement.priority === "Urgent" ? "destructive" : "secondary"
               }
             >
-              {announcement.priority}
+              {t(announcementPriorityMessageKeys[announcement.priority])}
             </Badge>
-            <Badge variant="secondary">{state}</Badge>
+            <Badge variant="secondary">
+              {t(announcementStateMessageKeys[state])}
+            </Badge>
             {announcement.pinned && (
               <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Pin className="size-3" /> Pinned
+                <Pin className="size-3" /> <T>pinned</T>
               </span>
             )}
           </div>
@@ -103,19 +112,21 @@ export function AnnouncementArticle({
           <RichTextContent content={announcement.content} />
           <div className="mt-6 flex flex-wrap gap-4 border-t pt-4 text-sm text-muted-foreground">
             <span>
-              Published{" "}
+              <T>published</T>{" "}
               {formatDate(
                 `${announcement.publishedAt}T12:00`,
                 undefined,
-                hub?.timeZone
+                hub?.timeZone,
+                languageTag
               )}
             </span>
             <span>
-              Expires{" "}
+              <T>expires</T>{" "}
               {formatDate(
                 `${announcement.expiresAt}T12:00`,
                 undefined,
-                hub?.timeZone
+                hub?.timeZone,
+                languageTag
               )}
             </span>
           </div>
@@ -123,7 +134,9 @@ export function AnnouncementArticle({
       </Card>
       {(event || guide) && (
         <section>
-          <h2 className="mb-4 text-xl font-semibold">Related information</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            <T>relatedInformation</T>
+          </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {event && (
               <EventCard event={event} timeZone={hub?.timeZone} compact />
@@ -135,8 +148,8 @@ export function AnnouncementArticle({
       {!preview && !event && announcement.eventId && (
         <EmptyState
           icon={CalendarDays}
-          title="Related event is not published"
-          description="The linked event is not currently available to employees."
+          title="relatedEventIsNotPublished"
+          description="linkedEventNotCurrentlyAvailableEmployees"
         />
       )}
     </article>

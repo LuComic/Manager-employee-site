@@ -1,7 +1,9 @@
 import type { LucideIcon } from "lucide-react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 
+import { T } from "@/components/translated-text"
 import { buttonVariants } from "@/components/ui/button"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export function EmptyState({
   icon: Icon,
@@ -11,9 +13,9 @@ export function EmptyState({
   actionHref,
 }: {
   icon: LucideIcon
-  title: string
-  description: string
-  actionLabel?: string
+  title: AppMessageKey
+  description: AppMessageKey
+  actionLabel?: AppMessageKey
   actionHref?: string
 }) {
   return (
@@ -21,13 +23,15 @@ export function EmptyState({
       <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
         <Icon className="size-5" />
       </span>
-      <h2 className="mt-4 font-semibold">{title}</h2>
+      <h2 className="mt-4 font-semibold">
+        <T>{title}</T>
+      </h2>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        {description}
+        <T>{description}</T>
       </p>
       {actionLabel && actionHref && (
         <Link href={actionHref} className={`${buttonVariants()} mt-4`}>
-          {actionLabel}
+          <T>{actionLabel}</T>
         </Link>
       )}
     </div>

@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+
 import { useEffect, useRef, useState } from "react"
 import { Building2, ImageIcon, Trash2, Upload } from "lucide-react"
 
@@ -19,7 +21,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import type { AppMessageKey } from "@/i18n/messages"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { BANNER_IMAGE_ACCEPT } from "@/lib/banner-image"
+import { getCustomContactName } from "@/lib/contact"
 
 function settingsFromHub(
   hub: ReturnType<typeof useOperations>["hub"]
@@ -32,7 +37,7 @@ function settingsFromHub(
       hub?.timeZone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone ||
       "UTC",
-    contactName: hub?.contactName ?? "shift lead",
+    contactName: getCustomContactName(hub?.contactName) ?? "",
     contactEmail: hub?.contactEmail ?? "",
     contactPhone: hub?.contactPhone ?? "",
   }
@@ -44,6 +49,7 @@ type BannerChange =
   | null
 
 export function HubSettingsManager() {
+  const t = useAppTranslations()
   const {
     hub,
     saveHubSettings,
@@ -90,8 +96,8 @@ export function HubSettingsManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Establishment settings"
-        description="Update the workplace details employees see across the hub."
+        title="establishmentSettings"
+        description="updateWorkplaceDetailsEmployeesSeeAcrossHub"
       />
 
       <form
@@ -114,7 +120,7 @@ export function HubSettingsManager() {
               clearBannerPreview()
               setBannerChange(null)
             }
-            showFeedback("Establishment settings saved.")
+            showFeedback("establishmentSettingsSaved")
           } finally {
             setPending(false)
           }
@@ -125,14 +131,15 @@ export function HubSettingsManager() {
             <span className="flex size-10 items-center justify-center bg-primary/10 text-primary">
               <Building2 className="size-5" />
             </span>
-            <CardTitle className="mt-4 text-base">Workplace details</CardTitle>
+            <CardTitle className="mt-4 text-base">
+              <T>workplaceDetails</T>
+            </CardTitle>
             <CardDescription>
-              The name, description, and address appear on the employee home
-              page.
+              <T>nameDescriptionAddressAppearEmployeeHomePage</T>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <Field label="Establishment name" htmlFor="hub-name">
+            <Field label="establishmentName" htmlFor="hub-name">
               <Input
                 id="hub-name"
                 value={settings.name}
@@ -142,22 +149,23 @@ export function HubSettingsManager() {
                 maxLength={80}
               />
             </Field>
-            <Field label="Time zone" htmlFor="hub-time-zone">
+            <Field label="timeZone" htmlFor="hub-time-zone">
               <Input
                 id="hub-time-zone"
                 value={settings.timeZone}
                 onChange={(event) => update("timeZone", event.target.value)}
                 className="border border-input px-3"
-                placeholder="Europe/Tallinn"
+                placeholder={t("tallinnTimeZone")}
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Use an IANA time zone such as Europe/Tallinn or
-                America/New_York.
+                <T>useianaTimeZoneSuchEuropeTallinnMessage</T>
               </p>
             </Field>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="hub-description">Short description</Label>
+              <Label htmlFor="hub-description">
+                <T>shortDescription</T>
+              </Label>
               <Textarea
                 id="hub-description"
                 value={settings.description}
@@ -167,13 +175,15 @@ export function HubSettingsManager() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="hub-address">Address</Label>
+              <Label htmlFor="hub-address">
+                <T>address</T>
+              </Label>
               <Textarea
                 id="hub-address"
                 value={settings.address}
                 onChange={(event) => update("address", event.target.value)}
                 className="min-h-20 border border-input px-3"
-                placeholder="Street, city, postal code"
+                placeholder={t("streetCityPostalCode")}
                 maxLength={500}
               />
             </div>
@@ -185,10 +195,11 @@ export function HubSettingsManager() {
             <span className="flex size-10 items-center justify-center bg-primary/10 text-primary">
               <ImageIcon className="size-5" />
             </span>
-            <CardTitle className="mt-4 text-base">Today page banner</CardTitle>
+            <CardTitle className="mt-4 text-base">
+              <T>todayPageBanner</T>
+            </CardTitle>
             <CardDescription>
-              Add a workplace photo behind the establishment name, description,
-              and location. A wide image at least 1600 × 600 works best.
+              <T>addWorkplacePhotoBehindEstablishmentNameDescriptionMessage</T>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -201,9 +212,11 @@ export function HubSettingsManager() {
               }
             >
               <div className="bg-black/55 p-3">
-                <p className="text-xs text-white/75">Banner preview</p>
+                <p className="text-xs text-white/75">
+                  <T>bannerPreview</T>
+                </p>
                 <p className="mt-1 font-semibold text-white">
-                  Today at {settings.name || "your workplace"}
+                  <T>todayAt</T> {settings.name || t("yourWorkplaceLowercase")}
                 </p>
               </div>
             </div>
@@ -230,7 +243,7 @@ export function HubSettingsManager() {
                 onClick={() => bannerInputRef.current?.click()}
               >
                 <Upload />
-                {bannerPreviewUrl ? "Replace image" : "Upload image"}
+                <T>{bannerPreviewUrl ? "replaceImage" : "uploadImage"}</T>
               </Button>
               {bannerPreviewUrl && (
                 <Button
@@ -244,47 +257,48 @@ export function HubSettingsManager() {
                     )
                   }}
                 >
-                  <Trash2 /> Remove image
+                  <Trash2 /> <T>removeImage</T>
                 </Button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              JPG, PNG, WebP, or AVIF. Maximum file size 10 MB.
+              <T>imageFormatAndSizeHelp</T>
             </p>
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">Employee contact</CardTitle>
+            <CardTitle className="text-base">
+              <T>employeeContact</T>
+            </CardTitle>
             <CardDescription>
-              This person or role is used by the help button. Email and phone
-              are optional direct contact methods.
+              <T>personRoleUsedHelpButtonEmailPhoneMessage</T>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3">
-            <Field label="Name or role" htmlFor="contact-name">
+            <Field label="nameOrRole" htmlFor="contact-name">
               <Input
                 id="contact-name"
                 value={settings.contactName}
                 onChange={(event) => update("contactName", event.target.value)}
                 className="border border-input px-3"
-                placeholder="Shift lead"
+                placeholder={t("shiftLead")}
                 maxLength={100}
               />
             </Field>
-            <Field label="Email" htmlFor="contact-email">
+            <Field label="email" htmlFor="contact-email">
               <Input
                 id="contact-email"
                 type="email"
                 value={settings.contactEmail}
                 onChange={(event) => update("contactEmail", event.target.value)}
                 className="border border-input px-3"
-                placeholder="operations@example.com"
+                placeholder={t("workhalEmailExample")}
                 maxLength={200}
               />
             </Field>
-            <Field label="Phone" htmlFor="contact-phone">
+            <Field label="phone" htmlFor="contact-phone">
               <Input
                 id="contact-phone"
                 type="tel"
@@ -300,7 +314,7 @@ export function HubSettingsManager() {
 
         <div className="sticky bottom-0 z-10 flex flex-col gap-3 border bg-background/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            {dirty ? "Unsaved changes" : "No unsaved changes"}
+            <T>{dirty ? "unsavedChanges" : "noUnsavedChanges"}</T>
           </p>
           <div className="flex gap-2">
             <Button
@@ -314,13 +328,13 @@ export function HubSettingsManager() {
                 setBannerChange(null)
               }}
             >
-              Cancel
+              <T>cancel</T>
             </Button>
             <Button
               type="submit"
               disabled={pending || !dirty || !settings.name.trim()}
             >
-              {pending ? "Saving…" : "Save settings"}
+              <T>{pending ? "saving" : "saveSettings"}</T>
             </Button>
           </div>
         </div>
@@ -334,13 +348,15 @@ function Field({
   htmlFor,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   htmlFor: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={htmlFor}>{label}</Label>
+      <Label htmlFor={htmlFor}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

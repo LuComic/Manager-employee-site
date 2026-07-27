@@ -1,5 +1,11 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import {
+  useAppTranslations,
+  useLocalizedHref,
+} from "@/i18n/use-app-translations"
+
 import { useEffect, useRef, useState } from "react"
 import { Menu } from "lucide-react"
 import { OrganizationSwitcher, Show, UserButton } from "@clerk/nextjs"
@@ -23,6 +29,8 @@ import {
 } from "@/components/ui/sheet"
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const [mobileOpen, setMobileOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -61,7 +69,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 size="icon-sm"
                 className="lg:hidden"
                 onClick={() => setMobileOpen(true)}
-                aria-label="Open menu"
+                aria-label={t("openMenu")}
               >
                 <Menu />
               </Button>
@@ -73,9 +81,9 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 <Show when="signed-in">
                   <OrganizationSwitcher
                     hidePersonal={false}
-                    afterCreateOrganizationUrl="/manager"
-                    afterSelectOrganizationUrl="/"
-                    afterSelectPersonalUrl="/"
+                    afterCreateOrganizationUrl={href("/manager")}
+                    afterSelectOrganizationUrl={href("/")}
+                    afterSelectPersonalUrl={href("/")}
                   />
                 </Show>
                 <ContactButton className="hidden sm:flex" />
@@ -99,7 +107,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   <Brand />
                 </SheetTitle>
                 <SheetDescription>
-                  Today’s information and practical guides.
+                  <T>todaySInformationAndPracticalGuides</T>
                 </SheetDescription>
               </SheetHeader>
               <SidebarNav onContact={() => setMobileOpen(false)} />

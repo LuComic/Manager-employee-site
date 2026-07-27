@@ -1,8 +1,8 @@
 "use client"
 
 import { useId, useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useLocale } from "next-intl"
+import { useSearchParams } from "next/navigation"
 import {
   BookOpen,
   Bell,
@@ -19,47 +19,50 @@ import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { getPathname, Link, usePathname } from "@/i18n/navigation"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
 
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
+  const t = useAppTranslations()
   const { categories, documents, managerAccess } = useOperations()
   const publishedDocuments = documents.filter((document) => document.published)
 
   return (
     <nav
       className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
-      aria-label="Knowledge base navigation"
+      aria-label={t("knowledgeBaseNavigation")}
     >
-      <SidebarSection label="Workspace" href="/" active={pathname === "/"}>
-        <NavLink href="/" label="Today" active={pathname === "/"}>
+      <SidebarSection label={t("workspace")} href="/" active={pathname === "/"}>
+        <NavLink href="/" label={t("today")} active={pathname === "/"}>
           <Home />
         </NavLink>
         <NavLink
           href="/notifications"
-          label="Notifications"
+          label={t("notifications")}
           active={pathname === "/notifications"}
         >
           <Bell />
         </NavLink>
         <NavLink
           href="/guides"
-          label="Guides"
+          label={t("guidesLowercase")}
           active={pathname === "/guides" || pathname.startsWith("/guides/")}
         >
           <BookOpen />
         </NavLink>
         <NavLink
           href="/calendar"
-          label="Calendar"
+          label={t("calendarLowercase")}
           active={pathname.startsWith("/calendar")}
         >
           <CalendarDays />
         </NavLink>
         <NavLink
           href="/announcements"
-          label="Announcements"
+          label={t("announcements")}
           active={pathname.startsWith("/announcements")}
         >
           <Megaphone />
@@ -67,19 +70,19 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label="Guide categories"
+        label={t("guideCategories")}
         href="/categories"
         active={pathname.startsWith("/categories")}
       >
         {categories.map((category) => {
-          const href = `/categories/${category.id}`
+          const categoryHref = `/categories/${category.id}`
 
           return (
             <NavLink
               key={category.id}
-              href={href}
+              href={categoryHref}
               label={category.label}
-              active={pathname === href}
+              active={pathname === categoryHref}
             >
               <CategoryIcon iconKey={category.iconKey} />
             </NavLink>
@@ -88,18 +91,18 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label="Documents"
+        label={t("documents")}
         href="/documents"
         active={pathname.startsWith("/documents")}
       >
         {publishedDocuments.slice(0, 8).map((document) => {
-          const href = `/documents/${document.id}`
+          const documentHref = `/documents/${document.id}`
           return (
             <NavLink
               key={document.id}
-              href={href}
+              href={documentHref}
               label={document.title}
-              active={pathname === href}
+              active={pathname === documentHref}
             >
               <DocumentResourceIcon resource={document.resource} />
             </NavLink>
@@ -108,19 +111,19 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label="Help and tools"
+        label={t("helpAndTools")}
         href="/questions"
         active={pathname === "/questions"}
       >
         <NavLink
           href="/questions"
-          label="Common questions"
+          label={t("commonQuestions")}
           active={pathname === "/questions"}
         >
           <CircleHelp />
         </NavLink>
         {managerAccess && (
-          <NavLink href="/manager" label="Manager area" active={false}>
+          <NavLink href="/manager" label={t("managerArea")} active={false}>
             <Settings />
           </NavLink>
         )}
@@ -129,8 +132,45 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           className="h-10 w-full justify-start px-3"
           onBeforeOpen={onContact}
         />
+        <LanguageSelector />
       </SidebarSection>
     </nav>
+  )
+}
+
+function LanguageSelector() {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const locale = useLocale()
+  const t = useAppTranslations()
+  const search = searchParams.toString()
+  const nextLocale = locale === "et" ? "en" : "et"
+  const localizedPathname = getPathname({
+    locale: nextLocale,
+    href: pathname,
+  })
+  const href = `${localizedPathname}${search ? `?${search}` : ""}`
+  const currentLanguage = locale === "et" ? t("estonian") : t("english")
+
+  // Locale changes replace the root document language and must let next-themes
+  // run its bootstrap script during document parsing rather than a client render.
+  return (
+    <a
+      href={href}
+      hrefLang={nextLocale}
+      aria-label={t(
+        nextLocale === "en" ? "switchToEnglish" : "switchToEstonian"
+      )}
+      className={cn(
+        buttonVariants({ variant: "ghost" }),
+        "h-10 w-full justify-start gap-3 px-3 tracking-normal normal-case"
+      )}
+    >
+      <span className="text-base leading-none" aria-hidden="true">
+        {locale === "et" ? "🇪🇪" : "🇬🇧"}
+      </span>
+      {currentLanguage}
+    </a>
   )
 }
 
@@ -147,6 +187,7 @@ function SidebarSection({
 }) {
   const [open, setOpen] = useState(true)
   const contentId = useId()
+  const t = useAppTranslations()
 
   return (
     <div>
@@ -165,7 +206,9 @@ function SidebarSection({
           type="button"
           className="flex size-8 shrink-0 items-center justify-center text-primary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/30"
           onClick={() => setOpen((current) => !current)}
-          aria-label={`${open ? "Collapse" : "Expand"} ${label}`}
+          aria-label={t(open ? "collapseLabel" : "expandLabel", {
+            label,
+          })}
           aria-expanded={open}
           aria-controls={contentId}
         >

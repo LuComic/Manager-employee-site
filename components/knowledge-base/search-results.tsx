@@ -1,6 +1,9 @@
 "use client"
 
-import Link from "next/link"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
+import { Link } from "@/i18n/navigation"
 import {
   BookOpen,
   CalendarDays,
@@ -22,6 +25,7 @@ import {
 } from "@/components/ui/card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { toDateKey } from "@/lib/operations"
+import type { AppMessageKey } from "@/i18n/messages"
 
 type Result = {
   id: string
@@ -31,7 +35,16 @@ type Result = {
   type: "Guide" | "Event" | "Announcement" | "Question" | "Document"
 }
 
+const resultTypeKeys = {
+  Guide: "guide",
+  Event: "event",
+  Announcement: "announcement",
+  Question: "question",
+  Document: "document",
+} satisfies Record<Result["type"], AppMessageKey>
+
 export function SearchResults({ query }: { query: string }) {
+  const t = useAppTranslations()
   const { hub, hubSlug, credential } = useOperations()
   const normalizedQuery = query.trim()
 
@@ -44,27 +57,35 @@ export function SearchResults({ query }: { query: string }) {
           query: normalizedQuery,
           nowDate: toDateKey(new Date(), hub?.timeZone),
         }
-      : "skip",
+      : "skip"
   ) as Result[] | undefined
 
   return (
     <div aria-busy={results === undefined}>
       <PageHeading
-        title="Search results"
+        title="searchResults"
         description={
           results === undefined
-            ? `Searching for “${normalizedQuery}”…`
-            : `${results.length} ${results.length === 1 ? "result" : "results"} found for “${normalizedQuery}”`
+            ? t("searchingForQuery", { query: normalizedQuery })
+            : t(
+                results.length === 1
+                  ? "countResultFoundForQuery"
+                  : "countResultsFoundForQuery",
+                { count: results.length, query: normalizedQuery }
+              )
         }
       />
       {results === undefined ? (
         <p className="mt-8 text-sm text-muted-foreground" role="status">
-          Searching…
+          <T>searching</T>
         </p>
       ) : results.length > 0 ? (
         <>
           <p className="sr-only" role="status">
-            {`${results.length} ${results.length === 1 ? "result" : "results"} found.`}
+            {t(
+              results.length === 1 ? "countResultFound" : "countResultsFound",
+              { count: results.length }
+            )}
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {results.map((result) => {
@@ -92,8 +113,12 @@ export function SearchResults({ query }: { query: string }) {
                       <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
                         <Icon className="size-4" />
                       </span>
-                      <Badge variant="secondary">{result.type}</Badge>
-                      <CardTitle className="text-base">{result.title}</CardTitle>
+                      <Badge variant="secondary">
+                        {t(resultTypeKeys[result.type])}
+                      </Badge>
+                      <CardTitle className="text-base">
+                        {result.title}
+                      </CardTitle>
                       <CardDescription>{result.description}</CardDescription>
                     </CardHeader>
                   </Card>
@@ -105,15 +130,17 @@ export function SearchResults({ query }: { query: string }) {
       ) : (
         <>
           <p className="sr-only" role="status">
-            No results found.
+            <T>noResultsFound</T>
           </p>
           <div className="mt-6 flex min-h-40 flex-col items-center justify-center border bg-background p-6 text-center">
             <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
               <Search className="size-5" />
             </span>
-            <h2 className="mt-4 text-lg font-semibold">No matching content</h2>
+            <h2 className="mt-4 text-lg font-semibold">
+              <T>noMatchingContent</T>
+            </h2>
             <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              Try a shorter word or browse one of the main areas.
+              <T>tryShorterWordBrowseOneMainAreas</T>
             </p>
           </div>
         </>

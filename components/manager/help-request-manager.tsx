@@ -1,5 +1,12 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import {
+  useAppErrorTranslation,
+  useAppTranslations,
+  useLanguageTag,
+} from "@/i18n/use-app-translations"
+
 import { useState } from "react"
 import { CheckCircle2, Headphones, RotateCcw, Trash2 } from "lucide-react"
 import { useMutation, useQuery } from "convex/react"
@@ -28,6 +35,9 @@ type HelpRequest = {
 }
 
 export function HelpRequestManager() {
+  const t = useAppTranslations()
+  const translateError = useAppErrorTranslation()
+  const languageTag = useLanguageTag()
   const { hub } = useOperations()
   const requests = useQuery(
     api.content.listHelpRequests,
@@ -45,11 +55,13 @@ export function HelpRequestManager() {
     try {
       await setStatus({ hubId: hub.id, requestId: request.id, status })
       toast.success(
-        status === "resolved" ? "Request resolved." : "Request reopened."
+        t(status === "resolved" ? "requestResolved" : "requestReopened")
       )
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not update request"
+        error instanceof Error
+          ? translateError(error)
+          : t("couldNotUpdateRequest")
       )
     }
   }
@@ -57,12 +69,12 @@ export function HelpRequestManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Help requests"
-        description="Review questions employees sent from the help button."
+        title="helpRequests"
+        description="reviewQuestionsEmployeesSentHelpButton"
       />
 
       <div className="border-b pb-4">
-        <SegmentedControl aria-label="Help request status">
+        <SegmentedControl aria-label={t("helpRequestStatus")}>
           {(["open", "resolved"] as const).map((status) => (
             <SegmentedControlItem
               key={status}
@@ -70,7 +82,7 @@ export function HelpRequestManager() {
               size="sm"
               onClick={() => setFilter(status)}
             >
-              {status === "open" ? "Open" : "Resolved"}
+              <T>{status === "open" ? "open" : "resolved"}</T>
               <Badge variant="outline">
                 {requests?.filter((request) => request.status === status)
                   .length ?? 0}
@@ -82,7 +94,7 @@ export function HelpRequestManager() {
 
       {requests === undefined ? (
         <p className="text-sm text-muted-foreground" role="status">
-          Loading help requests…
+          <T>loadingHelpRequests</T>
         </p>
       ) : visible.length ? (
         <div className="space-y-4">
@@ -103,14 +115,14 @@ export function HelpRequestManager() {
                         request.status === "open" ? "secondary" : "outline"
                       }
                     >
-                      {request.status === "open" ? "Open" : "Resolved"}
+                      <T>{request.status === "open" ? "open" : "resolved"}</T>
                     </Badge>
                   </div>
                   <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
                     {request.message}
                   </p>
                   <p className="mt-4 text-xs text-muted-foreground">
-                    {new Intl.DateTimeFormat("en-GB", {
+                    {new Intl.DateTimeFormat(languageTag, {
                       dateStyle: "medium",
                       timeStyle: "short",
                       timeZone: hub?.timeZone,
@@ -128,13 +140,13 @@ export function HelpRequestManager() {
                     ) : (
                       <RotateCcw />
                     )}
-                    {request.status === "open" ? "Resolve" : "Reopen"}
+                    <T>{request.status === "open" ? "resolve" : "reopen"}</T>
                   </Button>
                   <Button
                     variant="destructive"
                     size="icon-sm"
                     onClick={() => setDeleteTarget(request)}
-                    aria-label={`Delete ${request.topic}`}
+                    aria-label={t("deleteName", { name: request.topic })}
                   >
                     <Trash2 />
                   </Button>
@@ -147,12 +159,12 @@ export function HelpRequestManager() {
         <EmptyState
           icon={filter === "open" ? Headphones : CheckCircle2}
           title={
-            filter === "open" ? "No open help requests" : "No resolved requests"
+            filter === "open" ? "noOpenHelpRequests" : "noResolvedRequests"
           }
           description={
             filter === "open"
-              ? "New employee questions will appear here."
-              : "Requests you resolve will appear here."
+              ? "newEmployeeQuestionsWillAppearHere"
+              : "requestsYouResolveWillAppearHere"
           }
         />
       )}
@@ -166,7 +178,7 @@ export function HelpRequestManager() {
         onConfirm={async () => {
           if (!hub || !deleteTarget) return
           await remove({ hubId: hub.id, requestId: deleteTarget.id })
-          toast.success("Help request deleted.")
+          toast.success(t("helpRequestDeleted"))
           setDeleteTarget(null)
         }}
       />

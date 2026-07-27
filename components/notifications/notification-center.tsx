@@ -1,7 +1,11 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
+import type { AppMessageKey } from "@/i18n/messages"
+
 import { useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import {
   Bell,
   BookOpen,
@@ -24,7 +28,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
 import { cn } from "@/lib/utils"
 
-const GUEST_DEVICE_KEY = "operations-hub:notification-device"
+const GUEST_DEVICE_KEY = "workhal:notification-device"
 let cachedGuestDeviceId: string | undefined
 
 const kindIcons: Record<
@@ -115,6 +119,7 @@ export function NotificationButton({
   manager?: boolean
   className?: string
 }) {
+  const t = useAppTranslations()
   const { feed } = useNotificationFeed(manager)
   const unreadCount = feed?.unreadCount ?? 0
   const href = manager ? "/manager/notifications" : "/notifications"
@@ -128,7 +133,9 @@ export function NotificationButton({
         className
       )}
       aria-label={
-        unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"
+        unreadCount
+          ? t("notificationsCountUnread", { count: unreadCount })
+          : t("notifications")
       }
     >
       <Bell />
@@ -142,17 +149,19 @@ export function NotificationButton({
 }
 
 export function NotificationCenter({ manager = false }: { manager?: boolean }) {
+  const t = useAppTranslations()
+  const languageTag = useLanguageTag()
   const { hub } = useOperations()
   const { feed, markAllRead } = useNotificationFeed(manager)
   const newestCreatedAt = feed?.notifications[0]?.createdAt ?? 0
   const dateTimeFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat("en-GB", {
+      new Intl.DateTimeFormat(languageTag, {
         dateStyle: "medium",
         timeStyle: "short",
         timeZone: hub?.timeZone,
       }),
-    [hub?.timeZone]
+    [hub?.timeZone, languageTag]
   )
 
   useEffect(() => {
@@ -162,13 +171,13 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
 
   const heading = manager ? (
     <ManagerHeading
-      title="Notifications"
-      description="Employee questions, account activity, and other workplace updates."
+      title="notifications"
+      description="employeeQuestionsAccountActivityOtherWorkplaceUpdates"
     />
   ) : (
     <PageHeading
-      title="Notifications"
-      description="New guides, events, announcements, assignments, and workplace updates."
+      title="notifications"
+      description="newGuidesEventsAnnouncementsAssignmentsWorkplaceUpdates"
     />
   )
 
@@ -177,7 +186,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
       {heading}
       {feed === undefined ? (
         <p className="text-sm text-muted-foreground" role="status">
-          Loading notifications…
+          <T>loadingNotifications</T>
         </p>
       ) : feed.notifications.length ? (
         <div className="space-y-3">
@@ -203,11 +212,24 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-semibold">{notification.title}</h2>
-                        {wasUnread && <Badge variant="secondary">New</Badge>}
+                        <h2 className="font-semibold">
+                          {notification.titleKey
+                            ? t(notification.titleKey as AppMessageKey)
+                            : notification.title}
+                        </h2>
+                        {wasUnread && (
+                          <Badge variant="secondary">
+                            <T>new</T>
+                          </Badge>
+                        )}
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {notification.message}
+                        {notification.messageKey
+                          ? t(
+                              notification.messageKey as AppMessageKey,
+                              notification.messageValues
+                            )
+                          : notification.message}
                       </p>
                       <p className="mt-3 text-xs text-muted-foreground">
                         {dateTimeFormatter.format(notification.createdAt)}
@@ -222,11 +244,11 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
       ) : (
         <EmptyState
           icon={Bell}
-          title="No notifications yet"
+          title="noNotificationsYet"
           description={
             manager
-              ? "Employee activity will appear here."
-              : "New workplace updates will appear here."
+              ? "employeeActivityWillAppearHere"
+              : "newWorkplaceUpdatesWillAppearHere"
           }
         />
       )}

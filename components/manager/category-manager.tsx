@@ -1,7 +1,10 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import { useState } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import {
   ArrowDown,
   ArrowUp,
@@ -28,6 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { AppMessageKey } from "@/i18n/messages"
 import { Textarea } from "@/components/ui/textarea"
 import {
   categoryIconOptions,
@@ -53,6 +57,7 @@ const blankCategory: CategoryDraft = {
 }
 
 export function CategoryManager() {
+  const t = useAppTranslations()
   const {
     categories,
     guides,
@@ -73,7 +78,7 @@ export function CategoryManager() {
     if (!editing) return
     const label = editing.label.trim()
     const description = editing.description.trim()
-    if (!label || !description) return setError("Add a name and description.")
+    if (!label || !description) return setError("addANameAndDescription")
     if (
       categories.some(
         (category) =>
@@ -81,7 +86,7 @@ export function CategoryManager() {
           category.label.toLowerCase() === label.toLowerCase()
       )
     )
-      return setError("A category with this name already exists.")
+      return setError("categoryNameAlreadyExists")
 
     let id = editing.id
     if (!id) {
@@ -94,7 +99,7 @@ export function CategoryManager() {
       }
     }
     saveCategory({ id, label, description, iconKey: editing.iconKey })
-    showFeedback(editing.id ? "Category saved." : "Category created.")
+    showFeedback(editing.id ? "categorySaved" : "categoryCreated")
     setEditing(null)
     setError("")
   }
@@ -102,8 +107,8 @@ export function CategoryManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Guide categories"
-        description="Manage the work areas shown in the employee sidebar and guide browser."
+        title="guideCategories"
+        description="manageWorkAreasShownEmployeeSidebarGuideMessage"
         action={
           canCreateContent ? (
             <Button
@@ -112,7 +117,7 @@ export function CategoryManager() {
                 setError("")
               }}
             >
-              <Plus /> New category
+              <Plus /> <T>createCategory</T>
             </Button>
           ) : undefined
         }
@@ -140,7 +145,12 @@ export function CategoryManager() {
                         |
                       </span>
                       <Badge variant="secondary">
-                        {guideCount} {guideCount === 1 ? "guide" : "guides"}
+                        {guideCount}{" "}
+                        <T>
+                          {guideCount === 1
+                            ? "guideLowercase"
+                            : "guidesLowercase"}
+                        </T>
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -153,7 +163,9 @@ export function CategoryManager() {
                       size="icon-sm"
                       disabled={index === 0}
                       onClick={() => moveCategory(category.id, -1)}
-                      aria-label={`Move ${category.label} up`}
+                      aria-label={t("moveNameUp", {
+                        name: category.label,
+                      })}
                     >
                       <ArrowUp />
                     </Button>
@@ -162,7 +174,9 @@ export function CategoryManager() {
                       size="icon-sm"
                       disabled={index === categories.length - 1}
                       onClick={() => moveCategory(category.id, 1)}
-                      aria-label={`Move ${category.label} down`}
+                      aria-label={t("moveNameDown", {
+                        name: category.label,
+                      })}
                     >
                       <ArrowDown />
                     </Button>
@@ -174,14 +188,16 @@ export function CategoryManager() {
                         setError("")
                       }}
                     >
-                      <FilePenLine /> Edit
+                      <FilePenLine /> <T>edit</T>
                     </Button>
                     {canCreateContent && (
                       <Button
                         variant="destructive"
                         size="icon-sm"
                         onClick={() => setDeleteTarget(category)}
-                        aria-label={`Delete ${category.label}`}
+                        aria-label={t("deleteName", {
+                          name: category.label,
+                        })}
                       >
                         <Trash2 />
                       </Button>
@@ -195,8 +211,8 @@ export function CategoryManager() {
       ) : (
         <EmptyState
           icon={Tags}
-          title="No guide categories"
-          description="Create a work area before adding a guide."
+          title="noGuideCategories"
+          description="createWorkAreaBeforeAddingGuide"
         />
       )}
 
@@ -219,14 +235,14 @@ export function CategoryManager() {
             >
               <DialogHeader>
                 <DialogTitle>
-                  {editing.id ? "Edit category" : "Create category"}
+                  <T>{editing.id ? "editCategory" : "createCategory"}</T>
                 </DialogTitle>
                 <DialogDescription>
-                  Category changes appear immediately on the employee site.
+                  <T>categoryChangesAppearImmediatelyEmployeeSite</T>
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
-                <Field label="Name" id="category-name">
+                <Field label="name" id="category-name">
                   <Input
                     id="category-name"
                     value={editing.label}
@@ -236,7 +252,7 @@ export function CategoryManager() {
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field label="Description" id="category-description">
+                <Field label="description" id="category-description">
                   <Textarea
                     id="category-description"
                     value={editing.description}
@@ -250,7 +266,9 @@ export function CategoryManager() {
                   />
                 </Field>
                 <fieldset>
-                  <legend className="text-sm font-medium">Icon</legend>
+                  <legend className="text-sm font-medium">
+                    <T>icon</T>
+                  </legend>
                   <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {categoryIconOptions.map((option) => {
                       const selected = editing.iconKey === option.key
@@ -272,7 +290,7 @@ export function CategoryManager() {
                             iconKey={option.key}
                             className="size-5"
                           />
-                          {option.label}
+                          <T>{option.label}</T>
                         </button>
                       )
                     })}
@@ -280,7 +298,7 @@ export function CategoryManager() {
                 </fieldset>
                 {error && (
                   <p role="alert" className="text-sm text-destructive">
-                    {error}
+                    <T>{error}</T>
                   </p>
                 )}
               </div>
@@ -290,9 +308,11 @@ export function CategoryManager() {
                   variant="outline"
                   onClick={() => setEditing(null)}
                 >
-                  Cancel
+                  <T>cancel</T>
                 </Button>
-                <Button type="submit">Save category</Button>
+                <Button type="submit">
+                  <T>saveCategory</T>
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -307,11 +327,18 @@ export function CategoryManager() {
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Reassign guides before deleting</DialogTitle>
+            <DialogTitle>
+              <T>reassignGuidesBeforeDeleting</T>
+            </DialogTitle>
             <DialogDescription>
-              {deleteTarget?.label} is still used by {affectedGuides.length}{" "}
-              {affectedGuides.length === 1 ? "guide" : "guides"}. Move them to
-              another work area first.
+              {deleteTarget?.label} <T>isStillUsedByLowercase</T>{" "}
+              {affectedGuides.length}{" "}
+              <T>
+                {affectedGuides.length === 1
+                  ? "guideLowercase"
+                  : "guidesLowercase"}
+              </T>
+              <T>moveGuidesBeforeDeleteHelp</T>
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 space-y-2">
@@ -331,7 +358,7 @@ export function CategoryManager() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Close
+              <T>close</T>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -346,7 +373,7 @@ export function CategoryManager() {
         onConfirm={() => {
           if (deleteTarget) {
             deleteCategory(deleteTarget.id)
-            showFeedback("Category deleted.")
+            showFeedback("categoryDeleted")
           }
         }}
       />
@@ -359,13 +386,15 @@ function Field({
   id,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   id: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

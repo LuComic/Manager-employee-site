@@ -13,8 +13,8 @@ export function GuidePageContent({ guideId }: { guideId: string }) {
     return (
       <EmptyState
         icon={BookOpen}
-        title="Guide not available"
-        description="This guide may be unpublished or removed. Browse the current guides to find another."
+        title="guideNotAvailable"
+        description="guideUnpublishedRemovedBrowseCurrentGuidesFind"
       />
     )
   return (

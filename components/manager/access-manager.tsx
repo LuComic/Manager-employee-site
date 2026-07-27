@@ -1,9 +1,13 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+
 import { useState } from "react"
 import {
   Check,
   Copy,
+  Eye,
+  EyeOff,
   KeyRound,
   Link2,
   RefreshCw,
@@ -20,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export function AccessManager() {
   const {
@@ -51,18 +56,16 @@ export function AccessManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Employee access"
-        description="Control accountless access to published hub content. Join codes and private links are bearer credentials."
+        title="employeeAccess"
+        description="controlAccountlessAccessPublishedHubContentJoinMessage"
       />
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheck className="size-5 text-primary" /> Access mode
+            <ShieldCheck className="size-5 text-primary" /> <T>accessMode</T>
           </CardTitle>
           <CardDescription>
-            Public mode opens published content to anyone with the workplace
-            URL. Restricted mode requires the employee join code or private
-            link. Signed-in workplace members keep their normal access.
+            <T>publicModeOpensPublishedContentAnyoneWorkplaceMessage</T>
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-start gap-3">
@@ -79,8 +82,8 @@ export function AccessManager() {
                 await setAccessMode(nextMode)
                 showFeedback(
                   nextMode === "restricted"
-                    ? "Restricted access enabled. Employees now need the code or private link."
-                    : "Public access enabled. The workplace URL now opens without a code."
+                    ? "restrictedAccessEnabledEmployeesNowNeedCodeMessage"
+                    : "publicAccessEnabledWorkplaceurlNowOpensMessage"
                 )
               } finally {
                 setModePending(false)
@@ -88,14 +91,16 @@ export function AccessManager() {
             }}
           >
             <ShieldCheck />
-            {hub.accessMode === "restricted"
-              ? "Restricted access on"
-              : "Require code or private link"}
+            <T>
+              {hub.accessMode === "restricted"
+                ? "restrictedAccessOn"
+                : "requireCodeOrPrivateLink"}
+            </T>
           </Button>
           <p className="text-sm text-muted-foreground">
-            Current mode:{" "}
+            <T>currentMode</T>{" "}
             <span className="font-medium text-foreground">
-              {hub.accessMode === "restricted" ? "Restricted" : "Public"}
+              <T>{hub.accessMode === "restricted" ? "restricted" : "public"}</T>
             </span>
           </p>
         </CardContent>
@@ -104,32 +109,31 @@ export function AccessManager() {
       <div className="grid gap-4 lg:grid-cols-2">
         <CredentialCard
           icon={KeyRound}
-          title="Employee join code"
-          value={ownerCredentials?.joinCode ?? "Not stored in this browser"}
+          title="employeeJoinCode"
+          value={ownerCredentials?.joinCode ?? ""}
           disabled={!ownerCredentials}
           copied={copied === "code"}
           onCopy={() => copy("code", ownerCredentials?.joinCode ?? "")}
-          description="Share this short code verbally or in a staff-only channel."
+          description="shareShortCodeVerballyStaffOnlyChannel"
         />
         <CredentialCard
           icon={Link2}
-          title="Private join link"
-          value={privateUrl || "Not stored in this browser"}
+          title="privateJoinLink"
+          value={privateUrl}
           disabled={!ownerCredentials}
           copied={copied === "link"}
           onCopy={() => copy("link", privateUrl)}
-          description="Opening this link grants access without typing the code."
+          description="openingLinkGrantsAccessWithoutTypingCode"
         />
       </div>
 
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle className="text-base">Rotate or revoke access</CardTitle>
+          <CardTitle className="text-base">
+            <T>rotateOrRevokeAccess</T>
+          </CardTitle>
           <CardDescription>
-            Rotation immediately invalidates the previous code and link,
-            including copies remembered by employee browsers. Only credential
-            hashes are stored in Convex; the readable values are kept in this
-            owner browser.
+            <T>rotationImmediatelyInvalidatesPreviousCodeLinkIncludingError</T>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -140,13 +144,13 @@ export function AccessManager() {
               setPending(true)
               try {
                 await rotateCredentials()
-                showFeedback("Join code and private link rotated.")
+                showFeedback("joinCodeAndPrivateLinkRotated")
               } finally {
                 setPending(false)
               }
             }}
           >
-            <RefreshCw /> Rotate code and link
+            <RefreshCw /> <T>rotateCodeAndLink</T>
           </Button>
         </CardContent>
       </Card>
@@ -164,35 +168,62 @@ function CredentialCard({
   onCopy,
 }: {
   icon: typeof KeyRound
-  title: string
+  title: AppMessageKey
   value: string
-  description: string
+  description: AppMessageKey
   disabled: boolean
   copied: boolean
   onCopy: () => void
 }) {
+  const [revealed, setRevealed] = useState(false)
+
   return (
     <Card className="shadow-none">
       <CardHeader>
         <span className="flex size-10 items-center justify-center bg-primary/10 text-primary">
           <Icon />
         </span>
-        <CardTitle className="mt-3 text-base">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle className="mt-3 text-base">
+          <T>{title}</T>
+        </CardTitle>
+        <CardDescription>
+          <T>{description}</T>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <code className="block overflow-x-auto border bg-muted/40 p-3 text-xs">
-          {value}
+          {value ? (
+            revealed ? (
+              value
+            ) : (
+              "••••••••••••"
+            )
+          ) : (
+            <T>notStoredInThisBrowser</T>
+          )}
         </code>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-3"
-          disabled={disabled}
-          onClick={onCopy}
-        >
-          {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy"}
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={onCopy}
+          >
+            {copied ? <Check /> : <Copy />} <T>{copied ? "copied" : "copy"}</T>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-pressed={revealed}
+            disabled={disabled}
+            onClick={() => setRevealed((current) => !current)}
+          >
+            {revealed ? <EyeOff /> : <Eye />}
+            <T>{revealed ? "hide" : "show"}</T>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

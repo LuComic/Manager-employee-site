@@ -1,5 +1,8 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import {
   ArrowDown,
   ArrowUp,
@@ -39,6 +42,7 @@ const sectionDetails = new Map(
 )
 
 export function TodayManager() {
+  const t = useAppTranslations()
   const { hub, moveTodaySection, setTodaySectionVisibility, showFeedback } =
     useOperations()
   const sections = hub?.todaySections ?? defaultTodaySections
@@ -46,14 +50,15 @@ export function TodayManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Today page"
-        description="Choose which sections employees see and arrange them in the order that matters most. Changes save automatically."
+        title="todayPage"
+        description="chooseWhichSectionsEmployeesSeeArrangeOrderMessage"
       />
 
       <div className="space-y-4">
         {sections.map((section, index) => {
           const detail = sectionDetails.get(section.key)
           const Icon = sectionIcons[section.key]
+          const sectionName = detail ? t(detail.titleKey) : ""
 
           return (
             <Card
@@ -72,16 +77,16 @@ export function TodayManager() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold">{detail?.title}</h2>
+                    <h2 className="font-semibold">{sectionName}</h2>
                     <span aria-hidden="true" className="text-border">
                       |
                     </span>
                     <Badge variant={section.visible ? "default" : "secondary"}>
-                      {section.visible ? "Visible" : "Hidden"}
+                      <T>{section.visible ? "visible" : "hidden"}</T>
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {detail?.description}
+                    {detail ? t(detail.descriptionKey) : ""}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -91,9 +96,11 @@ export function TodayManager() {
                     disabled={index === 0}
                     onClick={() => {
                       void moveTodaySection(section.key, -1)
-                      showFeedback(`${detail?.title} moved up.`)
+                      showFeedback("sectionMovedUp", { name: sectionName })
                     }}
-                    aria-label={`Move ${detail?.title} up`}
+                    aria-label={t("moveNameUp", {
+                      name: sectionName,
+                    })}
                   >
                     <ArrowUp />
                   </Button>
@@ -103,9 +110,11 @@ export function TodayManager() {
                     disabled={index === sections.length - 1}
                     onClick={() => {
                       void moveTodaySection(section.key, 1)
-                      showFeedback(`${detail?.title} moved down.`)
+                      showFeedback("sectionMovedDown", { name: sectionName })
                     }}
-                    aria-label={`Move ${detail?.title} down`}
+                    aria-label={t("moveNameDown", {
+                      name: sectionName,
+                    })}
                   >
                     <ArrowDown />
                   </Button>
@@ -118,12 +127,13 @@ export function TodayManager() {
                         !section.visible
                       )
                       showFeedback(
-                        `${detail?.title} ${section.visible ? "hidden" : "shown"}.`
+                        section.visible ? "sectionHidden" : "sectionShown",
+                        { name: sectionName }
                       )
                     }}
                   >
                     {section.visible ? <EyeOff /> : <Eye />}
-                    {section.visible ? "Hide" : "Unhide"}
+                    <T>{section.visible ? "hide" : "unhide"}</T>
                   </Button>
                 </div>
               </CardContent>

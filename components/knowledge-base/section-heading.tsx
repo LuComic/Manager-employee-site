@@ -1,23 +1,29 @@
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { ArrowRight } from "lucide-react"
 
+import { T } from "@/components/translated-text"
 import { buttonVariants } from "@/components/ui/button"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export function SectionHeading({
   title,
   description,
   action,
 }: {
-  title: string
+  title: AppMessageKey
   description?: string
-  action?: { label: string; href: string }
+  action?: { label: AppMessageKey; href: string }
 }) {
   return (
     <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        <h2 className="text-xl font-semibold tracking-tight">
+          <T>{title}</T>
+        </h2>
         {description && (
-          <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            <T>{description}</T>
+          </p>
         )}
       </div>
       {action && (
@@ -25,7 +31,7 @@ export function SectionHeading({
           href={action.href}
           className={buttonVariants({ variant: "ghost", size: "sm" })}
         >
-          {action.label} <ArrowRight />
+          <T>{action.label}</T> <ArrowRight />
         </Link>
       )}
     </div>

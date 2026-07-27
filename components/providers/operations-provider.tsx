@@ -1,14 +1,22 @@
 "use client"
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useAuth, useSession } from "@clerk/nextjs"
 import { ConvexHttpClient } from "convex/browser"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import { toast } from "sonner"
+import { useLocale, type TranslationValues } from "next-intl"
 
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import { usePathname } from "@/i18n/navigation"
+import {
+  useAppErrorTranslation,
+  useAppTranslations,
+} from "@/i18n/use-app-translations"
+import type { AppMessageKey } from "@/i18n/messages"
+import type { Locale } from "@/i18n/routing"
 import {
   isBannerImageContentType,
   MAX_BANNER_IMAGE_SIZE_BYTES,
@@ -22,6 +30,7 @@ import type {
 } from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
 import {
+  normalizeEventCategory,
   toDateKey,
   type Announcement,
   type Attachment,
@@ -136,7 +145,7 @@ type OperationsContextValue = OperationsState & {
   ) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
   submitHelpRequest: (topic: string, message: string) => Promise<void>
-  showFeedback: (message: string) => void
+  showFeedback: (key: AppMessageKey, values?: TranslationValues) => void
 }
 
 const OperationsContext = createContext<OperationsContextValue | null>(null)
@@ -167,11 +176,11 @@ function createCredentials(credentialVersion = 1): HubCredentials {
 }
 
 function ownerCredentialKey(hubId: string) {
-  return `operations-hub:owner-credentials:${hubId}`
+  return `workhal:owner-credentials:${hubId}`
 }
 
 function employeeCredentialKey(slug: string) {
-  return `operations-hub:employee-access:${slug}`
+  return `workhal:employee-access:${slug}`
 }
 
 function parseStored<T>(value: string | null): T | null {
@@ -189,6 +198,9 @@ export function OperationsProvider({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const locale = useLocale() as Locale
+  const t = useAppTranslations()
+  const translateError = useAppErrorTranslation()
   const searchParams = useSearchParams()
   const isManagerRoute = pathname.startsWith("/manager")
   const isAuthPage =
@@ -210,7 +222,7 @@ export function OperationsProvider({
   useEffect(() => {
     let timeout: number | undefined
     if (requestedHubSlug) {
-      localStorage.setItem("operations-hub:active-slug", requestedHubSlug)
+      localStorage.setItem("workhal:active-slug", requestedHubSlug)
       timeout = window.setTimeout(
         () => setRememberedHubSlug(requestedHubSlug),
         0
@@ -219,7 +231,7 @@ export function OperationsProvider({
       timeout = window.setTimeout(
         () =>
           setRememberedHubSlug(
-            localStorage.getItem("operations-hub:active-slug") || ""
+            localStorage.getItem("workhal:active-slug") || ""
           ),
         0
       )
@@ -421,7 +433,10 @@ export function OperationsProvider({
           categoryById.get(guide.category)?.iconKey ?? "general"
         ),
       })) as Guide[],
-      events: activeSnapshot.events as CalendarEvent[],
+      events: activeSnapshot.events.map((event) => ({
+        ...event,
+        category: normalizeEventCategory(event.category),
+      })) as CalendarEvent[],
       announcements: activeSnapshot.announcements as Announcement[],
       faqs: activeSnapshot.faqs as Faq[],
       documents: activeSnapshot.documents as WorkspaceDocument[],
@@ -430,7 +445,7 @@ export function OperationsProvider({
 
   function managerHubId() {
     if (!isManagerRoute || !hub) {
-      throw new Error("Create or open your hub first")
+      throw new Error("createOrOpenYourHubFirst")
     }
     return hub.id
   }
@@ -439,11 +454,7 @@ export function OperationsProvider({
     try {
       return await operation()
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message.replace(/^.*Uncaught Error: /, "")
-          : "Something went wrong"
-      toast.error(message)
+      toast.error(translateError(error))
       throw error
     }
   }
@@ -451,7 +462,7 @@ export function OperationsProvider({
   async function uploadAndAttach(
     hubId: Id<"hubs">,
     file: File,
-    failureMessage: string,
+    failureMessage: AppMessageKey,
     attach: (storageId: Id<"_storage">) => Promise<unknown>
   ) {
     const storageId = await uploadStoredFile(hubId, file, failureMessage)
@@ -466,7 +477,7 @@ export function OperationsProvider({
   async function uploadStoredFile(
     hubId: Id<"hubs">,
     file: File,
-    failureMessage: string
+    failureMessage: AppMessageKey
   ) {
     const contentType = file.type || "application/octet-stream"
     const digest = await crypto.subtle.digest(
@@ -547,7 +558,7 @@ export function OperationsProvider({
     createHub: async (name, slug) => {
       await run(async () => {
         if (!clerkOrganizationId) {
-          throw new Error("Create or select a workplace first")
+          throw new Error("createOrSelectAWorkplaceFirst")
         }
         const credentials = createCredentials()
         const response = await fetch("/api/workplaces", {
@@ -558,12 +569,12 @@ export function OperationsProvider({
           organizationId: string
         }
         if (!response.ok)
-          throw new Error(result.error ?? "Could not configure workplace")
+          throw new Error(result.error ?? "couldNotConfigureWorkplace")
         const token = await session?.getToken({
           organizationId: result.organizationId,
           skipCache: true,
         })
-        if (!token) throw new Error("Could not create a workplace session")
+        if (!token) throw new Error("couldNotCreateAWorkplaceSession")
         const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
         convex.setAuth(token)
         const created = await convex.mutation(api.hubs.create, {
@@ -575,7 +586,7 @@ export function OperationsProvider({
           timeZone:
             Intl.DateTimeFormat().resolvedOptions().timeZone ||
             "Europe/Tallinn",
-          seedDemoContent: true,
+          locale,
         })
         localStorage.setItem(
           ownerCredentialKey(created.hubId),
@@ -623,12 +634,12 @@ export function OperationsProvider({
       const hubId = managerHubId()
       await run(async () => {
         if (!isBannerImageContentType(file.type)) {
-          throw new Error("Use a JPG, PNG, WebP, or AVIF image")
+          throw new Error("usejpgpngWebpavifImage")
         }
         if (file.size > MAX_BANNER_IMAGE_SIZE_BYTES) {
-          throw new Error("Banner images must be 10 MB or smaller")
+          throw new Error("bannerImageSizeLimit")
         }
-        await uploadAndAttach(hubId, file, "Image upload failed", (storageId) =>
+        await uploadAndAttach(hubId, file, "imageUploadFailed", (storageId) =>
           attachToHubBanner({ hubId, storageId })
         )
       })
@@ -723,7 +734,7 @@ export function OperationsProvider({
     uploadAttachment: async (eventSlug, file) => {
       const hubId = managerHubId()
       await run(() =>
-        uploadAndAttach(hubId, file, "File upload failed", (storageId) =>
+        uploadAndAttach(hubId, file, "fileUploadFailed", (storageId) =>
           attachToEvent({
             hubId,
             eventSlug,
@@ -792,7 +803,7 @@ export function OperationsProvider({
             ? await uploadStoredFile(
                 hubId,
                 uploads.resourceFile,
-                "File upload failed"
+                "fileUploadFailed"
               )
             : undefined
           if (resourceStorageId) uploadedStorageIds.push(resourceStorageId)
@@ -801,19 +812,19 @@ export function OperationsProvider({
             uploads.bannerFile &&
             !isBannerImageContentType(uploads.bannerFile.type)
           ) {
-            throw new Error("Use a JPG, PNG, WebP, or AVIF banner image")
+            throw new Error("usejpgpngWebpavifBannerMessage")
           }
           if (
             uploads.bannerFile &&
             uploads.bannerFile.size > MAX_BANNER_IMAGE_SIZE_BYTES
           ) {
-            throw new Error("Banner images must be 10 MB or smaller")
+            throw new Error("bannerImageSizeLimit")
           }
           const bannerStorageId = uploads.bannerFile
             ? await uploadStoredFile(
                 hubId,
                 uploads.bannerFile,
-                "Banner upload failed"
+                "bannerUploadFailed"
               )
             : undefined
           if (bannerStorageId) uploadedStorageIds.push(bannerStorageId)
@@ -863,7 +874,7 @@ export function OperationsProvider({
         submitHelpMutation({ hubSlug, credential, topic, message })
       )
     },
-    showFeedback: (message) => toast.success(message),
+    showFeedback: (key, values) => toast.success(t(key, values)),
   }
 
   return (

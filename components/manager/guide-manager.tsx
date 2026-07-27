@@ -1,7 +1,10 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import { useMemo, useState } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { BookOpen, FilePenLine, Plus, Search, Trash2 } from "lucide-react"
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
@@ -25,6 +28,7 @@ import { cn } from "@/lib/utils"
 type Status = "All" | "Published" | "Draft"
 
 export function GuideManager() {
+  const t = useAppTranslations()
   const {
     categories,
     guides,
@@ -56,20 +60,20 @@ export function GuideManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Manage guides"
-        description="Create, edit, publish, and remove practical instructions."
+        title="manageGuides"
+        description="createEditPublishRemovePracticalInstructions"
         action={
           canCreateContent ? (
             categories.length ? (
               <Link href="/manager/guides/new" className={buttonVariants()}>
-                <Plus /> New guide
+                <Plus /> <T>createGuide</T>
               </Link>
             ) : (
               <Link
                 href="/manager/categories"
                 className={buttonVariants({ variant: "outline" })}
               >
-                <Plus /> Create a category first
+                <Plus /> <T>createACategoryFirst</T>
               </Link>
             )
           ) : undefined
@@ -81,8 +85,8 @@ export function GuideManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search guides…"
-            aria-label="Search guides"
+            placeholder={t("searchGuidesPlaceholder")}
+            aria-label={t("searchGuides")}
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -92,12 +96,14 @@ export function GuideManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter guides by work area"
+            aria-label={t("filterGuidesByWorkArea")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All work areas</SelectItem>
+            <SelectItem value="All">
+              <T>allWorkAreas</T>
+            </SelectItem>
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.label}
@@ -111,14 +117,20 @@ export function GuideManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter guides by status"
+            aria-label={t("filterGuidesByStatus")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Published">Published</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="All">
+              <T>all</T>
+            </SelectItem>
+            <SelectItem value="Published">
+              <T>published</T>
+            </SelectItem>
+            <SelectItem value="Draft">
+              <T>draft</T>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -137,7 +149,7 @@ export function GuideManager() {
                       |
                     </span>
                     <Badge variant={guide.published ? "secondary" : "outline"}>
-                      {guide.published ? "Published" : "Draft"}
+                      <T>{guide.published ? "published" : "draft"}</T>
                     </Badge>
                     <span aria-hidden="true" className="text-border">
                       |
@@ -162,13 +174,11 @@ export function GuideManager() {
                         updated: "Updated just now",
                       })
                       showFeedback(
-                        guide.published
-                          ? "Guide unpublished."
-                          : "Guide published."
+                        guide.published ? "guideUnpublished" : "guidePublished"
                       )
                     }}
                   >
-                    {guide.published ? "Unpublish" : "Publish"}
+                    <T>{guide.published ? "unpublish" : "publish"}</T>
                   </Button>
                   <Link
                     href={`/manager/guides/${guide.id}/edit`}
@@ -176,14 +186,14 @@ export function GuideManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> Edit
+                    <FilePenLine /> <T>edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(guide)}
-                      aria-label={`Delete ${guide.title}`}
+                      aria-label={t("deleteName", { name: guide.title })}
                     >
                       <Trash2 />
                     </Button>
@@ -196,8 +206,8 @@ export function GuideManager() {
       ) : (
         <EmptyState
           icon={BookOpen}
-          title="No matching guides"
-          description="Clear the search or choose another filter."
+          title="noMatchingGuides"
+          description="clearSearchChooseFilter"
         />
       )}
       <ConfirmDeleteDialog
@@ -209,7 +219,7 @@ export function GuideManager() {
         onConfirm={() => {
           if (deleteTarget) {
             deleteGuide(deleteTarget.id)
-            showFeedback("Guide deleted.")
+            showFeedback("guideDeleted")
           }
         }}
       />

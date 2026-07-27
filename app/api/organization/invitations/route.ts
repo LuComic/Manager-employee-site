@@ -26,19 +26,19 @@ function parseBody(value: unknown) {
 export async function POST(request: Request) {
   const { isAuthenticated, userId, orgId, getToken } = await auth()
   if (!isAuthenticated || !userId) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 })
+    return Response.json({ error: "notAuthenticated" }, { status: 401 })
   }
   if (!orgId) {
     return Response.json(
-      { error: "Workplace admin access required" },
+      { error: "workplaceAdminAccessRequired" },
       { status: 403 }
     )
   }
   const body = parseBody(await request.json().catch(() => null))
-  if (!body) return Response.json({ error: "Invalid request" }, { status: 400 })
+  if (!body) return Response.json({ error: "invalidRequest" }, { status: 400 })
   const token = await getToken()
   if (!token)
-    return Response.json({ error: "Missing session token" }, { status: 401 })
+    return Response.json({ error: "missingSessionToken" }, { status: 401 })
   const convex = convexServerClient(token)
 
   try {
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     })
     if (!authorization.authorized) {
       return Response.json(
-        { error: "Workplace admin access required" },
+        { error: "workplaceAdminAccessRequired" },
         { status: 403 }
       )
     }
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       profileId: body.profileId,
     })
     if (record.organizationId !== orgId)
-      throw new Error("Employee belongs to another workplace")
+      throw new Error("employeeBelongsToAnotherWorkplace")
     const clerk = await clerkClient()
 
     if (body.action === "revoke") {
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
           emailAddress: prepared.email,
           role: "org:member",
           redirectUrl: new URL("/invitation/complete", request.url).toString(),
-          publicMetadata: { operationsHubClaim: correlationCredential },
+          publicMetadata: { workhalClaim: correlationCredential },
         }
       )
       await convex.mutation(api.employees.recordInvitation, {
@@ -111,18 +111,19 @@ export async function POST(request: Request) {
     } catch (error) {
       await convex.mutation(api.employees.recordInvitationFailure, {
         profileId: body.profileId,
-        message: safeErrorMessage(error, "Invitation failed"),
+        message: safeErrorMessage(error, "invitationFailed"),
       })
       throw error
     }
   } catch (error) {
-    const message = safeErrorMessage(error, "Could not update the invitation")
-    const membershipLimit = /maximum|membership.*limit|too many/i.test(message)
+    const rawMessage = error instanceof Error ? error.message : ""
+    const message = safeErrorMessage(error, "couldNotUpdateInvitation")
+    const membershipLimit = /maximum|membership.*limit|too many/i.test(
+      rawMessage
+    )
     return Response.json(
       {
-        error: membershipLimit
-          ? "This workplace has reached its 20-member limit. Remove an inactive member before inviting another employee."
-          : message,
+        error: membershipLimit ? "workplaceMemberLimitReached" : message,
       },
       { status: 400 }
     )

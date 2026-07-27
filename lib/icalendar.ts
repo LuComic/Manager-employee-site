@@ -2,6 +2,8 @@ import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex } from "@noble/hashes/utils.js"
 import ICAL from "ical.js"
 
+import type { AppMessageKey } from "@/i18n/messages"
+import { SITE_NAME } from "@/lib/branding"
 import {
   addCalendarDays,
   eventCategories,
@@ -17,23 +19,31 @@ const EVENT_DESCRIPTION_LIMIT = 500
 const EVENT_LOCATION_LIMIT = 140
 const EVENT_NOTES_LIMIT = 4000
 const ICALENDAR_UID_LIMIT = 512
-const OPERATIONS_UID_DOMAIN = "operations-hub.local"
+// This namespace is part of every exported event's durable identity. Keep it
+// stable even if the product display name changes in the future.
+export const ICALENDAR_UID_DOMAIN = "workhal.local"
 
 type CalendarOptions = {
   calendarName: string
   timeZone: string
+  uidNamespace: string
   uidDomain?: string
   now?: Date
 }
 
 type ImportOptions = {
   timeZone: string
+  uidNamespace: string
   published?: boolean
+  defaultDescription?: string
+  defaultLocation?: string
+  cancelledEventTitle?: string
 }
 
 export type CalendarImportIssue = {
   severity: "error" | "warning"
-  message: string
+  key: AppMessageKey
+  values?: Record<string, string | number>
 }
 
 export type CalendarImportResult = {
@@ -45,6 +55,12 @@ export type CalendarImportResult = {
 export type CalendarCancellation = {
   id: string
   title: string
+}
+
+class CalendarImportIssueError extends Error {
+  constructor(readonly key: AppMessageKey) {
+    super(key)
+  }
 }
 
 type ParsedCalendarDate = {
@@ -59,20 +75,23 @@ export function serializeICalendar(
   {
     calendarName,
     timeZone,
-    uidDomain = "operations-hub.local",
+    uidNamespace,
+    uidDomain = ICALENDAR_UID_DOMAIN,
     now = new Date(),
   }: CalendarOptions
 ) {
+  const normalizedUidNamespace = normalizeUidNamespace(uidNamespace)
+
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Operations Hub//Shared Calendar//EN",
+    `PRODID:-//${SITE_NAME}//Shared Calendar//EN`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeText(calendarName)}`,
     `X-WR-TIMEZONE:${escapeText(timeZone)}`,
     ...events.flatMap((event) =>
-      serializeEvent(event, timeZone, uidDomain, now)
+      serializeEvent(event, timeZone, normalizedUidNamespace, uidDomain, now)
     ),
     "END:VCALENDAR",
   ]
@@ -82,8 +101,16 @@ export function serializeICalendar(
 
 export function parseICalendar(
   source: string,
-  { timeZone, published = false }: ImportOptions
+  {
+    timeZone,
+    uidNamespace,
+    published = false,
+    defaultDescription = "Imported from an external calendar.",
+    defaultLocation = "No location specified",
+    cancelledEventTitle = "Cancelled event",
+  }: ImportOptions
 ): CalendarImportResult {
+  const normalizedUidNamespace = normalizeUidNamespace(uidNamespace)
   const issues: CalendarImportIssue[] = []
   let calendar: ICAL.Component
   try {
@@ -95,7 +122,7 @@ export function parseICalendar(
       issues: [
         {
           severity: "error",
-          message: "This file is not valid iCalendar data.",
+          key: "calendarInvalidIcalendarData",
         },
       ],
     }
@@ -109,7 +136,7 @@ export function parseICalendar(
       issues: [
         {
           severity: "error",
-          message: "This file does not contain any calendar events.",
+          key: "calendarNoEventsInFile",
         },
       ],
     }
@@ -118,7 +145,8 @@ export function parseICalendar(
   if (eventComponents.length > MAX_IMPORTED_EVENTS) {
     issues.push({
       severity: "warning",
-      message: `Only the first ${MAX_IMPORTED_EVENTS} events were read from this file.`,
+      key: "calendarOnlyFirstEventsRead",
+      values: { count: MAX_IMPORTED_EVENTS },
     })
   }
 
@@ -132,7 +160,11 @@ export function parseICalendar(
     try {
       const status = textValue(component, "status").toUpperCase()
       if (status === "CANCELLED") {
-        const cancellation = parseCancellation(component)
+        const cancellation = parseCancellation(
+          component,
+          cancelledEventTitle,
+          normalizedUidNamespace
+        )
         if (seenIds.has(cancellation.id)) {
           throw new Error(
             `“${cancellation.title}” has the same calendar identity as another event in this file.`
@@ -143,13 +175,19 @@ export function parseICalendar(
         continue
       }
 
-      const eventWarnings: string[] = []
+      const eventWarnings: Array<{
+        key: AppMessageKey
+        values?: Record<string, string | number>
+      }> = []
       const event = parseEvent(
         component,
         calendar,
         timeZone,
         published,
-        (message) => eventWarnings.push(message)
+        defaultDescription,
+        defaultLocation,
+        normalizedUidNamespace,
+        (key, values) => eventWarnings.push({ key, values })
       )
       if (seenIds.has(event.id)) {
         throw new Error(
@@ -160,22 +198,27 @@ export function parseICalendar(
       events.push(event)
 
       if (component.hasProperty("rrule")) {
-        eventWarnings.push(
-          "is recurring and was imported as a single event; recurrence rules are not expanded."
-        )
+        eventWarnings.push({ key: "calendarRecurringImportedOnce" })
       }
-      for (const message of eventWarnings) {
+      for (const warning of eventWarnings) {
         issues.push({
           severity: "warning",
-          message: `Event ${index + 1}: “${event.title}” ${message}`,
+          key: warning.key,
+          values: {
+            index: index + 1,
+            title: event.title,
+            ...warning.values,
+          },
         })
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "The event is invalid."
       issues.push({
         severity: "error",
-        message: `Event ${index + 1}: ${message}`,
+        key:
+          error instanceof CalendarImportIssueError
+            ? error.key
+            : "calendarEventCouldNotBeImported",
+        values: { index: index + 1 },
       })
     }
   }
@@ -215,17 +258,16 @@ export function calendarFileName(value: string) {
 function serializeEvent(
   event: CalendarEvent,
   timeZone: string,
+  uidNamespace: string,
   uidDomain: string,
   now: Date
 ) {
   const calendarDescription = [event.description, event.notes]
     .filter(Boolean)
     .join("\n\nNotes:\n")
-  const uid =
-    event.icalUid ||
-    `${stableEventHash(event.id)}@${
-      safeUid(uidDomain) || OPERATIONS_UID_DOMAIN
-    }`
+  const uid = `${stableEventHash(`${uidNamespace}\0${event.id}`)}@${
+    safeUid(uidDomain) || ICALENDAR_UID_DOMAIN
+  }`
   const dates = event.allDay
     ? [
         `DTSTART;VALUE=DATE:${formatDateValue(event.start)}`,
@@ -244,12 +286,13 @@ function serializeEvent(
     "BEGIN:VEVENT",
     `UID:${escapeText(uid)}`,
     `DTSTAMP:${formatUtcDate(now)}`,
-    `X-OPERATIONS-HUB-ID:${escapeText(event.id)}`,
+    `X-WORKHAL-ID:${escapeText(event.id)}`,
+    `X-WORKHAL-UID-NAMESPACE:${escapeText(uidNamespace)}`,
     ...dates,
     `SUMMARY:${escapeText(event.title)}`,
     `DESCRIPTION:${escapeText(calendarDescription)}`,
-    `X-OPERATIONS-HUB-DESCRIPTION:${escapeText(event.description)}`,
-    `X-OPERATIONS-HUB-NOTES:${escapeText(event.notes)}`,
+    `X-WORKHAL-DESCRIPTION:${escapeText(event.description)}`,
+    `X-WORKHAL-NOTES:${escapeText(event.notes)}`,
     `LOCATION:${escapeText(event.location)}`,
     `CATEGORIES:${escapeText(event.category)}`,
     `STATUS:${event.published ? "CONFIRMED" : "TENTATIVE"}`,
@@ -262,7 +305,10 @@ function parseEvent(
   calendar: ICAL.Component,
   targetTimeZone: string,
   published: boolean,
-  warn: (message: string) => void
+  defaultDescription: string,
+  defaultLocation: string,
+  uidNamespace: string,
+  warn: (key: AppMessageKey, values?: Record<string, string | number>) => void
 ): CalendarEvent {
   const summary = textValue(component, "summary").trim()
   const startProperty = component.getFirstProperty("dtstart")
@@ -295,7 +341,7 @@ function parseEvent(
       instant: zonedDateTimeToDate(`${local}:00`, targetTimeZone),
       allDay: true,
     }
-    warn("had no end date, so it was set to the next day.")
+    warn("calendarEventNoEndDate")
   } else {
     const instant = new Date(start.instant.getTime() + 60 * 60 * 1000)
     end = {
@@ -303,7 +349,7 @@ function parseEvent(
       instant,
       allDay: false,
     }
-    warn("had no end time, so a one-hour duration was used.")
+    warn("calendarEventNoEndTime")
   }
 
   if (start.allDay !== end.allDay) {
@@ -317,14 +363,14 @@ function parseEvent(
 
   const structuredDescription = textValue(
     component,
-    "x-operations-hub-description"
+    "x-workhal-description"
   ).trim()
   const rawDescription = (
     structuredDescription || textValue(component, "description")
   ).trim()
-  const description = rawDescription || "Imported from an external calendar."
+  const description = rawDescription || defaultDescription
   if (!rawDescription) {
-    warn("had no description, so an import note was added.")
+    warn("calendarEventNoDescription")
   }
   if (description.length > EVENT_DESCRIPTION_LIMIT) {
     throw new Error(
@@ -332,21 +378,19 @@ function parseEvent(
     )
   }
 
-  const rawNotes = textValue(component, "x-operations-hub-notes").trim()
+  const rawNotes = textValue(component, "x-workhal-notes").trim()
   const notes =
     rawNotes.length > EVENT_NOTES_LIMIT
       ? rawNotes.slice(0, EVENT_NOTES_LIMIT)
       : rawNotes
   if (rawNotes.length > EVENT_NOTES_LIMIT) {
-    warn(
-      `had notes longer than ${EVENT_NOTES_LIMIT} characters, so they were shortened.`
-    )
+    warn("calendarEventNotesShortened", { count: EVENT_NOTES_LIMIT })
   }
 
   const rawLocation = textValue(component, "location").trim()
-  const location = rawLocation || "No location specified"
+  const location = rawLocation || defaultLocation
   if (!rawLocation) {
-    warn("had no location, so “No location specified” was used.")
+    warn("calendarEventNoLocation", { location: defaultLocation })
   }
   if (location.length > EVENT_LOCATION_LIMIT) {
     throw new Error(
@@ -359,22 +403,21 @@ function parseEvent(
   if (!category.matched) {
     warn(
       rawCategories.trim()
-        ? `used an unsupported category, so “${category.value}” was used; an existing manager category will still be preserved on re-import.`
-        : `had no category, so “${category.value}” was used.`
+        ? "calendarEventUnsupportedCategory"
+        : "calendarEventNoCategory",
+      { category: category.value }
     )
   }
 
   const uid = normalizedUid(component)
   const recurrenceId = recurrenceIdentity(component)
-  const id = calendarEventId(component, uid, recurrenceId, {
+  const id = calendarEventId(component, uid, recurrenceId, uidNamespace, {
     summary,
     start,
     end,
   })
   if (!uid) {
-    warn(
-      "had no UID, so a stable identity was derived from its title and dates; changing those externally may create a new event."
-    )
+    warn("calendarEventMissingUid")
   }
 
   return {
@@ -401,15 +444,19 @@ function parseEvent(
   }
 }
 
-function parseCancellation(component: ICAL.Component): CalendarCancellation {
+function parseCancellation(
+  component: ICAL.Component,
+  cancelledEventTitle: string,
+  uidNamespace: string
+): CalendarCancellation {
   const uid = normalizedUid(component)
   if (!uid) {
     throw new Error("A cancelled event is missing its calendar UID.")
   }
-  const title = textValue(component, "summary").trim() || "Cancelled event"
+  const title = textValue(component, "summary").trim() || cancelledEventTitle
   const recurrenceId = recurrenceIdentity(component)
   return {
-    id: calendarEventId(component, uid, recurrenceId),
+    id: calendarEventId(component, uid, recurrenceId, uidNamespace),
     title,
   }
 }
@@ -418,23 +465,40 @@ function calendarEventId(
   component: ICAL.Component,
   uid: string | undefined,
   recurrenceId: string,
+  destinationUidNamespace: string,
   fallback?: {
     summary: string
     start: ParsedCalendarDate
     end: ParsedCalendarDate
   }
 ) {
-  const operationsId = textValue(component, "x-operations-hub-id").trim()
-  const expectedUidPrefix = operationsId
-    ? `${stableEventHash(operationsId)}@`
-    : ""
-  if (
-    operationsId.length <= 100 &&
-    /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/.test(operationsId) &&
-    uid?.startsWith(expectedUidPrefix) &&
-    !recurrenceId
-  ) {
-    return operationsId
+  const workhalId = textValue(component, "x-workhal-id").trim()
+  const sourceUidNamespace = textValue(
+    component,
+    "x-workhal-uid-namespace"
+  ).trim()
+
+  if (workhalId) {
+    if (!sourceUidNamespace) {
+      throw new CalendarImportIssueError("calendarEventMissingUidNamespace")
+    }
+
+    const expectedUidPrefix = `${stableEventHash(
+      `${sourceUidNamespace}\0${workhalId}`
+    )}@`
+    const validIdentity =
+      workhalId.length <= 100 &&
+      sourceUidNamespace.length <= 200 &&
+      /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/.test(workhalId) &&
+      uid?.startsWith(expectedUidPrefix) &&
+      sourceUidNamespace === destinationUidNamespace &&
+      !recurrenceId
+
+    if (!validIdentity) {
+      throw new CalendarImportIssueError("calendarEventInvalidWorkhalIdentity")
+    }
+
+    return workhalId
   }
 
   if (uid) {
@@ -620,6 +684,14 @@ function safeUid(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9.-]+/g, "-")
     .replace(/^-+|-+$/g, "")
+}
+
+function normalizeUidNamespace(value: string) {
+  const normalized = value.trim()
+  if (!normalized || normalized.length > 200) {
+    throw new Error("A valid workhal UID namespace is required.")
+  }
+  return normalized
 }
 
 function stableEventHash(value: string) {

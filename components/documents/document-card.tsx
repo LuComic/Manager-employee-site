@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import {
   ArrowRight,
   File,
@@ -15,8 +15,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import {
-  documentResourceLabel,
+  documentResourceLabelKey,
+  sharedLinkHost,
   type DocumentResource,
   type WorkspaceDocument,
 } from "@/lib/documents"
@@ -24,8 +26,9 @@ import {
 export function DocumentResourceIcon({
   resource,
 }: {
-  resource: DocumentResource
+  resource?: DocumentResource
 }) {
+  if (!resource) return <File className="size-5" />
   if (resource.kind === "link") return <Link2 className="size-5" />
   if (resource.contentType.startsWith("image/"))
     return <ImageIcon className="size-5" />
@@ -44,6 +47,8 @@ export function DocumentResourceIcon({
 }
 
 export function DocumentCard({ document }: { document: WorkspaceDocument }) {
+  const t = useAppTranslations()
+
   return (
     <Link
       href={`/documents/${document.id}`}
@@ -55,7 +60,7 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
       >
         {document.bannerImageUrl && (
           <div
-            className="aspect-[16/6] border-b bg-muted bg-cover bg-center"
+            className="aspect-16/6 border-b bg-muted bg-cover bg-center"
             style={{
               backgroundImage: `url("${document.bannerImageUrl}")`,
             }}
@@ -72,9 +77,16 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
         </CardHeader>
         <CardFooter className="mt-auto justify-between pb-4">
           <span className="text-xs text-muted-foreground">
-            {documentResourceLabel(document.resource)}
+            {document.resource.kind === "link"
+              ? (sharedLinkHost(document.resource) ?? t("sharedLink"))
+              : t(documentResourceLabelKey(document.resource))}
             {document.employees.length
-              ? ` · ${document.employees.length} ${document.employees.length === 1 ? "employee" : "employees"}`
+              ? t(
+                  document.employees.length === 1
+                    ? "countEmployee"
+                    : "countEmployees",
+                  { count: document.employees.length }
+                )
               : ""}
           </span>
           <span className="flex size-9 items-center justify-center text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-foreground">

@@ -1,6 +1,9 @@
 "use client"
 
-import Link from "next/link"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
+import { Link } from "@/i18n/navigation"
 import { ArrowLeft, ExternalLink, Files, Users } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
@@ -9,10 +12,15 @@ import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { documentResourceLabel, formatFileSize } from "@/lib/documents"
+import {
+  documentResourceLabelKey,
+  formatFileSize,
+  sharedLinkHost,
+} from "@/lib/documents"
 import { cn } from "@/lib/utils"
 
 export function DocumentPageContent({ documentId }: { documentId: string }) {
+  const t = useAppTranslations()
   const { documents } = useOperations()
   const document = documents.find(
     (item) => item.id === documentId && item.published
@@ -22,9 +30,9 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
     return (
       <EmptyState
         icon={Files}
-        title="Document not available"
-        description="This document may be unpublished or removed. Browse the library to find another."
-        actionLabel="Back to documents"
+        title="documentNotAvailable"
+        description="documentUnpublishedRemovedBrowseLibraryFind"
+        actionLabel="backToDocuments"
         actionHref="/documents"
       />
     )
@@ -44,7 +52,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             "-ml-3"
           )}
         >
-          <ArrowLeft /> Back to documents
+          <ArrowLeft /> <T>backToDocuments</T>
         </Link>
       </div>
 
@@ -56,7 +64,9 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
       )}
 
       <div className="max-w-4xl space-y-4">
-        <Badge variant="secondary">{documentResourceLabel(resource)}</Badge>
+        <Badge variant="secondary">
+          {t(documentResourceLabelKey(resource))}
+        </Badge>
         <h1 className="text-2xl font-semibold tracking-tight">
           {document.title}
         </h1>
@@ -85,12 +95,14 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             <p className="truncate font-medium">
               {resource.kind === "file"
                 ? resource.name
-                : documentResourceLabel(resource)}
+                : (sharedLinkHost(resource) ?? t("sharedLink"))}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {resource.kind === "file"
-                ? `${formatFileSize(resource.size)} · Opens in a new tab`
-                : "Shared externally · Opens in a new tab"}
+                ? t("fileSizeAndNewTab", {
+                    size: formatFileSize(resource.size),
+                  })
+                : t("sharedExternallyOpensNewTab")}
             </p>
           </div>
           <a
@@ -99,7 +111,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             rel="noreferrer"
             className={buttonVariants()}
           >
-            {resource.kind === "file" ? "Open file" : "Open link"}
+            <T>{resource.kind === "file" ? "openFile" : "openLink"}</T>
             <ExternalLink />
           </a>
         </CardContent>

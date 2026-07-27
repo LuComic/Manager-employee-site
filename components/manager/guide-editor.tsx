@@ -1,5 +1,8 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import { useState } from "react"
 import { ArrowLeft, Eye, Pencil, X } from "lucide-react"
 
@@ -16,6 +19,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { AppMessageKey } from "@/i18n/messages"
 import {
   Select,
   SelectContent,
@@ -76,6 +80,7 @@ function toDraft(guide: Guide): GuideDraft {
 }
 
 export function GuideEditor({ guideId }: { guideId?: string }) {
+  const t = useAppTranslations()
   const { categories, guides, saveGuide, showFeedback } = useOperations()
   const existingGuide = guideId
     ? guides.find((guide) => guide.id === guideId)
@@ -151,9 +156,8 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
       !duration ||
       !draft.category
     )
-      return setError("Add a title, description, work area, and reading time.")
-    if (isRichTextEmpty(draft.content))
-      return setError("Add guide instructions.")
+      return setError("addTitleDescriptionWorkAreaReadingTime")
+    if (isRichTextEmpty(draft.content)) return setError("addGuideInstructions")
 
     let id = draft.id
     if (!id) {
@@ -181,7 +185,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         featured: draft.featured,
       })
       setDirty(false)
-      showFeedback(draft.id ? "Guide saved." : "Guide created.")
+      showFeedback(draft.id ? "guideSaved" : "guideCreated")
       leaveWithoutPrompt("/manager/guides")
     } finally {
       setSaving(false)
@@ -192,9 +196,9 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
     return (
       <EmptyState
         icon={Pencil}
-        title="Create a guide category first"
-        description="Every guide needs a work area. Add a category, then return to create the guide."
-        actionLabel="Manage categories"
+        title="createAGuideCategoryFirst"
+        description="everyGuideNeedsWorkAreaAddCategoryMessage"
+        actionLabel="manageCategories"
         actionHref="/manager/categories"
       />
     )
@@ -203,21 +207,21 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
     return (
       <EmptyState
         icon={Pencil}
-        title="Guide not found"
-        description="This guide may have been removed from the current session."
-        actionLabel="Back to guides"
+        title="guideNotFound"
+        description="guideRemovedCurrentSession"
+        actionLabel="backToGuides"
         actionHref="/manager/guides"
       />
     )
 
   const previewGuide: Guide = {
     id: draft.id || "preview",
-    title: draft.title || "Untitled guide",
-    description: draft.description || "Add a short guide description.",
+    title: draft.title || t("untitledGuide"),
+    description: draft.description || t("addShortGuideDescription"),
     category: draft.category,
     icon: draft.icon,
-    duration: normalizeReadingTime(draft.duration) || "Reading time",
-    updated: draft.id ? "Updated just now" : "New guide",
+    duration: normalizeReadingTime(draft.duration) || t("readingTime"),
+    updated: draft.id ? t("updatedJustNow") : t("newGuide"),
     keywords: uniqueKeywords(draft.keywords),
     content: draft.content,
     published: draft.published,
@@ -229,29 +233,29 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Button variant="ghost" size="sm" onClick={leave}>
-            <ArrowLeft /> Back to guides
+            <ArrowLeft /> <T>backToGuides</T>
           </Button>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-            {draft.id ? "Edit guide" : "Create guide"}
+            <T>{draft.id ? "editGuide" : "createGuide"}</T>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Write clear instructions and preview how employees will read them.
+            <T>writeClearInstructionsPreviewHowEmployeesRead</T>
           </p>
         </div>
-        <SegmentedControl aria-label="Guide editor view">
+        <SegmentedControl aria-label={t("guideEditorView")}>
           <SegmentedControlItem
             type="button"
             selected={mode === "edit"}
             onClick={() => setMode("edit")}
           >
-            <Pencil /> Edit
+            <Pencil /> <T>edit</T>
           </SegmentedControlItem>
           <SegmentedControlItem
             type="button"
             selected={mode === "preview"}
             onClick={() => setMode("preview")}
           >
-            <Eye /> Preview
+            <Eye /> <T>preview</T>
           </SegmentedControlItem>
         </SegmentedControl>
       </div>
@@ -271,7 +275,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
           <div className="space-y-6">
             <Card className="shadow-none">
               <CardContent className="space-y-4">
-                <Field label="Title" id="guide-title">
+                <Field label="title" id="guide-title">
                   <Input
                     id="guide-title"
                     value={draft.title}
@@ -279,7 +283,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                     className="border border-input px-3 text-base"
                   />
                 </Field>
-                <Field label="Description" id="guide-description">
+                <Field label="description" id="guide-description">
                   <Textarea
                     id="guide-description"
                     value={draft.description}
@@ -292,21 +296,23 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
               </CardContent>
             </Card>
             <div>
-              <Label className="mb-2 block">Instructions</Label>
+              <Label className="mb-2 block">
+                <T>instructions</T>
+              </Label>
               <RichTextEditor
                 value={draft.content}
                 onChange={(content) => change({ content })}
                 ariaLabel="Guide instructions"
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                Use headings and lists to make longer instructions easy to scan.
+                <T>useHeadingsListsMakeLongerInstructionsEasyMessage</T>
               </p>
             </div>
           </div>
 
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
-              <Field label="Category" id="guide-category">
+              <Field label="category" id="guide-category">
                 <Select
                   value={draft.category}
                   onValueChange={(value) => {
@@ -337,7 +343,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Reading time" id="guide-duration">
+              <Field label="readingTime" id="guide-duration">
                 <Input
                   id="guide-duration"
                   value={draft.duration}
@@ -347,11 +353,11 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                     if (duration && duration !== draft.duration)
                       change({ duration })
                   }}
-                  placeholder="5 min"
+                  placeholder={t("fiveMinutes")}
                   className="border border-input px-3"
                 />
               </Field>
-              <Field label="Keywords" id="guide-keywords">
+              <Field label="keywords" id="guide-keywords">
                 <div className="flex gap-2">
                   <Input
                     id="guide-keywords"
@@ -362,7 +368,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                       event.preventDefault()
                       addKeyword()
                     }}
-                    placeholder="Type a keyword"
+                    placeholder={t("typeAKeyword")}
                     className="min-w-0 border border-input px-3"
                   />
                   <Button
@@ -372,23 +378,23 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                     onClick={addKeyword}
                     disabled={!keywordInput.trim()}
                   >
-                    Add
+                    <T>add</T>
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Press Enter or choose Add after each keyword.
+                  <T>pressEnterChooseAddAfterEachKeyword</T>
                 </p>
                 {draft.keywords.length ? (
                   <div
                     className="flex flex-wrap gap-2"
-                    aria-label="Guide keywords"
+                    aria-label={t("guideKeywords")}
                   >
                     {draft.keywords.map((keyword, index) => (
                       <button
                         type="button"
                         key={`${keyword}-${index}`}
                         onClick={() => removeKeyword(index)}
-                        aria-label={`Remove ${keyword}`}
+                        aria-label={t("removeName", { name: keyword })}
                         className="inline-flex h-7 items-center gap-1.5 border border-muted bg-muted px-2.5 text-xs font-medium transition-colors hover:border-border hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
                       >
                         <span>{keyword}</span>
@@ -406,7 +412,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                     change({ published: event.target.checked })
                   }
                 />
-                Publish now
+                <T>publishNow</T>
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -416,7 +422,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                     change({ featured: event.target.checked })
                   }
                 />
-                Feature on Today
+                <T>featureOnToday</T>
               </label>
             </CardContent>
           </Card>
@@ -427,20 +433,20 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         <div>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
-              {error}
+              <T>{error}</T>
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {dirty ? "Unsaved changes" : "No unsaved changes"}
+              <T>{dirty ? "unsavedChanges" : "noUnsavedChanges"}</T>
             </p>
           )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={leave}>
-            Cancel
+            <T>cancel</T>
           </Button>
           <Button onClick={() => void submit()} disabled={saving}>
-            {saving ? "Saving…" : "Save guide"}
+            <T>{saving ? "saving" : "saveGuide"}</T>
           </Button>
         </div>
       </div>
@@ -453,13 +459,15 @@ function Field({
   id,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   id: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

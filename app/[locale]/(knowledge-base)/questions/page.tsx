@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+
 import { Headphones } from "lucide-react"
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
@@ -28,8 +30,8 @@ export default function QuestionsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeading
-        title="Common questions"
-        description="Quick answers for the moments when you are not quite sure what to do."
+        title="commonQuestions"
+        description="quickAnswersMomentsNotQuiteSureWhat"
       />
 
       {publishedFaqs.length ? (
@@ -58,8 +60,8 @@ export default function QuestionsPage() {
         <div className="mt-6">
           <EmptyState
             icon={Headphones}
-            title="No common questions yet"
-            description="Published answers will appear here. You can still ask for help below."
+            title="noCommonQuestionsYet"
+            description="publishedAnswersAppearHereStillAskHelpMessage"
           />
         </div>
       )}
@@ -67,10 +69,10 @@ export default function QuestionsPage() {
       <Card size="sm" className="mt-6 bg-primary/5 shadow-none ring-primary/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base tracking-normal normal-case">
-            <Headphones className="size-4 text-primary" /> Still unsure?
+            <Headphones className="size-4 text-primary" /> <T>stillUnsure</T>
           </CardTitle>
           <CardDescription>
-            It is always fine to ask for help when you are unsure.
+            <T>alwaysFineAskHelpUnsure</T>
           </CardDescription>
         </CardHeader>
         <CardFooter>

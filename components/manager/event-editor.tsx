@@ -1,5 +1,8 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import { useState } from "react"
 import {
   ArrowLeft,
@@ -17,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { AppMessageKey } from "@/i18n/messages"
 import {
   Select,
   SelectContent,
@@ -27,6 +31,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import {
   addCalendarDays,
+  eventCategoryMessageKeys,
   eventCategories,
   slugify,
   toLocalDateTimeValue,
@@ -67,6 +72,7 @@ function newEvent(location = ""): CalendarEvent {
 }
 
 export function EventEditor({ eventId }: { eventId?: string }) {
+  const t = useAppTranslations()
   const {
     events,
     employees,
@@ -118,13 +124,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
       !draft.description.trim() ||
       !draft.location.trim()
     ) {
-      return setError("Add a title, description, and location.")
+      return setError("addATitleDescriptionAndLocation")
     }
     if (!draft.start || !draft.end) {
-      return setError("Add a start and end date and time.")
+      return setError("addStartEndDateTime")
     }
     if (!eventEndsAfterStart(draft)) {
-      return setError("The end must be later than the start.")
+      return setError("endLaterThanStart")
     }
 
     let id = draft.id
@@ -155,7 +161,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         await uploadAttachment(eventSlug, file)
       }
       setDirty(false)
-      showFeedback(draft.id ? "Event saved." : "Event created.")
+      showFeedback(draft.id ? "eventSaved" : "eventCreated")
       leaveWithoutPrompt("/manager/calendar")
     } finally {
       setSaving(false)
@@ -166,9 +172,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
     return (
       <EmptyState
         icon={CalendarDays}
-        title="Event not found"
-        description="This event may have been removed from the current workplace."
-        actionLabel="Back to calendar events"
+        title="eventNotFound"
+        description="eventRemovedCurrentWorkplace"
+        actionLabel="backToCalendarEvents"
         actionHref="/manager/calendar"
       />
     )
@@ -178,14 +184,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
     <div className="space-y-6">
       <div>
         <Button variant="ghost" size="sm" onClick={leave}>
-          <ArrowLeft /> Back to calendar events
+          <ArrowLeft /> <T>backToCalendarEvents</T>
         </Button>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-          {draft.id ? "Edit event" : "Create event"}
+          <T>{draft.id ? "editEvent" : "createEvent"}</T>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Add the event details, choose who it relates to, and control when
-          employees can see it.
+          <T>addEventDetailsChooseWhoRelatesControlMessage</T>
         </p>
       </div>
 
@@ -193,10 +198,12 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         <div className="space-y-6">
           <Card className="shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Details</CardTitle>
+              <CardTitle className="text-base">
+                <T>details</T>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Title" id="event-title">
+              <Field label="title" id="event-title">
                 <Input
                   id="event-title"
                   value={draft.title}
@@ -206,7 +213,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   className="border border-input px-3 text-base"
                 />
               </Field>
-              <Field label="Description" id="event-description">
+              <Field label="description" id="event-description">
                 <Textarea
                   id="event-description"
                   value={draft.description}
@@ -216,7 +223,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   className="min-h-24 border border-input px-3"
                 />
               </Field>
-              <Field label="Location" id="event-location">
+              <Field label="location" id="event-location">
                 <Input
                   id="event-location"
                   value={draft.location}
@@ -231,7 +238,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
 
           <Card className="shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Schedule</CardTitle>
+              <CardTitle className="text-base">
+                <T>schedule</T>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <label className="flex items-center gap-2 text-sm">
@@ -242,11 +251,11 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change(toggleAllDayEvent(draft, event.target.checked))
                   }
                 />
-                All-day event
+                <T>allDayEvent</T>
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label={draft.allDay ? "Start date" : "Starts"}
+                  label={draft.allDay ? "startDate" : "starts"}
                   id="event-start"
                 >
                   <Input
@@ -266,10 +275,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field
-                  label={draft.allDay ? "Last day" : "Ends"}
-                  id="event-end"
-                >
+                <Field label={draft.allDay ? "lastDay" : "ends"} id="event-end">
                   <Input
                     id="event-end"
                     type={draft.allDay ? "date" : "datetime-local"}
@@ -296,8 +302,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
               </div>
               {draft.allDay && (
                 <p className="text-xs text-muted-foreground">
-                  All-day events remain all day when imported and exported. The
-                  last day is inclusive.
+                  <T>allDayEventsRemainAllDayImportedMessage</T>
                 </p>
               )}
             </CardContent>
@@ -306,13 +311,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="size-4" /> Related employees
+                <Users className="size-4" /> <T>relatedEmployees</T>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div
                 className="flex flex-wrap gap-2"
-                aria-label="Select employees"
+                aria-label={t("selectEmployees")}
               >
                 {employees
                   .filter(
@@ -357,8 +362,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   })}
                 {!employees.length && (
                   <p className="text-sm text-muted-foreground">
-                    Create employee profiles first, or save this event without
-                    related employees.
+                    <T>createEmployeeProfilesFirstSaveEventWithoutMessage</T>
                   </p>
                 )}
               </div>
@@ -368,11 +372,11 @@ export function EventEditor({ eventId }: { eventId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Paperclip className="size-4" /> Attachments
+                <Paperclip className="size-4" /> <T>attachments</T>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Add files" id="event-attachments">
+              <Field label="addFiles" id="event-attachments">
                 <Input
                   id="event-attachments"
                   type="file"
@@ -400,7 +404,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={`Remove ${attachment.name}`}
+                        aria-label={t("removeName", {
+                          name: attachment.name,
+                        })}
                         onClick={() => {
                           setRemovedAttachments([
                             ...removedAttachments,
@@ -425,7 +431,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     >
                       <Paperclip className="size-4" />
                       <span>{file.name}</span>
-                      <span>(uploads on save)</span>
+                      <span>
+                        <T>uploadsOnSave</T>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -437,10 +445,12 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         <div className="space-y-6">
           <Card className="h-fit shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Event settings</CardTitle>
+              <CardTitle className="text-base">
+                <T>eventSettings</T>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Event type" id="event-type">
+              <Field label="eventType" id="event-type">
                 <Select
                   value={draft.category}
                   onValueChange={(value) =>
@@ -456,7 +466,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   <SelectContent>
                     {eventCategories.map((item) => (
                       <SelectItem key={item} value={item}>
-                        {item}
+                        {t(eventCategoryMessageKeys[item])}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -470,7 +480,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change({ ...draft, published: event.target.checked })
                   }
                 />
-                Publish now
+                <T>publishNow</T>
               </label>
             </CardContent>
           </Card>
@@ -478,13 +488,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
           <Card className="h-fit shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Link2 className="size-4" /> Related guides
+                <Link2 className="size-4" /> <T>relatedGuides</T>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div
                 className="flex flex-wrap gap-2"
-                aria-label="Select related guides"
+                aria-label={t("selectRelatedGuides")}
               >
                 {guides
                   .filter(
@@ -519,7 +529,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     guide.published || draft.guideIds.includes(guide.id)
                 ) && (
                   <p className="text-sm text-muted-foreground">
-                    Published guides can be linked to this event.
+                    <T>publishedGuidesLinkedEvent</T>
                   </p>
                 )}
               </div>
@@ -528,10 +538,12 @@ export function EventEditor({ eventId }: { eventId?: string }) {
 
           <Card className="h-fit shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Manager notes</CardTitle>
+              <CardTitle className="text-base">
+                <T>managerNotes</T>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <Field label="Notes" id="event-notes">
+              <Field label="notes" id="event-notes">
                 <Textarea
                   id="event-notes"
                   value={draft.notes}
@@ -550,20 +562,20 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         <div>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
-              {error}
+              <T>{error}</T>
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {dirty ? "Unsaved changes" : "No unsaved changes"}
+              <T>{dirty ? "unsavedChanges" : "noUnsavedChanges"}</T>
             </p>
           )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={leave}>
-            Cancel
+            <T>cancel</T>
           </Button>
           <Button onClick={() => void submit()} disabled={saving}>
-            {saving ? "Saving…" : "Save event"}
+            <T>{saving ? "saving" : "saveEvent"}</T>
           </Button>
         </div>
       </div>
@@ -629,13 +641,15 @@ function Field({
   id,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   id: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

@@ -1,7 +1,12 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { T } from "@/components/translated-text"
+import {
+  useAppTranslations,
+  useLocalizedHref,
+} from "@/i18n/use-app-translations"
+
+import { Link, usePathname } from "@/i18n/navigation"
 import {
   ArrowLeft,
   BookOpen,
@@ -36,59 +41,63 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { AppMessageKey } from "@/i18n/messages"
 import { cn } from "@/lib/utils"
 
 type NavigationLink = {
   href: string
-  label: string
+  label: AppMessageKey
   icon: LucideIcon
 }
 
 const primaryNavigationItems: NavigationLink[] = [
-  { href: "/manager", label: "Overview", icon: LayoutDashboard },
-  { href: "/manager/today", label: "Today", icon: Home },
+  { href: "/manager", label: "overview", icon: LayoutDashboard },
+  { href: "/manager/today", label: "today", icon: Home },
 ]
 
 const guideNavigationItems: NavigationLink[] = [
-  { href: "/manager/guides", label: "Guides", icon: BookOpen },
-  { href: "/manager/categories", label: "Guide categories", icon: Tags },
+  { href: "/manager/guides", label: "guides", icon: BookOpen },
+  { href: "/manager/categories", label: "guideCategories", icon: Tags },
 ]
 
-const moreNavigationGroups: { label: string; items: NavigationLink[] }[] = [
+const moreNavigationGroups: {
+  label: AppMessageKey
+  items: NavigationLink[]
+}[] = [
   {
-    label: "Content",
+    label: "content",
     items: [
       {
         href: "/manager/calendar",
-        label: "Calendar events",
+        label: "calendarEvents",
         icon: CalendarDays,
       },
       {
         href: "/manager/announcements",
-        label: "Announcements",
+        label: "announcements",
         icon: Megaphone,
       },
-      { href: "/manager/documents", label: "Documents", icon: Files },
+      { href: "/manager/documents", label: "documents", icon: Files },
       {
         href: "/manager/questions",
-        label: "Common questions",
+        label: "commonQuestions",
         icon: CircleHelp,
       },
     ],
   },
   {
-    label: "People and workplace",
+    label: "peopleAndWorkplace",
     items: [
-      { href: "/manager/help", label: "Help requests", icon: Headphones },
-      { href: "/manager/employees", label: "Employees", icon: Users },
+      { href: "/manager/help", label: "helpRequests", icon: Headphones },
+      { href: "/manager/employees", label: "employees", icon: Users },
       {
         href: "/manager/access",
-        label: "Employee access",
+        label: "employeeAccess",
         icon: ShieldCheck,
       },
       {
         href: "/manager/settings",
-        label: "Establishment",
+        label: "establishment",
         icon: Building2,
       },
     ],
@@ -101,12 +110,14 @@ function isActiveLink(pathname: string, href: string) {
 
 export function ManagerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const { hub, hubState, managerAccess } = useOperations()
   const focusedEditor = pathname.endsWith("/new") || pathname.endsWith("/edit")
   const visibleMoreNavigationGroups =
     managerAccess === "owner"
       ? moreNavigationGroups
-      : moreNavigationGroups.filter((group) => group.label === "Content")
+      : moreNavigationGroups.filter((group) => group.label === "content")
   const contentRoute =
     pathname === "/manager" ||
     pathname.startsWith("/manager/today") ||
@@ -129,9 +140,9 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             <div className="ml-auto flex items-center gap-3">
               <OrganizationSwitcher
                 hidePersonal={false}
-                afterCreateOrganizationUrl="/manager"
-                afterSelectOrganizationUrl="/manager"
-                afterSelectPersonalUrl="/manager"
+                afterCreateOrganizationUrl={href("/manager")}
+                afterSelectOrganizationUrl={href("/manager")}
+                afterSelectPersonalUrl={href("/manager")}
               />
               {!focusedEditor && hub && (
                 <Link
@@ -141,7 +152,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "tracking-normal normal-case"
                   )}
                 >
-                  <ArrowLeft /> Employee site
+                  <ArrowLeft /> <T>employeeSite</T>
                 </Link>
               )}
               <UserButton />
@@ -152,22 +163,24 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <p className="text-lg font-semibold">
-              {managerAccess === "owner"
-                ? "Manager area"
-                : managerAccess === "manager"
-                  ? "Content manager area"
-                  : "Content editor area"}
+              {t(
+                managerAccess === "owner"
+                  ? "managerArea"
+                  : managerAccess === "manager"
+                    ? "contentManagerArea"
+                    : "contentEditorArea"
+              )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {hub
-                ? `${hub.name} · Workplace administration`
-                : "Choose or create a workplace"}
+                ? t("workplaceAdministrationTitle", { name: hub.name })
+                : t("chooseOrCreateAWorkplace")}
             </p>
           </div>
           {!focusedEditor && (
             <nav
               className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
-              aria-label="Manager navigation"
+              aria-label={t("managerNavigation")}
             >
               {primaryNavigationItems.map((item) => {
                 const { href, label, icon: Icon } = item
@@ -184,7 +197,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                       "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                     )}
                   >
-                    <Icon /> {label}
+                    <Icon /> <T>{label}</T>
                   </Link>
                 )
               })}
@@ -202,7 +215,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                   )}
                 >
-                  <BookOpen /> Guides <ChevronDown />
+                  <BookOpen /> <T>guides</T> <ChevronDown />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   {guideNavigationItems.map((link) => {
@@ -216,7 +229,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                           active && "bg-accent text-accent-foreground"
                         )}
                       >
-                        <Icon /> {link.label}
+                        <Icon /> <T>{link.label}</T>
                       </DropdownMenuItem>
                     )
                   })}
@@ -238,13 +251,15 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                   )}
                 >
-                  <Menu /> More tools <ChevronDown />
+                  <Menu /> <T>moreTools</T> <ChevronDown />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64">
                   {visibleMoreNavigationGroups.map((group, groupIndex) => (
                     <DropdownMenuGroup key={group.label}>
                       {groupIndex > 0 && <DropdownMenuSeparator />}
-                      <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+                      <DropdownMenuLabel>
+                        <T>{group.label}</T>
+                      </DropdownMenuLabel>
                       {group.items.map((link) => {
                         const Icon = link.icon
                         const active = isActiveLink(pathname, link.href)
@@ -256,7 +271,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                               active && "bg-accent text-accent-foreground"
                             )}
                           >
-                            <Icon /> {link.label}
+                            <Icon /> <T>{link.label}</T>
                           </DropdownMenuItem>
                         )
                       })}
@@ -271,22 +286,24 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {hubState === "loading" ? (
           <p role="status" className="text-sm text-muted-foreground">
-            Loading your hub…
+            <T>loadingYourHub</T>
           </p>
         ) : hubState === "auth-error" ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
-            <h2 className="font-semibold">Manager session is not connected</h2>
+            <h2 className="font-semibold">
+              <T>managerSessionIsNotConnected</T>
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              You are signed in, but this session could not be validated. Sign
-              out and back in, then contact support if the issue continues.
+              <T>signedButSessionNotValidatedSignOutError</T>
             </p>
           </div>
         ) : hubState === "forbidden" ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
-            <h2 className="font-semibold">Manager access is not enabled</h2>
+            <h2 className="font-semibold">
+              <T>managerAccessIsNotEnabled</T>
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your employee profile can view the workplace, but it does not have
-              editing or manager access.
+              <T>employeeProfileViewWorkplaceButNotEditingMessage</T>
             </p>
             <Link
               href="/"
@@ -295,17 +312,18 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 "mt-4 tracking-normal normal-case"
               )}
             >
-              Open employee site
+              <T>openEmployeeSite</T>
             </Link>
           </div>
         ) : hubState === "needs-setup" ? (
           <HubSetup />
         ) : !routeAllowed ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
-            <h2 className="font-semibold">Manager access required</h2>
+            <h2 className="font-semibold">
+              <T>managerAccessRequired</T>
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your content role does not include employee administration,
-              workplace settings, access controls, or this page.
+              <T>contentRoleNotIncludeEmployeeAdministrationWorkplaceMessage</T>
             </p>
             <Link
               href="/manager"
@@ -314,7 +332,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 "mt-4 tracking-normal normal-case"
               )}
             >
-              Back to content
+              <T>backToContent</T>
             </Link>
           </div>
         ) : (

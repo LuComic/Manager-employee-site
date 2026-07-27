@@ -4,6 +4,7 @@ import {
   isBannerImageContentType,
   MAX_BANNER_IMAGE_SIZE_BYTES,
 } from "../lib/banner-image"
+import type { AppMessageKey } from "../i18n/messages"
 import type { Doc, Id } from "./_generated/dataModel"
 import { mutation, type MutationCtx } from "./_generated/server"
 import { requireHubPermission, requireIdentity } from "./lib/access"
@@ -33,23 +34,39 @@ const documentResourceInput = v.union(
 
 type DocumentResourceInput = Infer<typeof documentResourceInput>
 
-function required(value: string, label: string, max: number) {
+const requiredMessageKeys = {
+  sharedLink: ["sharedLinkRequired", "sharedLinkTooLong"],
+  fileName: ["fileNameRequired", "fileNameTooLong"],
+  documentName: ["documentNameRequired", "documentNameTooLong"],
+  documentDescription: [
+    "documentDescriptionRequired",
+    "documentDescriptionTooLong",
+  ],
+  documentSlug: ["documentSlugRequired", "documentSlugTooLong"],
+} as const satisfies Record<string, readonly [AppMessageKey, AppMessageKey]>
+
+function required(
+  value: string,
+  field: keyof typeof requiredMessageKeys,
+  max: number
+) {
   const clean = value.trim()
-  if (!clean) throw new Error(`${label} is required`)
-  if (clean.length > max) throw new Error(`${label} is too long`)
+  const [requiredKey, tooLongKey] = requiredMessageKeys[field]
+  if (!clean) throw new Error(requiredKey)
+  if (clean.length > max) throw new Error(tooLongKey)
   return clean
 }
 
 function sharedLink(value: string) {
-  const clean = required(value, "Shared link", 2_000)
+  const clean = required(value, "sharedLink", 2_000)
   let url: URL
   try {
     url = new URL(clean)
   } catch {
-    throw new Error("Enter a valid shared link")
+    throw new Error("enterAValidSharedLink")
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new Error("Shared links must use HTTP or HTTPS")
+    throw new Error("sharedLinksUsehttphttps")
   }
   return url.toString()
 }
@@ -72,7 +89,7 @@ async function validateResource(
   return {
     kind: "file",
     storageId: resource.storageId,
-    name: required(resource.name, "File name", 240),
+    name: required(resource.name, "fileName", 240),
     contentType:
       stored.contentType || suppliedContentType || "application/octet-stream",
     size: stored.size,
@@ -101,13 +118,13 @@ export const save = mutation({
       )
       .unique()
     if (!existing && permission === "editor") {
-      throw new Error("Full content access is required to create content")
+      throw new Error("fullContentAccessRequiredCreateContent")
     }
 
     const resource = args.resource
       ? await validateResource(ctx, args.hubId, args.resource)
       : existing?.resource
-    if (!resource) throw new Error("Upload a file or add a shared link")
+    if (!resource) throw new Error("uploadFileAddSharedLink")
 
     if (!args.resource && existing?.resource.kind === "file") {
       await requireBoundHubStorage(
@@ -133,10 +150,10 @@ export const save = mutation({
         args.bannerStorageId
       )
       if (!isBannerImageContentType(storedBanner.contentType ?? "")) {
-        throw new Error("Use a JPG, PNG, WebP, or AVIF banner image")
+        throw new Error("usejpgpngWebpavifBannerMessage")
       }
       if (storedBanner.size > MAX_BANNER_IMAGE_SIZE_BYTES) {
-        throw new Error("Banner images must be 10 MB or smaller")
+        throw new Error("bannerImageSizeLimit")
       }
     }
     if (args.bannerStorageId === undefined && existing?.bannerStorageId) {
@@ -151,15 +168,15 @@ export const save = mutation({
       selectedIds.map(async (employeeProfileId) => {
         const profile = await ctx.db.get("employeeProfiles", employeeProfileId)
         if (!profile || profile.hubId !== args.hubId) {
-          throw new Error("Employee does not belong to this workplace")
+          throw new Error("employeeNotBelongWorkplace")
         }
         return profile
       })
     )
 
     const value = {
-      title: required(args.title, "Document name", 140),
-      description: required(args.description, "Document description", 500),
+      title: required(args.title, "documentName", 140),
+      description: required(args.description, "documentDescription", 500),
       resource,
       bannerStorageId,
       published: args.published,
@@ -169,7 +186,7 @@ export const save = mutation({
       ? (await ctx.db.patch("documents", existing._id, value), existing._id)
       : await ctx.db.insert("documents", {
           hubId: args.hubId,
-          slug: required(args.slug, "Document slug", 100),
+          slug: required(args.slug, "documentSlug", 100),
           ...value,
         })
 
@@ -204,7 +221,7 @@ export const save = mutation({
         profile.status === "deactivated" &&
         !oldByEmployeeId.has(employeeProfileId)
       ) {
-        throw new Error("Deactivated employees cannot be added to documents")
+        throw new Error("deactivatedEmployeesCannotAddedDocuments")
       }
       if (!oldByEmployeeId.has(employeeProfileId)) {
         await ctx.db.insert("documentEmployees", {
@@ -259,9 +276,9 @@ export const save = mutation({
       contentTitle: value.title,
       detailHref: `/documents/${args.slug}`,
       listHref: "/documents",
-      publishedTitle: "New document shared",
-      updatedTitle: "Document updated",
-      unpublishedTitle: "Document unpublished",
+      publishedTitleKey: "notificationNewDocumentShared",
+      updatedTitleKey: "notificationDocumentUpdated",
+      unpublishedTitleKey: "notificationDocumentUnpublished",
     })
     return args.slug
   },
@@ -314,7 +331,7 @@ export const remove = mutation({
           hubId: args.hubId,
           audience: "employees",
           kind: "document",
-          title: "Document removed",
+          titleKey: "notificationDocumentRemoved",
           message: document.title,
           href: "/documents",
         })

@@ -2,6 +2,8 @@ import "server-only"
 
 import { ConvexHttpClient } from "convex/browser"
 
+import { extractAppErrorKey } from "@/lib/app-error"
+
 export function convexServerClient(token: string) {
   const url = process.env.NEXT_PUBLIC_CONVEX_URL
   if (!url) throw new Error("Missing NEXT_PUBLIC_CONVEX_URL")
@@ -11,11 +13,7 @@ export function convexServerClient(token: string) {
 }
 
 export function safeErrorMessage(error: unknown, fallback: string) {
-  if (!(error instanceof Error)) return fallback
-  return error.message
-    .replace(/^.*Uncaught Error: /, "")
-    .replace(/\s+at handler[\s\S]*$/, "")
-    .slice(0, 500)
+  return extractAppErrorKey(error) ?? fallback
 }
 
 export function randomCredential(bytes = 32) {

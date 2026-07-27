@@ -1,6 +1,9 @@
 "use client"
 
-import Link from "next/link"
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
+
+import { Link } from "@/i18n/navigation"
 import {
   ArrowLeft,
   CalendarDays,
@@ -16,6 +19,7 @@ import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
+import type { AppMessageKey } from "@/i18n/messages"
 import {
   Card,
   CardAction,
@@ -23,18 +27,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { formatEventDate, formatEventTime } from "@/lib/operations"
+import {
+  eventCategoryMessageKeys,
+  formatEventDate,
+  formatEventTime,
+} from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
+  const t = useAppTranslations()
+  const languageTag = useLanguageTag()
   const { events, guides, hub } = useOperations()
   const event = events.find((item) => item.id === eventId && item.published)
   if (!event)
     return (
       <EmptyState
         icon={CalendarDays}
-        title="Event not available"
-        description="This event may be unpublished or removed. Return to the calendar for current events."
+        title="eventNotAvailable"
+        description="eventUnpublishedRemovedReturnCalendarCurrentEvents"
       />
     )
   const relatedGuides = guides.filter(
@@ -50,11 +60,13 @@ export function EventDetail({ eventId }: { eventId: string }) {
           "tracking-normal normal-case"
         )}
       >
-        <ArrowLeft /> Back to calendar
+        <ArrowLeft /> <T>backToCalendar</T>
       </Link>
       <Card className="shadow-none">
         <CardHeader className="border-b">
-          <Badge variant="secondary">{event.category}</Badge>
+          <Badge variant="secondary">
+            {t(eventCategoryMessageKeys[event.category])}
+          </Badge>
           <CardTitle>
             <h1 className="text-2xl tracking-tight">{event.title}</h1>
           </CardTitle>
@@ -64,16 +76,22 @@ export function EventDetail({ eventId }: { eventId: string }) {
           <CardAction className="hidden sm:block">
             <CalendarExportButton
               events={[event]}
-              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              calendarName={t("namedCalendar", {
+                name: hub?.name ?? t("workplace"),
+              })}
               timeZone={hub?.timeZone ?? "UTC"}
+              uidNamespace={hub?.id ?? "unconfigured-workplace"}
               mode="event"
             />
           </CardAction>
           <div className="mt-4 sm:hidden">
             <CalendarExportButton
               events={[event]}
-              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              calendarName={t("namedCalendar", {
+                name: hub?.name ?? t("workplace"),
+              })}
               timeZone={hub?.timeZone ?? "UTC"}
+              uidNamespace={hub?.id ?? "unconfigured-workplace"}
               mode="event"
             />
           </div>
@@ -81,7 +99,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Detail
             icon={CalendarDays}
-            label="Date"
+            label="date"
             value={formatEventDate(
               event,
               {
@@ -90,34 +108,48 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 month: "long",
                 year: "numeric",
               },
-              hub?.timeZone
+              hub?.timeZone,
+              languageTag
             )}
           />
           <Detail
             icon={Clock3}
-            label="Time"
-            value={formatEventTime(event, hub?.timeZone)}
+            label="time"
+            value={
+              event.allDay
+                ? t("allDay")
+                : formatEventTime(
+                    event,
+                    hub?.timeZone,
+                    languageTag,
+                    t("allDay")
+                  )
+            }
           />
-          <Detail icon={MapPin} label="Location" value={event.location} />
+          <Detail icon={MapPin} label="location" value={event.location} />
           <Detail
             icon={UsersRound}
-            label="Employees"
+            label="employees"
             value={
               event.employees.length
                 ? event.employees
                     .map((employee) => employee.displayName)
                     .join(", ")
-                : "No employees assigned"
+                : t("noEmployeesAssigned")
             }
           />
           <div className="border-t pt-4 sm:col-span-2">
-            <h2 className="font-semibold">Notes</h2>
+            <h2 className="font-semibold">
+              <T>notes</T>
+            </h2>
             <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
-              {event.notes || "No additional notes."}
+              {event.notes || t("noAdditionalNotes")}
             </p>
           </div>
           <div className="border-t pt-4 sm:col-span-2">
-            <h2 className="font-semibold">Attachments</h2>
+            <h2 className="font-semibold">
+              <T>attachments</T>
+            </h2>
             {event.attachments.length ? (
               <ul className="mt-4 space-y-2">
                 {event.attachments.map((attachment) => (
@@ -135,14 +167,15 @@ export function EventDetail({ eventId }: { eventId: string }) {
                       {attachment.name}
                     </a>
                     <Badge variant="secondary">
-                      {Math.max(1, Math.round(attachment.size / 1024))} KB
+                      {Math.max(1, Math.round(attachment.size / 1024))}{" "}
+                      <T>kilobyteAbbreviation</T>
                     </Badge>
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">
-                No attachments for this event.
+                <T>noAttachmentsForThisEvent</T>
               </p>
             )}
           </div>
@@ -150,7 +183,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
       </Card>
       {relatedGuides.length > 0 && (
         <section>
-          <h2 className="mb-4 text-xl font-semibold">Related guides</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            <T>relatedGuides</T>
+          </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {relatedGuides.map((guide) => (
               <GuideCard key={guide.id} guide={guide} />
@@ -168,7 +203,7 @@ function Detail({
   value,
 }: {
   icon: typeof CalendarDays
-  label: string
+  label: AppMessageKey
   value: string
 }) {
   return (
@@ -177,7 +212,9 @@ function Detail({
         <Icon className="size-5" />
       </span>
       <div>
-        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+        <p className="text-xs font-semibold text-muted-foreground">
+          <T>{label}</T>
+        </p>
         <p className="mt-1 text-sm font-medium">{value}</p>
       </div>
     </div>

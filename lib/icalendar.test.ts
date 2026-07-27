@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 
 import {
   calendarFileName,
+  ICALENDAR_UID_DOMAIN,
   mergeImportedEvent,
   parseICalendar,
   serializeICalendar,
@@ -9,10 +10,10 @@ import {
 import type { CalendarEvent } from "@/lib/operations"
 
 const event: CalendarEvent = {
-  id: "summer-menu",
-  title: "Summer menu, launch",
-  description: "Seasonal food & drinks",
-  category: "Promotion",
+  id: "team-training",
+  title: "Team training, session",
+  description: "Service workflow & safety",
+  category: "Training",
   start: "2026-07-24T10:00",
   end: "2026-07-24T11:30",
   allDay: false,
@@ -29,16 +30,22 @@ describe("iCalendar export", () => {
     const calendar = serializeICalendar([event], {
       calendarName: "Venue calendar",
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
       now: new Date("2026-07-24T06:00:00Z"),
     })
 
     expect(calendar).toContain("BEGIN:VCALENDAR\r\nVERSION:2.0")
+    expect(ICALENDAR_UID_DOMAIN).toBe("workhal.local")
+    expect(calendar.replaceAll("\r\n ", "")).toContain(
+      `@${ICALENDAR_UID_DOMAIN}`
+    )
     expect(calendar).toContain("DTSTART:20260724T070000Z")
     expect(calendar).toContain("DTEND:20260724T083000Z")
-    expect(calendar).toContain("SUMMARY:Summer menu\\, launch")
+    expect(calendar).toContain("SUMMARY:Team training\\, session")
     expect(calendar).toContain("LOCATION:Whole venue\\; terrace")
+    expect(calendar).toContain("X-WORKHAL-UID-NAMESPACE:hub-a")
     expect(calendar).toContain(
-      "DESCRIPTION:Seasonal food & drinks\\n\\nNotes:\\nBring printed menus."
+      "DESCRIPTION:Service workflow & safety\\n\\nNotes:\\nBring printed menus."
     )
     expect(calendar).toEndWith("END:VCALENDAR\r\n")
   })
@@ -51,10 +58,12 @@ describe("iCalendar export", () => {
     const calendar = serializeICalendar([event], {
       calendarName: "Venue calendar",
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
       now: new Date("2026-07-24T06:00:00Z"),
     })
     const result = parseICalendar(calendar, {
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
     })
 
     expect(result.events[0]).toMatchObject({
@@ -80,8 +89,9 @@ describe("iCalendar export", () => {
       serializeICalendar([detailedEvent], {
         calendarName: "Venue calendar",
         timeZone: "Europe/Tallinn",
+        uidNamespace: "hub-a",
       }),
-      { timeZone: "Europe/Tallinn" }
+      { timeZone: "Europe/Tallinn", uidNamespace: "hub-a" }
     )
 
     expect(result.issues).toEqual([])
@@ -99,6 +109,7 @@ describe("iCalendar export", () => {
     const calendar = serializeICalendar([allDayEvent], {
       calendarName: "Venue calendar",
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
       now: new Date("2026-07-24T06:00:00Z"),
     })
 
@@ -108,6 +119,7 @@ describe("iCalendar export", () => {
 
     const result = parseICalendar(calendar, {
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
     })
     expect(result.events[0]).toMatchObject({
       start: "2026-07-24T00:00",
@@ -116,6 +128,49 @@ describe("iCalendar export", () => {
     })
     expect(result.events[0]?.startUtc).toBeUndefined()
     expect(result.events[0]?.endUtc).toBeUndefined()
+  })
+
+  test("namespaces generated UIDs by workplace", () => {
+    const exportUid = (uidNamespace: string) =>
+      serializeICalendar([event], {
+        calendarName: "Venue calendar",
+        timeZone: "Europe/Tallinn",
+        uidNamespace,
+        now: new Date("2026-07-24T06:00:00Z"),
+      })
+        .match(/^UID:(.+)$/m)?.[1]
+        ?.trim()
+
+    expect(exportUid("hub-a")).toBe(exportUid("hub-a"))
+    expect(exportUid("hub-a")).not.toBe(exportUid("hub-b"))
+  })
+
+  test("namespaces the export UID of externally imported events", () => {
+    const importedEvent = {
+      ...event,
+      icalUid: "source-event@example.com",
+    }
+    const exportedUid = (uidNamespace: string) =>
+      serializeICalendar([importedEvent], {
+        calendarName: "Venue calendar",
+        timeZone: "Europe/Tallinn",
+        uidNamespace,
+      })
+        .match(/^UID:(.+)$/m)?.[1]
+        ?.trim()
+
+    expect(exportedUid("hub-a")).not.toBe("source-event@example.com")
+    expect(exportedUid("hub-a")).not.toBe(exportedUid("hub-b"))
+  })
+
+  test("requires a non-empty UID namespace for exports", () => {
+    expect(() =>
+      serializeICalendar([event], {
+        calendarName: "Venue calendar",
+        timeZone: "Europe/Tallinn",
+        uidNamespace: "",
+      })
+    ).toThrow("A valid workhal UID namespace is required.")
   })
 })
 
@@ -132,7 +187,7 @@ describe("iCalendar import", () => {
         "LOCATION:Main room",
         "CATEGORIES:Training",
       ]),
-      { timeZone: "Europe/Tallinn" }
+      { timeZone: "Europe/Tallinn", uidNamespace: "hub-a" }
     )
 
     expect(result.issues).toEqual([])
@@ -150,6 +205,93 @@ describe("iCalendar import", () => {
       published: false,
     })
     expect(result.events[0]?.id).toMatch(/^external-[a-f0-9]{64}$/)
+  })
+
+  test("rejects a workhal event identity without its UID namespace", () => {
+    const result = parseICalendar(
+      calendar([
+        "UID:arbitrary@example.com",
+        "X-WORKHAL-ID:team-training",
+        "DTSTART:20260724T070000Z",
+        "DTEND:20260724T080000Z",
+        "SUMMARY:Unsafe event",
+      ]),
+      { timeZone: "UTC", uidNamespace: "hub-a" }
+    )
+
+    expect(result.events).toEqual([])
+    expect(result.issues).toEqual([
+      {
+        severity: "error",
+        key: "calendarEventMissingUidNamespace",
+        values: { index: 1 },
+      },
+    ])
+  })
+
+  test("rejects a workhal event identity that does not match its namespace", () => {
+    const result = parseICalendar(
+      calendar([
+        "UID:arbitrary@example.com",
+        "X-WORKHAL-ID:team-training",
+        "X-WORKHAL-UID-NAMESPACE:hub-a",
+        "DTSTART:20260724T070000Z",
+        "DTEND:20260724T080000Z",
+        "SUMMARY:Unsafe event",
+      ]),
+      { timeZone: "UTC", uidNamespace: "hub-a" }
+    )
+
+    expect(result.events).toEqual([])
+    expect(result.issues).toEqual([
+      {
+        severity: "error",
+        key: "calendarEventInvalidWorkhalIdentity",
+        values: { index: 1 },
+      },
+    ])
+  })
+
+  test("rejects a valid workhal event from another workplace", () => {
+    const source = serializeICalendar([event], {
+      calendarName: "Venue calendar",
+      timeZone: "UTC",
+      uidNamespace: "hub-a",
+    })
+    const result = parseICalendar(source, {
+      timeZone: "UTC",
+      uidNamespace: "hub-b",
+    })
+
+    expect(result.events).toEqual([])
+    expect(result.issues).toEqual([
+      {
+        severity: "error",
+        key: "calendarEventInvalidWorkhalIdentity",
+        values: { index: 1 },
+      },
+    ])
+  })
+
+  test("rejects a cancellation from another workplace", () => {
+    const source = serializeICalendar([event], {
+      calendarName: "Venue calendar",
+      timeZone: "UTC",
+      uidNamespace: "hub-a",
+    }).replace("STATUS:CONFIRMED", "STATUS:CANCELLED")
+    const result = parseICalendar(source, {
+      timeZone: "UTC",
+      uidNamespace: "hub-b",
+    })
+
+    expect(result.cancellations).toEqual([])
+    expect(result.issues).toEqual([
+      {
+        severity: "error",
+        key: "calendarEventInvalidWorkhalIdentity",
+        values: { index: 1 },
+      },
+    ])
   })
 
   test("uses embedded Outlook VTIMEZONE definitions", () => {
@@ -183,7 +325,7 @@ describe("iCalendar import", () => {
         "END:VEVENT",
         "END:VCALENDAR",
       ].join("\r\n"),
-      { timeZone: "Europe/Tallinn" }
+      { timeZone: "Europe/Tallinn", uidNamespace: "hub-a" }
     )
 
     expect(result.issues).toEqual([])
@@ -198,7 +340,7 @@ describe("iCalendar import", () => {
   test("returns cancellations separately from importable events", () => {
     const active = parseICalendar(
       calendar(eventLines("cancelled-uid", "Scheduled event").slice(1, -1)),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
     const cancelled = parseICalendar(
       calendar([
@@ -206,7 +348,7 @@ describe("iCalendar import", () => {
         "STATUS:CANCELLED",
         "SUMMARY:Scheduled event",
       ]),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
 
     expect(cancelled.events).toEqual([])
@@ -226,7 +368,11 @@ describe("iCalendar import", () => {
         "DESCRIPTION:Closed for maintenance",
         "LOCATION:Whole venue",
       ]),
-      { timeZone: "Europe/Tallinn", published: true }
+      {
+        timeZone: "Europe/Tallinn",
+        uidNamespace: "hub-a",
+        published: true,
+      }
     )
 
     expect(result.events[0]).toMatchObject({
@@ -237,7 +383,8 @@ describe("iCalendar import", () => {
     })
     expect(result.issues).toContainEqual({
       severity: "warning",
-      message: expect.stringContaining("set to the next day"),
+      key: "calendarEventNoEndDate",
+      values: expect.objectContaining({ index: 1, title: "Closed" }),
     })
   })
 
@@ -254,13 +401,14 @@ describe("iCalendar import", () => {
         "END:VEVENT",
         "END:VCALENDAR",
       ].join("\r\n"),
-      { timeZone: "Europe/Tallinn" }
+      { timeZone: "Europe/Tallinn", uidNamespace: "hub-a" }
     )
 
     expect(result.events).toHaveLength(1)
     expect(result.issues).toContainEqual({
       severity: "error",
-      message: "Event 1: “Missing start” is missing a start date.",
+      key: "calendarEventCouldNotBeImported",
+      values: { index: 1 },
     })
     expect(
       result.issues.some((issue) => issue.severity === "warning")
@@ -275,14 +423,15 @@ describe("iCalendar import", () => {
         "DTEND:20260231T100000Z",
         "SUMMARY:Impossible",
       ]),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
 
     expect(result.events).toEqual([])
     expect(result.issues).toEqual([
       {
         severity: "error",
-        message: "Event 1: Invalid calendar date “20260231T090000Z”.",
+        key: "calendarEventCouldNotBeImported",
+        values: { index: 1 },
       },
     ])
   })
@@ -298,7 +447,7 @@ describe("iCalendar import", () => {
         "LOCATION:Main room",
         "CATEGORIES:Training",
       ]),
-      { timeZone: "Europe/Tallinn" }
+      { timeZone: "Europe/Tallinn", uidNamespace: "hub-a" }
     )
 
     expect(result.issues).toEqual([])
@@ -318,7 +467,7 @@ describe("iCalendar import", () => {
         "DTEND:20260724T100000Z",
         "SUMMARY:First",
       ]),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
     const second = parseICalendar(
       calendar([
@@ -327,7 +476,7 @@ describe("iCalendar import", () => {
         "DTEND:20260724T100000Z",
         "SUMMARY:Second",
       ]),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
 
     expect(first.events[0]?.id.length).toBeLessThanOrEqual(100)
@@ -341,7 +490,7 @@ describe("iCalendar import", () => {
           "DTEND:20260724T100000Z",
           "SUMMARY:First",
         ]),
-        { timeZone: "UTC" }
+        { timeZone: "UTC", uidNamespace: "hub-a" }
       ).events[0]?.id
     ).toBe(first.events[0]?.id)
   })
@@ -354,15 +503,14 @@ describe("iCalendar import", () => {
         ...eventLines("same-uid", "Second"),
         "END:VCALENDAR",
       ].join("\r\n"),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
 
     expect(result.events).toHaveLength(1)
     expect(result.issues).toContainEqual({
       severity: "error",
-      message: expect.stringContaining(
-        "same calendar identity as another event"
-      ),
+      key: "calendarEventCouldNotBeImported",
+      values: { index: 2 },
     })
   })
 
@@ -375,14 +523,14 @@ describe("iCalendar import", () => {
         "SUMMARY:Too much detail",
         `DESCRIPTION:${"x".repeat(501)}`,
       ]),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
 
     expect(result.events).toEqual([])
     expect(result.issues[0]).toEqual({
       severity: "error",
-      message:
-        "Event 1: “Too much detail” failed because its description is 501 characters; the maximum is 500.",
+      key: "calendarEventCouldNotBeImported",
+      values: { index: 1 },
     })
   })
 
@@ -395,13 +543,14 @@ describe("iCalendar import", () => {
         ).flat(),
         "END:VCALENDAR",
       ].join("\r\n"),
-      { timeZone: "UTC" }
+      { timeZone: "UTC", uidNamespace: "hub-a" }
     )
 
     expect(result.events).toHaveLength(25)
     expect(result.issues).toContainEqual({
       severity: "warning",
-      message: "Only the first 25 events were read from this file.",
+      key: "calendarOnlyFirstEventsRead",
+      values: { count: 25 },
     })
   })
 })

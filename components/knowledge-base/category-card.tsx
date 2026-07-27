@@ -1,4 +1,6 @@
-import Link from "next/link"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
+import { Link } from "@/i18n/navigation"
 import { ArrowRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +14,8 @@ export function CategoryCard({
   category: Category
   count?: number
 }) {
+  const t = useAppTranslations()
+
   return (
     <Link
       href={`/categories/${category.id}`}
@@ -29,7 +33,9 @@ export function CategoryCard({
           {category.description}
         </span>
         <Badge variant="secondary" className="mt-3">
-          {count} guides
+          {t(count === 1 ? "guideCountSingular" : "guideCountPlural", {
+            count,
+          })}
         </Badge>
       </span>
     </Link>

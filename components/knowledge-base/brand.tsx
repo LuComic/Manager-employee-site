@@ -1,9 +1,12 @@
 "use client"
 
-import Link from "next/link"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
+import { Link } from "@/i18n/navigation"
 import { BriefcaseBusiness } from "lucide-react"
 
 import { useOperations } from "@/components/providers/operations-provider"
+import { SITE_NAME } from "@/lib/branding"
 
 export function Brand({
   compact = false,
@@ -14,6 +17,7 @@ export function Brand({
   onNavigate?: () => void
   linked?: boolean
 }) {
+  const t = useAppTranslations()
   const { hub, hubSlug, isManagerRoute } = useOperations()
   const content = (
     <>
@@ -23,10 +27,10 @@ export function Brand({
       {!compact && (
         <span>
           <span className="block font-semibold tracking-tight">
-            Operations hub
+            {SITE_NAME}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {hub?.name ?? "Operations hub"}
+            {hub?.name ?? t("workplace")}
           </span>
         </span>
       )}

@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+
 import { createContext, useContext, useState } from "react"
 import { ArrowRight, CheckCircle2, Headphones, Mail, Phone } from "lucide-react"
 
@@ -15,6 +17,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+import { getCustomContactName } from "@/lib/contact"
 import { cn } from "@/lib/utils"
 import { useOperations } from "@/components/providers/operations-provider"
 
@@ -27,7 +31,9 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState("")
   const [pending, setPending] = useState(false)
   const { hub, submitHelpRequest } = useOperations()
-  const contactName = hub?.contactName || "shift lead"
+  const t = useAppTranslations()
+  const customContactName = getCustomContactName(hub?.contactName)
+  const contactName = customContactName ?? t("shiftLead")
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -49,13 +55,15 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                 <CheckCircle2 />
               </span>
               <DialogTitle className="mt-4 tracking-normal normal-case">
-                Question sent
+                <T>questionSent</T>
               </DialogTitle>
               <DialogDescription className="mt-2">
-                Your note has been sent to {contactName}.
+                {customContactName
+                  ? t("noteSentToContact", { contactName })
+                  : t("noteSentToShiftLead")}
               </DialogDescription>
               <Button className="mt-6" onClick={() => handleOpenChange(false)}>
-                Done
+                <T>done</T>
               </Button>
             </div>
           ) : (
@@ -73,11 +81,12 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
             >
               <DialogHeader>
                 <DialogTitle className="tracking-normal normal-case">
-                  Ask {contactName}
+                  {customContactName
+                    ? t("askContact", { contactName })
+                    : t("askShiftLead")}
                 </DialogTitle>
                 <DialogDescription>
-                  Send a quick note. For anything urgent or related to safety,
-                  speak to someone in person.
+                  <T>sendQuickNoteAnythingUrgentRelatedSafetyMessage</T>
                 </DialogDescription>
               </DialogHeader>
               {(hub?.contactEmail || hub?.contactPhone) && (
@@ -102,24 +111,28 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
               )}
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="topic">What is this about?</Label>
+                  <Label htmlFor="topic">
+                    <T>topic</T>
+                  </Label>
                   <Input
                     id="topic"
                     required
                     value={topic}
                     onChange={(event) => setTopic(event.target.value)}
-                    placeholder="For example: refund approval"
+                    placeholder={t("forExampleRefundApproval")}
                     className="border border-input px-3 focus-visible:border-ring"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="message">Question</Label>
+                  <Label htmlFor="message">
+                    <T>question</T>
+                  </Label>
                   <Textarea
                     id="message"
                     required
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
-                    placeholder="Describe what you need help with…"
+                    placeholder={t("describeWhatYouNeedHelpWith")}
                     className="min-h-28 border border-input px-3 focus-visible:border-ring"
                   />
                 </div>
@@ -130,10 +143,10 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                   variant="outline"
                   onClick={() => handleOpenChange(false)}
                 >
-                  Cancel
+                  <T>cancel</T>
                 </Button>
                 <Button type="submit" disabled={pending}>
-                  {pending ? "Sending…" : "Send question"} <ArrowRight />
+                  <T>{pending ? "sending" : "sendQuestion"}</T> <ArrowRight />
                 </Button>
               </DialogFooter>
             </form>
@@ -155,7 +168,11 @@ export function ContactButton({
 }) {
   const openContact = useContext(ContactContext)
   const { hub } = useOperations()
-  const contactName = hub?.contactName || "shift lead"
+  const t = useAppTranslations()
+  const customContactName = getCustomContactName(hub?.contactName)
+  const contactLabel = customContactName
+    ? t("contactContact", { contactName: customContactName })
+    : t("contactShiftLead")
 
   return (
     <Button
@@ -166,10 +183,10 @@ export function ContactButton({
         onBeforeOpen?.()
         openContact()
       }}
-      aria-label={compact ? `Contact ${contactName}` : undefined}
+      aria-label={compact ? contactLabel : undefined}
     >
       <Headphones />
-      {!compact && `Contact ${contactName}`}
+      {!compact && contactLabel}
     </Button>
   )
 }

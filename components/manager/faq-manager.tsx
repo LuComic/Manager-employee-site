@@ -1,5 +1,8 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import { useState } from "react"
 import {
   ArrowDown,
@@ -30,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { slugify, type Faq } from "@/lib/operations"
 
 export function FaqManager() {
+  const t = useAppTranslations()
   const { faqs, canCreateContent, saveFaq, moveFaq, deleteFaq, showFeedback } =
     useOperations()
   const [editing, setEditing] = useState<Faq | null>(null)
@@ -42,7 +46,7 @@ export function FaqManager() {
     const question = editing.question.trim()
     const answer = editing.answer.trim()
     if (!question || !answer) {
-      setError("Add both a question and an answer.")
+      setError("addBothQuestionAnswer")
       return
     }
     let id = editing.id
@@ -59,7 +63,7 @@ export function FaqManager() {
     setPending(true)
     try {
       await saveFaq({ ...editing, id, question, answer })
-      showFeedback(editing.id ? "Question saved." : "Question created.")
+      showFeedback(editing.id ? "questionSaved" : "questionCreated")
       setEditing(null)
       setError("")
     } finally {
@@ -70,8 +74,8 @@ export function FaqManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Common questions"
-        description="Manage the quick answers employees see on the questions page and in search."
+        title="commonQuestions"
+        description="manageQuickAnswersEmployeesSeeQuestionsPageMessage"
         action={
           canCreateContent ? (
             <Button
@@ -86,7 +90,7 @@ export function FaqManager() {
                 setError("")
               }}
             >
-              <Plus /> New question
+              <Plus /> <T>createQuestion</T>
             </Button>
           ) : undefined
         }
@@ -107,7 +111,7 @@ export function FaqManager() {
                       |
                     </span>
                     <Badge variant={faq.published ? "secondary" : "outline"}>
-                      {faq.published ? "Published" : "Draft"}
+                      <T>{faq.published ? "published" : "draft"}</T>
                     </Badge>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -120,7 +124,7 @@ export function FaqManager() {
                     size="icon-sm"
                     disabled={index === 0}
                     onClick={() => moveFaq(faq.id, -1)}
-                    aria-label={`Move ${faq.question} up`}
+                    aria-label={t("moveNameUp", { name: faq.question })}
                   >
                     <ArrowUp />
                   </Button>
@@ -129,7 +133,7 @@ export function FaqManager() {
                     size="icon-sm"
                     disabled={index === faqs.length - 1}
                     onClick={() => moveFaq(faq.id, 1)}
-                    aria-label={`Move ${faq.question} down`}
+                    aria-label={t("moveNameDown", { name: faq.question })}
                   >
                     <ArrowDown />
                   </Button>
@@ -140,12 +144,12 @@ export function FaqManager() {
                       await saveFaq({ ...faq, published: !faq.published })
                       showFeedback(
                         faq.published
-                          ? "Question unpublished."
-                          : "Question published."
+                          ? "questionUnpublished"
+                          : "questionPublished"
                       )
                     }}
                   >
-                    {faq.published ? "Unpublish" : "Publish"}
+                    <T>{faq.published ? "unpublish" : "publish"}</T>
                   </Button>
                   <Button
                     variant="outline"
@@ -155,14 +159,14 @@ export function FaqManager() {
                       setError("")
                     }}
                   >
-                    <FilePenLine /> Edit
+                    <FilePenLine /> <T>edit</T>
                   </Button>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(faq)}
-                      aria-label={`Delete ${faq.question}`}
+                      aria-label={t("deleteName", { name: faq.question })}
                     >
                       <Trash2 />
                     </Button>
@@ -175,8 +179,8 @@ export function FaqManager() {
       ) : (
         <EmptyState
           icon={CircleHelp}
-          title="No common questions"
-          description="Add the answers employees need most often."
+          title="noCommonQuestions"
+          description="addAnswersEmployeesNeedMostOften"
         />
       )}
 
@@ -199,15 +203,17 @@ export function FaqManager() {
             >
               <DialogHeader>
                 <DialogTitle>
-                  {editing.id ? "Edit question" : "Create question"}
+                  <T>{editing.id ? "editQuestion" : "createQuestion"}</T>
                 </DialogTitle>
                 <DialogDescription>
-                  Published answers appear immediately on the employee site.
+                  <T>publishedAnswersAppearImmediatelyEmployeeSite</T>
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="faq-question">Question</Label>
+                  <Label htmlFor="faq-question">
+                    <T>question</T>
+                  </Label>
                   <Textarea
                     id="faq-question"
                     value={editing.question}
@@ -224,7 +230,9 @@ export function FaqManager() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="faq-answer">Answer</Label>
+                  <Label htmlFor="faq-answer">
+                    <T>answer</T>
+                  </Label>
                   <Textarea
                     id="faq-answer"
                     value={editing.answer}
@@ -242,7 +250,7 @@ export function FaqManager() {
                 </div>
                 {error && (
                   <p className="text-sm text-destructive" role="alert">
-                    {error}
+                    <T>{error}</T>
                   </p>
                 )}
               </div>
@@ -252,10 +260,10 @@ export function FaqManager() {
                   variant="outline"
                   onClick={() => setEditing(null)}
                 >
-                  Cancel
+                  <T>cancel</T>
                 </Button>
                 <Button type="submit" disabled={pending}>
-                  {pending ? "Saving…" : "Save question"}
+                  <T>{pending ? "saving" : "saveQuestion"}</T>
                 </Button>
               </DialogFooter>
             </form>
@@ -272,7 +280,7 @@ export function FaqManager() {
         onConfirm={async () => {
           if (!deleteTarget) return
           await deleteFaq(deleteTarget.id)
-          showFeedback("Question deleted.")
+          showFeedback("questionDeleted")
           setDeleteTarget(null)
         }}
       />

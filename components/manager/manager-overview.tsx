@@ -1,6 +1,9 @@
 "use client"
 
-import Link from "next/link"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
+import { Link } from "@/i18n/navigation"
 import {
   ArrowRight,
   BookOpen,
@@ -12,14 +15,28 @@ import {
   ShieldCheck,
   Tags,
   Users,
+  type LucideIcon,
 } from "lucide-react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Card, CardContent } from "@/components/ui/card"
+import type { AppMessageKey } from "@/i18n/messages"
 import { getAnnouncementState } from "@/lib/operations"
 
+type OverviewSection = {
+  title: AppMessageKey
+  cards: {
+    href: string
+    title: AppMessageKey
+    value: string | number
+    detail: string
+    icon: LucideIcon
+  }[]
+}
+
 export function ManagerOverview() {
+  const t = useAppTranslations()
   const {
     hub,
     categories,
@@ -31,80 +48,99 @@ export function ManagerOverview() {
     employees,
     managerAccess,
   } = useOperations()
-  const sections = [
-    {
-      title: "Guides",
-      cards: [
-        {
-          href: "/manager/categories",
-          title: "Guide categories",
-          value: categories.length,
-          detail: "Shown in guide navigation",
-          icon: Tags,
-        },
-        {
-          href: "/manager/guides",
-          title: "Guides",
-          value: guides.length,
-          detail: `${guides.filter((item) => item.published).length} published`,
-          icon: BookOpen,
-        },
-      ],
-    },
-    {
-      title: "Workforce",
-      cards: [
-        {
-          href: "/manager/employees",
-          title: "Employees",
-          value: employees.length,
-          detail: `${employees.filter((item) => item.status === "active").length} active`,
-          icon: Users,
-        },
-        {
-          href: "/manager/access",
-          title: "Employee access",
-          value: "Protected",
-          detail: "Join code and private link",
-          icon: ShieldCheck,
-        },
-      ],
-    },
-    {
-      title: "Other content",
-      cards: [
-        {
-          href: "/manager/calendar",
-          title: "Calendar events",
-          value: events.length,
-          detail: `${events.filter((item) => item.published).length} published`,
-          icon: CalendarDays,
-        },
-        {
-          href: "/manager/announcements",
-          title: "Announcements",
-          value: announcements.length,
-          detail: `${announcements.filter((item) => getAnnouncementState(item, new Date(), hub?.timeZone) === "Active").length} active`,
-          icon: Megaphone,
-        },
-        {
-          href: "/manager/documents",
-          title: "Documents",
-          value: documents.length,
-          detail: `${documents.filter((item) => item.published).length} published`,
-          icon: Files,
-        },
-        {
-          href: "/manager/questions",
-          title: "Common questions",
-          value: faqs.length,
-          detail: `${faqs.filter((item) => item.published).length} published`,
-          icon: CircleHelp,
-        },
-      ],
-    },
-  ].filter(
-    (section) => managerAccess === "owner" || section.title !== "Workforce"
+  const sections = (
+    [
+      {
+        title: "guides",
+        cards: [
+          {
+            href: "/manager/categories",
+            title: "guideCategories",
+            value: categories.length,
+            detail: t("shownInGuideNavigation"),
+            icon: Tags,
+          },
+          {
+            href: "/manager/guides",
+            title: "guides",
+            value: guides.length,
+            detail: t("publishedCount", {
+              count: guides.filter((item) => item.published).length,
+            }),
+            icon: BookOpen,
+          },
+        ],
+      },
+      {
+        title: "workforce",
+        cards: [
+          {
+            href: "/manager/employees",
+            title: "employees",
+            value: employees.length,
+            detail: t("activeCount", {
+              count: employees.filter((item) => item.status === "active")
+                .length,
+            }),
+            icon: Users,
+          },
+          {
+            href: "/manager/access",
+            title: "employeeAccess",
+            value: t("protectedStatus"),
+            detail: t("joinCodeAndPrivateLink"),
+            icon: ShieldCheck,
+          },
+        ],
+      },
+      {
+        title: "otherContent",
+        cards: [
+          {
+            href: "/manager/calendar",
+            title: "calendarEvents",
+            value: events.length,
+            detail: t("publishedCount", {
+              count: events.filter((item) => item.published).length,
+            }),
+            icon: CalendarDays,
+          },
+          {
+            href: "/manager/announcements",
+            title: "announcements",
+            value: announcements.length,
+            detail: t("activeCount", {
+              count: announcements.filter(
+                (item) =>
+                  getAnnouncementState(item, new Date(), hub?.timeZone) ===
+                  "Active"
+              ).length,
+            }),
+            icon: Megaphone,
+          },
+          {
+            href: "/manager/documents",
+            title: "documents",
+            value: documents.length,
+            detail: t("publishedCount", {
+              count: documents.filter((item) => item.published).length,
+            }),
+            icon: Files,
+          },
+          {
+            href: "/manager/questions",
+            title: "commonQuestions",
+            value: faqs.length,
+            detail: t("publishedCount", {
+              count: faqs.filter((item) => item.published).length,
+            }),
+            icon: CircleHelp,
+          },
+        ],
+      },
+    ] satisfies OverviewSection[]
+  ).filter(
+    (section) => managerAccess === "owner" || section.title !== "workforce"
   )
   const drafts =
     guides.filter((item) => !item.published).length +
@@ -115,8 +151,8 @@ export function ManagerOverview() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Overview"
-        description="See what is available to employees and choose an area to manage."
+        title="overview"
+        description="seeWhatAvailableEmployeesChooseAreaManage"
       />
       {drafts > 0 && (
         <div
@@ -128,10 +164,15 @@ export function ManagerOverview() {
           </span>
           <div>
             <p className="font-semibold">
-              {drafts} {drafts === 1 ? "draft needs" : "drafts need"} review
+              {t(
+                drafts === 1
+                  ? "draftReviewCountSingular"
+                  : "draftReviewCountPlural",
+                { count: drafts }
+              )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Draft items are not visible to employees until they are published.
+              <T>draftItemsNotVisibleEmployeesUntilTheyMessage</T>
             </p>
           </div>
         </div>
@@ -139,7 +180,7 @@ export function ManagerOverview() {
       {sections.map((section) => (
         <section key={section.title} className="space-y-3">
           <h2 className="text-xl font-semibold tracking-tight">
-            {section.title}
+            <T>{section.title}</T>
           </h2>
           <div className="grid gap-3 lg:grid-cols-2">
             {section.cards.map(({ href, title, value, detail, icon: Icon }) => (
@@ -157,7 +198,9 @@ export function ManagerOverview() {
                       <Icon className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold">{title}</h3>
+                      <h3 className="font-semibold">
+                        <T>{title}</T>
+                      </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {detail}
                       </p>

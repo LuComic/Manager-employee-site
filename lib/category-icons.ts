@@ -15,20 +15,26 @@ import {
 } from "lucide-react"
 import { createElement } from "react"
 
+import type { AppMessageKey } from "@/i18n/messages"
+
 export const categoryIconOptions = [
-  { key: "register", label: "Register", icon: ReceiptText },
-  { key: "orders", label: "Orders", icon: ShoppingBag },
-  { key: "payments", label: "Payments", icon: CreditCard },
-  { key: "documents", label: "Documents", icon: FileText },
-  { key: "people", label: "People", icon: UsersRound },
-  { key: "safety", label: "Safety", icon: ShieldCheck },
-  { key: "food-service", label: "Food service", icon: UtensilsCrossed },
-  { key: "inventory", label: "Inventory", icon: PackageCheck },
-  { key: "cleaning", label: "Cleaning", icon: Sparkles },
-  { key: "training", label: "Training", icon: GraduationCap },
-  { key: "maintenance", label: "Maintenance", icon: Wrench },
-  { key: "general", label: "General", icon: BookOpen },
-] as const
+  { key: "register", label: "register", icon: ReceiptText },
+  { key: "orders", label: "orders", icon: ShoppingBag },
+  { key: "payments", label: "payments", icon: CreditCard },
+  { key: "documents", label: "documents", icon: FileText },
+  { key: "people", label: "people", icon: UsersRound },
+  { key: "safety", label: "safety", icon: ShieldCheck },
+  { key: "food-service", label: "foodService", icon: UtensilsCrossed },
+  { key: "inventory", label: "inventory", icon: PackageCheck },
+  { key: "cleaning", label: "cleaning", icon: Sparkles },
+  { key: "training", label: "training", icon: GraduationCap },
+  { key: "maintenance", label: "maintenance", icon: Wrench },
+  { key: "general", label: "general", icon: BookOpen },
+] as const satisfies readonly {
+  key: string
+  label: AppMessageKey
+  icon: LucideIcon
+}[]
 
 export type CategoryIconKey = (typeof categoryIconOptions)[number]["key"]
 

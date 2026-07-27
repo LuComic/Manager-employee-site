@@ -1,14 +1,17 @@
 "use client"
 
 import { useCallback, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-const historyGuardKey = "__operationsUnsavedChangesGuard"
+import { useRouter } from "@/i18n/navigation"
+import type { AppMessageKey } from "@/i18n/messages"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
+const historyGuardKey = "__workhalUnsavedChangesGuard"
 
 type UnsavedChangesOptions = {
   dirty: boolean
-  itemName: string
+  itemName: AppMessageKey
   toastId: string
   onDiscard: () => void
 }
@@ -20,6 +23,7 @@ export function useUnsavedChanges({
   onDiscard,
 }: UnsavedChangesOptions) {
   const router = useRouter()
+  const t = useAppTranslations()
   const dirtyRef = useRef(dirty)
   const onDiscardRef = useRef(onDiscard)
   const guardActiveRef = useRef(false)
@@ -37,21 +41,26 @@ export function useUnsavedChanges({
 
   const showDiscardToast = useCallback(
     (discard: () => void) => {
-      toast.warning(`Discard your unsaved ${itemName} changes?`, {
-        id: toastId,
-        description: "Your changes will not be saved.",
-        duration: Infinity,
-        cancel: {
-          label: "Keep editing",
-          onClick: () => undefined,
-        },
-        action: {
-          label: "Discard",
-          onClick: discard,
-        },
-      })
+      toast.warning(
+        t("discardYourUnsavedItemNameChanges", {
+          itemName: t(itemName),
+        }),
+        {
+          id: toastId,
+          description: t("yourChangesWillNotBeSaved"),
+          duration: Infinity,
+          cancel: {
+            label: t("noKeepEditing"),
+            onClick: () => undefined,
+          },
+          action: {
+            label: t("yesDiscard"),
+            onClick: discard,
+          },
+        }
+      )
     },
-    [itemName, toastId]
+    [itemName, t, toastId]
   )
 
   const leaveWithoutPrompt = useCallback(

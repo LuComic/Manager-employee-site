@@ -5,7 +5,7 @@ import { assertAdminRemovalIsSafe } from "./organization-access"
 describe("Organization admin safeguards", () => {
   test("blocks removal of the last admin", () => {
     expect(() => assertAdminRemovalIsSafe("org:admin", 1)).toThrow(
-      "last Organization admin"
+      "lastOrganizationAdminCannotBeRemoved"
     )
   })
 

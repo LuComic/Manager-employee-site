@@ -1,4 +1,6 @@
-import Link from "next/link"
+import { T } from "@/components/translated-text"
+
+import { Link } from "@/i18n/navigation"
 import { ArrowLeft, Clock3 } from "lucide-react"
 
 import { PrintButton } from "@/components/knowledge-base/print-button"
@@ -29,7 +31,8 @@ export function GuideDetail({
             "mb-6 tracking-normal normal-case"
           )}
         >
-          <ArrowLeft /> Back to {category?.label ?? "guides"}
+          <ArrowLeft /> <T>backTo</T>{" "}
+          {category?.label ?? <T>guidesLowercase</T>}
         </Link>
       )}
 

@@ -1,7 +1,10 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import { useMemo, useState } from "react"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import {
   FilePenLine,
   Megaphone,
@@ -27,13 +30,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getAnnouncementState, type Announcement } from "@/lib/operations"
+import {
+  announcementPriorityMessageKeys,
+  getAnnouncementState,
+  type Announcement,
+} from "@/lib/operations"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
 type Status = "All" | "Active" | "Upcoming" | "Expired" | "Draft"
 
 export function AnnouncementManager() {
+  const t = useAppTranslations()
   const {
     announcements,
     hub,
@@ -68,15 +76,15 @@ export function AnnouncementManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Manage announcements"
-        description="Maintain temporary notices, dates, priority, and pinned state."
+        title="manageAnnouncements"
+        description="maintainTemporaryNoticesDatesPriorityPinnedState"
         action={
           canCreateContent ? (
             <Link
               href="/manager/announcements/new"
               className={buttonVariants()}
             >
-              <Plus /> New announcement
+              <Plus /> <T>createAnnouncement</T>
             </Link>
           ) : undefined
         }
@@ -87,8 +95,8 @@ export function AnnouncementManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search announcements…"
-            aria-label="Search announcements"
+            placeholder={t("searchAnnouncementsPlaceholder")}
+            aria-label={t("searchAnnouncements")}
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -98,16 +106,26 @@ export function AnnouncementManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter announcements by status"
+            aria-label={t("filterAnnouncementsByStatus")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Upcoming">Upcoming</SelectItem>
-            <SelectItem value="Expired">Expired</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="All">
+              <T>all</T>
+            </SelectItem>
+            <SelectItem value="Active">
+              <T>active</T>
+            </SelectItem>
+            <SelectItem value="Upcoming">
+              <T>upcoming</T>
+            </SelectItem>
+            <SelectItem value="Expired">
+              <T>expired</T>
+            </SelectItem>
+            <SelectItem value="Draft">
+              <T>draft</T>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -146,7 +164,9 @@ export function AnnouncementManager() {
                             : "secondary"
                         }
                       >
-                        {announcement.priority}
+                        {t(
+                          announcementPriorityMessageKeys[announcement.priority]
+                        )}
                       </Badge>
                       {announcement.pinned && (
                         <>
@@ -154,7 +174,7 @@ export function AnnouncementManager() {
                             |
                           </span>
                           <Badge variant="secondary">
-                            <Pin /> Pinned
+                            <Pin /> <T>pinned</T>
                           </Badge>
                         </>
                       )}
@@ -174,18 +194,18 @@ export function AnnouncementManager() {
                         })
                         showFeedback(
                           announcement.pinned
-                            ? "Announcement unpinned."
-                            : "Announcement pinned."
+                            ? "announcementUnpinned"
+                            : "announcementPinned"
                         )
                       }}
                     >
                       {announcement.pinned ? (
                         <>
-                          <PinOff /> Unpin
+                          <PinOff /> <T>unpin</T>
                         </>
                       ) : (
                         <>
-                          <Pin /> Pin
+                          <Pin /> <T>pin</T>
                         </>
                       )}
                     </Button>
@@ -199,12 +219,12 @@ export function AnnouncementManager() {
                         })
                         showFeedback(
                           announcement.published
-                            ? "Announcement unpublished."
-                            : "Announcement published."
+                            ? "announcementUnpublished"
+                            : "announcementPublished"
                         )
                       }}
                     >
-                      {announcement.published ? "Unpublish" : "Publish"}
+                      <T>{announcement.published ? "unpublish" : "publish"}</T>
                     </Button>
                     <Link
                       href={`/manager/announcements/${announcement.id}/edit`}
@@ -212,14 +232,16 @@ export function AnnouncementManager() {
                         buttonVariants({ variant: "outline", size: "sm" })
                       )}
                     >
-                      <FilePenLine /> Edit
+                      <FilePenLine /> <T>edit</T>
                     </Link>
                     {canCreateContent && (
                       <Button
                         variant="destructive"
                         size="icon-sm"
                         onClick={() => setDeleteTarget(announcement)}
-                        aria-label={`Delete ${announcement.title}`}
+                        aria-label={t("deleteName", {
+                          name: announcement.title,
+                        })}
                       >
                         <Trash2 />
                       </Button>
@@ -233,8 +255,8 @@ export function AnnouncementManager() {
       ) : (
         <EmptyState
           icon={Megaphone}
-          title="No matching announcements"
-          description="Clear the search or choose another status filter."
+          title="noMatchingAnnouncements"
+          description="clearSearchChooseStatusFilter"
         />
       )}
       <ConfirmDeleteDialog
@@ -246,7 +268,7 @@ export function AnnouncementManager() {
         onConfirm={() => {
           if (deleteTarget) {
             deleteAnnouncement(deleteTarget.id)
-            showFeedback("Announcement deleted.")
+            showFeedback("announcementDeleted")
           }
         }}
       />

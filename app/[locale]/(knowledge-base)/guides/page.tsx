@@ -7,22 +7,24 @@ import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { useOperations } from "@/components/providers/operations-provider"
 
 export default function GuidesPage() {
+  const t = useAppTranslations()
   const { categories, guides } = useOperations()
   const publishedGuides = guides.filter((guide) => guide.published)
 
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Guides"
-        description="Clear, step-by-step instructions for the tasks that come up during a shift."
+        title="guides"
+        description="clearStepStepInstructionsTasksComeUpMessage"
       />
       <section>
         <SectionHeading
-          title="Browse by work area"
-          description="Choose the area that best matches the task in front of you."
+          title="byWorkArea"
+          description="chooseAreaBestMatchesTaskFront"
         />
         {categories.length ? (
           <div className="grid gap-px overflow-hidden border bg-border sm:grid-cols-2 xl:grid-cols-3">
@@ -41,15 +43,17 @@ export default function GuidesPage() {
         ) : (
           <EmptyState
             icon={BookOpen}
-            title="No guide categories"
-            description="Work areas will appear here when a manager creates them."
+            title="noGuideCategories"
+            description="workAreasAppearHereManagerCreates"
           />
         )}
       </section>
       <section>
         <SectionHeading
-          title="All guides"
-          description={`${publishedGuides.length} published guides available.`}
+          title="allGuides"
+          description={t("countPublishedGuidesAvailable", {
+            count: publishedGuides.length,
+          })}
         />
         {publishedGuides.length ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -60,8 +64,8 @@ export default function GuidesPage() {
         ) : (
           <EmptyState
             icon={BookOpen}
-            title="No published guides"
-            description="Published guides will appear here."
+            title="noPublishedGuides"
+            description="publishedGuidesWillAppearHere"
           />
         )}
       </section>

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Search, X } from "lucide-react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 
 import { Input } from "@/components/ui/input"
+import { usePathname, useRouter } from "@/i18n/navigation"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -14,6 +16,7 @@ export function SearchField({
   inputRef: React.RefObject<HTMLInputElement | null>
 }) {
   const pathname = usePathname()
+  const t = useAppTranslations()
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlQuery =
@@ -84,7 +87,7 @@ export function SearchField({
   return (
     <form
       role="search"
-      aria-label="Search the operations hub"
+      aria-label={t("searchWorkhal")}
       className="relative w-full max-w-xl"
       onSubmit={(event) => {
         event.preventDefault()
@@ -99,16 +102,16 @@ export function SearchField({
         name="q"
         value={value}
         onChange={(event) => updateValue(event.target.value)}
-        placeholder="Search guides, events, announcements, documents, and questions…"
+        placeholder={t("searchGuidesEventsAnnouncementsDocumentsQuestions")}
         className="h-10 border border-input bg-background pr-10 pl-10 focus-visible:border-ring"
-        aria-label="Search the operations hub"
+        aria-label={t("searchWorkhal")}
       />
       {value && (
         <button
           type="button"
           className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           onClick={() => updateValue("")}
-          aria-label="Clear search"
+          aria-label={t("clearSearch")}
         >
           <X className="size-4" />
         </button>

@@ -1,4 +1,4 @@
-# Operations hub
+# workhal
 
 A multi-workplace operations portal built with Next.js 16, React 19, Convex, Clerk, Tailwind CSS, and shadcn/ui. Managers administer a workplace through Clerk Organizations. Employees may use their own Clerk accounts, while public, join-code, and private-link accountless access remains available for shared published content.
 
@@ -49,7 +49,7 @@ Open `/manager` and sign in or sign up with Clerk. A new manager creates a workp
 2. The server applies the 20-membership limit to that active Organization.
 3. The employee address is derived automatically from Clerk's Organization slug; managers do not configure a second public identifier.
 4. The client requests an Organization-scoped Clerk token.
-5. Convex creates the mapped hub and optional sample content exactly once.
+5. Convex creates the empty mapped hub exactly once.
 
 ## Employee profiles and invitations
 
@@ -88,7 +88,7 @@ Every created workplace Organization sets `maxAllowedMemberships` to 20, matchin
 
 ## Employee access
 
-Employee-facing pages do not require Clerk accounts. A hub is selected with its stable slug, for example `/?hub=north-pine`.
+Employee-facing pages do not require Clerk accounts. A workplace is selected with its stable slug, for example `/?hub=sample-workplace`.
 
 - Public mode allows anyone with the hub URL to read published content.
 - Restricted mode accepts the hub join code or a private link carrying a separate bearer credential in its URL fragment, which is not sent to server logs.

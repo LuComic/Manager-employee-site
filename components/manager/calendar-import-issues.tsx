@@ -1,3 +1,7 @@
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+import type { AppMessageKey } from "@/i18n/messages"
+
 import { CircleAlert, TriangleAlert } from "lucide-react"
 
 import type { CalendarImportIssue } from "@/lib/icalendar"
@@ -15,11 +19,15 @@ export function CalendarImportIssues({
   return (
     <div className="space-y-3" aria-live="polite">
       {errors.length > 0 && (
-        <IssueGroup title="Could not import" issues={errors} tone="error" />
+        <IssueGroup
+          titleKey="calendarCouldNotImport"
+          issues={errors}
+          tone="error"
+        />
       )}
       {warnings.length > 0 && (
         <IssueGroup
-          title="Imported with adjustments"
+          titleKey="calendarImportedWithAdjustments"
           issues={warnings}
           tone="warning"
         />
@@ -29,15 +37,16 @@ export function CalendarImportIssues({
 }
 
 function IssueGroup({
-  title,
+  titleKey,
   issues,
   tone,
 }: {
-  title: string
+  titleKey: AppMessageKey
   issues: CalendarImportIssue[]
   tone: "error" | "warning"
 }) {
   const Icon = tone === "error" ? CircleAlert : TriangleAlert
+  const t = useAppTranslations()
 
   return (
     <section
@@ -56,14 +65,16 @@ function IssueGroup({
         }
       >
         <Icon className="size-4 shrink-0" />
-        {title} ({issues.length})
+        {t(titleKey)} ({issues.length})
       </h3>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-foreground">
         {issues.slice(0, 5).map((issue, index) => (
-          <li key={`${issue.message}-${index}`}>{issue.message}</li>
+          <li key={`${issue.key}-${index}`}>{t(issue.key, issue.values)}</li>
         ))}
         {issues.length > 5 && (
-          <li className="text-muted-foreground">+{issues.length - 5} more</li>
+          <li className="text-muted-foreground">
+            +{issues.length - 5} <T>moreLowercase</T>
+          </li>
         )}
       </ul>
     </section>

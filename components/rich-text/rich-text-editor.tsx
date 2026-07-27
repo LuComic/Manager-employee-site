@@ -1,5 +1,8 @@
 "use client"
 
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+
 import { useState } from "react"
 import {
   Bold,
@@ -25,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { RichTextDocument } from "@/lib/rich-text"
+import type { AppMessageKey } from "@/i18n/messages"
 import { normalizeRichTextLink } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
@@ -39,9 +43,10 @@ export function RichTextEditor({
   ariaLabel: string
   className?: string
 }) {
+  const t = useAppTranslations()
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState("")
-  const [linkError, setLinkError] = useState("")
+  const [linkError, setLinkError] = useState<AppMessageKey | "">("")
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -83,7 +88,7 @@ export function RichTextEditor({
     if (!editor) return
     const href = normalizeRichTextLink(linkValue)
     if (!href) {
-      setLinkError("Enter an http, https, or email link.")
+      setLinkError("enterValidWebOrEmailLink")
       return
     }
     editor.chain().focus().extendMarkRange("link").setLink({ href }).run()
@@ -96,7 +101,7 @@ export function RichTextEditor({
       <div
         className="flex flex-wrap items-center gap-2 border-b bg-muted/40 p-2"
         role="toolbar"
-        aria-label={`${ariaLabel} formatting`}
+        aria-label={t("formattingForLabel", { label: ariaLabel })}
       >
         <Select
           value={blockType}
@@ -110,60 +115,66 @@ export function RichTextEditor({
           <SelectTrigger
             size="sm"
             className="border border-input bg-background px-3"
-            aria-label="Text style"
+            aria-label={t("textStyle")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="paragraph">Paragraph</SelectItem>
-            <SelectItem value="heading-2">Section heading</SelectItem>
-            <SelectItem value="heading-3">Subsection heading</SelectItem>
+            <SelectItem value="paragraph">
+              <T>paragraph</T>
+            </SelectItem>
+            <SelectItem value="heading-2">
+              <T>sectionHeading</T>
+            </SelectItem>
+            <SelectItem value="heading-3">
+              <T>subsectionHeading</T>
+            </SelectItem>
           </SelectContent>
         </Select>
         <FormatButton
-          label="Bold"
+          label="bold"
           active={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
         >
           <Bold />
         </FormatButton>
         <FormatButton
-          label="Italic"
+          label="italic"
           active={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         >
           <Italic />
         </FormatButton>
         <FormatButton
-          label="Underline"
+          label="underline"
           active={editor.isActive("underline")}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
         >
           <Underline />
         </FormatButton>
         <FormatButton
-          label="Bulleted list"
+          label="bulletedList"
           active={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
         >
           <List />
         </FormatButton>
         <FormatButton
-          label="Numbered list"
+          label="numberedList"
           active={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
         >
           <ListOrdered />
         </FormatButton>
         <FormatButton
-          label="Block quote"
+          label="blockQuote"
           active={editor.isActive("blockquote")}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         >
           <Quote />
         </FormatButton>
         <FormatButton
-          label="Link"
+          label="link"
           active={editor.isActive("link")}
           onClick={() => {
             setLinkValue(String(editor.getAttributes("link").href ?? ""))
@@ -175,14 +186,14 @@ export function RichTextEditor({
         </FormatButton>
         <span className="mx-1 h-6 border-l" aria-hidden="true" />
         <FormatButton
-          label="Undo"
+          label="undo"
           disabled={!editor.can().chain().focus().undo().run()}
           onClick={() => editor.chain().focus().undo().run()}
         >
           <Undo2 />
         </FormatButton>
         <FormatButton
-          label="Redo"
+          label="redo"
           disabled={!editor.can().chain().focus().redo().run()}
           onClick={() => editor.chain().focus().redo().run()}
         >
@@ -201,17 +212,17 @@ export function RichTextEditor({
                   applyLink()
                 }
               }}
-              placeholder="https://example.com or mailto:name@example.com"
-              aria-label="Link address"
+              placeholder={t("linkOrEmailUrlExample")}
+              aria-label={t("linkAddress")}
               className="border border-input px-3"
             />
             {linkError && (
-              <p className="mt-2 text-xs text-destructive">{linkError}</p>
+              <p className="mt-2 text-xs text-destructive">{t(linkError)}</p>
             )}
           </div>
           <div className="flex gap-2">
             <Button type="button" size="sm" onClick={applyLink}>
-              Apply link
+              <T>applyLink</T>
             </Button>
             {editor.isActive("link") && (
               <Button
@@ -223,7 +234,7 @@ export function RichTextEditor({
                   setLinkOpen(false)
                 }}
               >
-                Remove
+                <T>remove</T>
               </Button>
             )}
           </div>
@@ -241,18 +252,19 @@ function FormatButton({
   onClick,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   active?: boolean
   disabled?: boolean
   onClick: () => void
   children: React.ReactNode
 }) {
+  const t = useAppTranslations()
   return (
     <Button
       type="button"
       variant={active ? "selected" : "ghost"}
       size="icon-sm"
-      aria-label={label}
+      aria-label={t(label)}
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
