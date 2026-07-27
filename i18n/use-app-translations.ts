@@ -2,14 +2,9 @@ import { useCallback } from "react"
 import { useLocale, useTranslations } from "next-intl"
 import type { TranslationValues } from "next-intl"
 
+import { toMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { languageTags, type Locale } from "@/i18n/routing"
-
-const dotEscape = "․"
-
-export function toMessageKey(message: string) {
-  return message.replaceAll(".", dotEscape)
-}
 
 export function useAppTranslations() {
   const translations = useTranslations("App")

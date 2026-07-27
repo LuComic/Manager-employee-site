@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server"
 
 import { HubEntryScreen } from "@/components/operations/hub-access-gate"
 import { routing } from "@/i18n/routing"
-import { toMessageKey } from "@/i18n/use-app-translations"
+import { toMessageKey } from "@/i18n/messages"
 
 export async function generateMetadata({
   params,
