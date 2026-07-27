@@ -294,7 +294,7 @@ export function HubSettingsManager() {
                 value={settings.contactEmail}
                 onChange={(event) => update("contactEmail", event.target.value)}
                 className="border border-input px-3"
-                placeholder={t("operationsEmailExample")}
+                placeholder={t("workhalEmailExample")}
                 maxLength={200}
               />
             </Field>

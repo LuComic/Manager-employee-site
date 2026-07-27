@@ -59,7 +59,7 @@ function slugify(value: string) {
 }
 
 async function availableSlug(ctx: MutationCtx, requested: string) {
-  const base = slugify(requested) || "operations-hub"
+  const base = slugify(requested) || "workhal"
   let candidate = base
   let suffix = 2
   while (

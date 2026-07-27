@@ -1,4 +1,4 @@
-import type { AppMessageKey } from "@/i18n/messages"
+import type { AppMessageKey } from "../i18n/messages"
 
 export const todaySectionDefinitions = [
   {

@@ -28,7 +28,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
 import { cn } from "@/lib/utils"
 
-const GUEST_DEVICE_KEY = "operations-hub:notification-device"
+const GUEST_DEVICE_KEY = "workhal:notification-device"
 let cachedGuestDeviceId: string | undefined
 
 const kindIcons: Record<

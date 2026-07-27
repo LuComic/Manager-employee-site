@@ -43,6 +43,7 @@ describe("iCalendar export", () => {
     expect(calendar).toContain("DTEND:20260724T083000Z")
     expect(calendar).toContain("SUMMARY:Team training\\, session")
     expect(calendar).toContain("LOCATION:Whole venue\\; terrace")
+    expect(calendar).toContain("X-WORKHAL-UID-NAMESPACE:hub-a")
     expect(calendar).toContain(
       "DESCRIPTION:Service workflow & safety\\n\\nNotes:\\nBring printed menus."
     )
@@ -134,10 +135,40 @@ describe("iCalendar export", () => {
         timeZone: "Europe/Tallinn",
         uidNamespace,
         now: new Date("2026-07-24T06:00:00Z"),
-      }).match(/^UID:(.+)$/m)?.[1]
+      })
+        .match(/^UID:(.+)$/m)?.[1]
+        ?.trim()
 
     expect(exportUid("hub-a")).toBe(exportUid("hub-a"))
     expect(exportUid("hub-a")).not.toBe(exportUid("hub-b"))
+  })
+
+  test("namespaces the export UID of externally imported events", () => {
+    const importedEvent = {
+      ...event,
+      icalUid: "source-event@example.com",
+    }
+    const exportedUid = (uidNamespace: string) =>
+      serializeICalendar([importedEvent], {
+        calendarName: "Venue calendar",
+        timeZone: "Europe/Tallinn",
+        uidNamespace,
+      })
+        .match(/^UID:(.+)$/m)?.[1]
+        ?.trim()
+
+    expect(exportedUid("hub-a")).not.toBe("source-event@example.com")
+    expect(exportedUid("hub-a")).not.toBe(exportedUid("hub-b"))
+  })
+
+  test("requires a non-empty UID namespace for exports", () => {
+    expect(() =>
+      serializeICalendar([event], {
+        calendarName: "Venue calendar",
+        timeZone: "Europe/Tallinn",
+        uidNamespace: "",
+      })
+    ).toThrow("A valid workhal UID namespace is required.")
   })
 })
 
@@ -172,6 +203,51 @@ describe("iCalendar import", () => {
       published: false,
     })
     expect(result.events[0]?.id).toMatch(/^external-[a-f0-9]{64}$/)
+  })
+
+  test("rejects a workhal event identity without its UID namespace", () => {
+    const result = parseICalendar(
+      calendar([
+        "UID:arbitrary@example.com",
+        "X-WORKHAL-ID:team-training",
+        "DTSTART:20260724T070000Z",
+        "DTEND:20260724T080000Z",
+        "SUMMARY:Unsafe event",
+      ]),
+      { timeZone: "UTC" }
+    )
+
+    expect(result.events).toEqual([])
+    expect(result.issues).toEqual([
+      {
+        severity: "error",
+        key: "calendarEventMissingUidNamespace",
+        values: { index: 1 },
+      },
+    ])
+  })
+
+  test("rejects a workhal event identity that does not match its namespace", () => {
+    const result = parseICalendar(
+      calendar([
+        "UID:arbitrary@example.com",
+        "X-WORKHAL-ID:team-training",
+        "X-WORKHAL-UID-NAMESPACE:hub-a",
+        "DTSTART:20260724T070000Z",
+        "DTEND:20260724T080000Z",
+        "SUMMARY:Unsafe event",
+      ]),
+      { timeZone: "UTC" }
+    )
+
+    expect(result.events).toEqual([])
+    expect(result.issues).toEqual([
+      {
+        severity: "error",
+        key: "calendarEventInvalidWorkhalIdentity",
+        values: { index: 1 },
+      },
+    ])
   })
 
   test("uses embedded Outlook VTIMEZONE definitions", () => {

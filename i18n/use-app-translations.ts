@@ -5,6 +5,7 @@ import type { TranslationValues } from "next-intl"
 import type { AppMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { languageTags, type Locale } from "@/i18n/routing"
+import { extractAppErrorKey } from "@/lib/app-error"
 
 export function useAppTranslations() {
   const translations = useTranslations("App")
@@ -21,14 +22,8 @@ export function useAppErrorTranslation() {
 
   return useCallback(
     (error: unknown) => {
-      const raw =
-        error instanceof Error
-          ? error.message.replace(/^.*Uncaught Error: /, "").trim()
-          : typeof error === "string"
-            ? error.trim()
-            : ""
-      const key = raw as AppMessageKey
-      return raw && translations.has(key)
+      const key = extractAppErrorKey(error)
+      return key && translations.has(key)
         ? translations(key)
         : translations("somethingWentWrong")
     },

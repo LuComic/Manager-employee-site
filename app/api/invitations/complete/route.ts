@@ -26,7 +26,7 @@ export async function POST() {
     const membership = memberships.data[0]
     const correlationCredential = (
       membership?.publicMetadata as Record<string, unknown> | undefined
-    )?.operationsHubClaim
+    )?.workhalClaim
     if (typeof correlationCredential !== "string") {
       throw new Error("membershipNotLinkedEmployeeProfile")
     }

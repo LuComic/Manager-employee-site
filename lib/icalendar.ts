@@ -56,6 +56,12 @@ export type CalendarCancellation = {
   title: string
 }
 
+class CalendarImportIssueError extends Error {
+  constructor(readonly key: AppMessageKey) {
+    super(key)
+  }
+}
+
 type ParsedCalendarDate = {
   local: string
   instant: Date
@@ -73,6 +79,11 @@ export function serializeICalendar(
     now = new Date(),
   }: CalendarOptions
 ) {
+  const normalizedUidNamespace = uidNamespace.trim()
+  if (!normalizedUidNamespace || normalizedUidNamespace.length > 200) {
+    throw new Error("A valid workhal UID namespace is required.")
+  }
+
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -82,7 +93,7 @@ export function serializeICalendar(
     `X-WR-CALNAME:${escapeText(calendarName)}`,
     `X-WR-TIMEZONE:${escapeText(timeZone)}`,
     ...events.flatMap((event) =>
-      serializeEvent(event, timeZone, uidNamespace, uidDomain, now)
+      serializeEvent(event, timeZone, normalizedUidNamespace, uidDomain, now)
     ),
     "END:VCALENDAR",
   ]
@@ -195,10 +206,13 @@ export function parseICalendar(
           },
         })
       }
-    } catch {
+    } catch (error) {
       issues.push({
         severity: "error",
-        key: "calendarEventCouldNotBeImported",
+        key:
+          error instanceof CalendarImportIssueError
+            ? error.key
+            : "calendarEventCouldNotBeImported",
         values: { index: index + 1 },
       })
     }
@@ -246,11 +260,9 @@ function serializeEvent(
   const calendarDescription = [event.description, event.notes]
     .filter(Boolean)
     .join("\n\nNotes:\n")
-  const uid =
-    event.icalUid ||
-    `${stableEventHash(`${uidNamespace}\0${event.id}`)}@${
-      safeUid(uidDomain) || ICALENDAR_UID_DOMAIN
-    }`
+  const uid = `${stableEventHash(`${uidNamespace}\0${event.id}`)}@${
+    safeUid(uidDomain) || ICALENDAR_UID_DOMAIN
+  }`
   const dates = event.allDay
     ? [
         `DTSTART;VALUE=DATE:${formatDateValue(event.start)}`,
@@ -269,13 +281,13 @@ function serializeEvent(
     "BEGIN:VEVENT",
     `UID:${escapeText(uid)}`,
     `DTSTAMP:${formatUtcDate(now)}`,
-    `X-OPERATIONS-HUB-ID:${escapeText(event.id)}`,
-    `X-OPERATIONS-HUB-UID-NAMESPACE:${escapeText(uidNamespace)}`,
+    `X-WORKHAL-ID:${escapeText(event.id)}`,
+    `X-WORKHAL-UID-NAMESPACE:${escapeText(uidNamespace)}`,
     ...dates,
     `SUMMARY:${escapeText(event.title)}`,
     `DESCRIPTION:${escapeText(calendarDescription)}`,
-    `X-OPERATIONS-HUB-DESCRIPTION:${escapeText(event.description)}`,
-    `X-OPERATIONS-HUB-NOTES:${escapeText(event.notes)}`,
+    `X-WORKHAL-DESCRIPTION:${escapeText(event.description)}`,
+    `X-WORKHAL-NOTES:${escapeText(event.notes)}`,
     `LOCATION:${escapeText(event.location)}`,
     `CATEGORIES:${escapeText(event.category)}`,
     `STATUS:${event.published ? "CONFIRMED" : "TENTATIVE"}`,
@@ -345,7 +357,7 @@ function parseEvent(
 
   const structuredDescription = textValue(
     component,
-    "x-operations-hub-description"
+    "x-workhal-description"
   ).trim()
   const rawDescription = (
     structuredDescription || textValue(component, "description")
@@ -360,7 +372,7 @@ function parseEvent(
     )
   }
 
-  const rawNotes = textValue(component, "x-operations-hub-notes").trim()
+  const rawNotes = textValue(component, "x-workhal-notes").trim()
   const notes =
     rawNotes.length > EVENT_NOTES_LIMIT
       ? rawNotes.slice(0, EVENT_NOTES_LIMIT)
@@ -452,23 +464,29 @@ function calendarEventId(
     end: ParsedCalendarDate
   }
 ) {
-  const operationsId = textValue(component, "x-operations-hub-id").trim()
-  const uidNamespace = textValue(
-    component,
-    "x-operations-hub-uid-namespace"
-  ).trim()
-  const expectedUidPrefix =
-    operationsId && uidNamespace
-      ? `${stableEventHash(`${uidNamespace}\0${operationsId}`)}@`
-      : ""
-  if (
-    operationsId.length <= 100 &&
-    uidNamespace.length <= 200 &&
-    /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/.test(operationsId) &&
-    uid?.startsWith(expectedUidPrefix) &&
-    !recurrenceId
-  ) {
-    return operationsId
+  const workhalId = textValue(component, "x-workhal-id").trim()
+  const uidNamespace = textValue(component, "x-workhal-uid-namespace").trim()
+
+  if (workhalId) {
+    if (!uidNamespace) {
+      throw new CalendarImportIssueError("calendarEventMissingUidNamespace")
+    }
+
+    const expectedUidPrefix = `${stableEventHash(
+      `${uidNamespace}\0${workhalId}`
+    )}@`
+    const validIdentity =
+      workhalId.length <= 100 &&
+      uidNamespace.length <= 200 &&
+      /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/.test(workhalId) &&
+      uid?.startsWith(expectedUidPrefix) &&
+      !recurrenceId
+
+    if (!validIdentity) {
+      throw new CalendarImportIssueError("calendarEventInvalidWorkhalIdentity")
+    }
+
+    return workhalId
   }
 
   if (uid) {

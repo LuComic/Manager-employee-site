@@ -7,7 +7,7 @@ describe("hub entry links", () => {
     const entry = parseHubEntry(
       "sample-workplace",
       "ABCD-EFGH",
-      "https://operations.example"
+      "https://workhal.example"
     )
     expect(entry).toEqual({
       slug: "sample-workplace",
@@ -19,17 +19,17 @@ describe("hub entry links", () => {
   test("accepts a complete private workplace link", () => {
     expect(
       parseHubEntry(
-        "https://operations.example/?hub=sample-workplace#access=private-value",
+        "https://workhal.example/?hub=sample-workplace#access=private-value",
         "",
-        "https://operations.example"
+        "https://workhal.example"
       )
     ).toEqual({ slug: "sample-workplace", credential: "private-value" })
   })
 
   test("rejects missing or malformed workplace identifiers", () => {
-    expect(parseHubEntry("", "", "https://operations.example")).toBeNull()
+    expect(parseHubEntry("", "", "https://workhal.example")).toBeNull()
     expect(
-      parseHubEntry("not a valid id", "", "https://operations.example")
+      parseHubEntry("not a valid id", "", "https://workhal.example")
     ).toBeNull()
   })
 })

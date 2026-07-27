@@ -176,11 +176,11 @@ function createCredentials(credentialVersion = 1): HubCredentials {
 }
 
 function ownerCredentialKey(hubId: string) {
-  return `operations-hub:owner-credentials:${hubId}`
+  return `workhal:owner-credentials:${hubId}`
 }
 
 function employeeCredentialKey(slug: string) {
-  return `operations-hub:employee-access:${slug}`
+  return `workhal:employee-access:${slug}`
 }
 
 function parseStored<T>(value: string | null): T | null {
@@ -222,7 +222,7 @@ export function OperationsProvider({
   useEffect(() => {
     let timeout: number | undefined
     if (requestedHubSlug) {
-      localStorage.setItem("operations-hub:active-slug", requestedHubSlug)
+      localStorage.setItem("workhal:active-slug", requestedHubSlug)
       timeout = window.setTimeout(
         () => setRememberedHubSlug(requestedHubSlug),
         0
@@ -231,7 +231,7 @@ export function OperationsProvider({
       timeout = window.setTimeout(
         () =>
           setRememberedHubSlug(
-            localStorage.getItem("operations-hub:active-slug") || ""
+            localStorage.getItem("workhal:active-slug") || ""
           ),
         0
       )

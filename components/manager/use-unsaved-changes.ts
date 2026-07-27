@@ -7,7 +7,7 @@ import { useRouter } from "@/i18n/navigation"
 import type { AppMessageKey } from "@/i18n/messages"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 
-const historyGuardKey = "__operationsUnsavedChangesGuard"
+const historyGuardKey = "__workhalUnsavedChangesGuard"
 
 type UnsavedChangesOptions = {
   dirty: boolean

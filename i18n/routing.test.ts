@@ -299,4 +299,25 @@ describe("translation dictionaries", () => {
     expect(JSON.stringify(en)).not.toMatch(/north.?pine/i)
     expect(JSON.stringify(et)).not.toMatch(/north.?pine/i)
   })
+
+  test("does not retain the retired project name", () => {
+    const retiredProjectName = new RegExp(
+      `${["operations", "hub"].join("[-_ ]")}|${["operations", "Hub"].join("")}`,
+      "i"
+    )
+    const files = [
+      ...sourceFiles("app"),
+      ...sourceFiles("components"),
+      ...sourceFiles("convex"),
+      ...sourceFiles("i18n"),
+      ...sourceFiles("lib"),
+      "messages/en.json",
+      "messages/et.json",
+    ]
+    const remnants = files.filter((file) =>
+      retiredProjectName.test(readFileSync(file, "utf8"))
+    )
+
+    expect(remnants).toEqual([])
+  })
 })

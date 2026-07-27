@@ -10,7 +10,7 @@ function correlationCredential(metadata: unknown) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     return undefined
   }
-  const value = (metadata as Record<string, unknown>).operationsHubClaim
+  const value = (metadata as Record<string, unknown>).workhalClaim
   return typeof value === "string" ? value : undefined
 }
 

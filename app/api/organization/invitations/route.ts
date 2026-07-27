@@ -100,7 +100,7 @@ export async function POST(request: Request) {
           emailAddress: prepared.email,
           role: "org:member",
           redirectUrl: new URL("/invitation/complete", request.url).toString(),
-          publicMetadata: { operationsHubClaim: correlationCredential },
+          publicMetadata: { workhalClaim: correlationCredential },
         }
       )
       await convex.mutation(api.employees.recordInvitation, {
