@@ -58,7 +58,7 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
       >
         {document.bannerImageUrl && (
           <div
-            className="aspect-[16/6] border-b bg-muted bg-cover bg-center"
+            className="aspect-16/6 border-b bg-muted bg-cover bg-center"
             style={{
               backgroundImage: `url("${document.bannerImageUrl}")`,
             }}

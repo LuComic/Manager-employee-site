@@ -116,7 +116,6 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         href="/questions"
         active={pathname === "/questions"}
       >
-        <LanguageSelector />
         <NavLink
           href="/questions"
           label={t("Common questions")}
@@ -134,6 +133,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           className="h-10 w-full justify-start px-3"
           onBeforeOpen={onContact}
         />
+        <LanguageSelector />
       </SidebarSection>
     </nav>
   )
