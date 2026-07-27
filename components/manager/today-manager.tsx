@@ -1,5 +1,7 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import {
   ArrowDown,
   ArrowUp,
@@ -39,6 +41,7 @@ const sectionDetails = new Map(
 )
 
 export function TodayManager() {
+  const { t } = useI18n()
   const { hub, moveTodaySection, setTodaySectionVisibility, showFeedback } =
     useOperations()
   const sections = hub?.todaySections ?? defaultTodaySections
@@ -77,7 +80,7 @@ export function TodayManager() {
                       |
                     </span>
                     <Badge variant={section.visible ? "default" : "secondary"}>
-                      {section.visible ? "Visible" : "Hidden"}
+                      <T>{section.visible ? "Visible" : "Hidden"}</T>
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -93,7 +96,9 @@ export function TodayManager() {
                       void moveTodaySection(section.key, -1)
                       showFeedback(`${detail?.title} moved up.`)
                     }}
-                    aria-label={`Move ${detail?.title} up`}
+                    aria-label={t("Move {name} up", {
+                      name: detail?.title ?? "",
+                    })}
                   >
                     <ArrowUp />
                   </Button>
@@ -105,7 +110,9 @@ export function TodayManager() {
                       void moveTodaySection(section.key, 1)
                       showFeedback(`${detail?.title} moved down.`)
                     }}
-                    aria-label={`Move ${detail?.title} down`}
+                    aria-label={t("Move {name} down", {
+                      name: detail?.title ?? "",
+                    })}
                   >
                     <ArrowDown />
                   </Button>
@@ -123,7 +130,7 @@ export function TodayManager() {
                     }}
                   >
                     {section.visible ? <EyeOff /> : <Eye />}
-                    {section.visible ? "Hide" : "Unhide"}
+                    <T>{section.visible ? "Hide" : "Unhide"}</T>
                   </Button>
                 </div>
               </CardContent>

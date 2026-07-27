@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useMemo, useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   CalendarDays,
   FilePenLine,
@@ -58,6 +60,7 @@ import { cn } from "@/lib/utils"
 type Status = "All" | "Published" | "Draft"
 
 export function EventManager() {
+  const { languageTag, t } = useI18n()
   const {
     events,
     hub,
@@ -266,7 +269,9 @@ export function EventManager() {
           <div className="flex flex-wrap gap-2">
             <CalendarExportButton
               events={events.filter((event) => event.published)}
-              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              calendarName={t("{name} calendar", {
+                name: hub?.name ?? t("Workplace"),
+              })}
               timeZone={hub?.timeZone ?? "UTC"}
             />
             {canCreateContent && (
@@ -276,13 +281,13 @@ export function EventManager() {
                   size="sm"
                   onClick={() => setImportOpen(true)}
                 >
-                  <Upload /> Import .ics
+                  <Upload /> <T>Import .ics</T>
                 </Button>
                 <Link
                   href="/manager/calendar/new"
                   className={buttonVariants({ size: "sm" })}
                 >
-                  <Plus /> New event
+                  <Plus /> <T>New event</T>
                 </Link>
               </>
             )}
@@ -306,14 +311,20 @@ export function EventManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter events by status"
+            aria-label={t("Filter events by status")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Published">Published</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="All">
+              <T>All</T>
+            </SelectItem>
+            <SelectItem value="Published">
+              <T>Published</T>
+            </SelectItem>
+            <SelectItem value="Draft">
+              <T>Draft</T>
+            </SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -322,12 +333,14 @@ export function EventManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter events by type"
+            aria-label={t("Filter events by type")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
+            <SelectItem value="All">
+              <T>All</T>
+            </SelectItem>
             {eventCategories.map((item) => (
               <SelectItem key={item} value={item}>
                 {item}
@@ -351,7 +364,7 @@ export function EventManager() {
                       |
                     </span>
                     <Badge variant={event.published ? "secondary" : "outline"}>
-                      {event.published ? "Published" : "Draft"}
+                      <T>{event.published ? "Published" : "Draft"}</T>
                     </Badge>
                     <span aria-hidden="true" className="text-border">
                       |
@@ -359,8 +372,15 @@ export function EventManager() {
                     <Badge variant="secondary">{event.category}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {formatEventDate(event, undefined, hub?.timeZone)},{" "}
-                    {formatEventTime(event, hub?.timeZone)} · {event.location}
+                    {formatEventDate(
+                      event,
+                      undefined,
+                      hub?.timeZone,
+                      languageTag
+                    )}
+                    ,{" "}
+                    <T>{formatEventTime(event, hub?.timeZone, languageTag)}</T>{" "}
+                    · {event.location}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -376,7 +396,7 @@ export function EventManager() {
                       )
                     }}
                   >
-                    {event.published ? "Unpublish" : "Publish"}
+                    <T>{event.published ? "Unpublish" : "Publish"}</T>
                   </Button>
                   <Link
                     href={`/manager/calendar/${event.id}/edit`}
@@ -384,14 +404,14 @@ export function EventManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> Edit
+                    <FilePenLine /> <T>Edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(event)}
-                      aria-label={`Delete ${event.title}`}
+                      aria-label={t("Delete {name}", { name: event.title })}
                     >
                       <Trash2 />
                     </Button>
@@ -419,25 +439,37 @@ export function EventManager() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Import calendar events</DialogTitle>
+            <DialogTitle>
+              <T>Import calendar events</T>
+            </DialogTitle>
             <DialogDescription>
-              Upload an .ics file exported from Google Calendar, Apple Calendar,
-              Outlook, or another iCalendar app. Re-importing updates calendar
-              details while preserving manager-owned categories, publishing,
-              assignments, notes, attachments, and guide links.
+              <T>
+                Upload an .ics file exported from Google Calendar, Apple
+                Calendar, Outlook, or another iCalendar app. Re-importing
+                updates calendar details while preserving manager-owned
+                categories, publishing, assignments, notes, attachments, and
+                guide links.
+              </T>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="border border-warning/40 bg-warning/10 p-3 text-sm">
-              <p className="font-semibold">Small-project import limits</p>
+              <p className="font-semibold">
+                <T>Small-project import limits</T>
+              </p>
               <p className="mt-1 text-muted-foreground">
-                Files can be up to 1 MB and the first {MAX_IMPORTED_EVENTS}{" "}
-                calendar changes are processed. Publishing imported events may
-                add one employee notification per event.
+                <T>Files can be up to 1 MB and the first</T>{" "}
+                {MAX_IMPORTED_EVENTS}{" "}
+                <T>
+                  calendar changes are processed. Publishing imported events may
+                  add one employee notification per event.
+                </T>
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="calendar-import">iCalendar file</Label>
+              <Label htmlFor="calendar-import">
+                <T>iCalendar file</T>
+              </Label>
               <Input
                 id="calendar-import"
                 type="file"
@@ -452,8 +484,9 @@ export function EventManager() {
             {importReadyCount ? (
               <div className="border bg-muted/30 p-4">
                 <p className="font-semibold">
-                  {importReadyCount} calendar{" "}
-                  {importReadyCount === 1 ? "change" : "changes"} ready
+                  {importReadyCount} <T>calendar</T>{" "}
+                  <T>{importReadyCount === 1 ? "change" : "changes"}</T>{" "}
+                  <T>ready</T>
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {importFileName}
@@ -461,23 +494,30 @@ export function EventManager() {
                 <ul className="mt-3 space-y-1 text-sm">
                   {importResult?.events.slice(0, 5).map((event) => (
                     <li key={event.id}>
-                      {formatEventDate(event, undefined, hub?.timeZone)} ·{" "}
-                      {event.title}
-                      {event.allDay ? " · All day" : ""}
+                      {formatEventDate(
+                        event,
+                        undefined,
+                        hub?.timeZone,
+                        languageTag
+                      )}{" "}
+                      · {event.title}
+                      <T>{event.allDay ? " · All day" : ""}</T>
                     </li>
                   ))}
                   {(importResult?.cancellations.length ?? 0) > 0 && (
                     <li className="text-warning">
-                      {importResult?.cancellations.length} external{" "}
-                      {importResult?.cancellations.length === 1
-                        ? "cancellation"
-                        : "cancellations"}{" "}
-                      will unpublish matching local events
+                      {importResult?.cancellations.length} <T>external</T>{" "}
+                      <T>
+                        {importResult?.cancellations.length === 1
+                          ? "cancellation"
+                          : "cancellations"}
+                      </T>{" "}
+                      <T>will unpublish matching local events</T>
                     </li>
                   )}
                   {(importResult?.events.length ?? 0) > 5 && (
                     <li className="text-muted-foreground">
-                      +{(importResult?.events.length ?? 0) - 5} more
+                      +{(importResult?.events.length ?? 0) - 5} <T>more</T>
                     </li>
                   )}
                 </ul>
@@ -503,7 +543,7 @@ export function EventManager() {
                   checked={publishImported}
                   onChange={(event) => setPublishImported(event.target.checked)}
                 />
-                Publish imported events immediately
+                <T>Publish imported events immediately</T>
               </label>
             ) : null}
             {importError && (
@@ -522,7 +562,7 @@ export function EventManager() {
                 resetImport()
               }}
             >
-              {importOutcome && !importReadyCount ? "Done" : "Cancel"}
+              <T>{importOutcome && !importReadyCount ? "Done" : "Cancel"}</T>
             </Button>
             <Button
               type="button"

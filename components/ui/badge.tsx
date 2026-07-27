@@ -1,7 +1,10 @@
+"use client"
+
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { T } from "@/components/providers/i18n-provider"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
@@ -28,6 +31,7 @@ function Badge({
   className,
   variant = "default",
   render,
+  children,
   ...props
 }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
   return useRender({
@@ -35,6 +39,7 @@ function Badge({
     props: mergeProps<"span">(
       {
         className: cn(badgeVariants({ variant }), className),
+        children: typeof children === "string" ? <T>{children}</T> : children,
       },
       props
     ),

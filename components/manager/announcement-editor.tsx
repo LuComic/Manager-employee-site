@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
 import { ArrowLeft, Eye, Megaphone, Pencil } from "lucide-react"
 
@@ -160,13 +162,13 @@ export function AnnouncementEditor({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Button variant="ghost" size="sm" onClick={leave}>
-            <ArrowLeft /> Back to announcements
+            <ArrowLeft /> <T>Back to announcements</T>
           </Button>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-            {draft.id ? "Edit announcement" : "Create announcement"}
+            <T>{draft.id ? "Edit announcement" : "Create announcement"}</T>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Write a clear update and control when employees can see it.
+            <T>Write a clear update and control when employees can see it.</T>
           </p>
         </div>
         <SegmentedControl aria-label="Announcement editor view">
@@ -175,14 +177,14 @@ export function AnnouncementEditor({
             selected={mode === "edit"}
             onClick={() => setMode("edit")}
           >
-            <Pencil /> Edit
+            <Pencil /> <T>Edit</T>
           </SegmentedControlItem>
           <SegmentedControlItem
             type="button"
             selected={mode === "preview"}
             onClick={() => setMode("preview")}
           >
-            <Eye /> Preview
+            <Eye /> <T>Preview</T>
           </SegmentedControlItem>
         </SegmentedControl>
       </div>
@@ -212,14 +214,19 @@ export function AnnouncementEditor({
               </CardContent>
             </Card>
             <div>
-              <Label className="mb-2 block">Message</Label>
+              <Label className="mb-2 block">
+                <T>Message</T>
+              </Label>
               <RichTextEditor
                 value={draft.content}
                 onChange={(content) => change({ content })}
                 ariaLabel="Announcement message"
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                Use headings and lists when the announcement needs more detail.
+                <T>
+                  Use headings and lists when the announcement needs more
+                  detail.
+                </T>
               </p>
             </div>
           </div>
@@ -264,9 +271,15 @@ export function AnnouncementEditor({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Normal">Normal</SelectItem>
-                    <SelectItem value="Important">Important</SelectItem>
-                    <SelectItem value="Urgent">Urgent</SelectItem>
+                    <SelectItem value="Normal">
+                      <T>Normal</T>
+                    </SelectItem>
+                    <SelectItem value="Important">
+                      <T>Important</T>
+                    </SelectItem>
+                    <SelectItem value="Urgent">
+                      <T>Urgent</T>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -286,7 +299,9 @@ export function AnnouncementEditor({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No related guide</SelectItem>
+                    <SelectItem value="none">
+                      <T>No related guide</T>
+                    </SelectItem>
                     {guides.map((guide) => (
                       <SelectItem key={guide.id} value={guide.id}>
                         {guide.title}
@@ -311,7 +326,9 @@ export function AnnouncementEditor({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No related event</SelectItem>
+                    <SelectItem value="none">
+                      <T>No related event</T>
+                    </SelectItem>
                     {events.map((event) => (
                       <SelectItem key={event.id} value={event.id}>
                         {event.title}
@@ -328,7 +345,7 @@ export function AnnouncementEditor({
                     change({ published: event.target.checked })
                   }
                 />
-                Publish now
+                <T>Publish now</T>
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -336,7 +353,7 @@ export function AnnouncementEditor({
                   checked={draft.pinned}
                   onChange={(event) => change({ pinned: event.target.checked })}
                 />
-                Pin announcement
+                <T>Pin announcement</T>
               </label>
             </CardContent>
           </Card>
@@ -347,20 +364,20 @@ export function AnnouncementEditor({
         <div>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
-              {error}
+              <T>{error}</T>
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {dirty ? "Unsaved changes" : "No unsaved changes"}
+              <T>{dirty ? "Unsaved changes" : "No unsaved changes"}</T>
             </p>
           )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={leave}>
-            Cancel
+            <T>Cancel</T>
           </Button>
           <Button onClick={() => void submit()} disabled={saving}>
-            {saving ? "Saving…" : "Save announcement"}
+            <T>{saving ? "Saving…" : "Save announcement"}</T>
           </Button>
         </div>
       </div>

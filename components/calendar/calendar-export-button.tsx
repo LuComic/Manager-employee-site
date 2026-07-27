@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/providers/i18n-provider"
+
 import { CalendarPlus, Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -45,7 +47,7 @@ export function CalendarExportButton({
       }}
     >
       {isEvent ? <CalendarPlus /> : <Download />}
-      {isEvent ? "Add to calendar" : "Export calendar"}
+      <T>{isEvent ? "Add to calendar" : "Export calendar"}</T>
     </Button>
   )
 }

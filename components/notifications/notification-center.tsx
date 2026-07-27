@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   Bell,
   BookOpen,
@@ -115,6 +117,7 @@ export function NotificationButton({
   manager?: boolean
   className?: string
 }) {
+  const { t } = useI18n()
   const { feed } = useNotificationFeed(manager)
   const unreadCount = feed?.unreadCount ?? 0
   const href = manager ? "/manager/notifications" : "/notifications"
@@ -128,7 +131,9 @@ export function NotificationButton({
         className
       )}
       aria-label={
-        unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"
+        unreadCount
+          ? t("Notifications, {count} unread", { count: unreadCount })
+          : t("Notifications")
       }
     >
       <Bell />
@@ -142,17 +147,18 @@ export function NotificationButton({
 }
 
 export function NotificationCenter({ manager = false }: { manager?: boolean }) {
+  const { languageTag } = useI18n()
   const { hub } = useOperations()
   const { feed, markAllRead } = useNotificationFeed(manager)
   const newestCreatedAt = feed?.notifications[0]?.createdAt ?? 0
   const dateTimeFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat("en-GB", {
+      new Intl.DateTimeFormat(languageTag, {
         dateStyle: "medium",
         timeStyle: "short",
         timeZone: hub?.timeZone,
       }),
-    [hub?.timeZone]
+    [hub?.timeZone, languageTag]
   )
 
   useEffect(() => {
@@ -177,7 +183,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
       {heading}
       {feed === undefined ? (
         <p className="text-sm text-muted-foreground" role="status">
-          Loading notifications…
+          <T>Loading notifications…</T>
         </p>
       ) : feed.notifications.length ? (
         <div className="space-y-3">
@@ -204,7 +210,11 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="font-semibold">{notification.title}</h2>
-                        {wasUnread && <Badge variant="secondary">New</Badge>}
+                        {wasUnread && (
+                          <Badge variant="secondary">
+                            <T>New</T>
+                          </Badge>
+                        )}
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {notification.message}

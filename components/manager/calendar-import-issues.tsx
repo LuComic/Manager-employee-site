@@ -1,3 +1,5 @@
+import { T } from "@/components/providers/i18n-provider"
+
 import { CircleAlert, TriangleAlert } from "lucide-react"
 
 import type { CalendarImportIssue } from "@/lib/icalendar"
@@ -63,7 +65,9 @@ function IssueGroup({
           <li key={`${issue.message}-${index}`}>{issue.message}</li>
         ))}
         {issues.length > 5 && (
-          <li className="text-muted-foreground">+{issues.length - 5} more</li>
+          <li className="text-muted-foreground">
+            +{issues.length - 5} <T>more</T>
+          </li>
         )}
       </ul>
     </section>

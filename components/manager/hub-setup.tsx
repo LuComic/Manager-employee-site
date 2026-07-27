@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   OrganizationSwitcher,
   useAuth,
@@ -20,9 +22,9 @@ import {
 } from "@/components/ui/card"
 import { slugify } from "@/lib/operations"
 
-const afterOrganizationCreated = "/manager"
-
 export function HubSetup() {
+  const { href, t } = useI18n()
+  const afterOrganizationCreated = href("/manager")
   const { createHub } = useOperations()
   const { orgId } = useAuth()
   const { organization, isLoaded } = useOrganization()
@@ -38,10 +40,13 @@ export function HubSetup() {
             <Building2 />
           </span>
           <h1 className="font-heading text-lg font-semibold">
-            Create your workplace
+            <T>Create your workplace</T>
           </h1>
           <CardDescription>
-            Choose the workplace name and logo. You will become its first owner.
+            <T>
+              Choose the workplace name and logo. You will become its first
+              owner.
+            </T>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -54,12 +59,14 @@ export function HubSetup() {
               })
             }
           >
-            <Building2 /> Create workplace
+            <Building2 /> <T>Create workplace</T>
           </Button>
           <div className="border-t pt-5">
             <p className="mb-3 text-sm text-muted-foreground">
-              Joining as an employee? Use the workplace link, ID, or code your
-              manager shared with you.
+              <T>
+                Joining as an employee? Use the workplace link, ID, or code your
+                manager shared with you.
+              </T>
             </p>
             <Link
               href="/join#join-workplace"
@@ -68,7 +75,7 @@ export function HubSetup() {
                 className: "w-full",
               })}
             >
-              <KeyRound /> Join an existing workplace
+              <KeyRound /> <T>Join an existing workplace</T>
             </Link>
           </div>
         </CardContent>
@@ -86,11 +93,13 @@ export function HubSetup() {
           <Building2 />
         </span>
         <h1 className="font-heading text-lg font-semibold">
-          Finish setting up your operations hub
+          <T>Finish setting up your operations hub</T>
         </h1>
         <CardDescription>
-          Your workplace account manages the name, logo, and members. The
-          operations hub will use the active workplace shown below.
+          <T>
+            Your workplace account manages the name, logo, and members. The
+            operations hub will use the active workplace shown below.
+          </T>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -98,23 +107,28 @@ export function HubSetup() {
           <OrganizationSwitcher
             hidePersonal={false}
             afterCreateOrganizationUrl={afterOrganizationCreated}
-            afterSelectOrganizationUrl="/manager"
-            afterSelectPersonalUrl="/manager"
+            afterSelectOrganizationUrl={href("/manager")}
+            afterSelectPersonalUrl={href("/manager")}
           />
           <span className="text-xs text-muted-foreground">
-            Active workplace
+            <T>Active workplace</T>
           </span>
         </div>
         <div className="border p-4 text-sm">
-          <p className="font-medium">Employee address</p>
-          <p className="mt-1 text-muted-foreground">
-            Assigned automatically from the workplace name:
+          <p className="font-medium">
+            <T>Employee address</T>
           </p>
-          <p className="mt-2 font-mono text-xs">?hub={slug || "workplace"}</p>
+          <p className="mt-1 text-muted-foreground">
+            <T>Assigned automatically from the workplace name:</T>
+          </p>
+          <p className="mt-2 font-mono text-xs">
+            <T>?hub=</T>
+            {slug || "workplace"}
+          </p>
         </div>
         {error && (
           <p role="alert" className="text-sm text-destructive">
-            {error}
+            <T>{error}</T>
           </p>
         )}
         <Button
@@ -128,8 +142,8 @@ export function HubSetup() {
             } catch (caught) {
               setError(
                 caught instanceof Error
-                  ? caught.message
-                  : "Could not create the operations hub"
+                  ? t(caught.message)
+                  : t("Could not create the operations hub")
               )
             } finally {
               setPending(false)
@@ -137,7 +151,7 @@ export function HubSetup() {
           }}
         >
           {pending ? <LoaderCircle className="animate-spin" /> : <Building2 />}
-          {pending ? "Creating operations hub…" : "Create operations hub"}
+          {t(pending ? "Creating operations hub…" : "Create operations hub")}
         </Button>
       </CardContent>
     </Card>

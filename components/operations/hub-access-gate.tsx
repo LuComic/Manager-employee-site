@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useEffect, useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   OrganizationSwitcher,
@@ -33,12 +35,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { hubEntryHref, parseHubEntry } from "@/lib/hub-entry"
+import { stripLocaleFromPathname } from "@/i18n/config"
 
 export function HubAccessGate({ children }: { children: React.ReactNode }) {
   const { hub, hubSlug, hubState, credential, grantAnonymousAccess, leaveHub } =
     useOperations()
   const { isSignedIn, orgId, orgRole } = useAuth()
-  const pathname = usePathname()
+  const pathname = stripLocaleFromPathname(usePathname())
+  const { href, t } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [code, setCode] = useState("")
@@ -47,8 +51,10 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!shouldRedirectMissingWorkspace) return
-    router.replace(isSignedIn && orgRole === "org:admin" ? "/manager" : "/join")
-  }, [isSignedIn, orgRole, router, shouldRedirectMissingWorkspace])
+    router.replace(
+      href(isSignedIn && orgRole === "org:admin" ? "/manager" : "/join")
+    )
+  }, [href, isSignedIn, orgRole, router, shouldRedirectMissingWorkspace])
 
   if (hubState === "loading" || shouldRedirectMissingWorkspace) {
     return (
@@ -57,7 +63,9 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
         role="status"
       >
         <LoaderCircle className="size-6 animate-spin text-primary" />
-        <span className="sr-only">Loading hub</span>
+        <span className="sr-only">
+          <T>Loading hub</T>
+        </span>
       </div>
     )
   }
@@ -78,18 +86,20 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
         <Card className="w-full max-w-lg shadow-none">
           <CardHeader>
             <h1 className="font-heading text-lg font-semibold">
-              Workplace access removed
+              <T>Workplace access removed</T>
             </h1>
             <CardDescription>
-              Your employee profile is deactivated. Choose another workplace or
-              contact a manager if this is unexpected.
+              <T>
+                Your employee profile is deactivated. Choose another workplace
+                or contact a manager if this is unexpected.
+              </T>
             </CardDescription>
           </CardHeader>
           <CardContent>
             <OrganizationSwitcher
               hidePersonal={false}
-              afterSelectOrganizationUrl="/"
-              afterSelectPersonalUrl="/"
+              afterSelectOrganizationUrl={href("/")}
+              afterSelectPersonalUrl={href("/")}
             />
           </CardContent>
         </Card>
@@ -106,10 +116,10 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
               <ShieldCheck />
             </span>
             <h1 className="font-heading text-lg font-semibold">
-              {hub?.name ?? "Private operations hub"}
+              {hub?.name ?? t("Private operations hub")}
             </h1>
             <CardDescription>
-              Enter the employee join code. You do not need an account.
+              <T>Enter the employee join code. You do not need an account.</T>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -121,7 +131,9 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
               }}
             >
               <div className="space-y-2">
-                <Label htmlFor="join-code">Employee join code</Label>
+                <Label htmlFor="join-code">
+                  <T>Employee join code</T>
+                </Label>
                 <Input
                   id="join-code"
                   value={code}
@@ -136,12 +148,14 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
               </div>
               {credential && (
                 <p role="alert" className="text-sm text-destructive">
-                  That code or private link is invalid, expired, or has been
-                  rotated.
+                  <T>
+                    That code or private link is invalid, expired, or has been
+                    rotated.
+                  </T>
                 </p>
               )}
               <Button type="submit" className="w-full">
-                <KeyRound /> Open hub
+                <KeyRound /> <T>Open hub</T>
               </Button>
             </form>
           </CardContent>
@@ -160,7 +174,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
           className="fixed right-4 bottom-4 z-40 bg-background shadow-sm"
           onClick={leaveHub}
         >
-          <LogOut /> Leave hub
+          <LogOut /> <T>Leave hub</T>
         </Button>
       )}
     </>
@@ -183,6 +197,7 @@ export function HubEntryScreen({
     orgId,
   } = useAuth()
   const router = useRouter()
+  const { href, t } = useI18n()
   const [workplace, setWorkplace] = useState(initialHubSlug)
   const [employeeCode, setEmployeeCode] = useState("")
   const [error, setError] = useState("")
@@ -195,8 +210,8 @@ export function HubEntryScreen({
 
   useEffect(() => {
     if (!shouldOpenActiveHub) return
-    router.replace("/")
-  }, [router, shouldOpenActiveHub])
+    router.replace(href("/"))
+  }, [href, router, shouldOpenActiveHub])
 
   if (shouldOpenActiveHub) {
     return (
@@ -205,7 +220,9 @@ export function HubEntryScreen({
         role="status"
       >
         <LoaderCircle className="size-6 animate-spin text-primary" />
-        <span className="sr-only">Opening workplace</span>
+        <span className="sr-only">
+          <T>Opening workplace</T>
+        </span>
       </main>
     )
   }
@@ -220,14 +237,16 @@ export function HubEntryScreen({
                 <BriefcaseBusiness className="size-5" />
               </span>
               <p className="mt-4 text-sm font-medium text-primary-foreground/75">
-                Operations hub
+                <T>Operations hub</T>
               </p>
               <h1 className="mt-2 max-w-md text-3xl font-semibold tracking-tight sm:text-4xl">
-                Everything your shift needs, in one place.
+                <T>Everything your shift needs, in one place.</T>
               </h1>
               <p className="mt-4 max-w-lg text-sm leading-6 text-primary-foreground/75 sm:text-base">
-                Open today’s updates, practical guides, announcements, and
-                workplace events.
+                <T>
+                  Open today’s updates, practical guides, announcements, and
+                  workplace events.
+                </T>
               </p>
             </div>
 
@@ -235,17 +254,19 @@ export function HubEntryScreen({
               {isSignedIn ? (
                 <div className="space-y-4">
                   <p className="text-sm text-primary-foreground/75">
-                    {hasActiveOrganization
-                      ? "The selected workplace is not connected to a hub. Choose another workplace."
-                      : "Choose a workplace or manage your own hub."}
+                    {t(
+                      hasActiveOrganization
+                        ? "The selected workplace is not connected to a hub. Choose another workplace."
+                        : "Choose a workplace or manage your own hub."
+                    )}
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex h-10 items-center border border-primary-foreground/30 bg-background px-2 text-foreground">
                       <OrganizationSwitcher
                         hidePersonal={false}
-                        afterCreateOrganizationUrl="/manager"
-                        afterSelectOrganizationUrl="/"
-                        afterSelectPersonalUrl="/"
+                        afterCreateOrganizationUrl={href("/manager")}
+                        afterSelectOrganizationUrl={href("/")}
+                        afterSelectPersonalUrl={href("/")}
                         appearance={{
                           elements: {
                             organizationSwitcherTrigger:
@@ -267,24 +288,24 @@ export function HubEntryScreen({
                           "h-10 transform-none transition-colors hover:transform-none active:transform-none",
                       })}
                     >
-                      <Building2 /> Manager area
+                      <Building2 /> <T>Manager area</T>
                     </Link>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-primary-foreground/75">
-                    Have an employee or manager account?
+                    <T>Have an employee or manager account?</T>
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <SignInButton mode="modal">
                       <Button variant="secondary">
-                        <LogIn /> Sign in
+                        <LogIn /> <T>Sign in</T>
                       </Button>
                     </SignInButton>
                     <SignUpButton mode="modal">
                       <Button className="border border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10">
-                        <UserPlus /> Create account
+                        <UserPlus /> <T>Create account</T>
                       </Button>
                     </SignUpButton>
                   </div>
@@ -298,11 +319,13 @@ export function HubEntryScreen({
               <KeyRound className="size-5" />
             </div>
             <h2 className="mt-4 text-xl font-semibold tracking-tight">
-              Join a workplace
+              <T>Join a workplace</T>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              No account is needed. Use the link or workplace ID shared by your
-              manager.
+              <T>
+                No account is needed. Use the link or workplace ID shared by
+                your manager.
+              </T>
             </p>
 
             <Separator className="my-4" />
@@ -317,14 +340,16 @@ export function HubEntryScreen({
                   window.location.origin
                 )
                 if (!entry) {
-                  setError("Enter a valid workplace link or ID.")
+                  setError(t("Enter a valid workplace link or ID."))
                   return
                 }
-                window.location.assign(hubEntryHref(entry))
+                window.location.assign(href(hubEntryHref(entry)))
               }}
             >
               <div className="space-y-2">
-                <Label htmlFor="workplace-entry">Workplace link or ID</Label>
+                <Label htmlFor="workplace-entry">
+                  <T>Workplace link or ID</T>
+                </Label>
                 <Input
                   id="workplace-entry"
                   value={workplace}
@@ -339,7 +364,9 @@ export function HubEntryScreen({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="employee-code">Employee code</Label>
+                <Label htmlFor="employee-code">
+                  <T>Employee code</T>
+                </Label>
                 <Input
                   id="employee-code"
                   value={employeeCode}
@@ -349,23 +376,27 @@ export function HubEntryScreen({
                   className="border border-input px-3 font-mono uppercase"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use the code shared by your manager, or leave this blank when
-                  pasting a private join link.
+                  <T>
+                    Use the code shared by your manager, or leave this blank
+                    when pasting a private join link.
+                  </T>
                 </p>
               </div>
               {initialHubSlug && (
                 <p role="alert" className="text-sm text-destructive">
-                  That workplace could not be found. Check the link or ID and
-                  try again.
+                  <T>
+                    That workplace could not be found. Check the link or ID and
+                    try again.
+                  </T>
                 </p>
               )}
               {error && (
                 <p role="alert" className="text-sm text-destructive">
-                  {error}
+                  <T>{error}</T>
                 </p>
               )}
               <Button type="submit" className="w-full">
-                Open workplace <ArrowRight />
+                <T>Open workplace</T> <ArrowRight />
               </Button>
             </form>
           </section>

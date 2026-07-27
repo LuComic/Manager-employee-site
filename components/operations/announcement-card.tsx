@@ -1,4 +1,6 @@
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { ArrowRight, Pin } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +19,8 @@ export function AnnouncementCard({
 }: {
   announcement: Announcement
 }) {
+  const { languageTag } = useI18n()
+
   return (
     <Link
       href={`/announcements/${announcement.id}`}
@@ -37,7 +41,7 @@ export function AnnouncementCard({
             </Badge>
             {announcement.pinned && (
               <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Pin className="size-3" /> Pinned
+                <Pin className="size-3" /> <T>Pinned</T>
               </span>
             )}
           </div>
@@ -47,7 +51,15 @@ export function AnnouncementCard({
           </CardDescription>
         </CardHeader>
         <CardFooter className="mt-auto justify-between text-xs text-muted-foreground">
-          <span>Until {formatDate(`${announcement.expiresAt}T12:00`)}</span>
+          <span>
+            <T>Until</T>{" "}
+            {formatDate(
+              `${announcement.expiresAt}T12:00`,
+              undefined,
+              undefined,
+              languageTag
+            )}
+          </span>
           <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
         </CardFooter>
       </Card>

@@ -1,5 +1,7 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useEffect, useState } from "react"
 import { SignIn, useAuth } from "@clerk/nextjs"
 import { LoaderCircle, MailCheck } from "lucide-react"
@@ -12,6 +14,7 @@ import {
 } from "@/components/ui/card"
 
 export function InvitationComplete() {
+  const { href, t } = useI18n()
   const { isLoaded, isSignedIn } = useAuth()
   const [error, setError] = useState("")
 
@@ -27,25 +30,27 @@ export function InvitationComplete() {
         if (!response.ok || !result.hubSlug)
           throw new Error(result.error ?? "Could not activate profile")
         if (!cancelled)
-          window.location.assign(`/?hub=${encodeURIComponent(result.hubSlug)}`)
+          window.location.assign(
+            href(`/?hub=${encodeURIComponent(result.hubSlug)}`)
+          )
       })
       .catch((caught: unknown) => {
         if (!cancelled)
           setError(
             caught instanceof Error
-              ? caught.message
-              : "Could not activate profile"
+              ? t(caught.message)
+              : t("Could not activate profile")
           )
       })
     return () => {
       cancelled = true
     }
-  }, [isLoaded, isSignedIn])
+  }, [href, isLoaded, isSignedIn, t])
 
   if (isLoaded && !isSignedIn) {
     return (
       <div className="flex min-h-svh items-center justify-center p-4">
-        <SignIn forceRedirectUrl="/invitation/complete" />
+        <SignIn forceRedirectUrl={href("/invitation/complete")} />
       </div>
     )
   }
@@ -58,21 +63,21 @@ export function InvitationComplete() {
             <MailCheck />
           </span>
           <h1 className="font-heading text-lg font-semibold">
-            Opening your workplace
+            <T>Opening your workplace</T>
           </h1>
           <CardDescription>
-            Your invitation is being connected to the employee profile.
+            <T>Your invitation is being connected to the employee profile.</T>
           </CardDescription>
         </CardHeader>
         <CardContent>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
-              {error}
+              <T>{error}</T>
             </p>
           ) : (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <LoaderCircle className="size-4 animate-spin" /> Activating
-              employee access…
+              <LoaderCircle className="size-4 animate-spin" />{" "}
+              <T>Activating employee access…</T>
             </p>
           )}
         </CardContent>

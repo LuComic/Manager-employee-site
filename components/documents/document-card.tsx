@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   ArrowRight,
   File,
@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { useI18n } from "@/components/providers/i18n-provider"
 import {
   documentResourceLabel,
   type DocumentResource,
@@ -44,6 +45,8 @@ export function DocumentResourceIcon({
 }
 
 export function DocumentCard({ document }: { document: WorkspaceDocument }) {
+  const { t } = useI18n()
+
   return (
     <Link
       href={`/documents/${document.id}`}
@@ -72,9 +75,14 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
         </CardHeader>
         <CardFooter className="mt-auto justify-between pb-4">
           <span className="text-xs text-muted-foreground">
-            {documentResourceLabel(document.resource)}
+            {t(documentResourceLabel(document.resource))}
             {document.employees.length
-              ? ` · ${document.employees.length} ${document.employees.length === 1 ? "employee" : "employees"}`
+              ? t(
+                  document.employees.length === 1
+                    ? " · {count} employee"
+                    : " · {count} employees",
+                  { count: document.employees.length }
+                )
               : ""}
           </span>
           <span className="flex size-9 items-center justify-center text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-foreground">

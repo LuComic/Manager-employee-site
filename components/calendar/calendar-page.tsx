@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { useMemo, useState } from "react"
 import {
   CalendarDays,
@@ -59,6 +61,7 @@ function calendarKey(value: Date) {
 }
 
 export function CalendarPage() {
+  const { languageTag, t } = useI18n()
   const { events, hub } = useOperations()
   const todayKey = toDateKey(new Date(), hub?.timeZone)
   const [view, setView] = useState<View>("month")
@@ -110,7 +113,9 @@ export function CalendarPage() {
         action={
           <CalendarExportButton
             events={allPublished}
-            calendarName={`${hub?.name ?? "Workplace"} calendar`}
+            calendarName={t("{name} calendar", {
+              name: hub?.name ?? t("Workplace"),
+            })}
             timeZone={hub?.timeZone ?? "UTC"}
           />
         }
@@ -130,7 +135,7 @@ export function CalendarPage() {
             size="sm"
             onClick={() => setVisibleDate(firstOfMonth(dateFromKey(todayKey)))}
           >
-            Today
+            <T>Today</T>
           </Button>
           <Button
             variant="outline"
@@ -141,7 +146,7 @@ export function CalendarPage() {
             <ChevronRight />
           </Button>
           <h2 className="ml-2 font-semibold">
-            {new Intl.DateTimeFormat("en-GB", {
+            {new Intl.DateTimeFormat(languageTag, {
               month: "long",
               year: "numeric",
             }).format(visibleDate)}
@@ -149,7 +154,7 @@ export function CalendarPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="event-category" className="sr-only">
-            Filter by event type
+            <T>Filter by event type</T>
           </label>
           <Select
             value={category}
@@ -165,7 +170,9 @@ export function CalendarPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">All event types</SelectItem>
+              <SelectItem value="All">
+                <T>All event types</T>
+              </SelectItem>
               {eventCategories.map((item) => (
                 <SelectItem key={item} value={item}>
                   {item}
@@ -173,20 +180,20 @@ export function CalendarPage() {
               ))}
             </SelectContent>
           </Select>
-          <SegmentedControl aria-label="Calendar view">
+          <SegmentedControl aria-label={t("Calendar view")}>
             <SegmentedControlItem
               selected={view === "month"}
               size="sm"
               onClick={() => setView("month")}
             >
-              <CalendarDays /> Month
+              <CalendarDays /> <T>Month</T>
             </SegmentedControlItem>
             <SegmentedControlItem
               selected={view === "list"}
               size="sm"
               onClick={() => setView("list")}
             >
-              <List /> List
+              <List /> <T>List</T>
             </SegmentedControlItem>
           </SegmentedControl>
         </div>
@@ -235,19 +242,22 @@ export function CalendarPage() {
                           className="block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
                         >
                           <span className="block truncate">
-                            {event.allDay
-                              ? "All day"
-                              : formatTime(
-                                  event.startUtc ?? event.start,
-                                  hub?.timeZone
-                                )}{" "}
+                            <T>
+                              {event.allDay
+                                ? "All day"
+                                : formatTime(
+                                    event.startUtc ?? event.start,
+                                    hub?.timeZone,
+                                    languageTag
+                                  )}
+                            </T>{" "}
                             {event.title}
                           </span>
                         </Link>
                       ))}
                       {dayEvents.length > 3 && (
                         <span className="block px-2 text-xs text-muted-foreground">
-                          +{dayEvents.length - 3} more
+                          +{dayEvents.length - 3} <T>more</T>
                         </span>
                       )}
                     </div>
@@ -267,10 +277,15 @@ export function CalendarPage() {
             >
               <div className="sm:w-40">
                 <p className="font-semibold">
-                  {formatEventDate(event, undefined, hub?.timeZone)}
+                  {formatEventDate(
+                    event,
+                    undefined,
+                    hub?.timeZone,
+                    languageTag
+                  )}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatEventTime(event, hub?.timeZone)}
+                  <T>{formatEventTime(event, hub?.timeZone, languageTag)}</T>
                 </p>
               </div>
               <div className="min-w-0 flex-1">
@@ -299,7 +314,9 @@ export function CalendarPage() {
 
       {view === "month" && monthEvents.length > 0 && (
         <section>
-          <h2 className="mb-4 text-xl font-semibold">This month</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            <T>This month</T>
+          </h2>
           <div className="grid gap-3 lg:grid-cols-2">
             {monthEvents.slice(0, 4).map((event) => (
               <EventCard

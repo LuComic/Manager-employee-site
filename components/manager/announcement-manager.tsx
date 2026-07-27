@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useMemo, useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   FilePenLine,
   Megaphone,
@@ -34,6 +36,7 @@ import { cn } from "@/lib/utils"
 type Status = "All" | "Active" | "Upcoming" | "Expired" | "Draft"
 
 export function AnnouncementManager() {
+  const { t } = useI18n()
   const {
     announcements,
     hub,
@@ -76,7 +79,7 @@ export function AnnouncementManager() {
               href="/manager/announcements/new"
               className={buttonVariants()}
             >
-              <Plus /> New announcement
+              <Plus /> <T>New announcement</T>
             </Link>
           ) : undefined
         }
@@ -98,16 +101,26 @@ export function AnnouncementManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter announcements by status"
+            aria-label={t("Filter announcements by status")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Upcoming">Upcoming</SelectItem>
-            <SelectItem value="Expired">Expired</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="All">
+              <T>All</T>
+            </SelectItem>
+            <SelectItem value="Active">
+              <T>Active</T>
+            </SelectItem>
+            <SelectItem value="Upcoming">
+              <T>Upcoming</T>
+            </SelectItem>
+            <SelectItem value="Expired">
+              <T>Expired</T>
+            </SelectItem>
+            <SelectItem value="Draft">
+              <T>Draft</T>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -154,7 +167,7 @@ export function AnnouncementManager() {
                             |
                           </span>
                           <Badge variant="secondary">
-                            <Pin /> Pinned
+                            <Pin /> <T>Pinned</T>
                           </Badge>
                         </>
                       )}
@@ -181,11 +194,11 @@ export function AnnouncementManager() {
                     >
                       {announcement.pinned ? (
                         <>
-                          <PinOff /> Unpin
+                          <PinOff /> <T>Unpin</T>
                         </>
                       ) : (
                         <>
-                          <Pin /> Pin
+                          <Pin /> <T>Pin</T>
                         </>
                       )}
                     </Button>
@@ -204,7 +217,7 @@ export function AnnouncementManager() {
                         )
                       }}
                     >
-                      {announcement.published ? "Unpublish" : "Publish"}
+                      <T>{announcement.published ? "Unpublish" : "Publish"}</T>
                     </Button>
                     <Link
                       href={`/manager/announcements/${announcement.id}/edit`}
@@ -212,14 +225,16 @@ export function AnnouncementManager() {
                         buttonVariants({ variant: "outline", size: "sm" })
                       )}
                     >
-                      <FilePenLine /> Edit
+                      <FilePenLine /> <T>Edit</T>
                     </Link>
                     {canCreateContent && (
                       <Button
                         variant="destructive"
                         size="icon-sm"
                         onClick={() => setDeleteTarget(announcement)}
-                        aria-label={`Delete ${announcement.title}`}
+                        aria-label={t("Delete {name}", {
+                          name: announcement.title,
+                        })}
                       >
                         <Trash2 />
                       </Button>

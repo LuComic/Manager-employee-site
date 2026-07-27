@@ -1,4 +1,6 @@
-import Link from "next/link"
+import { T } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { ArrowLeft, Clock3 } from "lucide-react"
 
 import { PrintButton } from "@/components/knowledge-base/print-button"
@@ -29,7 +31,7 @@ export function GuideDetail({
             "mb-6 tracking-normal normal-case"
           )}
         >
-          <ArrowLeft /> Back to {category?.label ?? "guides"}
+          <ArrowLeft /> <T>Back to</T> {category?.label ?? "guides"}
         </Link>
       )}
 

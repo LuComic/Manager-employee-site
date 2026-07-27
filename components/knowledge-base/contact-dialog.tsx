@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/providers/i18n-provider"
+
 import { createContext, useContext, useState } from "react"
 import { ArrowRight, CheckCircle2, Headphones, Mail, Phone } from "lucide-react"
 
@@ -49,13 +51,13 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                 <CheckCircle2 />
               </span>
               <DialogTitle className="mt-4 tracking-normal normal-case">
-                Question sent
+                <T>Question sent</T>
               </DialogTitle>
               <DialogDescription className="mt-2">
-                Your note has been sent to {contactName}.
+                <T>Your note has been sent to</T> {contactName}.
               </DialogDescription>
               <Button className="mt-6" onClick={() => handleOpenChange(false)}>
-                Done
+                <T>Done</T>
               </Button>
             </div>
           ) : (
@@ -73,11 +75,13 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
             >
               <DialogHeader>
                 <DialogTitle className="tracking-normal normal-case">
-                  Ask {contactName}
+                  <T>Ask</T> {contactName}
                 </DialogTitle>
                 <DialogDescription>
-                  Send a quick note. For anything urgent or related to safety,
-                  speak to someone in person.
+                  <T>
+                    Send a quick note. For anything urgent or related to safety,
+                    speak to someone in person.
+                  </T>
                 </DialogDescription>
               </DialogHeader>
               {(hub?.contactEmail || hub?.contactPhone) && (
@@ -102,7 +106,9 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
               )}
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="topic">What is this about?</Label>
+                  <Label htmlFor="topic">
+                    <T>What is this about?</T>
+                  </Label>
                   <Input
                     id="topic"
                     required
@@ -113,7 +119,9 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="message">Question</Label>
+                  <Label htmlFor="message">
+                    <T>Question</T>
+                  </Label>
                   <Textarea
                     id="message"
                     required
@@ -130,10 +138,10 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                   variant="outline"
                   onClick={() => handleOpenChange(false)}
                 >
-                  Cancel
+                  <T>Cancel</T>
                 </Button>
                 <Button type="submit" disabled={pending}>
-                  {pending ? "Sending…" : "Send question"} <ArrowRight />
+                  <T>{pending ? "Sending…" : "Send question"}</T> <ArrowRight />
                 </Button>
               </DialogFooter>
             </form>

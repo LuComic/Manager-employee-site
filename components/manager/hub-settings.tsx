@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/providers/i18n-provider"
+
 import { useEffect, useRef, useState } from "react"
 import { Building2, ImageIcon, Trash2, Upload } from "lucide-react"
 
@@ -125,10 +127,14 @@ export function HubSettingsManager() {
             <span className="flex size-10 items-center justify-center bg-primary/10 text-primary">
               <Building2 className="size-5" />
             </span>
-            <CardTitle className="mt-4 text-base">Workplace details</CardTitle>
+            <CardTitle className="mt-4 text-base">
+              <T>Workplace details</T>
+            </CardTitle>
             <CardDescription>
-              The name, description, and address appear on the employee home
-              page.
+              <T>
+                The name, description, and address appear on the employee home
+                page.
+              </T>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -152,12 +158,16 @@ export function HubSettingsManager() {
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Use an IANA time zone such as Europe/Tallinn or
-                America/New_York.
+                <T>
+                  Use an IANA time zone such as Europe/Tallinn or
+                  America/New_York.
+                </T>
               </p>
             </Field>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="hub-description">Short description</Label>
+              <Label htmlFor="hub-description">
+                <T>Short description</T>
+              </Label>
               <Textarea
                 id="hub-description"
                 value={settings.description}
@@ -167,7 +177,9 @@ export function HubSettingsManager() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="hub-address">Address</Label>
+              <Label htmlFor="hub-address">
+                <T>Address</T>
+              </Label>
               <Textarea
                 id="hub-address"
                 value={settings.address}
@@ -185,10 +197,15 @@ export function HubSettingsManager() {
             <span className="flex size-10 items-center justify-center bg-primary/10 text-primary">
               <ImageIcon className="size-5" />
             </span>
-            <CardTitle className="mt-4 text-base">Today page banner</CardTitle>
+            <CardTitle className="mt-4 text-base">
+              <T>Today page banner</T>
+            </CardTitle>
             <CardDescription>
-              Add a workplace photo behind the establishment name, description,
-              and location. A wide image at least 1600 × 600 works best.
+              <T>
+                Add a workplace photo behind the establishment name,
+                description, and location. A wide image at least 1600 × 600
+                works best.
+              </T>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -201,9 +218,11 @@ export function HubSettingsManager() {
               }
             >
               <div className="bg-black/55 p-3">
-                <p className="text-xs text-white/75">Banner preview</p>
+                <p className="text-xs text-white/75">
+                  <T>Banner preview</T>
+                </p>
                 <p className="mt-1 font-semibold text-white">
-                  Today at {settings.name || "your workplace"}
+                  <T>Today at</T> {settings.name || "your workplace"}
                 </p>
               </div>
             </div>
@@ -230,7 +249,7 @@ export function HubSettingsManager() {
                 onClick={() => bannerInputRef.current?.click()}
               >
                 <Upload />
-                {bannerPreviewUrl ? "Replace image" : "Upload image"}
+                <T>{bannerPreviewUrl ? "Replace image" : "Upload image"}</T>
               </Button>
               {bannerPreviewUrl && (
                 <Button
@@ -244,22 +263,26 @@ export function HubSettingsManager() {
                     )
                   }}
                 >
-                  <Trash2 /> Remove image
+                  <Trash2 /> <T>Remove image</T>
                 </Button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              JPG, PNG, WebP, or AVIF. Maximum file size 10 MB.
+              <T>JPG, PNG, WebP, or AVIF. Maximum file size 10 MB.</T>
             </p>
           </CardContent>
         </Card>
 
         <Card className="shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">Employee contact</CardTitle>
+            <CardTitle className="text-base">
+              <T>Employee contact</T>
+            </CardTitle>
             <CardDescription>
-              This person or role is used by the help button. Email and phone
-              are optional direct contact methods.
+              <T>
+                This person or role is used by the help button. Email and phone
+                are optional direct contact methods.
+              </T>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3">
@@ -300,7 +323,7 @@ export function HubSettingsManager() {
 
         <div className="sticky bottom-0 z-10 flex flex-col gap-3 border bg-background/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            {dirty ? "Unsaved changes" : "No unsaved changes"}
+            <T>{dirty ? "Unsaved changes" : "No unsaved changes"}</T>
           </p>
           <div className="flex gap-2">
             <Button
@@ -314,13 +337,13 @@ export function HubSettingsManager() {
                 setBannerChange(null)
               }}
             >
-              Cancel
+              <T>Cancel</T>
             </Button>
             <Button
               type="submit"
               disabled={pending || !dirty || !settings.name.trim()}
             >
-              {pending ? "Saving…" : "Save settings"}
+              <T>{pending ? "Saving…" : "Save settings"}</T>
             </Button>
           </div>
         </div>

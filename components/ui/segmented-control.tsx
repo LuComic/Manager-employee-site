@@ -1,5 +1,8 @@
+"use client"
+
 import * as React from "react"
 
+import { useI18n } from "@/components/providers/i18n-provider"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -7,6 +10,9 @@ function SegmentedControl({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const { t } = useI18n()
+  const ariaLabel = props["aria-label"]
+
   return (
     <div
       data-slot="segmented-control"
@@ -16,6 +22,7 @@ function SegmentedControl({
         className
       )}
       {...props}
+      aria-label={typeof ariaLabel === "string" ? t(ariaLabel) : ariaLabel}
     />
   )
 }

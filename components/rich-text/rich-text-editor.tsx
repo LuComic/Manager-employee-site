@@ -1,5 +1,7 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
 import {
   Bold,
@@ -39,6 +41,7 @@ export function RichTextEditor({
   ariaLabel: string
   className?: string
 }) {
+  const { t } = useI18n()
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState("")
   const [linkError, setLinkError] = useState("")
@@ -96,7 +99,7 @@ export function RichTextEditor({
       <div
         className="flex flex-wrap items-center gap-2 border-b bg-muted/40 p-2"
         role="toolbar"
-        aria-label={`${ariaLabel} formatting`}
+        aria-label={t("{label} formatting", { label: ariaLabel })}
       >
         <Select
           value={blockType}
@@ -110,14 +113,20 @@ export function RichTextEditor({
           <SelectTrigger
             size="sm"
             className="border border-input bg-background px-3"
-            aria-label="Text style"
+            aria-label={t("Text style")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="paragraph">Paragraph</SelectItem>
-            <SelectItem value="heading-2">Section heading</SelectItem>
-            <SelectItem value="heading-3">Subsection heading</SelectItem>
+            <SelectItem value="paragraph">
+              <T>Paragraph</T>
+            </SelectItem>
+            <SelectItem value="heading-2">
+              <T>Section heading</T>
+            </SelectItem>
+            <SelectItem value="heading-3">
+              <T>Subsection heading</T>
+            </SelectItem>
           </SelectContent>
         </Select>
         <FormatButton
@@ -211,7 +220,7 @@ export function RichTextEditor({
           </div>
           <div className="flex gap-2">
             <Button type="button" size="sm" onClick={applyLink}>
-              Apply link
+              <T>Apply link</T>
             </Button>
             {editor.isActive("link") && (
               <Button
@@ -223,7 +232,7 @@ export function RichTextEditor({
                   setLinkOpen(false)
                 }}
               >
-                Remove
+                <T>Remove</T>
               </Button>
             )}
           </div>

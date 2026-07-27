@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { Fragment } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   ArrowRight,
   BookOpen,
@@ -50,6 +52,7 @@ const quickLinks = [
 ]
 
 export default function TodayPage() {
+  const { languageTag, t } = useI18n()
   const { hub, guides, events, announcements } = useOperations()
   const timeZone = hub?.timeZone
   const today = toDateKey(new Date(), timeZone)
@@ -97,15 +100,18 @@ export default function TodayPage() {
                     day: "numeric",
                     month: "long",
                   },
-                  timeZone
+                  timeZone,
+                  languageTag
                 )}
               </p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                Today at {hub?.name ?? "your workplace"}
+                <T>Today at</T> {hub?.name ?? t("your workplace")}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-foreground/80 sm:text-base">
                 {hub?.description ||
-                  "Current updates, important times, and the guides you may need during the day."}
+                  t(
+                    "Current updates, important times, and the guides you may need during the day."
+                  )}
               </p>
               {hub?.address && (
                 <p className="mt-3 flex items-center gap-2 text-sm text-primary-foreground/80">
@@ -138,9 +144,11 @@ export default function TodayPage() {
                         <Icon className="size-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block font-semibold">{title}</span>
+                        <span className="block font-semibold">
+                          <T>{title}</T>
+                        </span>
                         <span className="mt-1 block text-sm text-muted-foreground">
-                          {description}
+                          <T>{description}</T>
                         </span>
                       </span>
                       <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />

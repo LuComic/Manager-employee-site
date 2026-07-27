@@ -416,20 +416,25 @@ export function getAnnouncementState(
 export function formatDate(
   value: string,
   options?: Intl.DateTimeFormatOptions,
-  timeZone = HUB_TIME_ZONE
+  timeZone = HUB_TIME_ZONE,
+  locale = "en-GB"
 ) {
   const isWallTime =
     /^\d{4}-\d{2}-\d{2}/.test(value) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale, {
     ...(options ?? { weekday: "short", day: "numeric", month: "short" }),
     timeZone: isWallTime ? "UTC" : timeZone,
   }).format(isWallTime ? localWallTimeDate(value) : new Date(value))
 }
 
-export function formatTime(value: string, timeZone = HUB_TIME_ZONE) {
+export function formatTime(
+  value: string,
+  timeZone = HUB_TIME_ZONE,
+  locale = "en-GB"
+) {
   const isWallTime =
     /^\d{4}-\d{2}-\d{2}/.test(value) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: isWallTime ? "UTC" : timeZone,
@@ -439,37 +444,44 @@ export function formatTime(value: string, timeZone = HUB_TIME_ZONE) {
 export function formatEventDate(
   event: CalendarEvent,
   options?: Intl.DateTimeFormatOptions,
-  timeZone = HUB_TIME_ZONE
+  timeZone = HUB_TIME_ZONE,
+  locale = "en-GB"
 ) {
   const startKey = event.start.slice(0, 10)
   const lastKey = eventLastDateKey(event)
-  const start = formatDate(event.start, options, timeZone)
+  const start = formatDate(event.start, options, timeZone, locale)
   return startKey === lastKey
     ? start
-    : `${start}–${formatDate(`${lastKey}T00:00`, options, timeZone)}`
+    : `${start}–${formatDate(`${lastKey}T00:00`, options, timeZone, locale)}`
 }
 
 export function formatEventTime(
   event: CalendarEvent,
-  timeZone = HUB_TIME_ZONE
+  timeZone = HUB_TIME_ZONE,
+  locale = "en-GB"
 ) {
   if (event.allDay) return "All day"
   if (event.startUtc && event.endUtc) {
-    const startZone = formatTimeZoneName(event.startUtc, timeZone)
-    const endZone = formatTimeZoneName(event.endUtc, timeZone)
+    const startZone = formatTimeZoneName(event.startUtc, timeZone, locale)
+    const endZone = formatTimeZoneName(event.endUtc, timeZone, locale)
     if (event.end <= event.start || startZone !== endZone) {
-      return `${formatTime(event.startUtc, timeZone)} ${startZone}–${formatTime(
+      return `${formatTime(event.startUtc, timeZone, locale)} ${startZone}–${formatTime(
         event.endUtc,
-        timeZone
+        timeZone,
+        locale
       )} ${endZone}`
     }
   }
-  return `${formatTime(event.start)}–${formatTime(event.end)}`
+  return `${formatTime(event.start, timeZone, locale)}–${formatTime(
+    event.end,
+    timeZone,
+    locale
+  )}`
 }
 
-function formatTimeZoneName(value: string, timeZone: string) {
+function formatTimeZoneName(value: string, timeZone: string, locale: string) {
   return (
-    new Intl.DateTimeFormat("en-GB", {
+    new Intl.DateTimeFormat(locale, {
       timeZone,
       timeZoneName: "short",
     })

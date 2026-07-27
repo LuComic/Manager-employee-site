@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { BriefcaseBusiness } from "lucide-react"
 
 import { useOperations } from "@/components/providers/operations-provider"
@@ -14,6 +16,7 @@ export function Brand({
   onNavigate?: () => void
   linked?: boolean
 }) {
+  const { t } = useI18n()
   const { hub, hubSlug, isManagerRoute } = useOperations()
   const content = (
     <>
@@ -23,10 +26,10 @@ export function Brand({
       {!compact && (
         <span>
           <span className="block font-semibold tracking-tight">
-            Operations hub
+            <T>Operations hub</T>
           </span>
           <span className="block text-xs text-muted-foreground">
-            {hub?.name ?? "Operations hub"}
+            {hub?.name ?? t("Operations hub")}
           </span>
         </span>
       )}

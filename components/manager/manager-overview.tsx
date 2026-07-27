@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   ArrowRight,
   BookOpen,
@@ -20,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { getAnnouncementState } from "@/lib/operations"
 
 export function ManagerOverview() {
+  const { t } = useI18n()
   const {
     hub,
     categories,
@@ -46,7 +49,9 @@ export function ManagerOverview() {
           href: "/manager/guides",
           title: "Guides",
           value: guides.length,
-          detail: `${guides.filter((item) => item.published).length} published`,
+          detail: t("{count} published", {
+            count: guides.filter((item) => item.published).length,
+          }),
           icon: BookOpen,
         },
       ],
@@ -58,7 +63,9 @@ export function ManagerOverview() {
           href: "/manager/employees",
           title: "Employees",
           value: employees.length,
-          detail: `${employees.filter((item) => item.status === "active").length} active`,
+          detail: t("{count} active", {
+            count: employees.filter((item) => item.status === "active").length,
+          }),
           icon: Users,
         },
         {
@@ -77,28 +84,40 @@ export function ManagerOverview() {
           href: "/manager/calendar",
           title: "Calendar events",
           value: events.length,
-          detail: `${events.filter((item) => item.published).length} published`,
+          detail: t("{count} published", {
+            count: events.filter((item) => item.published).length,
+          }),
           icon: CalendarDays,
         },
         {
           href: "/manager/announcements",
           title: "Announcements",
           value: announcements.length,
-          detail: `${announcements.filter((item) => getAnnouncementState(item, new Date(), hub?.timeZone) === "Active").length} active`,
+          detail: t("{count} active", {
+            count: announcements.filter(
+              (item) =>
+                getAnnouncementState(item, new Date(), hub?.timeZone) ===
+                "Active"
+            ).length,
+          }),
           icon: Megaphone,
         },
         {
           href: "/manager/documents",
           title: "Documents",
           value: documents.length,
-          detail: `${documents.filter((item) => item.published).length} published`,
+          detail: t("{count} published", {
+            count: documents.filter((item) => item.published).length,
+          }),
           icon: Files,
         },
         {
           href: "/manager/questions",
           title: "Common questions",
           value: faqs.length,
-          detail: `${faqs.filter((item) => item.published).length} published`,
+          detail: t("{count} published", {
+            count: faqs.filter((item) => item.published).length,
+          }),
           icon: CircleHelp,
         },
       ],
@@ -128,10 +147,18 @@ export function ManagerOverview() {
           </span>
           <div>
             <p className="font-semibold">
-              {drafts} {drafts === 1 ? "draft needs" : "drafts need"} review
+              {t(
+                drafts === 1
+                  ? "{count} draft needs review"
+                  : "{count} drafts need review",
+                { count: drafts }
+              )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Draft items are not visible to employees until they are published.
+              <T>
+                Draft items are not visible to employees until they are
+                published.
+              </T>
             </p>
           </div>
         </div>
@@ -139,7 +166,7 @@ export function ManagerOverview() {
       {sections.map((section) => (
         <section key={section.title} className="space-y-3">
           <h2 className="text-xl font-semibold tracking-tight">
-            {section.title}
+            <T>{section.title}</T>
           </h2>
           <div className="grid gap-3 lg:grid-cols-2">
             {section.cards.map(({ href, title, value, detail, icon: Icon }) => (
@@ -157,9 +184,11 @@ export function ManagerOverview() {
                       <Icon className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold">{title}</h3>
+                      <h3 className="font-semibold">
+                        <T>{title}</T>
+                      </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {detail}
+                        <T>{detail}</T>
                       </p>
                     </div>
                     <span className="shrink-0 text-lg font-semibold">

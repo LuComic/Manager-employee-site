@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   ArrowDown,
   ArrowUp,
@@ -53,6 +55,7 @@ const blankCategory: CategoryDraft = {
 }
 
 export function CategoryManager() {
+  const { t } = useI18n()
   const {
     categories,
     guides,
@@ -112,7 +115,7 @@ export function CategoryManager() {
                 setError("")
               }}
             >
-              <Plus /> New category
+              <Plus /> <T>New category</T>
             </Button>
           ) : undefined
         }
@@ -140,7 +143,8 @@ export function CategoryManager() {
                         |
                       </span>
                       <Badge variant="secondary">
-                        {guideCount} {guideCount === 1 ? "guide" : "guides"}
+                        {guideCount}{" "}
+                        <T>{guideCount === 1 ? "guide" : "guides"}</T>
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -153,7 +157,9 @@ export function CategoryManager() {
                       size="icon-sm"
                       disabled={index === 0}
                       onClick={() => moveCategory(category.id, -1)}
-                      aria-label={`Move ${category.label} up`}
+                      aria-label={t("Move {name} up", {
+                        name: category.label,
+                      })}
                     >
                       <ArrowUp />
                     </Button>
@@ -162,7 +168,9 @@ export function CategoryManager() {
                       size="icon-sm"
                       disabled={index === categories.length - 1}
                       onClick={() => moveCategory(category.id, 1)}
-                      aria-label={`Move ${category.label} down`}
+                      aria-label={t("Move {name} down", {
+                        name: category.label,
+                      })}
                     >
                       <ArrowDown />
                     </Button>
@@ -174,14 +182,16 @@ export function CategoryManager() {
                         setError("")
                       }}
                     >
-                      <FilePenLine /> Edit
+                      <FilePenLine /> <T>Edit</T>
                     </Button>
                     {canCreateContent && (
                       <Button
                         variant="destructive"
                         size="icon-sm"
                         onClick={() => setDeleteTarget(category)}
-                        aria-label={`Delete ${category.label}`}
+                        aria-label={t("Delete {name}", {
+                          name: category.label,
+                        })}
                       >
                         <Trash2 />
                       </Button>
@@ -219,10 +229,12 @@ export function CategoryManager() {
             >
               <DialogHeader>
                 <DialogTitle>
-                  {editing.id ? "Edit category" : "Create category"}
+                  <T>{editing.id ? "Edit category" : "Create category"}</T>
                 </DialogTitle>
                 <DialogDescription>
-                  Category changes appear immediately on the employee site.
+                  <T>
+                    Category changes appear immediately on the employee site.
+                  </T>
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
@@ -250,7 +262,9 @@ export function CategoryManager() {
                   />
                 </Field>
                 <fieldset>
-                  <legend className="text-sm font-medium">Icon</legend>
+                  <legend className="text-sm font-medium">
+                    <T>Icon</T>
+                  </legend>
                   <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {categoryIconOptions.map((option) => {
                       const selected = editing.iconKey === option.key
@@ -272,7 +286,7 @@ export function CategoryManager() {
                             iconKey={option.key}
                             className="size-5"
                           />
-                          {option.label}
+                          <T>{option.label}</T>
                         </button>
                       )
                     })}
@@ -280,7 +294,7 @@ export function CategoryManager() {
                 </fieldset>
                 {error && (
                   <p role="alert" className="text-sm text-destructive">
-                    {error}
+                    <T>{error}</T>
                   </p>
                 )}
               </div>
@@ -290,9 +304,11 @@ export function CategoryManager() {
                   variant="outline"
                   onClick={() => setEditing(null)}
                 >
-                  Cancel
+                  <T>Cancel</T>
                 </Button>
-                <Button type="submit">Save category</Button>
+                <Button type="submit">
+                  <T>Save category</T>
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -307,11 +323,14 @@ export function CategoryManager() {
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Reassign guides before deleting</DialogTitle>
+            <DialogTitle>
+              <T>Reassign guides before deleting</T>
+            </DialogTitle>
             <DialogDescription>
-              {deleteTarget?.label} is still used by {affectedGuides.length}{" "}
-              {affectedGuides.length === 1 ? "guide" : "guides"}. Move them to
-              another work area first.
+              {deleteTarget?.label} <T>is still used by</T>{" "}
+              {affectedGuides.length}{" "}
+              <T>{affectedGuides.length === 1 ? "guide" : "guides"}</T>
+              <T>. Move them to another work area first.</T>
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 space-y-2">
@@ -331,7 +350,7 @@ export function CategoryManager() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Close
+              <T>Close</T>
             </Button>
           </DialogFooter>
         </DialogContent>

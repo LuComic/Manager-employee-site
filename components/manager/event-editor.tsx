@@ -1,5 +1,7 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
 import {
   ArrowLeft,
@@ -67,6 +69,7 @@ function newEvent(location = ""): CalendarEvent {
 }
 
 export function EventEditor({ eventId }: { eventId?: string }) {
+  const { t } = useI18n()
   const {
     events,
     employees,
@@ -178,14 +181,16 @@ export function EventEditor({ eventId }: { eventId?: string }) {
     <div className="space-y-6">
       <div>
         <Button variant="ghost" size="sm" onClick={leave}>
-          <ArrowLeft /> Back to calendar events
+          <ArrowLeft /> <T>Back to calendar events</T>
         </Button>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-          {draft.id ? "Edit event" : "Create event"}
+          <T>{draft.id ? "Edit event" : "Create event"}</T>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Add the event details, choose who it relates to, and control when
-          employees can see it.
+          <T>
+            Add the event details, choose who it relates to, and control when
+            employees can see it.
+          </T>
         </p>
       </div>
 
@@ -193,7 +198,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         <div className="space-y-6">
           <Card className="shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Details</CardTitle>
+              <CardTitle className="text-base">
+                <T>Details</T>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Field label="Title" id="event-title">
@@ -231,7 +238,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
 
           <Card className="shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Schedule</CardTitle>
+              <CardTitle className="text-base">
+                <T>Schedule</T>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <label className="flex items-center gap-2 text-sm">
@@ -242,7 +251,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change(toggleAllDayEvent(draft, event.target.checked))
                   }
                 />
-                All-day event
+                <T>All-day event</T>
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
@@ -296,8 +305,10 @@ export function EventEditor({ eventId }: { eventId?: string }) {
               </div>
               {draft.allDay && (
                 <p className="text-xs text-muted-foreground">
-                  All-day events remain all day when imported and exported. The
-                  last day is inclusive.
+                  <T>
+                    All-day events remain all day when imported and exported.
+                    The last day is inclusive.
+                  </T>
                 </p>
               )}
             </CardContent>
@@ -306,13 +317,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="size-4" /> Related employees
+                <Users className="size-4" /> <T>Related employees</T>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div
                 className="flex flex-wrap gap-2"
-                aria-label="Select employees"
+                aria-label={t("Select employees")}
               >
                 {employees
                   .filter(
@@ -357,8 +368,10 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   })}
                 {!employees.length && (
                   <p className="text-sm text-muted-foreground">
-                    Create employee profiles first, or save this event without
-                    related employees.
+                    <T>
+                      Create employee profiles first, or save this event without
+                      related employees.
+                    </T>
                   </p>
                 )}
               </div>
@@ -368,7 +381,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Paperclip className="size-4" /> Attachments
+                <Paperclip className="size-4" /> <T>Attachments</T>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -400,7 +413,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={`Remove ${attachment.name}`}
+                        aria-label={t("Remove {name}", {
+                          name: attachment.name,
+                        })}
                         onClick={() => {
                           setRemovedAttachments([
                             ...removedAttachments,
@@ -425,7 +440,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     >
                       <Paperclip className="size-4" />
                       <span>{file.name}</span>
-                      <span>(uploads on save)</span>
+                      <span>
+                        <T>(uploads on save)</T>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -437,7 +454,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         <div className="space-y-6">
           <Card className="h-fit shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Event settings</CardTitle>
+              <CardTitle className="text-base">
+                <T>Event settings</T>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Field label="Event type" id="event-type">
@@ -470,7 +489,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change({ ...draft, published: event.target.checked })
                   }
                 />
-                Publish now
+                <T>Publish now</T>
               </label>
             </CardContent>
           </Card>
@@ -478,13 +497,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
           <Card className="h-fit shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Link2 className="size-4" /> Related guides
+                <Link2 className="size-4" /> <T>Related guides</T>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div
                 className="flex flex-wrap gap-2"
-                aria-label="Select related guides"
+                aria-label={t("Select related guides")}
               >
                 {guides
                   .filter(
@@ -519,7 +538,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     guide.published || draft.guideIds.includes(guide.id)
                 ) && (
                   <p className="text-sm text-muted-foreground">
-                    Published guides can be linked to this event.
+                    <T>Published guides can be linked to this event.</T>
                   </p>
                 )}
               </div>
@@ -528,7 +547,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
 
           <Card className="h-fit shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">Manager notes</CardTitle>
+              <CardTitle className="text-base">
+                <T>Manager notes</T>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Field label="Notes" id="event-notes">
@@ -550,20 +571,20 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         <div>
           {error ? (
             <p role="alert" className="text-sm text-destructive">
-              {error}
+              <T>{error}</T>
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {dirty ? "Unsaved changes" : "No unsaved changes"}
+              <T>{dirty ? "Unsaved changes" : "No unsaved changes"}</T>
             </p>
           )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={leave}>
-            Cancel
+            <T>Cancel</T>
           </Button>
           <Button onClick={() => void submit()} disabled={saving}>
-            {saving ? "Saving…" : "Save event"}
+            <T>{saving ? "Saving…" : "Save event"}</T>
           </Button>
         </div>
       </div>

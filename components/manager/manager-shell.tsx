@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { usePathname } from "next/navigation"
 import {
   ArrowLeft,
@@ -37,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { stripLocaleFromPathname } from "@/i18n/config"
 
 type NavigationLink = {
   href: string
@@ -100,7 +103,8 @@ function isActiveLink(pathname: string, href: string) {
 }
 
 export function ManagerShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
+  const pathname = stripLocaleFromPathname(usePathname())
+  const { href, t } = useI18n()
   const { hub, hubState, managerAccess } = useOperations()
   const focusedEditor = pathname.endsWith("/new") || pathname.endsWith("/edit")
   const visibleMoreNavigationGroups =
@@ -129,9 +133,9 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             <div className="ml-auto flex items-center gap-3">
               <OrganizationSwitcher
                 hidePersonal={false}
-                afterCreateOrganizationUrl="/manager"
-                afterSelectOrganizationUrl="/manager"
-                afterSelectPersonalUrl="/manager"
+                afterCreateOrganizationUrl={href("/manager")}
+                afterSelectOrganizationUrl={href("/manager")}
+                afterSelectPersonalUrl={href("/manager")}
               />
               {!focusedEditor && hub && (
                 <Link
@@ -141,7 +145,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "tracking-normal normal-case"
                   )}
                 >
-                  <ArrowLeft /> Employee site
+                  <ArrowLeft /> <T>Employee site</T>
                 </Link>
               )}
               <UserButton />
@@ -152,22 +156,24 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <p className="text-lg font-semibold">
-              {managerAccess === "owner"
-                ? "Manager area"
-                : managerAccess === "manager"
-                  ? "Content manager area"
-                  : "Content editor area"}
+              {t(
+                managerAccess === "owner"
+                  ? "Manager area"
+                  : managerAccess === "manager"
+                    ? "Content manager area"
+                    : "Content editor area"
+              )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {hub
-                ? `${hub.name} · Workplace administration`
-                : "Choose or create a workplace"}
+                ? t("{name} · Workplace administration", { name: hub.name })
+                : t("Choose or create a workplace")}
             </p>
           </div>
           {!focusedEditor && (
             <nav
               className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
-              aria-label="Manager navigation"
+              aria-label={t("Manager navigation")}
             >
               {primaryNavigationItems.map((item) => {
                 const { href, label, icon: Icon } = item
@@ -184,7 +190,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                       "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                     )}
                   >
-                    <Icon /> {label}
+                    <Icon /> <T>{label}</T>
                   </Link>
                 )
               })}
@@ -202,7 +208,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                   )}
                 >
-                  <BookOpen /> Guides <ChevronDown />
+                  <BookOpen /> <T>Guides</T> <ChevronDown />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   {guideNavigationItems.map((link) => {
@@ -216,7 +222,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                           active && "bg-accent text-accent-foreground"
                         )}
                       >
-                        <Icon /> {link.label}
+                        <Icon /> <T>{link.label}</T>
                       </DropdownMenuItem>
                     )
                   })}
@@ -238,13 +244,15 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                   )}
                 >
-                  <Menu /> More tools <ChevronDown />
+                  <Menu /> <T>More tools</T> <ChevronDown />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64">
                   {visibleMoreNavigationGroups.map((group, groupIndex) => (
                     <DropdownMenuGroup key={group.label}>
                       {groupIndex > 0 && <DropdownMenuSeparator />}
-                      <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+                      <DropdownMenuLabel>
+                        <T>{group.label}</T>
+                      </DropdownMenuLabel>
                       {group.items.map((link) => {
                         const Icon = link.icon
                         const active = isActiveLink(pathname, link.href)
@@ -256,7 +264,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                               active && "bg-accent text-accent-foreground"
                             )}
                           >
-                            <Icon /> {link.label}
+                            <Icon /> <T>{link.label}</T>
                           </DropdownMenuItem>
                         )
                       })}
@@ -271,22 +279,30 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {hubState === "loading" ? (
           <p role="status" className="text-sm text-muted-foreground">
-            Loading your hub…
+            <T>Loading your hub…</T>
           </p>
         ) : hubState === "auth-error" ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
-            <h2 className="font-semibold">Manager session is not connected</h2>
+            <h2 className="font-semibold">
+              <T>Manager session is not connected</T>
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              You are signed in, but this session could not be validated. Sign
-              out and back in, then contact support if the issue continues.
+              <T>
+                You are signed in, but this session could not be validated. Sign
+                out and back in, then contact support if the issue continues.
+              </T>
             </p>
           </div>
         ) : hubState === "forbidden" ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
-            <h2 className="font-semibold">Manager access is not enabled</h2>
+            <h2 className="font-semibold">
+              <T>Manager access is not enabled</T>
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your employee profile can view the workplace, but it does not have
-              editing or manager access.
+              <T>
+                Your employee profile can view the workplace, but it does not
+                have editing or manager access.
+              </T>
             </p>
             <Link
               href="/"
@@ -295,17 +311,21 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 "mt-4 tracking-normal normal-case"
               )}
             >
-              Open employee site
+              <T>Open employee site</T>
             </Link>
           </div>
         ) : hubState === "needs-setup" ? (
           <HubSetup />
         ) : !routeAllowed ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
-            <h2 className="font-semibold">Manager access required</h2>
+            <h2 className="font-semibold">
+              <T>Manager access required</T>
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your content role does not include employee administration,
-              workplace settings, access controls, or this page.
+              <T>
+                Your content role does not include employee administration,
+                workplace settings, access controls, or this page.
+              </T>
             </p>
             <Link
               href="/manager"
@@ -314,7 +334,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 "mt-4 tracking-normal normal-case"
               )}
             >
-              Back to content
+              <T>Back to content</T>
             </Link>
           </div>
         ) : (

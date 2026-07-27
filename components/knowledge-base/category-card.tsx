@@ -1,4 +1,6 @@
-import Link from "next/link"
+import { useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { ArrowRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +14,8 @@ export function CategoryCard({
   category: Category
   count?: number
 }) {
+  const { t } = useI18n()
+
   return (
     <Link
       href={`/categories/${category.id}`}
@@ -29,7 +33,7 @@ export function CategoryCard({
           {category.description}
         </span>
         <Badge variant="secondary" className="mt-3">
-          {count} guides
+          {t(count === 1 ? "{count} guide" : "{count} guides", { count })}
         </Badge>
       </span>
     </Link>

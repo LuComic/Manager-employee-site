@@ -1,5 +1,7 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
 import { CheckCircle2, Headphones, RotateCcw, Trash2 } from "lucide-react"
 import { useMutation, useQuery } from "convex/react"
@@ -28,6 +30,7 @@ type HelpRequest = {
 }
 
 export function HelpRequestManager() {
+  const { languageTag, t } = useI18n()
   const { hub } = useOperations()
   const requests = useQuery(
     api.content.listHelpRequests,
@@ -45,11 +48,13 @@ export function HelpRequestManager() {
     try {
       await setStatus({ hubId: hub.id, requestId: request.id, status })
       toast.success(
-        status === "resolved" ? "Request resolved." : "Request reopened."
+        t(status === "resolved" ? "Request resolved." : "Request reopened.")
       )
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not update request"
+        error instanceof Error
+          ? t(error.message)
+          : t("Could not update request")
       )
     }
   }
@@ -70,7 +75,7 @@ export function HelpRequestManager() {
               size="sm"
               onClick={() => setFilter(status)}
             >
-              {status === "open" ? "Open" : "Resolved"}
+              <T>{status === "open" ? "Open" : "Resolved"}</T>
               <Badge variant="outline">
                 {requests?.filter((request) => request.status === status)
                   .length ?? 0}
@@ -82,7 +87,7 @@ export function HelpRequestManager() {
 
       {requests === undefined ? (
         <p className="text-sm text-muted-foreground" role="status">
-          Loading help requests…
+          <T>Loading help requests…</T>
         </p>
       ) : visible.length ? (
         <div className="space-y-4">
@@ -103,14 +108,14 @@ export function HelpRequestManager() {
                         request.status === "open" ? "secondary" : "outline"
                       }
                     >
-                      {request.status === "open" ? "Open" : "Resolved"}
+                      <T>{request.status === "open" ? "Open" : "Resolved"}</T>
                     </Badge>
                   </div>
                   <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
                     {request.message}
                   </p>
                   <p className="mt-4 text-xs text-muted-foreground">
-                    {new Intl.DateTimeFormat("en-GB", {
+                    {new Intl.DateTimeFormat(languageTag, {
                       dateStyle: "medium",
                       timeStyle: "short",
                       timeZone: hub?.timeZone,
@@ -128,13 +133,13 @@ export function HelpRequestManager() {
                     ) : (
                       <RotateCcw />
                     )}
-                    {request.status === "open" ? "Resolve" : "Reopen"}
+                    <T>{request.status === "open" ? "Resolve" : "Reopen"}</T>
                   </Button>
                   <Button
                     variant="destructive"
                     size="icon-sm"
                     onClick={() => setDeleteTarget(request)}
-                    aria-label={`Delete ${request.topic}`}
+                    aria-label={t("Delete {name}", { name: request.topic })}
                   >
                     <Trash2 />
                   </Button>

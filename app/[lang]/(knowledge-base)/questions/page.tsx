@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/providers/i18n-provider"
+
 import { Headphones } from "lucide-react"
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
@@ -67,10 +69,10 @@ export default function QuestionsPage() {
       <Card size="sm" className="mt-6 bg-primary/5 shadow-none ring-primary/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base tracking-normal normal-case">
-            <Headphones className="size-4 text-primary" /> Still unsure?
+            <Headphones className="size-4 text-primary" /> <T>Still unsure?</T>
           </CardTitle>
           <CardDescription>
-            It is always fine to ask for help when you are unsure.
+            <T>It is always fine to ask for help when you are unsure.</T>
           </CardDescription>
         </CardHeader>
         <CardFooter>

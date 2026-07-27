@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   ArrowLeft,
   CalendarDays,
@@ -27,6 +29,7 @@ import { formatEventDate, formatEventTime } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
+  const { languageTag, t } = useI18n()
   const { events, guides, hub } = useOperations()
   const event = events.find((item) => item.id === eventId && item.published)
   if (!event)
@@ -50,7 +53,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
           "tracking-normal normal-case"
         )}
       >
-        <ArrowLeft /> Back to calendar
+        <ArrowLeft /> <T>Back to calendar</T>
       </Link>
       <Card className="shadow-none">
         <CardHeader className="border-b">
@@ -64,7 +67,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
           <CardAction className="hidden sm:block">
             <CalendarExportButton
               events={[event]}
-              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              calendarName={t("{name} calendar", {
+                name: hub?.name ?? t("Workplace"),
+              })}
               timeZone={hub?.timeZone ?? "UTC"}
               mode="event"
             />
@@ -72,7 +77,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
           <div className="mt-4 sm:hidden">
             <CalendarExportButton
               events={[event]}
-              calendarName={`${hub?.name ?? "Workplace"} calendar`}
+              calendarName={t("{name} calendar", {
+                name: hub?.name ?? t("Workplace"),
+              })}
               timeZone={hub?.timeZone ?? "UTC"}
               mode="event"
             />
@@ -90,13 +97,18 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 month: "long",
                 year: "numeric",
               },
-              hub?.timeZone
+              hub?.timeZone,
+              languageTag
             )}
           />
           <Detail
             icon={Clock3}
             label="Time"
-            value={formatEventTime(event, hub?.timeZone)}
+            value={
+              event.allDay
+                ? t("All day")
+                : formatEventTime(event, hub?.timeZone, languageTag)
+            }
           />
           <Detail icon={MapPin} label="Location" value={event.location} />
           <Detail
@@ -107,17 +119,21 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 ? event.employees
                     .map((employee) => employee.displayName)
                     .join(", ")
-                : "No employees assigned"
+                : t("No employees assigned")
             }
           />
           <div className="border-t pt-4 sm:col-span-2">
-            <h2 className="font-semibold">Notes</h2>
+            <h2 className="font-semibold">
+              <T>Notes</T>
+            </h2>
             <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
-              {event.notes || "No additional notes."}
+              {event.notes || t("No additional notes.")}
             </p>
           </div>
           <div className="border-t pt-4 sm:col-span-2">
-            <h2 className="font-semibold">Attachments</h2>
+            <h2 className="font-semibold">
+              <T>Attachments</T>
+            </h2>
             {event.attachments.length ? (
               <ul className="mt-4 space-y-2">
                 {event.attachments.map((attachment) => (
@@ -135,14 +151,15 @@ export function EventDetail({ eventId }: { eventId: string }) {
                       {attachment.name}
                     </a>
                     <Badge variant="secondary">
-                      {Math.max(1, Math.round(attachment.size / 1024))} KB
+                      {Math.max(1, Math.round(attachment.size / 1024))}{" "}
+                      <T>KB</T>
                     </Badge>
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">
-                No attachments for this event.
+                <T>No attachments for this event.</T>
               </p>
             )}
           </div>
@@ -150,7 +167,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
       </Card>
       {relatedGuides.length > 0 && (
         <section>
-          <h2 className="mb-4 text-xl font-semibold">Related guides</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            <T>Related guides</T>
+          </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {relatedGuides.map((guide) => (
               <GuideCard key={guide.id} guide={guide} />
@@ -177,7 +196,9 @@ function Detail({
         <Icon className="size-5" />
       </span>
       <div>
-        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+        <p className="text-xs font-semibold text-muted-foreground">
+          <T>{label}</T>
+        </p>
         <p className="mt-1 text-sm font-medium">{value}</p>
       </div>
     </div>

@@ -1,5 +1,7 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
 import {
   ArrowDown,
@@ -30,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { slugify, type Faq } from "@/lib/operations"
 
 export function FaqManager() {
+  const { t } = useI18n()
   const { faqs, canCreateContent, saveFaq, moveFaq, deleteFaq, showFeedback } =
     useOperations()
   const [editing, setEditing] = useState<Faq | null>(null)
@@ -86,7 +89,7 @@ export function FaqManager() {
                 setError("")
               }}
             >
-              <Plus /> New question
+              <Plus /> <T>New question</T>
             </Button>
           ) : undefined
         }
@@ -107,7 +110,7 @@ export function FaqManager() {
                       |
                     </span>
                     <Badge variant={faq.published ? "secondary" : "outline"}>
-                      {faq.published ? "Published" : "Draft"}
+                      <T>{faq.published ? "Published" : "Draft"}</T>
                     </Badge>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -120,7 +123,7 @@ export function FaqManager() {
                     size="icon-sm"
                     disabled={index === 0}
                     onClick={() => moveFaq(faq.id, -1)}
-                    aria-label={`Move ${faq.question} up`}
+                    aria-label={t("Move {name} up", { name: faq.question })}
                   >
                     <ArrowUp />
                   </Button>
@@ -129,7 +132,7 @@ export function FaqManager() {
                     size="icon-sm"
                     disabled={index === faqs.length - 1}
                     onClick={() => moveFaq(faq.id, 1)}
-                    aria-label={`Move ${faq.question} down`}
+                    aria-label={t("Move {name} down", { name: faq.question })}
                   >
                     <ArrowDown />
                   </Button>
@@ -145,7 +148,7 @@ export function FaqManager() {
                       )
                     }}
                   >
-                    {faq.published ? "Unpublish" : "Publish"}
+                    <T>{faq.published ? "Unpublish" : "Publish"}</T>
                   </Button>
                   <Button
                     variant="outline"
@@ -155,14 +158,14 @@ export function FaqManager() {
                       setError("")
                     }}
                   >
-                    <FilePenLine /> Edit
+                    <FilePenLine /> <T>Edit</T>
                   </Button>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(faq)}
-                      aria-label={`Delete ${faq.question}`}
+                      aria-label={t("Delete {name}", { name: faq.question })}
                     >
                       <Trash2 />
                     </Button>
@@ -199,15 +202,19 @@ export function FaqManager() {
             >
               <DialogHeader>
                 <DialogTitle>
-                  {editing.id ? "Edit question" : "Create question"}
+                  <T>{editing.id ? "Edit question" : "Create question"}</T>
                 </DialogTitle>
                 <DialogDescription>
-                  Published answers appear immediately on the employee site.
+                  <T>
+                    Published answers appear immediately on the employee site.
+                  </T>
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="faq-question">Question</Label>
+                  <Label htmlFor="faq-question">
+                    <T>Question</T>
+                  </Label>
                   <Textarea
                     id="faq-question"
                     value={editing.question}
@@ -224,7 +231,9 @@ export function FaqManager() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="faq-answer">Answer</Label>
+                  <Label htmlFor="faq-answer">
+                    <T>Answer</T>
+                  </Label>
                   <Textarea
                     id="faq-answer"
                     value={editing.answer}
@@ -242,7 +251,7 @@ export function FaqManager() {
                 </div>
                 {error && (
                   <p className="text-sm text-destructive" role="alert">
-                    {error}
+                    <T>{error}</T>
                   </p>
                 )}
               </div>
@@ -252,10 +261,10 @@ export function FaqManager() {
                   variant="outline"
                   onClick={() => setEditing(null)}
                 >
-                  Cancel
+                  <T>Cancel</T>
                 </Button>
                 <Button type="submit" disabled={pending}>
-                  {pending ? "Saving…" : "Save question"}
+                  <T>{pending ? "Saving…" : "Save question"}</T>
                 </Button>
               </DialogFooter>
             </form>

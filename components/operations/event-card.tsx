@@ -1,6 +1,7 @@
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { ArrowRight, Clock3, MapPin } from "lucide-react"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -24,6 +25,8 @@ export function EventCard({
   timeZone?: string
   compact?: boolean
 }) {
+  const { languageTag } = useI18n()
+
   return (
     <Link
       href={`/calendar/${event.id}`}
@@ -44,8 +47,8 @@ export function EventCard({
           <span className="flex flex-wrap items-center gap-4">
             <span className="flex items-center gap-2">
               <Clock3 className="size-4" />{" "}
-              {formatEventDate(event, undefined, timeZone)},{" "}
-              {formatEventTime(event, timeZone)}
+              {formatEventDate(event, undefined, timeZone, languageTag)},{" "}
+              <T>{formatEventTime(event, timeZone, languageTag)}</T>
             </span>
             <span className="flex items-center gap-2">
               <MapPin className="size-4" /> {event.location}

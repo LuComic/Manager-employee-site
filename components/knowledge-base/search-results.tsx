@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import {
   BookOpen,
   CalendarDays,
@@ -32,6 +34,7 @@ type Result = {
 }
 
 export function SearchResults({ query }: { query: string }) {
+  const { t } = useI18n()
   const { hub, hubSlug, credential } = useOperations()
   const normalizedQuery = query.trim()
 
@@ -44,7 +47,7 @@ export function SearchResults({ query }: { query: string }) {
           query: normalizedQuery,
           nowDate: toDateKey(new Date(), hub?.timeZone),
         }
-      : "skip",
+      : "skip"
   ) as Result[] | undefined
 
   return (
@@ -53,18 +56,28 @@ export function SearchResults({ query }: { query: string }) {
         title="Search results"
         description={
           results === undefined
-            ? `Searching for “${normalizedQuery}”…`
-            : `${results.length} ${results.length === 1 ? "result" : "results"} found for “${normalizedQuery}”`
+            ? t("Searching for “{query}”…", { query: normalizedQuery })
+            : t(
+                results.length === 1
+                  ? "{count} result found for “{query}”"
+                  : "{count} results found for “{query}”",
+                { count: results.length, query: normalizedQuery }
+              )
         }
       />
       {results === undefined ? (
         <p className="mt-8 text-sm text-muted-foreground" role="status">
-          Searching…
+          <T>Searching…</T>
         </p>
       ) : results.length > 0 ? (
         <>
           <p className="sr-only" role="status">
-            {`${results.length} ${results.length === 1 ? "result" : "results"} found.`}
+            {t(
+              results.length === 1
+                ? "{count} result found."
+                : "{count} results found.",
+              { count: results.length }
+            )}
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {results.map((result) => {
@@ -93,7 +106,9 @@ export function SearchResults({ query }: { query: string }) {
                         <Icon className="size-4" />
                       </span>
                       <Badge variant="secondary">{result.type}</Badge>
-                      <CardTitle className="text-base">{result.title}</CardTitle>
+                      <CardTitle className="text-base">
+                        {result.title}
+                      </CardTitle>
                       <CardDescription>{result.description}</CardDescription>
                     </CardHeader>
                   </Card>
@@ -105,15 +120,17 @@ export function SearchResults({ query }: { query: string }) {
       ) : (
         <>
           <p className="sr-only" role="status">
-            No results found.
+            <T>No results found.</T>
           </p>
           <div className="mt-6 flex min-h-40 flex-col items-center justify-center border bg-background p-6 text-center">
             <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
               <Search className="size-5" />
             </span>
-            <h2 className="mt-4 text-lg font-semibold">No matching content</h2>
+            <h2 className="mt-4 text-lg font-semibold">
+              <T>No matching content</T>
+            </h2>
             <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              Try a shorter word or browse one of the main areas.
+              <T>Try a shorter word or browse one of the main areas.</T>
             </p>
           </div>
         </>

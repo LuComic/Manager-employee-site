@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { ArrowLeft, ExternalLink, Files, Users } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
@@ -13,6 +15,7 @@ import { documentResourceLabel, formatFileSize } from "@/lib/documents"
 import { cn } from "@/lib/utils"
 
 export function DocumentPageContent({ documentId }: { documentId: string }) {
+  const { t } = useI18n()
   const { documents } = useOperations()
   const document = documents.find(
     (item) => item.id === documentId && item.published
@@ -44,7 +47,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             "-ml-3"
           )}
         >
-          <ArrowLeft /> Back to documents
+          <ArrowLeft /> <T>Back to documents</T>
         </Link>
       </div>
 
@@ -85,12 +88,14 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             <p className="truncate font-medium">
               {resource.kind === "file"
                 ? resource.name
-                : documentResourceLabel(resource)}
+                : t(documentResourceLabel(resource))}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {resource.kind === "file"
-                ? `${formatFileSize(resource.size)} · Opens in a new tab`
-                : "Shared externally · Opens in a new tab"}
+                ? t("{size} · Opens in a new tab", {
+                    size: formatFileSize(resource.size),
+                  })
+                : t("Shared externally · Opens in a new tab")}
             </p>
           </div>
           <a
@@ -99,7 +104,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             rel="noreferrer"
             className={buttonVariants()}
           >
-            {resource.kind === "file" ? "Open file" : "Open link"}
+            <T>{resource.kind === "file" ? "Open file" : "Open link"}</T>
             <ExternalLink />
           </a>
         </CardContent>

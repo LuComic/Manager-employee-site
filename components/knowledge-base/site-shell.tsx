@@ -1,5 +1,7 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useEffect, useRef, useState } from "react"
 import { Menu } from "lucide-react"
 import { OrganizationSwitcher, Show, UserButton } from "@clerk/nextjs"
@@ -23,6 +25,7 @@ import {
 } from "@/components/ui/sheet"
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
+  const { href, t } = useI18n()
   const [mobileOpen, setMobileOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -61,7 +64,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 size="icon-sm"
                 className="lg:hidden"
                 onClick={() => setMobileOpen(true)}
-                aria-label="Open menu"
+                aria-label={t("Open menu")}
               >
                 <Menu />
               </Button>
@@ -73,9 +76,9 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 <Show when="signed-in">
                   <OrganizationSwitcher
                     hidePersonal={false}
-                    afterCreateOrganizationUrl="/manager"
-                    afterSelectOrganizationUrl="/"
-                    afterSelectPersonalUrl="/"
+                    afterCreateOrganizationUrl={href("/manager")}
+                    afterSelectOrganizationUrl={href("/")}
+                    afterSelectPersonalUrl={href("/")}
                   />
                 </Show>
                 <ContactButton className="hidden sm:flex" />
@@ -99,7 +102,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   <Brand />
                 </SheetTitle>
                 <SheetDescription>
-                  Today’s information and practical guides.
+                  <T>Today’s information and practical guides.</T>
                 </SheetDescription>
               </SheetHeader>
               <SidebarNav onContact={() => setMobileOpen(false)} />

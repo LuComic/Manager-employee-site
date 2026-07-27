@@ -1,6 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { ArrowLeft, CalendarDays, Megaphone, Pin } from "lucide-react"
 
 import { EmptyState } from "@/components/operations/empty-state"
@@ -64,6 +66,7 @@ export function AnnouncementArticle({
   preview?: boolean
 }) {
   const { hub } = useOperations()
+  const { languageTag } = useI18n()
   const state = getAnnouncementState(announcement, new Date(), hub?.timeZone)
   return (
     <article className="mx-auto max-w-4xl space-y-6">
@@ -75,7 +78,7 @@ export function AnnouncementArticle({
             "tracking-normal normal-case"
           )}
         >
-          <ArrowLeft /> Back to announcements
+          <ArrowLeft /> <T>Back to announcements</T>
         </Link>
       )}
       <Card className="shadow-none">
@@ -91,7 +94,7 @@ export function AnnouncementArticle({
             <Badge variant="secondary">{state}</Badge>
             {announcement.pinned && (
               <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Pin className="size-3" /> Pinned
+                <Pin className="size-3" /> <T>Pinned</T>
               </span>
             )}
           </div>
@@ -103,19 +106,21 @@ export function AnnouncementArticle({
           <RichTextContent content={announcement.content} />
           <div className="mt-6 flex flex-wrap gap-4 border-t pt-4 text-sm text-muted-foreground">
             <span>
-              Published{" "}
+              <T>Published</T>{" "}
               {formatDate(
                 `${announcement.publishedAt}T12:00`,
                 undefined,
-                hub?.timeZone
+                hub?.timeZone,
+                languageTag
               )}
             </span>
             <span>
-              Expires{" "}
+              <T>Expires</T>{" "}
               {formatDate(
                 `${announcement.expiresAt}T12:00`,
                 undefined,
-                hub?.timeZone
+                hub?.timeZone,
+                languageTag
               )}
             </span>
           </div>
@@ -123,7 +128,9 @@ export function AnnouncementArticle({
       </Card>
       {(event || guide) && (
         <section>
-          <h2 className="mb-4 text-xl font-semibold">Related information</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            <T>Related information</T>
+          </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {event && (
               <EventCard event={event} timeZone={hub?.timeZone} compact />

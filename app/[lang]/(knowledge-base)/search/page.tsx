@@ -1,16 +1,29 @@
+import { T } from "@/components/providers/i18n-provider"
+
 import type { Metadata } from "next"
 import { Search } from "lucide-react"
 
 import { SearchResults } from "@/components/knowledge-base/search-results"
 import { PageHeading } from "@/components/operations/page-heading"
+import { isLocale } from "@/i18n/config"
+import { getMessages } from "@/i18n/messages"
 
-export const metadata: Metadata = {
-  title: "Search | Operations hub",
-  description: "Search the operations hub for published workplace content.",
-  robots: {
-    index: false,
-    follow: true,
-  },
+export async function generateMetadata({
+  params,
+}: PageProps<"/[lang]/search">): Promise<Metadata> {
+  const { lang } = await params
+  if (!isLocale(lang)) return {}
+  const messages = await getMessages(lang)
+
+  return {
+    title: messages["Search | Operations hub"],
+    description:
+      messages["Search the operations hub for published workplace content."],
+    robots: {
+      index: false,
+      follow: true,
+    },
+  }
 }
 
 export default async function SearchPage({
@@ -33,9 +46,11 @@ export default async function SearchPage({
         <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
           <Search className="size-5" />
         </span>
-        <h2 className="mt-4 text-lg font-semibold">What are you looking for?</h2>
+        <h2 className="mt-4 text-lg font-semibold">
+          <T>What are you looking for?</T>
+        </h2>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          Type in the search field above to search all published content.
+          <T>Type in the search field above to search all published content.</T>
         </p>
       </div>
     </div>

@@ -1,8 +1,8 @@
 "use client"
 
 import { useId, useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import NextLink from "next/link"
+import { usePathname, useSearchParams } from "next/navigation"
 import {
   BookOpen,
   Bell,
@@ -16,50 +16,59 @@ import {
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
 import { DocumentResourceIcon } from "@/components/documents/document-card"
+import { LocalizedLink as Link } from "@/components/localized-link"
+import { useI18n } from "@/components/providers/i18n-provider"
 import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
+import { localizeHref, locales, stripLocaleFromPathname } from "@/i18n/config"
 
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
-  const pathname = usePathname()
+  const localizedPathname = usePathname()
+  const pathname = stripLocaleFromPathname(localizedPathname)
+  const { t, href } = useI18n()
   const { categories, documents, managerAccess } = useOperations()
   const publishedDocuments = documents.filter((document) => document.published)
 
   return (
     <nav
       className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
-      aria-label="Knowledge base navigation"
+      aria-label={t("Knowledge base navigation")}
     >
-      <SidebarSection label="Workspace" href="/" active={pathname === "/"}>
-        <NavLink href="/" label="Today" active={pathname === "/"}>
+      <SidebarSection
+        label={t("Workspace")}
+        href={href("/")}
+        active={pathname === "/"}
+      >
+        <NavLink href={href("/")} label={t("Today")} active={pathname === "/"}>
           <Home />
         </NavLink>
         <NavLink
-          href="/notifications"
-          label="Notifications"
+          href={href("/notifications")}
+          label={t("Notifications")}
           active={pathname === "/notifications"}
         >
           <Bell />
         </NavLink>
         <NavLink
-          href="/guides"
-          label="Guides"
+          href={href("/guides")}
+          label={t("Guides")}
           active={pathname === "/guides" || pathname.startsWith("/guides/")}
         >
           <BookOpen />
         </NavLink>
         <NavLink
-          href="/calendar"
-          label="Calendar"
+          href={href("/calendar")}
+          label={t("Calendar")}
           active={pathname.startsWith("/calendar")}
         >
           <CalendarDays />
         </NavLink>
         <NavLink
-          href="/announcements"
-          label="Announcements"
+          href={href("/announcements")}
+          label={t("Announcements")}
           active={pathname.startsWith("/announcements")}
         >
           <Megaphone />
@@ -67,19 +76,19 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label="Guide categories"
-        href="/categories"
+        label={t("Guide categories")}
+        href={href("/categories")}
         active={pathname.startsWith("/categories")}
       >
         {categories.map((category) => {
-          const href = `/categories/${category.id}`
+          const categoryHref = `/categories/${category.id}`
 
           return (
             <NavLink
               key={category.id}
-              href={href}
+              href={href(categoryHref)}
               label={category.label}
-              active={pathname === href}
+              active={pathname === categoryHref}
             >
               <CategoryIcon iconKey={category.iconKey} />
             </NavLink>
@@ -88,18 +97,18 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label="Documents"
-        href="/documents"
+        label={t("Documents")}
+        href={href("/documents")}
         active={pathname.startsWith("/documents")}
       >
         {publishedDocuments.slice(0, 8).map((document) => {
-          const href = `/documents/${document.id}`
+          const documentHref = `/documents/${document.id}`
           return (
             <NavLink
               key={document.id}
-              href={href}
+              href={href(documentHref)}
               label={document.title}
-              active={pathname === href}
+              active={pathname === documentHref}
             >
               <DocumentResourceIcon resource={document.resource} />
             </NavLink>
@@ -108,19 +117,24 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label="Help and tools"
-        href="/questions"
+        label={t("Help and tools")}
+        href={href("/questions")}
         active={pathname === "/questions"}
       >
+        <LanguageSelector />
         <NavLink
-          href="/questions"
-          label="Common questions"
+          href={href("/questions")}
+          label={t("Common questions")}
           active={pathname === "/questions"}
         >
           <CircleHelp />
         </NavLink>
         {managerAccess && (
-          <NavLink href="/manager" label="Manager area" active={false}>
+          <NavLink
+            href={href("/manager")}
+            label={t("Manager area")}
+            active={false}
+          >
             <Settings />
           </NavLink>
         )}
@@ -131,6 +145,40 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         />
       </SidebarSection>
     </nav>
+  )
+}
+
+function LanguageSelector() {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const { locale, t, setLocalePreference } = useI18n()
+  const search = searchParams.toString()
+
+  return (
+    <div
+      className="mb-1 grid grid-cols-2 gap-1 px-3"
+      aria-label={t("Language")}
+      role="group"
+    >
+      {locales.map((option) => (
+        <NextLink
+          key={option}
+          href={`${localizeHref(pathname, option)}${search ? `?${search}` : ""}`}
+          hrefLang={option}
+          lang={option}
+          onClick={() => setLocalePreference(option)}
+          aria-current={locale === option ? "true" : undefined}
+          className={cn(
+            buttonVariants({
+              variant: locale === option ? "selected" : "ghost",
+            }),
+            "h-8 px-2 text-xs tracking-normal normal-case"
+          )}
+        >
+          {option === "et" ? t("Estonian") : t("English")}
+        </NextLink>
+      ))}
+    </div>
   )
 }
 
@@ -147,6 +195,7 @@ function SidebarSection({
 }) {
   const [open, setOpen] = useState(true)
   const contentId = useId()
+  const { t } = useI18n()
 
   return (
     <div>
@@ -165,7 +214,9 @@ function SidebarSection({
           type="button"
           className="flex size-8 shrink-0 items-center justify-center text-primary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/30"
           onClick={() => setOpen((current) => !current)}
-          aria-label={`${open ? "Collapse" : "Expand"} ${label}`}
+          aria-label={t(open ? "Collapse {label}" : "Expand {label}", {
+            label,
+          })}
           aria-expanded={open}
           aria-controls={contentId}
         >

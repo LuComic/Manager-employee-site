@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/providers/i18n-provider"
+
 import { useState } from "react"
 import {
   Check,
@@ -57,12 +59,14 @@ export function AccessManager() {
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheck className="size-5 text-primary" /> Access mode
+            <ShieldCheck className="size-5 text-primary" /> <T>Access mode</T>
           </CardTitle>
           <CardDescription>
-            Public mode opens published content to anyone with the workplace
-            URL. Restricted mode requires the employee join code or private
-            link. Signed-in workplace members keep their normal access.
+            <T>
+              Public mode opens published content to anyone with the workplace
+              URL. Restricted mode requires the employee join code or private
+              link. Signed-in workplace members keep their normal access.
+            </T>
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-start gap-3">
@@ -88,14 +92,16 @@ export function AccessManager() {
             }}
           >
             <ShieldCheck />
-            {hub.accessMode === "restricted"
-              ? "Restricted access on"
-              : "Require code or private link"}
+            <T>
+              {hub.accessMode === "restricted"
+                ? "Restricted access on"
+                : "Require code or private link"}
+            </T>
           </Button>
           <p className="text-sm text-muted-foreground">
-            Current mode:{" "}
+            <T>Current mode:</T>{" "}
             <span className="font-medium text-foreground">
-              {hub.accessMode === "restricted" ? "Restricted" : "Public"}
+              <T>{hub.accessMode === "restricted" ? "Restricted" : "Public"}</T>
             </span>
           </p>
         </CardContent>
@@ -124,12 +130,16 @@ export function AccessManager() {
 
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle className="text-base">Rotate or revoke access</CardTitle>
+          <CardTitle className="text-base">
+            <T>Rotate or revoke access</T>
+          </CardTitle>
           <CardDescription>
-            Rotation immediately invalidates the previous code and link,
-            including copies remembered by employee browsers. Only credential
-            hashes are stored in Convex; the readable values are kept in this
-            owner browser.
+            <T>
+              Rotation immediately invalidates the previous code and link,
+              including copies remembered by employee browsers. Only credential
+              hashes are stored in Convex; the readable values are kept in this
+              owner browser.
+            </T>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -146,7 +156,7 @@ export function AccessManager() {
               }
             }}
           >
-            <RefreshCw /> Rotate code and link
+            <RefreshCw /> <T>Rotate code and link</T>
           </Button>
         </CardContent>
       </Card>
@@ -191,7 +201,7 @@ function CredentialCard({
           disabled={disabled}
           onClick={onCopy}
         >
-          {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy"}
+          {copied ? <Check /> : <Copy />} <T>{copied ? "Copied" : "Copy"}</T>
         </Button>
       </CardContent>
     </Card>

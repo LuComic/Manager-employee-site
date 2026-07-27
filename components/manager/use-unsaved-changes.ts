@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
+import { useI18n } from "@/components/providers/i18n-provider"
+
 const historyGuardKey = "__operationsUnsavedChangesGuard"
 
 type UnsavedChangesOptions = {
@@ -20,6 +22,7 @@ export function useUnsavedChanges({
   onDiscard,
 }: UnsavedChangesOptions) {
   const router = useRouter()
+  const { href, t } = useI18n()
   const dirtyRef = useRef(dirty)
   const onDiscardRef = useRef(onDiscard)
   const guardActiveRef = useRef(false)
@@ -37,28 +40,33 @@ export function useUnsavedChanges({
 
   const showDiscardToast = useCallback(
     (discard: () => void) => {
-      toast.warning(`Discard your unsaved ${itemName} changes?`, {
-        id: toastId,
-        description: "Your changes will not be saved.",
-        duration: Infinity,
-        cancel: {
-          label: "Keep editing",
-          onClick: () => undefined,
-        },
-        action: {
-          label: "Discard",
-          onClick: discard,
-        },
-      })
+      toast.warning(
+        t("Discard your unsaved {itemName} changes?", {
+          itemName: t(itemName),
+        }),
+        {
+          id: toastId,
+          description: t("Your changes will not be saved."),
+          duration: Infinity,
+          cancel: {
+            label: t("Keep editing"),
+            onClick: () => undefined,
+          },
+          action: {
+            label: t("Discard"),
+            onClick: discard,
+          },
+        }
+      )
     },
-    [itemName, toastId]
+    [itemName, t, toastId]
   )
 
   const leaveWithoutPrompt = useCallback(
     (destination: string) => {
       toast.dismiss(toastId)
       if (!guardActiveRef.current) {
-        router.push(destination)
+        router.push(href(destination))
         return
       }
 
@@ -67,13 +75,13 @@ export function useUnsavedChanges({
         "popstate",
         () => {
           guardActiveRef.current = false
-          router.push(destination)
+          router.push(href(destination))
         },
         { once: true }
       )
       window.history.back()
     },
-    [router, toastId]
+    [href, router, toastId]
   )
 
   const requestLeave = useCallback(

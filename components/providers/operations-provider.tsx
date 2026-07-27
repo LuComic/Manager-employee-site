@@ -9,6 +9,7 @@ import { toast } from "sonner"
 
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import { useI18n } from "@/components/providers/i18n-provider"
 import {
   isBannerImageContentType,
   MAX_BANNER_IMAGE_SIZE_BYTES,
@@ -21,6 +22,7 @@ import type {
   WorkspaceDocument,
 } from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
+import { stripLocaleFromPathname } from "@/i18n/config"
 import {
   toDateKey,
   type Announcement,
@@ -188,7 +190,9 @@ export function OperationsProvider({
 }: {
   children: React.ReactNode
 }) {
-  const pathname = usePathname()
+  const localizedPathname = usePathname()
+  const { t } = useI18n()
+  const pathname = stripLocaleFromPathname(localizedPathname)
   const searchParams = useSearchParams()
   const isManagerRoute = pathname.startsWith("/manager")
   const isAuthPage =
@@ -443,7 +447,7 @@ export function OperationsProvider({
         error instanceof Error
           ? error.message.replace(/^.*Uncaught Error: /, "")
           : "Something went wrong"
-      toast.error(message)
+      toast.error(t(message))
       throw error
     }
   }
@@ -863,7 +867,7 @@ export function OperationsProvider({
         submitHelpMutation({ hubSlug, credential, topic, message })
       )
     },
-    showFeedback: (message) => toast.success(message),
+    showFeedback: (message) => toast.success(t(message)),
   }
 
   return (

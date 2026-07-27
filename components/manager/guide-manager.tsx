@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useMemo, useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { BookOpen, FilePenLine, Plus, Search, Trash2 } from "lucide-react"
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
@@ -25,6 +27,7 @@ import { cn } from "@/lib/utils"
 type Status = "All" | "Published" | "Draft"
 
 export function GuideManager() {
+  const { t } = useI18n()
   const {
     categories,
     guides,
@@ -62,14 +65,14 @@ export function GuideManager() {
           canCreateContent ? (
             categories.length ? (
               <Link href="/manager/guides/new" className={buttonVariants()}>
-                <Plus /> New guide
+                <Plus /> <T>New guide</T>
               </Link>
             ) : (
               <Link
                 href="/manager/categories"
                 className={buttonVariants({ variant: "outline" })}
               >
-                <Plus /> Create a category first
+                <Plus /> <T>Create a category first</T>
               </Link>
             )
           ) : undefined
@@ -92,12 +95,14 @@ export function GuideManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter guides by work area"
+            aria-label={t("Filter guides by work area")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All work areas</SelectItem>
+            <SelectItem value="All">
+              <T>All work areas</T>
+            </SelectItem>
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.label}
@@ -111,14 +116,20 @@ export function GuideManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter guides by status"
+            aria-label={t("Filter guides by status")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Published">Published</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="All">
+              <T>All</T>
+            </SelectItem>
+            <SelectItem value="Published">
+              <T>Published</T>
+            </SelectItem>
+            <SelectItem value="Draft">
+              <T>Draft</T>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -137,7 +148,7 @@ export function GuideManager() {
                       |
                     </span>
                     <Badge variant={guide.published ? "secondary" : "outline"}>
-                      {guide.published ? "Published" : "Draft"}
+                      <T>{guide.published ? "Published" : "Draft"}</T>
                     </Badge>
                     <span aria-hidden="true" className="text-border">
                       |
@@ -168,7 +179,7 @@ export function GuideManager() {
                       )
                     }}
                   >
-                    {guide.published ? "Unpublish" : "Publish"}
+                    <T>{guide.published ? "Unpublish" : "Publish"}</T>
                   </Button>
                   <Link
                     href={`/manager/guides/${guide.id}/edit`}
@@ -176,14 +187,14 @@ export function GuideManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> Edit
+                    <FilePenLine /> <T>Edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(guide)}
-                      aria-label={`Delete ${guide.title}`}
+                      aria-label={t("Delete {name}", { name: guide.title })}
                     >
                       <Trash2 />
                     </Button>

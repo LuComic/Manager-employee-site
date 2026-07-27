@@ -1,7 +1,9 @@
 "use client"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
+
 import { useMemo, useState } from "react"
-import Link from "next/link"
+import { LocalizedLink as Link } from "@/components/localized-link"
 import { FilePenLine, Files, Plus, Search, Trash2 } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
@@ -27,6 +29,7 @@ type Status = "All" | "Published" | "Draft"
 type ResourceFilter = "all" | "file" | "link"
 
 export function DocumentManager() {
+  const { t } = useI18n()
   const {
     documents,
     canCreateContent,
@@ -66,7 +69,7 @@ export function DocumentManager() {
         action={
           canCreateContent ? (
             <Link href="/manager/documents/new" className={buttonVariants()}>
-              <Plus /> Share document
+              <Plus /> <T>Share document</T>
             </Link>
           ) : undefined
         }
@@ -88,14 +91,20 @@ export function DocumentManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter documents by resource type"
+            aria-label={t("Filter documents by resource type")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All resources</SelectItem>
-            <SelectItem value="file">Uploaded files</SelectItem>
-            <SelectItem value="link">Shared links</SelectItem>
+            <SelectItem value="all">
+              <T>All resources</T>
+            </SelectItem>
+            <SelectItem value="file">
+              <T>Uploaded files</T>
+            </SelectItem>
+            <SelectItem value="link">
+              <T>Shared links</T>
+            </SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -104,14 +113,20 @@ export function DocumentManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label="Filter documents by status"
+            aria-label={t("Filter documents by status")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Published">Published</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
+            <SelectItem value="All">
+              <T>All</T>
+            </SelectItem>
+            <SelectItem value="Published">
+              <T>Published</T>
+            </SelectItem>
+            <SelectItem value="Draft">
+              <T>Draft</T>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -132,7 +147,7 @@ export function DocumentManager() {
                     <Badge
                       variant={document.published ? "secondary" : "outline"}
                     >
-                      {document.published ? "Published" : "Draft"}
+                      <T>{document.published ? "Published" : "Draft"}</T>
                     </Badge>
                     <span aria-hidden="true" className="text-border">
                       |
@@ -168,7 +183,7 @@ export function DocumentManager() {
                       })()
                     }}
                   >
-                    {document.published ? "Unpublish" : "Publish"}
+                    <T>{document.published ? "Unpublish" : "Publish"}</T>
                   </Button>
                   <Link
                     href={`/manager/documents/${document.id}/edit`}
@@ -176,14 +191,16 @@ export function DocumentManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> Edit
+                    <FilePenLine /> <T>Edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(document)}
-                      aria-label={`Delete ${document.title}`}
+                      aria-label={t("Delete {name}", {
+                        name: document.title,
+                      })}
                     >
                       <Trash2 />
                     </Button>

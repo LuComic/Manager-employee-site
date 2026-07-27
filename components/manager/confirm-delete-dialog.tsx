@@ -1,5 +1,7 @@
 "use client"
 
+import { T } from "@/components/providers/i18n-provider"
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -25,10 +27,15 @@ export function ConfirmDeleteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete “{title}”?</DialogTitle>
+          <DialogTitle>
+            <T>Delete “</T>
+            {title}”?
+          </DialogTitle>
           <DialogDescription>
-            This permanently removes the item from the hub. This action cannot
-            be undone.
+            <T>
+              This permanently removes the item from the hub. This action cannot
+              be undone.
+            </T>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -37,7 +44,7 @@ export function ConfirmDeleteDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            <T>Cancel</T>
           </Button>
           <Button
             type="button"
@@ -47,7 +54,7 @@ export function ConfirmDeleteDialog({
               onOpenChange(false)
             }}
           >
-            Delete
+            <T>Delete</T>
           </Button>
         </DialogFooter>
       </DialogContent>

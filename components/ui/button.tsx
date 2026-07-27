@@ -1,3 +1,5 @@
+"use client"
+
 import {
   Children,
   cloneElement,
@@ -8,6 +10,7 @@ import {
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -55,13 +58,25 @@ function Button({
   children,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const { t } = useI18n()
+  const translatedChildren =
+    typeof children === "string" ? <T>{children}</T> : children
+  const translatedProps = {
+    ...props,
+    "aria-label":
+      typeof props["aria-label"] === "string"
+        ? t(props["aria-label"])
+        : props["aria-label"],
+    title: typeof props.title === "string" ? t(props.title) : props.title,
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
+      {...translatedProps}
     >
-      {markInlineIcons(children)}
+      {markInlineIcons(translatedChildren)}
     </ButtonPrimitive>
   )
 }

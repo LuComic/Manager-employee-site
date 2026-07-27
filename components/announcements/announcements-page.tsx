@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Megaphone } from "lucide-react"
 
+import { T, useI18n } from "@/components/providers/i18n-provider"
 import { AnnouncementCard } from "@/components/operations/announcement-card"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -16,6 +17,7 @@ import { getAnnouncementState } from "@/lib/operations"
 type Filter = "Active" | "Upcoming" | "Expired"
 
 export function AnnouncementsPage() {
+  const { t } = useI18n()
   const { announcements, hub } = useOperations()
   const [filter, setFilter] = useState<Filter>("Active")
   const visible = announcements
@@ -53,7 +55,7 @@ export function AnnouncementsPage() {
                 size="sm"
                 onClick={() => setFilter(item)}
               >
-                {item} ({count})
+                <T>{item}</T> ({count})
               </SegmentedControlItem>
             )
           })}
@@ -71,11 +73,11 @@ export function AnnouncementsPage() {
       ) : (
         <EmptyState
           icon={Megaphone}
-          title={`No ${filter.toLowerCase()} announcements`}
+          title={t(`No ${filter.toLowerCase()} announcements`)}
           description={
             filter === "Active"
               ? "There are no current operational updates."
-              : `There are no ${filter.toLowerCase()} announcements to show.`
+              : t(`There are no ${filter.toLowerCase()} announcements to show.`)
           }
         />
       )}
