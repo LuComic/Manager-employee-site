@@ -33,6 +33,7 @@ type CalendarOptions = {
 
 type ImportOptions = {
   timeZone: string
+  uidNamespace: string
   published?: boolean
   defaultDescription?: string
   defaultLocation?: string
@@ -79,10 +80,7 @@ export function serializeICalendar(
     now = new Date(),
   }: CalendarOptions
 ) {
-  const normalizedUidNamespace = uidNamespace.trim()
-  if (!normalizedUidNamespace || normalizedUidNamespace.length > 200) {
-    throw new Error("A valid workhal UID namespace is required.")
-  }
+  const normalizedUidNamespace = normalizeUidNamespace(uidNamespace)
 
   const lines = [
     "BEGIN:VCALENDAR",
@@ -105,12 +103,14 @@ export function parseICalendar(
   source: string,
   {
     timeZone,
+    uidNamespace,
     published = false,
     defaultDescription = "Imported from an external calendar.",
     defaultLocation = "No location specified",
     cancelledEventTitle = "Cancelled event",
   }: ImportOptions
 ): CalendarImportResult {
+  const normalizedUidNamespace = normalizeUidNamespace(uidNamespace)
   const issues: CalendarImportIssue[] = []
   let calendar: ICAL.Component
   try {
@@ -160,7 +160,11 @@ export function parseICalendar(
     try {
       const status = textValue(component, "status").toUpperCase()
       if (status === "CANCELLED") {
-        const cancellation = parseCancellation(component, cancelledEventTitle)
+        const cancellation = parseCancellation(
+          component,
+          cancelledEventTitle,
+          normalizedUidNamespace
+        )
         if (seenIds.has(cancellation.id)) {
           throw new Error(
             `“${cancellation.title}” has the same calendar identity as another event in this file.`
@@ -182,6 +186,7 @@ export function parseICalendar(
         published,
         defaultDescription,
         defaultLocation,
+        normalizedUidNamespace,
         (key, values) => eventWarnings.push({ key, values })
       )
       if (seenIds.has(event.id)) {
@@ -302,6 +307,7 @@ function parseEvent(
   published: boolean,
   defaultDescription: string,
   defaultLocation: string,
+  uidNamespace: string,
   warn: (key: AppMessageKey, values?: Record<string, string | number>) => void
 ): CalendarEvent {
   const summary = textValue(component, "summary").trim()
@@ -405,7 +411,7 @@ function parseEvent(
 
   const uid = normalizedUid(component)
   const recurrenceId = recurrenceIdentity(component)
-  const id = calendarEventId(component, uid, recurrenceId, {
+  const id = calendarEventId(component, uid, recurrenceId, uidNamespace, {
     summary,
     start,
     end,
@@ -440,7 +446,8 @@ function parseEvent(
 
 function parseCancellation(
   component: ICAL.Component,
-  cancelledEventTitle: string
+  cancelledEventTitle: string,
+  uidNamespace: string
 ): CalendarCancellation {
   const uid = normalizedUid(component)
   if (!uid) {
@@ -449,7 +456,7 @@ function parseCancellation(
   const title = textValue(component, "summary").trim() || cancelledEventTitle
   const recurrenceId = recurrenceIdentity(component)
   return {
-    id: calendarEventId(component, uid, recurrenceId),
+    id: calendarEventId(component, uid, recurrenceId, uidNamespace),
     title,
   }
 }
@@ -458,6 +465,7 @@ function calendarEventId(
   component: ICAL.Component,
   uid: string | undefined,
   recurrenceId: string,
+  destinationUidNamespace: string,
   fallback?: {
     summary: string
     start: ParsedCalendarDate
@@ -465,21 +473,25 @@ function calendarEventId(
   }
 ) {
   const workhalId = textValue(component, "x-workhal-id").trim()
-  const uidNamespace = textValue(component, "x-workhal-uid-namespace").trim()
+  const sourceUidNamespace = textValue(
+    component,
+    "x-workhal-uid-namespace"
+  ).trim()
 
   if (workhalId) {
-    if (!uidNamespace) {
+    if (!sourceUidNamespace) {
       throw new CalendarImportIssueError("calendarEventMissingUidNamespace")
     }
 
     const expectedUidPrefix = `${stableEventHash(
-      `${uidNamespace}\0${workhalId}`
+      `${sourceUidNamespace}\0${workhalId}`
     )}@`
     const validIdentity =
       workhalId.length <= 100 &&
-      uidNamespace.length <= 200 &&
+      sourceUidNamespace.length <= 200 &&
       /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/.test(workhalId) &&
       uid?.startsWith(expectedUidPrefix) &&
+      sourceUidNamespace === destinationUidNamespace &&
       !recurrenceId
 
     if (!validIdentity) {
@@ -672,6 +684,14 @@ function safeUid(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9.-]+/g, "-")
     .replace(/^-+|-+$/g, "")
+}
+
+function normalizeUidNamespace(value: string) {
+  const normalized = value.trim()
+  if (!normalized || normalized.length > 200) {
+    throw new Error("A valid workhal UID namespace is required.")
+  }
+  return normalized
 }
 
 function stableEventHash(value: string) {

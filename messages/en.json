@@ -802,7 +802,7 @@
     "calendarImportedWithAdjustments": "Imported with adjustments",
     "calendarEventCouldNotBeImported": "Event {index} could not be imported because its data is invalid or unsupported.",
     "calendarEventMissingUidNamespace": "Event {index} contains a workhal event ID without its required UID namespace, so it was not imported.",
-    "calendarEventInvalidWorkhalIdentity": "Event {index} contains a workhal event ID that does not match its UID namespace, so it was not imported.",
+    "calendarEventInvalidWorkhalIdentity": "Event {index} contains an invalid workhal identity or belongs to another workplace, so it was not imported.",
     "calendarRecurringImportedOnce": "Event {index}: “{title}” is recurring and was imported as a single event; recurrence rules are not expanded.",
     "calendarEventNoEndDate": "Event {index}: “{title}” had no end date, so it was set to the next day.",
     "calendarEventNoEndTime": "Event {index}: “{title}” had no end time, so a one-hour duration was used.",

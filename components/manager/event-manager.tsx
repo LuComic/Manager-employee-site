@@ -146,6 +146,7 @@ export function EventManager() {
     try {
       const result = parseICalendar(await file.text(), {
         timeZone: hub?.timeZone ?? "UTC",
+        uidNamespace: hub?.id ?? "unconfigured-workplace",
         defaultDescription: t("calendarImportedExternalDescription"),
         defaultLocation: t("calendarNoLocationSpecified"),
         cancelledEventTitle: t("calendarCancelledEvent"),

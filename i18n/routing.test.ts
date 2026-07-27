@@ -300,7 +300,7 @@ describe("translation dictionaries", () => {
     expect(JSON.stringify(et)).not.toMatch(/north.?pine/i)
   })
 
-  test("does not retain the retired project name", () => {
+  test("does not retain the retired project name outside invitation compatibility", () => {
     const retiredProjectName = new RegExp(
       `${["operations", "hub"].join("[-_ ]")}|${["operations", "Hub"].join("")}`,
       "i"
@@ -314,8 +314,14 @@ describe("translation dictionaries", () => {
       "messages/en.json",
       "messages/et.json",
     ]
-    const remnants = files.filter((file) =>
-      retiredProjectName.test(readFileSync(file, "utf8"))
+    const invitationCompatibilityFiles = new Set([
+      "lib/clerk-metadata.ts",
+      "lib/clerk-metadata.test.ts",
+    ])
+    const remnants = files.filter(
+      (file) =>
+        !invitationCompatibilityFiles.has(file) &&
+        retiredProjectName.test(readFileSync(file, "utf8"))
     )
 
     expect(remnants).toEqual([])

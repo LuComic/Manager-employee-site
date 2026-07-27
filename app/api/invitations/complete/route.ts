@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server"
 
 import { api } from "@/convex/_generated/api"
+import { clerkCorrelationCredential } from "@/lib/clerk-metadata"
 import { convexServerClient, safeErrorMessage } from "@/lib/server/convex"
 
 export async function POST() {
@@ -24,10 +25,10 @@ export async function POST() {
       }
     )
     const membership = memberships.data[0]
-    const correlationCredential = (
-      membership?.publicMetadata as Record<string, unknown> | undefined
-    )?.workhalClaim
-    if (typeof correlationCredential !== "string") {
+    const correlationCredential = clerkCorrelationCredential(
+      membership?.publicMetadata
+    )
+    if (!correlationCredential) {
       throw new Error("membershipNotLinkedEmployeeProfile")
     }
     const token = await getToken()

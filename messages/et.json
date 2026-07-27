@@ -802,7 +802,7 @@
     "calendarImportedWithAdjustments": "Imporditi muudatustega",
     "calendarEventCouldNotBeImported": "Sündmust {index} ei saanud importida, sest selle andmed on vigased või toetamata.",
     "calendarEventMissingUidNamespace": "Sündmus {index} sisaldab workhali sündmuse ID-d ilma nõutud UID nimeruumita, mistõttu seda ei imporditud.",
-    "calendarEventInvalidWorkhalIdentity": "Sündmus {index} sisaldab workhali sündmuse ID-d, mis ei vasta selle UID nimeruumile, mistõttu seda ei imporditud.",
+    "calendarEventInvalidWorkhalIdentity": "Sündmus {index} sisaldab vigast workhali identiteeti või kuulub teisele töökohale, mistõttu seda ei imporditud.",
     "calendarRecurringImportedOnce": "Sündmus {index}: „{title}” kordub ja imporditi ühe sündmusena; kordusreegleid ei laiendata.",
     "calendarEventNoEndDate": "Sündmus {index}: sündmusel „{title}” puudus lõppkuupäev, seega määrati selleks järgmine päev.",
     "calendarEventNoEndTime": "Sündmus {index}: sündmusel „{title}” puudus lõpuaeg, seega määrati kestuseks üks tund.",

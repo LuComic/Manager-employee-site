@@ -1,18 +1,11 @@
 import { verifyWebhook } from "@clerk/backend/webhooks"
 import { httpRouter } from "convex/server"
 
+import { clerkCorrelationCredential } from "../lib/clerk-metadata"
 import { internal } from "./_generated/api"
 import { env, httpAction } from "./_generated/server"
 
 const http = httpRouter()
-
-function correlationCredential(metadata: unknown) {
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-    return undefined
-  }
-  const value = (metadata as Record<string, unknown>).workhalClaim
-  return typeof value === "string" ? value : undefined
-}
 
 http.route({
   path: "/clerk-webhooks",
@@ -25,7 +18,8 @@ http.route({
       })
     }
     const eventId = request.headers.get("svix-id")
-    if (!eventId) return new Response("Missing webhook event ID", { status: 400 })
+    if (!eventId)
+      return new Response("Missing webhook event ID", { status: 400 })
 
     let event: Awaited<ReturnType<typeof verifyWebhook>>
     try {
@@ -54,7 +48,9 @@ http.route({
             : event.type === "organizationInvitation.revoked"
               ? "revoked"
               : "accepted",
-        correlationCredential: correlationCredential(event.data.public_metadata),
+        correlationCredential: clerkCorrelationCredential(
+          event.data.public_metadata
+        ),
       })
     } else if (
       event.type === "organizationMembership.created" ||
@@ -66,7 +62,9 @@ http.route({
         eventType: event.type,
         organizationId: event.data.organization.id,
         clerkUserId: event.data.public_user_data.user_id,
-        correlationCredential: correlationCredential(event.data.public_metadata),
+        correlationCredential: clerkCorrelationCredential(
+          event.data.public_metadata
+        ),
       })
     }
 
