@@ -1,10 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-import { useI18n } from "@/components/providers/i18n-provider"
+import { useRouter } from "@/i18n/navigation"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 const historyGuardKey = "__operationsUnsavedChangesGuard"
 
@@ -22,7 +22,7 @@ export function useUnsavedChanges({
   onDiscard,
 }: UnsavedChangesOptions) {
   const router = useRouter()
-  const { href, t } = useI18n()
+  const t = useAppTranslations()
   const dirtyRef = useRef(dirty)
   const onDiscardRef = useRef(onDiscard)
   const guardActiveRef = useRef(false)
@@ -66,7 +66,7 @@ export function useUnsavedChanges({
     (destination: string) => {
       toast.dismiss(toastId)
       if (!guardActiveRef.current) {
-        router.push(href(destination))
+        router.push(destination)
         return
       }
 
@@ -75,13 +75,13 @@ export function useUnsavedChanges({
         "popstate",
         () => {
           guardActiveRef.current = false
-          router.push(href(destination))
+          router.push(destination)
         },
         { once: true }
       )
       window.history.back()
     },
-    [href, router, toastId]
+    [router, toastId]
   )
 
   const requestLeave = useCallback(

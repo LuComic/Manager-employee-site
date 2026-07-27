@@ -1,6 +1,7 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
 import {
@@ -32,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { slugify, type Faq } from "@/lib/operations"
 
 export function FaqManager() {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { faqs, canCreateContent, saveFaq, moveFaq, deleteFaq, showFeedback } =
     useOperations()
   const [editing, setEditing] = useState<Faq | null>(null)

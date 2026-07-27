@@ -3,11 +3,11 @@
 import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 
-import { useI18n } from "@/components/providers/i18n-provider"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { cn } from "@/lib/utils"
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const translatedProps = {
     ...props,
     placeholder:

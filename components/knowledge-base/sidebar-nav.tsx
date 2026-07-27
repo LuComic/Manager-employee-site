@@ -1,8 +1,8 @@
 "use client"
 
 import { useId, useState } from "react"
-import NextLink from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { useLocale } from "next-intl"
+import { useSearchParams } from "next/navigation"
 import {
   BookOpen,
   Bell,
@@ -16,19 +16,18 @@ import {
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
 import { DocumentResourceIcon } from "@/components/documents/document-card"
-import { LocalizedLink as Link } from "@/components/localized-link"
-import { useI18n } from "@/components/providers/i18n-provider"
 import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Link, usePathname } from "@/i18n/navigation"
+import { routing } from "@/i18n/routing"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
-import { localizeHref, locales, stripLocaleFromPathname } from "@/i18n/config"
 
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
-  const localizedPathname = usePathname()
-  const pathname = stripLocaleFromPathname(localizedPathname)
-  const { t, href } = useI18n()
+  const pathname = usePathname()
+  const t = useAppTranslations()
   const { categories, documents, managerAccess } = useOperations()
   const publishedDocuments = documents.filter((document) => document.published)
 
@@ -37,37 +36,33 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
       aria-label={t("Knowledge base navigation")}
     >
-      <SidebarSection
-        label={t("Workspace")}
-        href={href("/")}
-        active={pathname === "/"}
-      >
-        <NavLink href={href("/")} label={t("Today")} active={pathname === "/"}>
+      <SidebarSection label={t("Workspace")} href="/" active={pathname === "/"}>
+        <NavLink href="/" label={t("Today")} active={pathname === "/"}>
           <Home />
         </NavLink>
         <NavLink
-          href={href("/notifications")}
+          href="/notifications"
           label={t("Notifications")}
           active={pathname === "/notifications"}
         >
           <Bell />
         </NavLink>
         <NavLink
-          href={href("/guides")}
+          href="/guides"
           label={t("Guides")}
           active={pathname === "/guides" || pathname.startsWith("/guides/")}
         >
           <BookOpen />
         </NavLink>
         <NavLink
-          href={href("/calendar")}
+          href="/calendar"
           label={t("Calendar")}
           active={pathname.startsWith("/calendar")}
         >
           <CalendarDays />
         </NavLink>
         <NavLink
-          href={href("/announcements")}
+          href="/announcements"
           label={t("Announcements")}
           active={pathname.startsWith("/announcements")}
         >
@@ -77,7 +72,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
 
       <SidebarSection
         label={t("Guide categories")}
-        href={href("/categories")}
+        href="/categories"
         active={pathname.startsWith("/categories")}
       >
         {categories.map((category) => {
@@ -86,7 +81,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           return (
             <NavLink
               key={category.id}
-              href={href(categoryHref)}
+              href={categoryHref}
               label={category.label}
               active={pathname === categoryHref}
             >
@@ -98,7 +93,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
 
       <SidebarSection
         label={t("Documents")}
-        href={href("/documents")}
+        href="/documents"
         active={pathname.startsWith("/documents")}
       >
         {publishedDocuments.slice(0, 8).map((document) => {
@@ -106,7 +101,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           return (
             <NavLink
               key={document.id}
-              href={href(documentHref)}
+              href={documentHref}
               label={document.title}
               active={pathname === documentHref}
             >
@@ -118,23 +113,19 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
 
       <SidebarSection
         label={t("Help and tools")}
-        href={href("/questions")}
+        href="/questions"
         active={pathname === "/questions"}
       >
         <LanguageSelector />
         <NavLink
-          href={href("/questions")}
+          href="/questions"
           label={t("Common questions")}
           active={pathname === "/questions"}
         >
           <CircleHelp />
         </NavLink>
         {managerAccess && (
-          <NavLink
-            href={href("/manager")}
-            label={t("Manager area")}
-            active={false}
-          >
+          <NavLink href="/manager" label={t("Manager area")} active={false}>
             <Settings />
           </NavLink>
         )}
@@ -151,8 +142,10 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
 function LanguageSelector() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { locale, t, setLocalePreference } = useI18n()
+  const locale = useLocale()
+  const t = useAppTranslations()
   const search = searchParams.toString()
+  const href = `${pathname}${search ? `?${search}` : ""}`
 
   return (
     <div
@@ -160,13 +153,13 @@ function LanguageSelector() {
       aria-label={t("Language")}
       role="group"
     >
-      {locales.map((option) => (
-        <NextLink
+      {routing.locales.map((option) => (
+        <Link
           key={option}
-          href={`${localizeHref(pathname, option)}${search ? `?${search}` : ""}`}
+          href={href}
+          locale={option}
           hrefLang={option}
           lang={option}
-          onClick={() => setLocalePreference(option)}
           aria-current={locale === option ? "true" : undefined}
           className={cn(
             buttonVariants({
@@ -176,7 +169,7 @@ function LanguageSelector() {
           )}
         >
           {option === "et" ? t("Estonian") : t("English")}
-        </NextLink>
+        </Link>
       ))}
     </div>
   )
@@ -195,7 +188,7 @@ function SidebarSection({
 }) {
   const [open, setOpen] = useState(true)
   const contentId = useId()
-  const { t } = useI18n()
+  const t = useAppTranslations()
 
   return (
     <div>

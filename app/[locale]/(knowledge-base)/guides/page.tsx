@@ -7,11 +7,11 @@ import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
-import { useI18n } from "@/components/providers/i18n-provider"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { useOperations } from "@/components/providers/operations-provider"
 
 export default function GuidesPage() {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { categories, guides } = useOperations()
   const publishedGuides = guides.filter((guide) => guide.published)
 

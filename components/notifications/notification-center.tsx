@@ -1,9 +1,10 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import {
   Bell,
   BookOpen,
@@ -117,7 +118,7 @@ export function NotificationButton({
   manager?: boolean
   className?: string
 }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { feed } = useNotificationFeed(manager)
   const unreadCount = feed?.unreadCount ?? 0
   const href = manager ? "/manager/notifications" : "/notifications"
@@ -147,7 +148,7 @@ export function NotificationButton({
 }
 
 export function NotificationCenter({ manager = false }: { manager?: boolean }) {
-  const { languageTag } = useI18n()
+  const languageTag = useLanguageTag()
   const { hub } = useOperations()
   const { feed, markAllRead } = useNotificationFeed(manager)
   const newestCreatedAt = feed?.notifications[0]?.createdAt ?? 0

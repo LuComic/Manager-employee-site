@@ -1,10 +1,14 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import {
+  useAppTranslations,
+  useLocalizedHref,
+} from "@/i18n/use-app-translations"
 
 import { useEffect, useState } from "react"
-import { LocalizedLink as Link } from "@/components/localized-link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
+import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import {
   OrganizationSwitcher,
   SignInButton,
@@ -35,14 +39,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { hubEntryHref, parseHubEntry } from "@/lib/hub-entry"
-import { stripLocaleFromPathname } from "@/i18n/config"
 
 export function HubAccessGate({ children }: { children: React.ReactNode }) {
   const { hub, hubSlug, hubState, credential, grantAnonymousAccess, leaveHub } =
     useOperations()
   const { isSignedIn, orgId, orgRole } = useAuth()
-  const pathname = stripLocaleFromPathname(usePathname())
-  const { href, t } = useI18n()
+  const pathname = usePathname()
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [code, setCode] = useState("")
@@ -51,10 +55,8 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!shouldRedirectMissingWorkspace) return
-    router.replace(
-      href(isSignedIn && orgRole === "org:admin" ? "/manager" : "/join")
-    )
-  }, [href, isSignedIn, orgRole, router, shouldRedirectMissingWorkspace])
+    router.replace(isSignedIn && orgRole === "org:admin" ? "/manager" : "/join")
+  }, [isSignedIn, orgRole, router, shouldRedirectMissingWorkspace])
 
   if (hubState === "loading" || shouldRedirectMissingWorkspace) {
     return (
@@ -197,7 +199,8 @@ export function HubEntryScreen({
     orgId,
   } = useAuth()
   const router = useRouter()
-  const { href, t } = useI18n()
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const [workplace, setWorkplace] = useState(initialHubSlug)
   const [employeeCode, setEmployeeCode] = useState("")
   const [error, setError] = useState("")
@@ -210,8 +213,8 @@ export function HubEntryScreen({
 
   useEffect(() => {
     if (!shouldOpenActiveHub) return
-    router.replace(href("/"))
-  }, [href, router, shouldOpenActiveHub])
+    router.replace("/")
+  }, [router, shouldOpenActiveHub])
 
   if (shouldOpenActiveHub) {
     return (

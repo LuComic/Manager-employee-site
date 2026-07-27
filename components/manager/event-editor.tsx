@@ -1,6 +1,7 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
 import {
@@ -69,7 +70,7 @@ function newEvent(location = ""): CalendarEvent {
 }
 
 export function EventEditor({ eventId }: { eventId?: string }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const {
     events,
     employees,

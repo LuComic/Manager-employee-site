@@ -1,63 +1,48 @@
 import { clerkMiddleware } from "@clerk/nextjs/server"
+import { hasLocale } from "next-intl"
+import createMiddleware from "next-intl/middleware"
 import { NextResponse } from "next/server"
 
-import {
-  defaultLocale,
-  getLocaleFromPathname,
-  isLocale,
-  localeCookieName,
-  stripLocaleFromPathname,
-} from "@/i18n/config"
+import { routing } from "@/i18n/routing"
+
+const handleI18nRouting = createMiddleware(routing)
+
+function copyCookies(source: NextResponse, target: NextResponse) {
+  for (const cookie of source.cookies.getAll()) {
+    target.cookies.set(cookie)
+  }
+  return target
+}
 
 export default clerkMiddleware(async (auth, request) => {
   const { nextUrl } = request
-  if (nextUrl.pathname.startsWith("/api/")) return
-
-  const pathnameLocale = getLocaleFromPathname(nextUrl.pathname)
-  if (!pathnameLocale) {
-    const preferredLocale = request.cookies.get(localeCookieName)?.value
-    const locale =
-      preferredLocale && isLocale(preferredLocale)
-        ? preferredLocale
-        : defaultLocale
-    const localizedUrl = nextUrl.clone()
-    localizedUrl.pathname = `/${locale}${
-      nextUrl.pathname === "/" ? "" : nextUrl.pathname
-    }`
-    return NextResponse.redirect(localizedUrl)
+  if (
+    nextUrl.pathname.startsWith("/api/") ||
+    nextUrl.pathname.startsWith("/trpc/")
+  ) {
+    return NextResponse.next()
   }
 
-  const pathname = stripLocaleFromPathname(nextUrl.pathname)
-  const localeResponse = NextResponse.next()
-  localeResponse.cookies.set(localeCookieName, pathnameLocale, {
-    maxAge: 60 * 60 * 24 * 365,
-    path: "/",
-    sameSite: "lax",
-  })
+  const localeResponse = handleI18nRouting(request)
+  if (!localeResponse.ok) return localeResponse
+
+  const [, locale, ...segments] = nextUrl.pathname.split("/")
+  if (!hasLocale(routing.locales, locale)) return localeResponse
+  const pathname = `/${segments.join("/")}`
   if (pathname !== "/" || nextUrl.searchParams.has("hub")) return localeResponse
 
   const { isAuthenticated, orgId } = await auth()
   if (!isAuthenticated) {
-    const response = NextResponse.redirect(
-      new URL(`/${pathnameLocale}/join`, request.url)
+    return copyCookies(
+      localeResponse,
+      NextResponse.redirect(new URL(`/${locale}/join`, request.url))
     )
-    response.cookies.set(localeCookieName, pathnameLocale, {
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-      sameSite: "lax",
-    })
-    return response
   }
   if (!orgId) {
-    const response = NextResponse.redirect(
-      new URL(`/${pathnameLocale}/manager`, request.url)
+    return copyCookies(
+      localeResponse,
+      NextResponse.redirect(new URL(`/${locale}/manager`, request.url))
     )
-    response.cookies.set(localeCookieName, pathnameLocale, {
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-      sameSite: "lax",
-    })
-    return response
   }
   return localeResponse
 })

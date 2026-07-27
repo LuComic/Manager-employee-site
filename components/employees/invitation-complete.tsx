@@ -1,6 +1,10 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import {
+  useAppTranslations,
+  useLocalizedHref,
+} from "@/i18n/use-app-translations"
 
 import { useEffect, useState } from "react"
 import { SignIn, useAuth } from "@clerk/nextjs"
@@ -14,7 +18,8 @@ import {
 } from "@/components/ui/card"
 
 export function InvitationComplete() {
-  const { href, t } = useI18n()
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const { isLoaded, isSignedIn } = useAuth()
   const [error, setError] = useState("")
 

@@ -1,24 +1,26 @@
-import { T } from "@/components/providers/i18n-provider"
-
 import type { Metadata } from "next"
+import { hasLocale } from "next-intl"
+import { getTranslations } from "next-intl/server"
 import { Search } from "lucide-react"
 
 import { SearchResults } from "@/components/knowledge-base/search-results"
 import { PageHeading } from "@/components/operations/page-heading"
-import { isLocale } from "@/i18n/config"
-import { getMessages } from "@/i18n/messages"
+import { T } from "@/components/translated-text"
+import { routing } from "@/i18n/routing"
+import { toMessageKey } from "@/i18n/use-app-translations"
 
 export async function generateMetadata({
   params,
-}: PageProps<"/[lang]/search">): Promise<Metadata> {
-  const { lang } = await params
-  if (!isLocale(lang)) return {}
-  const messages = await getMessages(lang)
+}: PageProps<"/[locale]/search">): Promise<Metadata> {
+  const { locale } = await params
+  if (!hasLocale(routing.locales, locale)) return {}
+  const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: messages["Search | Operations hub"],
-    description:
-      messages["Search the operations hub for published workplace content."],
+    title: t(toMessageKey("Search | Operations hub")),
+    description: t(
+      toMessageKey("Search the operations hub for published workplace content.")
+    ),
     robots: {
       index: false,
       follow: true,

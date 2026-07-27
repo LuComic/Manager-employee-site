@@ -1,4 +1,4 @@
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowRight, Clock3 } from "lucide-react"
 
 import {

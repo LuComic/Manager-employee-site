@@ -1,8 +1,9 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { useMemo, useState } from "react"
 import {
   CalendarDays,
@@ -61,7 +62,8 @@ function calendarKey(value: Date) {
 }
 
 export function CalendarPage() {
-  const { languageTag, t } = useI18n()
+  const t = useAppTranslations()
+  const languageTag = useLanguageTag()
   const { events, hub } = useOperations()
   const todayKey = toDateKey(new Date(), hub?.timeZone)
   const [view, setView] = useState<View>("month")

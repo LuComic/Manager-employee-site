@@ -1,7 +1,8 @@
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowRight, Clock3, MapPin } from "lucide-react"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useLanguageTag } from "@/i18n/use-app-translations"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -25,7 +26,7 @@ export function EventCard({
   timeZone?: string
   compact?: boolean
 }) {
-  const { languageTag } = useI18n()
+  const languageTag = useLanguageTag()
 
   return (
     <Link

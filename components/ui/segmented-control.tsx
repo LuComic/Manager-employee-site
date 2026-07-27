@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { useI18n } from "@/components/providers/i18n-provider"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -10,7 +10,7 @@ function SegmentedControl({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const ariaLabel = props["aria-label"]
 
   return (

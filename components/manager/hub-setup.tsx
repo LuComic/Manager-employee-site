@@ -1,9 +1,13 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import {
+  useAppTranslations,
+  useLocalizedHref,
+} from "@/i18n/use-app-translations"
 
 import { useState } from "react"
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import {
   OrganizationSwitcher,
   useAuth,
@@ -23,7 +27,8 @@ import {
 import { slugify } from "@/lib/operations"
 
 export function HubSetup() {
-  const { href, t } = useI18n()
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const afterOrganizationCreated = href("/manager")
   const { createHub } = useOperations()
   const { orgId } = useAuth()

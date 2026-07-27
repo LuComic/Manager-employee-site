@@ -1,6 +1,7 @@
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useLanguageTag } from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowRight, Pin } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +20,7 @@ export function AnnouncementCard({
 }: {
   announcement: Announcement
 }) {
-  const { languageTag } = useI18n()
+  const languageTag = useLanguageTag()
 
   return (
     <Link

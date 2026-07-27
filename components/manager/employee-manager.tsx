@@ -1,6 +1,7 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useMemo, useState } from "react"
 import { useSession } from "@clerk/nextjs"
@@ -68,7 +69,7 @@ const employeeStatusLabels: Record<EmployeeStatus, string> = {
 }
 
 export function EmployeeManager() {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { hub, employees, createEmployee, updateEmployee, showFeedback } =
     useOperations()
   const { session } = useSession()

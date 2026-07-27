@@ -1,8 +1,9 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowLeft, ExternalLink, Files, Users } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
@@ -15,7 +16,7 @@ import { documentResourceLabel, formatFileSize } from "@/lib/documents"
 import { cn } from "@/lib/utils"
 
 export function DocumentPageContent({ documentId }: { documentId: string }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { documents } = useOperations()
   const document = documents.find(
     (item) => item.id === documentId && item.published

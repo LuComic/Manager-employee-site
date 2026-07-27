@@ -1,7 +1,7 @@
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowRight } from "lucide-react"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
 import { buttonVariants } from "@/components/ui/button"
 
 export function SectionHeading({
@@ -13,8 +13,6 @@ export function SectionHeading({
   description?: string
   action?: { label: string; href: string }
 }) {
-  const { href } = useI18n()
-
   return (
     <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
@@ -29,7 +27,7 @@ export function SectionHeading({
       </div>
       {action && (
         <Link
-          href={href(action.href)}
+          href={action.href}
           className={buttonVariants({ variant: "ghost", size: "sm" })}
         >
           <T>{action.label}</T> <ArrowRight />

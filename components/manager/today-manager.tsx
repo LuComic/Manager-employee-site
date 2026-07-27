@@ -1,6 +1,7 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import {
   ArrowDown,
@@ -41,7 +42,7 @@ const sectionDetails = new Map(
 )
 
 export function TodayManager() {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { hub, moveTodaySection, setTodaySectionVisibility, showFeedback } =
     useOperations()
   const sections = hub?.todaySections ?? defaultTodaySections

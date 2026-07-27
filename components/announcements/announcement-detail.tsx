@@ -1,8 +1,9 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useLanguageTag } from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowLeft, CalendarDays, Megaphone, Pin } from "lucide-react"
 
 import { EmptyState } from "@/components/operations/empty-state"
@@ -66,7 +67,7 @@ export function AnnouncementArticle({
   preview?: boolean
 }) {
   const { hub } = useOperations()
-  const { languageTag } = useI18n()
+  const languageTag = useLanguageTag()
   const state = getAnnouncementState(announcement, new Date(), hub?.timeZone)
   return (
     <article className="mx-auto max-w-4xl space-y-6">

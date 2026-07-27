@@ -1,6 +1,6 @@
 "use client"
 
-import { T } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
 
 import { createContext, useContext, useState } from "react"
 import { ArrowRight, CheckCircle2, Headphones, Mail, Phone } from "lucide-react"

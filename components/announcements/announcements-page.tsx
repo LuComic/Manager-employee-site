@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { Megaphone } from "lucide-react"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { AnnouncementCard } from "@/components/operations/announcement-card"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -17,7 +18,7 @@ import { getAnnouncementState } from "@/lib/operations"
 type Filter = "Active" | "Upcoming" | "Expired"
 
 export function AnnouncementsPage() {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { announcements, hub } = useOperations()
   const [filter, setFilter] = useState<Filter>("Active")
   const visible = announcements

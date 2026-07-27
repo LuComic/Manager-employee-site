@@ -1,6 +1,6 @@
 "use client"
 
-import { T } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
 
 import { Headphones } from "lucide-react"
 

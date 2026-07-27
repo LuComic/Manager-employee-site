@@ -1,9 +1,12 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import {
+  useAppTranslations,
+  useLocalizedHref,
+} from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
-import { usePathname } from "next/navigation"
+import { Link, usePathname } from "@/i18n/navigation"
 import {
   ArrowLeft,
   BookOpen,
@@ -39,7 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { stripLocaleFromPathname } from "@/i18n/config"
 
 type NavigationLink = {
   href: string
@@ -103,8 +105,9 @@ function isActiveLink(pathname: string, href: string) {
 }
 
 export function ManagerShell({ children }: { children: React.ReactNode }) {
-  const pathname = stripLocaleFromPathname(usePathname())
-  const { href, t } = useI18n()
+  const pathname = usePathname()
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const { hub, hubState, managerAccess } = useOperations()
   const focusedEditor = pathname.endsWith("/new") || pathname.endsWith("/edit")
   const visibleMoreNavigationGroups =

@@ -1,9 +1,10 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useMemo, useState } from "react"
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { FilePenLine, Files, Plus, Search, Trash2 } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
@@ -29,7 +30,7 @@ type Status = "All" | "Published" | "Draft"
 type ResourceFilter = "all" | "file" | "link"
 
 export function DocumentManager() {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const {
     documents,
     canCreateContent,

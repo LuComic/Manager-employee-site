@@ -1,8 +1,9 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import {
   ArrowLeft,
   CalendarDays,
@@ -29,7 +30,8 @@ import { formatEventDate, formatEventTime } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
-  const { languageTag, t } = useI18n()
+  const t = useAppTranslations()
+  const languageTag = useLanguageTag()
   const { events, guides, hub } = useOperations()
   const event = events.find((item) => item.id === eventId && item.published)
   if (!event)

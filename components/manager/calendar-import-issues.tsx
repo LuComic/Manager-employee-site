@@ -1,4 +1,4 @@
-import { T } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
 
 import { CircleAlert, TriangleAlert } from "lucide-react"
 

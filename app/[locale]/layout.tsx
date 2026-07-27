@@ -1,19 +1,25 @@
 import { ClerkProvider } from "@clerk/nextjs"
 import type { Metadata } from "next"
+import { hasLocale, NextIntlClientProvider } from "next-intl"
+import {
+  getMessages,
+  getTranslations,
+  setRequestLocale,
+} from "next-intl/server"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { Geist_Mono, Noto_Sans } from "next/font/google"
 
 import "../globals.css"
-import { I18nProvider } from "@/components/providers/i18n-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider"
 import { OperationsProvider } from "@/components/providers/operations-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { getPathname } from "@/i18n/navigation"
+import { routing } from "@/i18n/routing"
+import { toMessageKey } from "@/i18n/use-app-translations"
 import { clerkAppearance } from "@/lib/clerk-appearance"
 import { cn } from "@/lib/utils"
-import { isLocale, locales } from "@/i18n/config"
-import { getMessages } from "@/i18n/messages"
 
 const notoSans = Noto_Sans({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -23,34 +29,39 @@ const fontMono = Geist_Mono({
 })
 
 export function generateStaticParams() {
-  return locales.map((lang) => ({ lang }))
+  return routing.locales.map((locale) => ({ locale }))
 }
 
 export async function generateMetadata({
   params,
-}: LayoutProps<"/[lang]">): Promise<Metadata> {
-  const { lang } = await params
-  if (!isLocale(lang)) return {}
-  const messages = await getMessages(lang)
+}: LayoutProps<"/[locale]">): Promise<Metadata> {
+  const { locale } = await params
+  if (!hasLocale(routing.locales, locale)) return {}
+  const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: messages["Operations hub"],
-    description:
-      messages["Today’s information and practical guides for smooth shifts."],
+    title: t(toMessageKey("Operations hub")),
+    description: t(
+      toMessageKey(
+        "Today’s information and practical guides for smooth shifts."
+      )
+    ),
   }
 }
 
 export default async function RootLayout({
   children,
   params,
-}: LayoutProps<"/[lang]">) {
-  const { lang } = await params
-  if (!isLocale(lang)) notFound()
-  const messages = await getMessages(lang)
+}: LayoutProps<"/[locale]">) {
+  const { locale } = await params
+  if (!hasLocale(routing.locales, locale)) notFound()
+
+  setRequestLocale(locale)
+  const messages = await getMessages()
 
   return (
     <html
-      lang={lang}
+      lang={locale}
       suppressHydrationWarning
       data-scroll-behavior="smooth"
       className={cn(
@@ -61,10 +72,10 @@ export default async function RootLayout({
       )}
     >
       <body>
-        <I18nProvider locale={lang} messages={messages}>
+        <NextIntlClientProvider messages={messages}>
           <ClerkProvider
             appearance={clerkAppearance}
-            afterSignOutUrl={`/${lang}`}
+            afterSignOutUrl={getPathname({ locale, href: "/" })}
           >
             <ConvexClientProvider>
               <ThemeProvider defaultTheme="light">
@@ -77,7 +88,7 @@ export default async function RootLayout({
               </ThemeProvider>
             </ConvexClientProvider>
           </ClerkProvider>
-        </I18nProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   )

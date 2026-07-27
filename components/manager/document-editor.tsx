@@ -1,6 +1,7 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useEffect, useState } from "react"
 import {
@@ -46,7 +47,7 @@ function newDocument(): EditableDocument {
 }
 
 export function DocumentEditor({ documentId }: { documentId?: string }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { documents, employees, saveDocument, showFeedback } = useOperations()
   const existing = documentId
     ? documents.find((document) => document.id === documentId)

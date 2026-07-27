@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Search, X } from "lucide-react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 
-import { useI18n } from "@/components/providers/i18n-provider"
 import { Input } from "@/components/ui/input"
-import { stripLocaleFromPathname } from "@/i18n/config"
+import { usePathname, useRouter } from "@/i18n/navigation"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -15,8 +15,8 @@ export function SearchField({
 }: {
   inputRef: React.RefObject<HTMLInputElement | null>
 }) {
-  const pathname = stripLocaleFromPathname(usePathname())
-  const { href: localizeHref, t } = useI18n()
+  const pathname = usePathname()
+  const t = useAppTranslations()
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlQuery =
@@ -46,9 +46,7 @@ export function SearchField({
       if (hub) params.set("hub", hub)
 
       const queryString = params.toString()
-      const href = localizeHref(
-        queryString ? `/search?${queryString}` : "/search"
-      )
+      const href = queryString ? `/search?${queryString}` : "/search"
 
       if (pathname === "/search") {
         router.replace(href, { scroll: false })
@@ -56,7 +54,7 @@ export function SearchField({
         router.push(href)
       }
     },
-    [localizeHref, pathname, router, searchParams]
+    [pathname, router, searchParams]
   )
 
   useEffect(() => {

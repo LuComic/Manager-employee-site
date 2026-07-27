@@ -1,4 +1,4 @@
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import {
   ArrowRight,
   File,
@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useI18n } from "@/components/providers/i18n-provider"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import {
   documentResourceLabel,
   type DocumentResource,
@@ -45,7 +45,7 @@ export function DocumentResourceIcon({
 }
 
 export function DocumentCard({ document }: { document: WorkspaceDocument }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
 
   return (
     <Link

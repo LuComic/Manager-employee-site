@@ -4,7 +4,8 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { cn } from "@/lib/utils"
 
 const Select = SelectPrimitive.Root
@@ -37,7 +38,7 @@ function SelectTrigger({
 }: SelectPrimitive.Trigger.Props & {
   size?: "sm" | "default"
 }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const translatedProps = {
     ...props,
     "aria-label":

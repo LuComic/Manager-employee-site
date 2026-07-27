@@ -1,8 +1,9 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import {
   BookOpen,
   CalendarDays,
@@ -34,7 +35,7 @@ type Result = {
 }
 
 export function SearchResults({ query }: { query: string }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { hub, hubSlug, credential } = useOperations()
   const normalizedQuery = query.trim()
 

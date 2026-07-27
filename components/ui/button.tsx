@@ -10,7 +10,8 @@ import {
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -58,7 +59,7 @@ function Button({
   children,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const translatedChildren =
     typeof children === "string" ? <T>{children}</T> : children
   const translatedProps = {

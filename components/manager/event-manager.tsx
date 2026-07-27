@@ -1,9 +1,10 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { useMemo, useState } from "react"
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import {
   CalendarDays,
   FilePenLine,
@@ -60,7 +61,8 @@ import { cn } from "@/lib/utils"
 type Status = "All" | "Published" | "Draft"
 
 export function EventManager() {
-  const { languageTag, t } = useI18n()
+  const t = useAppTranslations()
+  const languageTag = useLanguageTag()
   const {
     events,
     hub,

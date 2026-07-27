@@ -1,6 +1,6 @@
-import { T } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowLeft, Clock3 } from "lucide-react"
 
 import { PrintButton } from "@/components/knowledge-base/print-button"

@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useAuth, useSession } from "@clerk/nextjs"
 import { ConvexHttpClient } from "convex/browser"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
@@ -9,7 +9,8 @@ import { toast } from "sonner"
 
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { useI18n } from "@/components/providers/i18n-provider"
+import { usePathname } from "@/i18n/navigation"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import {
   isBannerImageContentType,
   MAX_BANNER_IMAGE_SIZE_BYTES,
@@ -22,7 +23,6 @@ import type {
   WorkspaceDocument,
 } from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
-import { stripLocaleFromPathname } from "@/i18n/config"
 import {
   toDateKey,
   type Announcement,
@@ -190,9 +190,8 @@ export function OperationsProvider({
 }: {
   children: React.ReactNode
 }) {
-  const localizedPathname = usePathname()
-  const { t } = useI18n()
-  const pathname = stripLocaleFromPathname(localizedPathname)
+  const pathname = usePathname()
+  const t = useAppTranslations()
   const searchParams = useSearchParams()
   const isManagerRoute = pathname.startsWith("/manager")
   const isAuthPage =

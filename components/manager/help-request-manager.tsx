@@ -1,6 +1,7 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
 import { CheckCircle2, Headphones, RotateCcw, Trash2 } from "lucide-react"
@@ -30,7 +31,8 @@ type HelpRequest = {
 }
 
 export function HelpRequestManager() {
-  const { languageTag, t } = useI18n()
+  const t = useAppTranslations()
+  const languageTag = useLanguageTag()
   const { hub } = useOperations()
   const requests = useQuery(
     api.content.listHelpRequests,

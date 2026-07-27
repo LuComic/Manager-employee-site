@@ -1,6 +1,7 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
 import { ArrowLeft, Eye, Pencil, X } from "lucide-react"
@@ -78,7 +79,7 @@ function toDraft(guide: Guide): GuideDraft {
 }
 
 export function GuideEditor({ guideId }: { guideId?: string }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
   const { categories, guides, saveGuide, showFeedback } = useOperations()
   const existingGuide = guideId
     ? guides.find((guide) => guide.id === guideId)

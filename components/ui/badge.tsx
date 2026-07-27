@@ -4,7 +4,7 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { T } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(

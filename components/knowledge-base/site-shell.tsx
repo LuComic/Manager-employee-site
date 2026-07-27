@@ -1,6 +1,10 @@
 "use client"
 
-import { T, useI18n } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
+import {
+  useAppTranslations,
+  useLocalizedHref,
+} from "@/i18n/use-app-translations"
 
 import { useEffect, useRef, useState } from "react"
 import { Menu } from "lucide-react"
@@ -25,7 +29,8 @@ import {
 } from "@/components/ui/sheet"
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
-  const { href, t } = useI18n()
+  const href = useLocalizedHref()
+  const t = useAppTranslations()
   const [mobileOpen, setMobileOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 

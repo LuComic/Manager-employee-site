@@ -1,6 +1,6 @@
 "use client"
 
-import { T } from "@/components/providers/i18n-provider"
+import { T } from "@/components/translated-text"
 
 import { useState } from "react"
 import { ArrowLeft, Eye, Megaphone, Pencil } from "lucide-react"

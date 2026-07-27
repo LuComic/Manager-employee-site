@@ -1,6 +1,6 @@
-import { useI18n } from "@/components/providers/i18n-provider"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 
-import { LocalizedLink as Link } from "@/components/localized-link"
+import { Link } from "@/i18n/navigation"
 import { ArrowRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +14,7 @@ export function CategoryCard({
   category: Category
   count?: number
 }) {
-  const { t } = useI18n()
+  const t = useAppTranslations()
 
   return (
     <Link
