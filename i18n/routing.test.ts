@@ -91,6 +91,12 @@ describe("translation dictionaries", () => {
     expect(new Set(Object.values(en.App)).size).toBe(Object.keys(en.App).length)
   })
 
+  test("avoids the rejected Estonian hub terminology", () => {
+    expect(
+      Object.values(et.App).some((message) => /keskus/i.test(message))
+    ).toBe(false)
+  })
+
   test("resolves both semantic keys and existing English source copy", () => {
     expect(resolveMessageKey("bannerImageSizeLimit")).toBe(
       "bannerImageSizeLimit"
