@@ -17,11 +17,9 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: t(getMessageKey("Search | Operations hub")),
+    title: t(getMessageKey("Search")),
     description: t(
-      getMessageKey(
-        "Search the operations hub for published workplace content."
-      )
+      getMessageKey("Search workhal for published workplace content.")
     ),
     robots: {
       index: false,
@@ -44,7 +42,7 @@ export default async function SearchPage({
     <div>
       <PageHeading
         title="Search"
-        description="Find guides, events, announcements, documents, and questions across the operations hub."
+        description="Find guides, events, announcements, documents, and questions in workhal."
       />
       <div className="mt-6 flex min-h-40 flex-col items-center justify-center border bg-background p-6 text-center">
         <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">

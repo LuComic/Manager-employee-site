@@ -2,7 +2,7 @@
 
 ## Product direction
 
-Expand the current worker manual into a simple operations hub for an establishment. The site should remain calm and easy to use on a shared workplace computer. Guides are still central, but the home page should also explain what is happening today.
+Expand the current worker manual into workhal, a simple operations portal for an establishment. The site should remain calm and easy to use on a shared workplace computer. Guides are still central, but the home page should also explain what is happening today.
 
 Workers do not need accounts. Managers use individual Clerk accounts, and Convex persists each hub's content. Every record is isolated by `hubId`, and only the owning Clerk identity can use that hub's manager tools.
 

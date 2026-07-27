@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 
 import { useOperations } from "@/components/providers/operations-provider"
+import { SITE_NAME } from "@/lib/branding"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -118,7 +119,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
               <ShieldCheck />
             </span>
             <h1 className="font-heading text-lg font-semibold">
-              {hub?.name ?? t("Private operations hub")}
+              {hub?.name ?? t("Private workplace")}
             </h1>
             <CardDescription>
               <T>Enter the employee join code. You do not need an account.</T>
@@ -240,7 +241,7 @@ export function HubEntryScreen({
                 <BriefcaseBusiness className="size-5" />
               </span>
               <p className="mt-4 text-sm font-medium text-primary-foreground/75">
-                <T>Operations hub</T>
+                {SITE_NAME}
               </p>
               <h1 className="mt-2 max-w-md text-3xl font-semibold tracking-tight sm:text-4xl">
                 <T>Everything your shift needs, in one place.</T>

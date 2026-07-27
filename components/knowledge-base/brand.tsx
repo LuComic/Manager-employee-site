@@ -1,12 +1,12 @@
 "use client"
 
-import { T } from "@/components/translated-text"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
 import { BriefcaseBusiness } from "lucide-react"
 
 import { useOperations } from "@/components/providers/operations-provider"
+import { SITE_NAME } from "@/lib/branding"
 
 export function Brand({
   compact = false,
@@ -27,10 +27,10 @@ export function Brand({
       {!compact && (
         <span>
           <span className="block font-semibold tracking-tight">
-            <T>Operations hub</T>
+            {SITE_NAME}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {hub?.name ?? t("Operations hub")}
+            {hub?.name ?? t("Workplace")}
           </span>
         </span>
       )}

@@ -87,7 +87,7 @@ export function SearchField({
   return (
     <form
       role="search"
-      aria-label={t("Search the operations hub")}
+      aria-label={t("Search workhal")}
       className="relative w-full max-w-xl"
       onSubmit={(event) => {
         event.preventDefault()
@@ -104,7 +104,7 @@ export function SearchField({
         onChange={(event) => updateValue(event.target.value)}
         placeholder="Search guides, events, announcements, documents, and questions…"
         className="h-10 border border-input bg-background pr-10 pl-10 focus-visible:border-ring"
-        aria-label="Search the operations hub"
+        aria-label="Search workhal"
       />
       {value && (
         <button

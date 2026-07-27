@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "next-app",
+      "name": "workhal",
       "dependencies": {
         "@base-ui/react": "^1.6.0",
         "@clerk/nextjs": "^7.5.20",

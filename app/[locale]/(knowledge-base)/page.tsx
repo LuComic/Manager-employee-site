@@ -128,7 +128,7 @@ export default function TodayPage() {
           <section>
             <SectionHeading
               title="Quick links"
-              description="Go straight to the main areas of the operations hub."
+              description="Go straight to workhal’s main areas."
             />
             <div className="grid gap-3 md:grid-cols-3">
               {quickLinks.map(({ href, title, description, icon: Icon }) => (

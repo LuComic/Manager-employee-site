@@ -18,6 +18,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { getMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
+import { SITE_NAME } from "@/lib/branding"
 import { clerkAppearance } from "@/lib/clerk-appearance"
 import { cn } from "@/lib/utils"
 
@@ -40,7 +41,11 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: t(getMessageKey("Operations hub")),
+    title: {
+      default: SITE_NAME,
+      template: `%s | ${SITE_NAME}`,
+    },
+    applicationName: SITE_NAME,
     description: t(
       getMessageKey(
         "Today’s information and practical guides for smooth shifts."

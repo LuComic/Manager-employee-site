@@ -6,6 +6,7 @@ import ts from "typescript"
 import { getMessageKey, resolveMessageKey } from "@/i18n/messages"
 import { getPathname } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
+import { SITE_NAME } from "@/lib/branding"
 import en from "@/messages/en.json"
 import et from "@/messages/et.json"
 
@@ -95,6 +96,12 @@ describe("translation dictionaries", () => {
     expect(
       Object.values(et.App).some((message) => /keskus/i.test(message))
     ).toBe(false)
+  })
+
+  test("keeps the untranslated site name out of the locale catalogs", () => {
+    expect(SITE_NAME).toBe("workhal")
+    expect(Object.values(en.App)).not.toContain(SITE_NAME)
+    expect(Object.values(et.App)).not.toContain(SITE_NAME)
   })
 
   test("resolves both semantic keys and existing English source copy", () => {

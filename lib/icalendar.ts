@@ -2,6 +2,7 @@ import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex } from "@noble/hashes/utils.js"
 import ICAL from "ical.js"
 
+import { SITE_NAME } from "@/lib/branding"
 import {
   addCalendarDays,
   eventCategories,
@@ -17,7 +18,7 @@ const EVENT_DESCRIPTION_LIMIT = 500
 const EVENT_LOCATION_LIMIT = 140
 const EVENT_NOTES_LIMIT = 4000
 const ICALENDAR_UID_LIMIT = 512
-const OPERATIONS_UID_DOMAIN = "operations-hub.local"
+const OPERATIONS_UID_DOMAIN = `${SITE_NAME}.local`
 
 type CalendarOptions = {
   calendarName: string
@@ -59,14 +60,14 @@ export function serializeICalendar(
   {
     calendarName,
     timeZone,
-    uidDomain = "operations-hub.local",
+    uidDomain = OPERATIONS_UID_DOMAIN,
     now = new Date(),
   }: CalendarOptions
 ) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Operations Hub//Shared Calendar//EN",
+    `PRODID:-//${SITE_NAME}//Shared Calendar//EN`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeText(calendarName)}`,

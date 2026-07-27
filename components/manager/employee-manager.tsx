@@ -487,7 +487,7 @@ export function EmployeeManager() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="employee-access">
-                  <T>Application access</T>
+                  <T>workhal access</T>
                 </Label>
                 <Select
                   value={form.accessLevel}

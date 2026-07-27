@@ -98,12 +98,12 @@ export function HubSetup() {
           <Building2 />
         </span>
         <h1 className="font-heading text-lg font-semibold">
-          <T>Finish setting up your operations hub</T>
+          <T>Finish setting up your workplace</T>
         </h1>
         <CardDescription>
           <T>
-            Your workplace account manages the name, logo, and members. The
-            operations hub will use the active workplace shown below.
+            Your workplace account manages the name, logo, and members. workhal
+            will use the active workplace shown below.
           </T>
         </CardDescription>
       </CardHeader>
@@ -148,7 +148,7 @@ export function HubSetup() {
               setError(
                 caught instanceof Error
                   ? t(caught.message)
-                  : t("Could not create the operations hub")
+                  : t("Could not create workplace")
               )
             } finally {
               setPending(false)
@@ -156,7 +156,7 @@ export function HubSetup() {
           }}
         >
           {pending ? <LoaderCircle className="animate-spin" /> : <Building2 />}
-          {t(pending ? "Creating operations hub…" : "Create operations hub")}
+          {t(pending ? "Creating workplace…" : "Create workplace")}
         </Button>
       </CardContent>
     </Card>
