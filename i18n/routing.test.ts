@@ -88,6 +88,7 @@ function implicitlyTranslatedSourceMessages() {
   const messages = new Set<string>()
   const translatedAttributes: Record<string, Set<string>> = {
     Button: new Set(["aria-label", "title"]),
+    CredentialCard: new Set(["description", "title"]),
     Detail: new Set(["label"]),
     EmptyState: new Set(["actionLabel", "description", "title"]),
     Field: new Set(["label"]),

@@ -6,6 +6,8 @@ import { useState } from "react"
 import {
   Check,
   Copy,
+  Eye,
+  EyeOff,
   KeyRound,
   Link2,
   RefreshCw,
@@ -22,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export function AccessManager() {
   const {
@@ -79,8 +82,8 @@ export function AccessManager() {
                 await setAccessMode(nextMode)
                 showFeedback(
                   nextMode === "restricted"
-                    ? "Restricted access enabled. Employees now need the code or private link."
-                    : "Public access enabled. The workplace URL now opens without a code."
+                    ? "restrictedAccessEnabledEmployeesNowNeedCodePrivateLink"
+                    : "publicAccessEnabledWorkplaceurlNowOpensMessage"
                 )
               } finally {
                 setModePending(false)
@@ -106,21 +109,21 @@ export function AccessManager() {
       <div className="grid gap-4 lg:grid-cols-2">
         <CredentialCard
           icon={KeyRound}
-          title="Employee join code"
-          value={ownerCredentials?.joinCode ?? "Not stored in this browser"}
+          title="employeeJoinCode"
+          value={ownerCredentials?.joinCode ?? ""}
           disabled={!ownerCredentials}
           copied={copied === "code"}
           onCopy={() => copy("code", ownerCredentials?.joinCode ?? "")}
-          description="Share this short code verbally or in a staff-only channel."
+          description="shareShortCodeVerballyStaffOnlyChannel"
         />
         <CredentialCard
           icon={Link2}
-          title="Private join link"
-          value={privateUrl || "Not stored in this browser"}
+          title="privateJoinLink"
+          value={privateUrl}
           disabled={!ownerCredentials}
           copied={copied === "link"}
           onCopy={() => copy("link", privateUrl)}
-          description="Opening this link grants access without typing the code."
+          description="openingLinkGrantsAccessWithoutTypingCode"
         />
       </div>
 
@@ -165,35 +168,62 @@ function CredentialCard({
   onCopy,
 }: {
   icon: typeof KeyRound
-  title: string
+  title: AppMessageKey
   value: string
-  description: string
+  description: AppMessageKey
   disabled: boolean
   copied: boolean
   onCopy: () => void
 }) {
+  const [revealed, setRevealed] = useState(false)
+
   return (
     <Card className="shadow-none">
       <CardHeader>
         <span className="flex size-10 items-center justify-center bg-primary/10 text-primary">
           <Icon />
         </span>
-        <CardTitle className="mt-3 text-base">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle className="mt-3 text-base">
+          <T>{title}</T>
+        </CardTitle>
+        <CardDescription>
+          <T>{description}</T>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <code className="block overflow-x-auto border bg-muted/40 p-3 text-xs">
-          {value}
+          {value ? (
+            revealed ? (
+              value
+            ) : (
+              "••••••••••••"
+            )
+          ) : (
+            <T>notStoredInThisBrowser</T>
+          )}
         </code>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-3"
-          disabled={disabled}
-          onClick={onCopy}
-        >
-          {copied ? <Check /> : <Copy />} <T>{copied ? "copied" : "copy"}</T>
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={onCopy}
+          >
+            {copied ? <Check /> : <Copy />} <T>{copied ? "copied" : "copy"}</T>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-pressed={revealed}
+            disabled={disabled}
+            onClick={() => setRevealed((current) => !current)}
+          >
+            {revealed ? <EyeOff /> : <Eye />}
+            <T>{revealed ? "hide" : "show"}</T>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )
