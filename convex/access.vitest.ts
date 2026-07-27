@@ -39,7 +39,6 @@ async function createHub(
     joinCode: "ABCD-EFGH",
     privateToken: "private-token-that-is-at-least-thirty-two-characters",
     timeZone: "Europe/Tallinn",
-    seedDemoContent: false,
   })
 }
 
@@ -597,7 +596,6 @@ async function createOrganizationHub(
     joinCode: "ORGA-NIZE",
     privateToken: "organization-private-token-that-is-long-enough",
     timeZone: "Europe/Tallinn",
-    seedDemoContent: false,
   })
 }
 

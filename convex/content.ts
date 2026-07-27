@@ -21,8 +21,6 @@ const richTextDocument = v.object({
 const eventCategory = v.union(
   v.literal("Reservation"),
   v.literal("Training"),
-  v.literal("Promotion"),
-  v.literal("Delivery"),
   v.literal("Maintenance"),
   v.literal("Inspection"),
   v.literal("Opening hours")

@@ -9,10 +9,10 @@ import {
 import type { CalendarEvent } from "@/lib/operations"
 
 const event: CalendarEvent = {
-  id: "summer-menu",
-  title: "Summer menu, launch",
-  description: "Seasonal food & drinks",
-  category: "Promotion",
+  id: "team-training",
+  title: "Team training, session",
+  description: "Service workflow & safety",
+  category: "Training",
   start: "2026-07-24T10:00",
   end: "2026-07-24T11:30",
   allDay: false,
@@ -35,10 +35,10 @@ describe("iCalendar export", () => {
     expect(calendar).toContain("BEGIN:VCALENDAR\r\nVERSION:2.0")
     expect(calendar).toContain("DTSTART:20260724T070000Z")
     expect(calendar).toContain("DTEND:20260724T083000Z")
-    expect(calendar).toContain("SUMMARY:Summer menu\\, launch")
+    expect(calendar).toContain("SUMMARY:Team training\\, session")
     expect(calendar).toContain("LOCATION:Whole venue\\; terrace")
     expect(calendar).toContain(
-      "DESCRIPTION:Seasonal food & drinks\\n\\nNotes:\\nBring printed menus."
+      "DESCRIPTION:Service workflow & safety\\n\\nNotes:\\nBring printed menus."
     )
     expect(calendar).toEndWith("END:VCALENDAR\r\n")
   })

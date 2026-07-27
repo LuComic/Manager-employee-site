@@ -49,7 +49,7 @@ Open `/manager` and sign in or sign up with Clerk. A new manager creates a workp
 2. The server applies the 20-membership limit to that active Organization.
 3. The employee address is derived automatically from Clerk's Organization slug; managers do not configure a second public identifier.
 4. The client requests an Organization-scoped Clerk token.
-5. Convex creates the mapped hub and optional sample content exactly once.
+5. Convex creates the empty mapped hub exactly once.
 
 ## Employee profiles and invitations
 

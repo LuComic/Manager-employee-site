@@ -20,7 +20,6 @@ import { useOperations } from "@/components/providers/operations-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Link, usePathname } from "@/i18n/navigation"
-import { routing } from "@/i18n/routing"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
@@ -146,32 +145,25 @@ function LanguageSelector() {
   const t = useAppTranslations()
   const search = searchParams.toString()
   const href = `${pathname}${search ? `?${search}` : ""}`
+  const nextLocale = locale === "et" ? "en" : "et"
+  const currentLanguage = locale === "et" ? t("Estonian") : t("English")
 
   return (
-    <div
-      className="mb-1 grid grid-cols-2 gap-1 px-3"
-      aria-label={t("Language")}
-      role="group"
+    <Link
+      href={href}
+      locale={nextLocale}
+      hrefLang={nextLocale}
+      aria-label={`${t("Language")}: ${currentLanguage}`}
+      className={cn(
+        buttonVariants({ variant: "ghost" }),
+        "h-10 w-full justify-start gap-3 px-3 tracking-normal normal-case"
+      )}
     >
-      {routing.locales.map((option) => (
-        <Link
-          key={option}
-          href={href}
-          locale={option}
-          hrefLang={option}
-          lang={option}
-          aria-current={locale === option ? "true" : undefined}
-          className={cn(
-            buttonVariants({
-              variant: locale === option ? "selected" : "ghost",
-            }),
-            "h-8 px-2 text-xs tracking-normal normal-case"
-          )}
-        >
-          {option === "et" ? t("Estonian") : t("English")}
-        </Link>
-      ))}
-    </div>
+      <span className="text-base leading-none" aria-hidden="true">
+        {locale === "et" ? "🇪🇪" : "🇬🇧"}
+      </span>
+      {currentLanguage}
+    </Link>
   )
 }
 

@@ -54,7 +54,8 @@ export function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`
 }
 
-export function documentResourceLabel(resource: DocumentResource) {
+export function documentResourceLabel(resource?: DocumentResource) {
+  if (!resource) return "File"
   if (resource.kind === "link") {
     try {
       return new URL(resource.url).hostname.replace(/^www\./, "")

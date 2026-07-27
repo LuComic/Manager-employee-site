@@ -578,7 +578,6 @@ export function OperationsProvider({
           timeZone:
             Intl.DateTimeFormat().resolvedOptions().timeZone ||
             "Europe/Tallinn",
-          seedDemoContent: true,
         })
         localStorage.setItem(
           ownerCredentialKey(created.hubId),

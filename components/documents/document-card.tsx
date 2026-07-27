@@ -25,8 +25,9 @@ import {
 export function DocumentResourceIcon({
   resource,
 }: {
-  resource: DocumentResource
+  resource?: DocumentResource
 }) {
+  if (!resource) return <File className="size-5" />
   if (resource.kind === "link") return <Link2 className="size-5" />
   if (resource.contentType.startsWith("image/"))
     return <ImageIcon className="size-5" />

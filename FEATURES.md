@@ -39,8 +39,7 @@ Provide a shared operational calendar for information relevant to the whole esta
 
 - Private events and large reservations
 - Training sessions
-- Promotions and menu launches
-- Deliveries and maintenance visits
+- Maintenance visits
 - Inspections, holidays, and unusual opening hours
 
 Support a clear month view and list view. Users should be able to move between dates, return to today, filter events, and open an event for its full details. Event details can include the time, location, responsible person, notes, Convex-hosted attachments, and related guides.

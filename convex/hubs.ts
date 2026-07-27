@@ -1,12 +1,9 @@
 import { v } from "convex/values"
 
-import { createSeedState } from "../lib/operations"
-import { commonQuestions } from "../lib/knowledge-base"
 import {
   defaultTodaySections,
   normalizeTodaySections,
 } from "../lib/today-sections"
-import type { Id } from "./_generated/dataModel"
 import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
   canReadPublishedHub,
@@ -67,131 +64,6 @@ async function availableSlug(ctx: MutationCtx, requested: string) {
   return candidate
 }
 
-async function seedHub(ctx: MutationCtx, hubId: Id<"hubs">) {
-  const seed = createSeedState()
-  const identity = await requireIdentity(ctx)
-  const categoryIds = new Map<string, Id<"categories">>()
-  for (const [order, category] of seed.categories.entries()) {
-    const categoryId = await ctx.db.insert("categories", {
-      hubId,
-      slug: category.id,
-      label: category.label,
-      iconKey: category.iconKey,
-      description: category.description,
-      order,
-    })
-    categoryIds.set(category.id, categoryId)
-  }
-
-  const guideIds = new Map<string, Id<"guides">>()
-  for (const guide of seed.guides) {
-    const categoryId = categoryIds.get(guide.category)
-    if (!categoryId) continue
-    const guideId = await ctx.db.insert("guides", {
-      hubId,
-      slug: guide.id,
-      title: guide.title,
-      description: guide.description,
-      categoryId,
-      duration: guide.duration,
-      updatedLabel: guide.updated,
-      featured: Boolean(guide.featured),
-      published: Boolean(guide.published),
-      keywords: guide.keywords ?? [],
-      content: guide.content,
-    })
-    guideIds.set(guide.id, guideId)
-  }
-
-  const employeeIds = new Map<string, Id<"employeeProfiles">>()
-  for (const event of seed.events) {
-    for (const employee of event.employees) {
-      const displayName = employee.displayName.trim()
-      if (!displayName || employeeIds.has(displayName)) continue
-      const now = Date.now()
-      employeeIds.set(
-        displayName,
-        await ctx.db.insert("employeeProfiles", {
-          hubId,
-          displayName,
-          status: "unclaimed",
-          createdBy: identity.subject,
-          createdAt: now,
-          updatedAt: now,
-          invitationStatus: "not-sent",
-        })
-      )
-    }
-  }
-
-  const eventIds = new Map<string, Id<"events">>()
-  for (const event of seed.events) {
-    const eventId = await ctx.db.insert("events", {
-      hubId,
-      slug: event.id,
-      title: event.title,
-      description: event.description,
-      category: event.category,
-      start: event.start,
-      end: event.end,
-      allDay: event.allDay,
-      location: event.location,
-      notes: event.notes,
-      published: event.published,
-    })
-    eventIds.set(event.id, eventId)
-    for (const employee of event.employees) {
-      const employeeId = employeeIds.get(employee.displayName.trim())
-      if (employeeId) {
-        await ctx.db.insert("eventEmployees", {
-          hubId,
-          eventId,
-          employeeProfileId: employeeId,
-          addedAt: Date.now(),
-          addedBy: identity.subject,
-        })
-      }
-    }
-    for (const guideSlug of event.guideIds) {
-      const guideId = guideIds.get(guideSlug)
-      if (guideId) {
-        await ctx.db.insert("eventGuides", { hubId, eventId, guideId })
-      }
-    }
-  }
-
-  for (const announcement of seed.announcements) {
-    await ctx.db.insert("announcements", {
-      hubId,
-      slug: announcement.id,
-      title: announcement.title,
-      content: announcement.content,
-      publishedAt: announcement.publishedAt,
-      expiresAt: announcement.expiresAt,
-      priority: announcement.priority,
-      pinned: announcement.pinned,
-      published: announcement.published,
-      guideId: announcement.guideId
-        ? guideIds.get(announcement.guideId)
-        : undefined,
-      eventId: announcement.eventId
-        ? eventIds.get(announcement.eventId)
-        : undefined,
-    })
-  }
-
-  for (const [order, faq] of commonQuestions.entries()) {
-    await ctx.db.insert("faqs", {
-      hubId,
-      slug: slugify(faq.question),
-      question: faq.question,
-      answer: faq.answer,
-      order,
-      published: true,
-    })
-  }
-}
-
 export const create = mutation({
   args: {
     name: v.string(),
@@ -200,7 +72,6 @@ export const create = mutation({
     joinCode: v.string(),
     privateToken: v.string(),
     timeZone: v.string(),
-    seedDemoContent: v.boolean(),
   },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx)
@@ -252,7 +123,6 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     })
-    if (args.seedDemoContent) await seedHub(ctx, hubId)
     return { hubId, slug, created: true }
   },
 })
