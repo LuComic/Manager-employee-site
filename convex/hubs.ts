@@ -87,8 +87,8 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx)
     const activeOrganization = getActiveOrganizationFromIdentity(identity)
-    if (!activeOrganization) throw new Error("No active organization")
-    if (activeOrganization.role !== "org:admin") throw new Error("Unauthorized")
+    if (!activeOrganization) throw new Error("noActiveOrganization")
+    if (activeOrganization.role !== "org:admin") throw new Error("unauthorized")
 
     const mapped = await ctx.db
       .query("hubs")
@@ -106,13 +106,13 @@ export const create = mutation({
 
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80) {
-      throw new Error("Hub name must be between 2 and 80 characters")
+      throw new Error("hubNameBetween280Characters")
     }
     if (normalizeJoinCode(args.joinCode).length < 8) {
-      throw new Error("Join code is too short")
+      throw new Error("joinCodeIsTooShort")
     }
     if (args.privateToken.length < 32) {
-      throw new Error("Private link credential is too short")
+      throw new Error("privateLinkCredentialIsTooShort")
     }
     const slug = await availableSlug(ctx, args.slug)
     const now = Date.now()
@@ -141,7 +141,7 @@ export const create = mutation({
 
 function optional(value: string, max: number) {
   const clean = value.trim()
-  if (clean.length > max) throw new Error("A hub detail is too long")
+  if (clean.length > max) throw new Error("aHubDetailIsTooLong")
   return clean
 }
 
@@ -150,7 +150,7 @@ function validateTimeZone(value: string) {
   try {
     new Intl.DateTimeFormat("en", { timeZone: clean }).format()
   } catch {
-    throw new Error("Choose a valid time zone")
+    throw new Error("chooseAValidTimeZone")
   }
   return clean
 }
@@ -170,10 +170,10 @@ export const updateSettings = mutation({
     const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80)
-      throw new Error("Hub name must be between 2 and 80 characters")
+      throw new Error("hubNameBetween280Characters")
     const contactEmail = optional(args.contactEmail, 200)
     if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail))
-      throw new Error("Enter a valid contact email")
+      throw new Error("enterAValidContactEmail")
 
     await ctx.db.patch("hubs", args.hubId, {
       name,
@@ -420,10 +420,10 @@ export const rotateCredentials = mutation({
   handler: async (ctx, args) => {
     const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     if (normalizeJoinCode(args.joinCode).length < 8) {
-      throw new Error("Join code is too short")
+      throw new Error("joinCodeIsTooShort")
     }
     if (args.privateToken.length < 32) {
-      throw new Error("Private link credential is too short")
+      throw new Error("privateLinkCredentialIsTooShort")
     }
     const credentialVersion = hub.credentialVersion + 1
     await ctx.db.patch("hubs", hub._id, {

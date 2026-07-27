@@ -13,11 +13,13 @@ export function CalendarExportButton({
   events,
   calendarName,
   timeZone,
+  uidNamespace,
   mode = "calendar",
 }: {
   events: CalendarEvent[]
   calendarName: string
   timeZone: string
+  uidNamespace: string
   mode?: "calendar" | "event"
 }) {
   const t = useAppTranslations()
@@ -33,6 +35,7 @@ export function CalendarExportButton({
         const contents = serializeICalendar(events, {
           calendarName,
           timeZone,
+          uidNamespace,
         })
         const url = URL.createObjectURL(
           new Blob([contents], { type: "text/calendar;charset=utf-8" })

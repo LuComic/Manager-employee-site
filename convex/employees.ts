@@ -31,14 +31,14 @@ const accessLevel = v.union(
 
 function clean(value: string | undefined, max: number) {
   const result = value?.trim() ?? ""
-  if (result.length > max) throw new Error("Employee detail is too long")
+  if (result.length > max) throw new Error("employeeDetailIsTooLong")
   return result || undefined
 }
 
 function normalizeEmail(value: string | undefined) {
   const email = clean(value, 200)?.toLocaleLowerCase()
   if (email && !/^\S+@\S+\.\S+$/.test(email)) {
-    throw new Error("Enter a valid email address")
+    throw new Error("enterAValidEmailAddress")
   }
   return email
 }
@@ -61,7 +61,7 @@ async function ensureNoActiveProfileForUser(
         profile._id !== exceptProfileId && profile.status === "active"
     )
   ) {
-    throw new Error("This account already has an active profile here")
+    throw new Error("accountAlreadyActiveProfileHere")
   }
 }
 
@@ -72,7 +72,7 @@ async function activateProfile(
   now: number
 ) {
   if (profile.clerkUserId && profile.clerkUserId !== clerkUserId) {
-    throw new Error("Employee profile is already connected")
+    throw new Error("employeeProfileIsAlreadyConnected")
   }
   await ensureNoActiveProfileForUser(
     ctx,
@@ -166,7 +166,7 @@ export const getForAdmin = query({
   args: { profileId: v.id("employeeProfiles") },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     const { hub } = await requireHubPermission(ctx, profile.hubId, "owner")
     return {
       profile: {
@@ -197,7 +197,7 @@ export const create = mutation({
     await requireHubPermission(ctx, args.hubId, "owner")
     const identity = await requireIdentity(ctx)
     const displayName = clean(args.displayName, 120)
-    if (!displayName) throw new Error("Employee name is required")
+    if (!displayName) throw new Error("employeeNameIsRequired")
     const normalizedEmail = normalizeEmail(args.email)
     if (normalizedEmail) {
       const duplicates = await ctx.db
@@ -207,7 +207,7 @@ export const create = mutation({
         )
         .take(10)
       if (duplicates.some((profile) => profile.status !== "deactivated")) {
-        throw new Error("An employee profile already uses this email")
+        throw new Error("employeeProfileAlreadyUsesEmail")
       }
     }
     const now = Date.now()
@@ -239,10 +239,10 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
     const displayName = clean(args.displayName, 120)
-    if (!displayName) throw new Error("Employee name is required")
+    if (!displayName) throw new Error("employeeNameIsRequired")
     const normalizedEmail = normalizeEmail(args.email)
     if (normalizedEmail !== profile.normalizedEmail) {
       const duplicates = await ctx.db
@@ -256,7 +256,7 @@ export const update = mutation({
           (other) => other._id !== profile._id && other.status !== "deactivated"
         )
       ) {
-        throw new Error("An employee profile already uses this email")
+        throw new Error("employeeProfileAlreadyUsesEmail")
       }
     }
     await ctx.db.patch("employeeProfiles", profile._id, {
@@ -279,16 +279,14 @@ export const prepareInvitation = mutation({
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
-    if (!profile.email)
-      throw new Error("Add an email before sending an invitation")
-    if (profile.status === "active")
-      throw new Error("Employee is already active")
+    if (!profile.email) throw new Error("addEmailBeforeSendingInvitation")
+    if (profile.status === "active") throw new Error("employeeIsAlreadyActive")
     if (profile.status === "deactivated")
-      throw new Error("Reactivate the employee first")
+      throw new Error("reactivateTheEmployeeFirst")
     if (args.correlationCredential.length < 32) {
-      throw new Error("Invitation credential is too short")
+      throw new Error("invitationCredentialIsTooShort")
     }
     const now = Date.now()
     await ctx.db.patch("employeeProfiles", profile._id, {
@@ -310,7 +308,7 @@ export const recordInvitation = mutation({
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationId: args.invitationId,
@@ -329,7 +327,7 @@ export const recordInvitationFailure = mutation({
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationStatus: "failed",
@@ -347,7 +345,7 @@ export const markInvitationStatus = mutation({
   },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationStatus: args.status,
@@ -371,7 +369,7 @@ export const activateByInvitation = mutation({
       )
       .unique()
     if (!profile || profile.hubId !== hub._id) {
-      throw new Error("Invitation does not match this workplace")
+      throw new Error("invitationDoesNotMatchThisWorkplace")
     }
     await activateProfile(ctx, profile, identity.subject, Date.now())
     return { hubSlug: hub.slug }
@@ -398,7 +396,7 @@ export const deactivateAfterClerkRemoval = mutation({
   args: { profileId: v.id("employeeProfiles") },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
     await deactivateProfileRecords(ctx, profile, Date.now())
     return null
@@ -410,7 +408,7 @@ export const removeProfileBatch = mutation({
   returns: v.object({ removed: v.boolean() }),
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
 
     const [
@@ -476,7 +474,7 @@ export const reactivateUnclaimed = mutation({
   args: { profileId: v.id("employeeProfiles") },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
-    if (!profile) throw new Error("Employee not found")
+    if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
     await ctx.db.patch("employeeProfiles", profile._id, {
       clerkUserId: undefined,

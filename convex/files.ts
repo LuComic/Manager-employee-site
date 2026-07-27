@@ -27,10 +27,10 @@ const PENDING_UPLOAD_LIFETIME_MS = 60 * 60 * 1_000
 function validateUploadMetadata(args: { sha256: string; size: number }) {
   const sha256 = args.sha256.trim().toLowerCase()
   if (!/^[a-f0-9]{64}$/.test(sha256)) {
-    throw new Error("Invalid file checksum")
+    throw new Error("invalidFileChecksum")
   }
   if (!Number.isSafeInteger(args.size) || args.size < 0) {
-    throw new Error("Invalid file size")
+    throw new Error("invalidFileSize")
   }
   return { sha256, size: args.size }
 }
@@ -58,10 +58,10 @@ async function requireOwnedUploadIntent(
     intent.hubId !== args.hubId ||
     intent.requestedBy !== args.requestedBy
   ) {
-    throw new Error("Upload request not found")
+    throw new Error("uploadRequestNotFound")
   }
   if (Date.now() - intent.createdAt > UPLOAD_INTENT_LIFETIME_MS) {
-    throw new Error("Upload request expired")
+    throw new Error("uploadRequestExpired")
   }
   return intent
 }
@@ -114,13 +114,13 @@ export const registerUpload = mutation({
       requestedBy: identity.tokenIdentifier,
     })
     const stored = await ctx.db.system.get("_storage", args.storageId)
-    if (!stored) throw new Error("Uploaded file not found")
+    if (!stored) throw new Error("uploadedFileNotFound")
     if (
       stored._creationTime < intent.createdAt ||
       !sha256Matches(stored.sha256, intent.sha256) ||
       stored.size !== intent.size
     ) {
-      throw new Error("Uploaded file does not match the upload request")
+      throw new Error("uploadedFileNotMatchUploadRequest")
     }
     const registeredId = await registerHubStorage(ctx, {
       hubId: args.hubId,
@@ -198,7 +198,7 @@ export const attachToEvent = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.eventSlug)
       )
       .unique()
-    if (!event) throw new Error("Event not found")
+    if (!event) throw new Error("eventNotFound")
     const { stored } = await requirePendingHubStorage(
       ctx,
       args.hubId,
@@ -241,7 +241,7 @@ export const remove = mutation({
     await requireHubPermission(ctx, args.hubId, "editor")
     const attachment = await ctx.db.get("attachments", args.attachmentId)
     if (!attachment || attachment.hubId !== args.hubId) {
-      throw new Error("Attachment not found")
+      throw new Error("attachmentNotFound")
     }
     const event = await ctx.db.get("events", attachment.eventId)
     await deleteReferencedHubStorage(ctx, {
@@ -299,10 +299,10 @@ export const attachToHubBanner = mutation({
     )
     const contentType = stored.contentType ?? ""
     if (!isBannerImageContentType(contentType)) {
-      throw new Error("Use a JPG, PNG, WebP, or AVIF image")
+      throw new Error("usejpgpngWebpavifImage")
     }
     if (stored.size > MAX_BANNER_IMAGE_SIZE_BYTES) {
-      throw new Error("Banner images must be 10 MB or smaller")
+      throw new Error("bannerImageSizeLimit")
     }
 
     await ctx.db.patch("hubs", hub._id, {

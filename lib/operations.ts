@@ -13,6 +13,12 @@ export const eventCategories = [
 
 export type EventCategory = (typeof eventCategories)[number]
 
+export function normalizeEventCategory(value: string): EventCategory {
+  return eventCategories.includes(value as EventCategory)
+    ? (value as EventCategory)
+    : "Reservation"
+}
+
 export const eventCategoryMessageKeys = {
   Reservation: "reservation",
   Training: "training",

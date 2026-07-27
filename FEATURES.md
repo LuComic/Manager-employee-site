@@ -96,6 +96,7 @@ Only the workplace owner can manage employees, invitations, establishment settin
 ### Hub access
 
 - Every hub has a stable public slug and is either public or restricted.
+- New hubs start with empty content libraries and calendars.
 - Public hubs expose published employee content without an account.
 - Restricted hubs accept a cryptographically generated join code or private-link credential.
 - Anonymous access is remembered for 30 days and can be forgotten with “Leave hub”.

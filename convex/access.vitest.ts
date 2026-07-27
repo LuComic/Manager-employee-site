@@ -222,7 +222,7 @@ describe("hub authorization and anonymous access", () => {
         iconKey: "general",
         description: "Must not be written",
       })
-    ).rejects.toThrow("Unauthorized")
+    ).rejects.toThrow("unauthorized")
   })
 
   test("publishes managed FAQs and keeps help requests owner-only", async () => {
@@ -260,7 +260,7 @@ describe("hub authorization and anonymous access", () => {
       t.withIdentity(otherIdentity).query(api.content.listHelpRequests, {
         hubId,
       })
-    ).rejects.toThrow("Unauthorized")
+    ).rejects.toThrow("unauthorized")
   })
 
   test("anonymous snapshots hide drafts and relational deletion cleans links", async () => {
@@ -465,7 +465,7 @@ describe("hub authorization and anonymous access", () => {
         hubId,
         slug: "safety-notes",
       })
-    ).rejects.toThrow("Unauthorized")
+    ).rejects.toThrow("unauthorized")
 
     await owner.mutation(api.documents.remove, {
       hubId,
@@ -514,13 +514,13 @@ describe("hub authorization and anonymous access", () => {
         employeeProfileIds: [],
         published: true,
       })
-    ).rejects.toThrow("File does not belong to this workplace")
+    ).rejects.toThrow("fileNotBelongWorkplace")
     await expect(
       secondOwner.mutation(api.files.discardUpload, {
         hubId: second.hubId,
         storageId,
       })
-    ).rejects.toThrow("File does not belong to this workplace")
+    ).rejects.toThrow("fileNotBelongWorkplace")
 
     await firstOwner.mutation(api.documents.save, {
       hubId: first.hubId,
@@ -536,7 +536,7 @@ describe("hub authorization and anonymous access", () => {
         hubId: first.hubId,
         storageId,
       })
-    ).rejects.toThrow("File is already in use")
+    ).rejects.toThrow("fileIsAlreadyInUse")
 
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "test-hub",
@@ -636,12 +636,12 @@ describe("Organization employees, invitations, and event links", () => {
         iconKey: "general",
         description: "Members cannot write this",
       })
-    ).rejects.toThrow("Unauthorized")
+    ).rejects.toThrow("unauthorized")
     await expect(
       t.withIdentity(otherOrgAdminIdentity).query(api.employees.list, {
         hubId: first.hubId,
       })
-    ).rejects.toThrow("Unauthorized")
+    ).rejects.toThrow("unauthorized")
   })
 
   test("separates read-only, editing, full-content, and owner access", async () => {
@@ -710,7 +710,7 @@ describe("Organization employees, invitations, and event links", () => {
         iconKey: "general",
         description: "Must not save",
       })
-    ).rejects.toThrow("Editing access required")
+    ).rejects.toThrow("editingAccessRequired")
 
     const editor = t.withIdentity(editorIdentity)
     const editorSnapshot = await editor.query(api.hubs.getManagerSnapshot, {
@@ -751,13 +751,13 @@ describe("Organization employees, invitations, and event links", () => {
         iconKey: "general",
         description: "Editors cannot create content",
       })
-    ).rejects.toThrow("Full content access is required to create content")
+    ).rejects.toThrow("fullContentAccessRequiredCreateContent")
     await expect(
       editor.mutation(api.content.deleteCategory, {
         hubId,
         slug: "service",
       })
-    ).rejects.toThrow("Full content access required")
+    ).rejects.toThrow("fullContentAccessRequired")
 
     const appManager = t.withIdentity(appManagerIdentity)
     expect(
@@ -793,16 +793,16 @@ describe("Organization employees, invitations, and event links", () => {
         email: "private-viewer@example.test",
         accessLevel: "editor",
       })
-    ).rejects.toThrow("Workplace owner access required")
+    ).rejects.toThrow("workplaceOwnerAccessRequired")
     await expect(
       appManager.mutation(api.hubs.setAccessMode, {
         hubId,
         accessMode: "restricted",
       })
-    ).rejects.toThrow("Workplace owner access required")
+    ).rejects.toThrow("workplaceOwnerAccessRequired")
     await expect(
       appManager.query(api.employees.list, { hubId })
-    ).rejects.toThrow("Workplace owner access required")
+    ).rejects.toThrow("workplaceOwnerAccessRequired")
 
     expect(
       await admin.query(api.hubs.getOwnerAuthorization, {
@@ -867,7 +867,7 @@ describe("Organization employees, invitations, and event links", () => {
       t
         .withIdentity(orgMemberIdentity)
         .mutation(api.employees.removeProfileBatch, { profileId })
-    ).rejects.toThrow("Workplace owner access required")
+    ).rejects.toThrow("workplaceOwnerAccessRequired")
 
     expect(
       await owner.mutation(api.employees.removeProfileBatch, { profileId })
@@ -945,7 +945,7 @@ describe("Organization employees, invitations, and event links", () => {
       "marta@example.test"
     )
     await expect(t.query(api.employees.list, { hubId })).rejects.toThrow(
-      "Not authenticated"
+      "notAuthenticated"
     )
     await t.withIdentity(orgAdminIdentity).mutation(api.content.saveEvent, {
       hubId,
@@ -1041,7 +1041,7 @@ describe("Organization employees, invitations, and event links", () => {
         startUtc: "2026-07-24T07:00:00.000Z",
         endUtc: null,
       })
-    ).rejects.toThrow("must be provided together")
+    ).rejects.toThrow("eventStartEndInstantsProvidedTogether")
   })
 
   test("adds zero or multiple employees idempotently and rejects cross-hub links", async () => {
@@ -1094,7 +1094,7 @@ describe("Organization employees, invitations, and event links", () => {
         ...event,
         employeeProfileIds: [otherProfile],
       })
-    ).rejects.toThrow("does not belong")
+    ).rejects.toThrow("employeeNotBelongWorkplace")
   })
 
   test("links invitation metadata idempotently for existing and new Clerk users", async () => {
@@ -1203,7 +1203,7 @@ describe("Organization employees, invitations, and event links", () => {
       employeeProfileIds: [],
     })
     await expect(admin.mutation(api.content.saveEvent, event)).rejects.toThrow(
-      "Deactivated employees"
+      "deactivatedEmployeesCannotAddedEvents"
     )
   })
 
@@ -1402,7 +1402,7 @@ describe("notification feeds", () => {
         credential: "wrong",
         guestDeviceId: firstDevice,
       })
-    ).rejects.toThrow("Hub access required")
+    ).rejects.toThrow("hubAccessRequired")
   })
 
   test("adds personal assignment alerts only for the assigned employee", async () => {

@@ -59,7 +59,7 @@ export async function getIdentity(ctx: ReadCtx) {
 
 export async function requireIdentity(ctx: ReadCtx) {
   const identity = await getIdentity(ctx)
-  if (!identity) throw new Error("Not authenticated")
+  if (!identity) throw new Error("notAuthenticated")
   return identity
 }
 
@@ -94,18 +94,18 @@ export async function requireHubPermission(
   minimum: HubPermission
 ) {
   const identity = await getIdentity(ctx)
-  if (!identity) throw new Error("Not authenticated")
+  if (!identity) throw new Error("notAuthenticated")
   const hub = await ctx.db.get("hubs", hubId)
-  if (!hub) throw new Error("Unauthorized")
+  if (!hub) throw new Error("unauthorized")
   const permission = await getHubPermission(ctx, hub)
-  if (!permission) throw new Error("Unauthorized")
+  if (!permission) throw new Error("unauthorized")
   if (permissionRank[permission] < permissionRank[minimum]) {
     throw new Error(
       minimum === "owner"
-        ? "Workplace owner access required"
+        ? "workplaceOwnerAccessRequired"
         : minimum === "manager"
-          ? "Full content access required"
-          : "Editing access required"
+          ? "fullContentAccessRequired"
+          : "editingAccessRequired"
     )
   }
   return { hub, permission }
@@ -134,14 +134,14 @@ export async function hasHubAccess(ctx: ReadCtx, hub: Doc<"hubs">) {
 export async function requireOrganizationHub(ctx: ReadCtx) {
   const identity = await requireIdentity(ctx)
   const activeOrganization = getActiveOrganizationFromIdentity(identity)
-  if (!activeOrganization) throw new Error("No active organization")
+  if (!activeOrganization) throw new Error("noActiveOrganization")
   const hub = await ctx.db
     .query("hubs")
     .withIndex("by_clerkOrganizationId", (q) =>
       q.eq("clerkOrganizationId", activeOrganization.organizationId)
     )
     .unique()
-  if (!hub) throw new Error("Organization is not connected to a hub")
+  if (!hub) throw new Error("organizationNotConnectedHub")
   return { hub, identity, activeOrganization }
 }
 

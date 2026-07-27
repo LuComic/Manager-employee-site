@@ -12,10 +12,12 @@ export function convexServerClient(token: string) {
 
 export function safeErrorMessage(error: unknown, fallback: string) {
   if (!(error instanceof Error)) return fallback
-  return error.message
+  const message = error.message
     .replace(/^.*Uncaught Error: /, "")
     .replace(/\s+at handler[\s\S]*$/, "")
     .slice(0, 500)
+    .trim()
+  return /^[a-z][A-Za-z0-9]*$/.test(message) ? message : fallback
 }
 
 export function randomCredential(bytes = 32) {

@@ -156,6 +156,65 @@ function notificationMessageKeys() {
   return keys
 }
 
+function backendErrorMessageKeys() {
+  const keys = new Set<string>()
+  const files = [
+    ...sourceFiles("convex"),
+    ...sourceFiles("app/api"),
+    "lib/server/organization-access.ts",
+  ].filter((file) => !/\.(?:test|vitest)\.[jt]sx?$/.test(file))
+
+  for (const file of files) {
+    const source = ts.createSourceFile(
+      file,
+      readFileSync(file, "utf8"),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS
+    )
+    const visit = (node: ts.Node) => {
+      if (
+        ts.isVariableDeclaration(node) &&
+        node.name.getText(source) === "requiredMessageKeys" &&
+        node.initializer
+      ) {
+        const addStringLiterals = (child: ts.Node) => {
+          if (ts.isStringLiteralLike(child)) keys.add(child.text)
+          ts.forEachChild(child, addStringLiterals)
+        }
+        addStringLiterals(node.initializer)
+      }
+      if (
+        ts.isNewExpression(node) &&
+        node.expression.getText(source) === "Error" &&
+        node.arguments?.[0] &&
+        ts.isStringLiteralLike(node.arguments[0])
+      ) {
+        keys.add(node.arguments[0].text)
+      }
+      if (
+        ts.isPropertyAssignment(node) &&
+        node.name.getText(source) === "error" &&
+        ts.isStringLiteralLike(node.initializer)
+      ) {
+        keys.add(node.initializer.text)
+      }
+      if (
+        ts.isCallExpression(node) &&
+        node.expression.getText(source) === "safeErrorMessage" &&
+        node.arguments[1] &&
+        ts.isStringLiteralLike(node.arguments[1])
+      ) {
+        keys.add(node.arguments[1].text)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+
+  return keys
+}
+
 describe("locale paths", () => {
   test("uses Estonian as the default and supports English", () => {
     expect(routing.defaultLocale).toBe("et")
@@ -226,5 +285,18 @@ describe("translation dictionaries", () => {
     )
 
     expect(missing).toEqual([])
+  })
+
+  test("keeps user-facing backend errors explicit and localized", () => {
+    const missing = [...backendErrorMessageKeys()].filter(
+      (key) => !Object.hasOwn(en.App, key) || !Object.hasOwn(et.App, key)
+    )
+
+    expect(missing).toEqual([])
+  })
+
+  test("does not retain the removed North & Pine sample content", () => {
+    expect(JSON.stringify(en)).not.toMatch(/north.?pine/i)
+    expect(JSON.stringify(et)).not.toMatch(/north.?pine/i)
   })
 })

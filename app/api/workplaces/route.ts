@@ -5,11 +5,11 @@ import { safeErrorMessage } from "@/lib/server/convex"
 export async function POST() {
   const { isAuthenticated, orgId, has } = await auth()
   if (!isAuthenticated) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 })
+    return Response.json({ error: "notAuthenticated" }, { status: 401 })
   }
   if (!orgId || !has({ role: "org:admin" })) {
     return Response.json(
-      { error: "Select a workplace you administer" },
+      { error: "selectWorkplaceYouAdminister" },
       { status: 403 }
     )
   }
@@ -22,7 +22,7 @@ export async function POST() {
     return Response.json({ organizationId: orgId })
   } catch (error) {
     return Response.json(
-      { error: safeErrorMessage(error, "Could not configure the workplace") },
+      { error: safeErrorMessage(error, "couldNotConfigureWorkplace") },
       { status: 400 }
     )
   }

@@ -6,11 +6,11 @@ import { convexServerClient, safeErrorMessage } from "@/lib/server/convex"
 export async function POST() {
   const { isAuthenticated, userId, orgId, getToken } = await auth()
   if (!isAuthenticated || !userId) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 })
+    return Response.json({ error: "notAuthenticated" }, { status: 401 })
   }
   if (!orgId) {
     return Response.json(
-      { error: "Accept the workplace invitation before continuing" },
+      { error: "acceptWorkplaceInvitationBeforeContinuing" },
       { status: 409 }
     )
   }
@@ -28,10 +28,10 @@ export async function POST() {
       membership?.publicMetadata as Record<string, unknown> | undefined
     )?.operationsHubClaim
     if (typeof correlationCredential !== "string") {
-      throw new Error("This membership is not linked to an employee profile")
+      throw new Error("membershipNotLinkedEmployeeProfile")
     }
     const token = await getToken()
-    if (!token) throw new Error("Missing workplace session token")
+    if (!token) throw new Error("missingWorkplaceSessionToken")
     const result = await convexServerClient(token).mutation(
       api.employees.activateByInvitation,
       { correlationCredential }
@@ -40,10 +40,7 @@ export async function POST() {
   } catch (error) {
     return Response.json(
       {
-        error: safeErrorMessage(
-          error,
-          "Could not activate the employee profile"
-        ),
+        error: safeErrorMessage(error, "couldNotActivateProfile"),
       },
       { status: 400 }
     )

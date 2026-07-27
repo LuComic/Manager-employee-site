@@ -276,6 +276,7 @@ export function EventManager() {
                 name: hub?.name ?? t("workplace"),
               })}
               timeZone={hub?.timeZone ?? "UTC"}
+              uidNamespace={hub?.id ?? "unconfigured-workplace"}
             />
             {canCreateContent && (
               <>

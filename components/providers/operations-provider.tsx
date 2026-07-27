@@ -30,6 +30,7 @@ import type {
 } from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
 import {
+  normalizeEventCategory,
   toDateKey,
   type Announcement,
   type Attachment,
@@ -432,7 +433,10 @@ export function OperationsProvider({
           categoryById.get(guide.category)?.iconKey ?? "general"
         ),
       })) as Guide[],
-      events: activeSnapshot.events as CalendarEvent[],
+      events: activeSnapshot.events.map((event) => ({
+        ...event,
+        category: normalizeEventCategory(event.category),
+      })) as CalendarEvent[],
       announcements: activeSnapshot.announcements as Announcement[],
       faqs: activeSnapshot.faqs as Faq[],
       documents: activeSnapshot.documents as WorkspaceDocument[],

@@ -80,6 +80,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 name: hub?.name ?? t("workplace"),
               })}
               timeZone={hub?.timeZone ?? "UTC"}
+              uidNamespace={hub?.id ?? "unconfigured-workplace"}
               mode="event"
             />
           </CardAction>
@@ -90,6 +91,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 name: hub?.name ?? t("workplace"),
               })}
               timeZone={hub?.timeZone ?? "UTC"}
+              uidNamespace={hub?.id ?? "unconfigured-workplace"}
               mode="event"
             />
           </div>

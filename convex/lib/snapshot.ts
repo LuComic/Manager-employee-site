@@ -251,18 +251,16 @@ export async function buildSnapshot(
         const storedResource = document.resource
         const resource =
           storedResource.kind === "file"
-            ? await ctx.storage
-                .getUrl(storedResource.storageId)
-                .then((url) => {
-                  if (!url) throw new Error("Document file not found")
-                  return {
-                    kind: "file" as const,
-                    name: storedResource.name,
-                    contentType: storedResource.contentType,
-                    size: storedResource.size,
-                    url,
-                  }
-                })
+            ? await ctx.storage.getUrl(storedResource.storageId).then((url) => {
+                if (!url) throw new Error("documentFileNotFound")
+                return {
+                  kind: "file" as const,
+                  name: storedResource.name,
+                  contentType: storedResource.contentType,
+                  size: storedResource.size,
+                  url,
+                }
+              })
             : storedResource
         const bannerImageUrl = document.bannerStorageId
           ? await ctx.storage.getUrl(document.bannerStorageId)

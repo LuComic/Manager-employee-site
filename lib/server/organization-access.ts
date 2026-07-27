@@ -3,6 +3,6 @@ export function assertAdminRemovalIsSafe(
   organizationAdminCount: number
 ) {
   if (targetRole === "org:admin" && organizationAdminCount <= 1) {
-    throw new Error("The last Organization admin cannot be removed")
+    throw new Error("lastOrganizationAdminCannotBeRemoved")
   }
 }

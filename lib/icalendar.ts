@@ -26,6 +26,7 @@ export const ICALENDAR_UID_DOMAIN = "workhal.local"
 type CalendarOptions = {
   calendarName: string
   timeZone: string
+  uidNamespace: string
   uidDomain?: string
   now?: Date
 }
@@ -67,6 +68,7 @@ export function serializeICalendar(
   {
     calendarName,
     timeZone,
+    uidNamespace,
     uidDomain = ICALENDAR_UID_DOMAIN,
     now = new Date(),
   }: CalendarOptions
@@ -80,7 +82,7 @@ export function serializeICalendar(
     `X-WR-CALNAME:${escapeText(calendarName)}`,
     `X-WR-TIMEZONE:${escapeText(timeZone)}`,
     ...events.flatMap((event) =>
-      serializeEvent(event, timeZone, uidDomain, now)
+      serializeEvent(event, timeZone, uidNamespace, uidDomain, now)
     ),
     "END:VCALENDAR",
   ]
@@ -237,6 +239,7 @@ export function calendarFileName(value: string) {
 function serializeEvent(
   event: CalendarEvent,
   timeZone: string,
+  uidNamespace: string,
   uidDomain: string,
   now: Date
 ) {
@@ -245,7 +248,9 @@ function serializeEvent(
     .join("\n\nNotes:\n")
   const uid =
     event.icalUid ||
-    `${stableEventHash(event.id)}@${safeUid(uidDomain) || ICALENDAR_UID_DOMAIN}`
+    `${stableEventHash(`${uidNamespace}\0${event.id}`)}@${
+      safeUid(uidDomain) || ICALENDAR_UID_DOMAIN
+    }`
   const dates = event.allDay
     ? [
         `DTSTART;VALUE=DATE:${formatDateValue(event.start)}`,
@@ -265,6 +270,7 @@ function serializeEvent(
     `UID:${escapeText(uid)}`,
     `DTSTAMP:${formatUtcDate(now)}`,
     `X-OPERATIONS-HUB-ID:${escapeText(event.id)}`,
+    `X-OPERATIONS-HUB-UID-NAMESPACE:${escapeText(uidNamespace)}`,
     ...dates,
     `SUMMARY:${escapeText(event.title)}`,
     `DESCRIPTION:${escapeText(calendarDescription)}`,
@@ -447,11 +453,17 @@ function calendarEventId(
   }
 ) {
   const operationsId = textValue(component, "x-operations-hub-id").trim()
-  const expectedUidPrefix = operationsId
-    ? `${stableEventHash(operationsId)}@`
-    : ""
+  const uidNamespace = textValue(
+    component,
+    "x-operations-hub-uid-namespace"
+  ).trim()
+  const expectedUidPrefix =
+    operationsId && uidNamespace
+      ? `${stableEventHash(`${uidNamespace}\0${operationsId}`)}@`
+      : ""
   if (
     operationsId.length <= 100 &&
+    uidNamespace.length <= 200 &&
     /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/.test(operationsId) &&
     uid?.startsWith(expectedUidPrefix) &&
     !recurrenceId

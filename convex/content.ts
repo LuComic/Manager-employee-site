@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 
+import type { AppMessageKey } from "../i18n/messages"
 import type { Id } from "./_generated/dataModel"
 import { mutation, query } from "./_generated/server"
 import {
@@ -26,10 +27,45 @@ const eventCategory = v.union(
   v.literal("Opening hours")
 )
 
-function required(value: string, label: string, max = 500) {
+const requiredMessageKeys = {
+  categoryName: ["categoryNameRequired", "categoryNameTooLong"],
+  categoryIcon: ["categoryIconRequired", "categoryIconTooLong"],
+  categoryDescription: [
+    "categoryDescriptionRequired",
+    "categoryDescriptionTooLong",
+  ],
+  categorySlug: ["categorySlugRequired", "categorySlugTooLong"],
+  guideTitle: ["guideTitleRequired", "guideTitleTooLong"],
+  guideDescription: ["guideDescriptionRequired", "guideDescriptionTooLong"],
+  readingTime: ["readingTimeRequired", "readingTimeTooLong"],
+  guideSlug: ["guideSlugRequired", "guideSlugTooLong"],
+  eventTitle: ["eventTitleRequired", "eventTitleTooLong"],
+  eventDescription: ["eventDescriptionRequired", "eventDescriptionTooLong"],
+  eventStart: ["eventStartRequired", "eventStartTooLong"],
+  eventEnd: ["eventEndRequired", "eventEndTooLong"],
+  iCalendarUid: ["iCalendarUidRequired", "iCalendarUidTooLong"],
+  eventLocation: ["eventLocationRequired", "eventLocationTooLong"],
+  eventSlug: ["eventSlugRequired", "eventSlugTooLong"],
+  announcementTitle: ["announcementTitleRequired", "announcementTitleTooLong"],
+  publishDate: ["publishDateRequired", "publishDateTooLong"],
+  expiryDate: ["expiryDateRequired", "expiryDateTooLong"],
+  announcementSlug: ["announcementSlugRequired", "announcementSlugTooLong"],
+  question: ["questionRequired", "questionTooLong"],
+  answer: ["answerRequired", "answerTooLong"],
+  questionSlug: ["questionSlugRequired", "questionSlugTooLong"],
+  topic: ["topicRequired", "topicTooLong"],
+  helpMessage: ["helpMessageRequired", "helpMessageTooLong"],
+} as const satisfies Record<string, readonly [AppMessageKey, AppMessageKey]>
+
+function required(
+  value: string,
+  field: keyof typeof requiredMessageKeys,
+  max = 500
+) {
   const clean = value.trim()
-  if (!clean) throw new Error(`${label} is required`)
-  if (clean.length > max) throw new Error(`${label} is too long`)
+  const [requiredKey, tooLongKey] = requiredMessageKeys[field]
+  if (!clean) throw new Error(requiredKey)
+  if (clean.length > max) throw new Error(tooLongKey)
   return clean
 }
 
@@ -50,12 +86,12 @@ export const saveCategory = mutation({
       )
       .unique()
     if (!existing && permission === "editor") {
-      throw new Error("Full content access is required to create content")
+      throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
-      label: required(args.label, "Category name", 80),
-      iconKey: required(args.iconKey, "Category icon", 40),
-      description: required(args.description, "Category description", 300),
+      label: required(args.label, "categoryName", 80),
+      iconKey: required(args.iconKey, "categoryIcon", 40),
+      description: required(args.description, "categoryDescription", 300),
     }
     if (existing) {
       await ctx.db.patch("categories", existing._id, value)
@@ -67,7 +103,7 @@ export const saveCategory = mutation({
       .take(500)
     await ctx.db.insert("categories", {
       hubId: args.hubId,
-      slug: required(args.slug, "Category slug", 80),
+      slug: required(args.slug, "categorySlug", 80),
       order: categories.length,
       ...value,
     })
@@ -117,7 +153,7 @@ export const deleteCategory = mutation({
       .query("guides")
       .withIndex("by_categoryId", (q) => q.eq("categoryId", category._id))
       .first()
-    if (guide) throw new Error("Reassign guides before deleting this category")
+    if (guide) throw new Error("reassignGuidesBeforeDeletingThisCategory")
     await ctx.db.delete("categories", category._id)
     return null
   },
@@ -144,7 +180,7 @@ export const saveGuide = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.categorySlug)
       )
       .unique()
-    if (!category) throw new Error("Guide category not found")
+    if (!category) throw new Error("guideCategoryNotFound")
     const existing = await ctx.db
       .query("guides")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -152,13 +188,13 @@ export const saveGuide = mutation({
       )
       .unique()
     if (!existing && permission === "editor") {
-      throw new Error("Full content access is required to create content")
+      throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
-      title: required(args.title, "Guide title", 140),
-      description: required(args.description, "Guide description", 500),
+      title: required(args.title, "guideTitle", 140),
+      description: required(args.description, "guideDescription", 500),
       categoryId: category._id,
-      duration: required(args.duration, "Reading time", 40),
+      duration: required(args.duration, "readingTime", 40),
       updatedLabel: "Updated just now",
       featured: args.featured,
       published: args.published,
@@ -172,7 +208,7 @@ export const saveGuide = mutation({
     else {
       await ctx.db.insert("guides", {
         hubId: args.hubId,
-        slug: required(args.slug, "Guide slug", 100),
+        slug: required(args.slug, "guideSlug", 100),
         ...value,
       })
     }
@@ -261,10 +297,10 @@ export const saveEvent = mutation({
     const identity = await requireIdentity(ctx)
     const hasExactInstants = Boolean(args.startUtc && args.endUtc)
     if (Boolean(args.startUtc) !== Boolean(args.endUtc)) {
-      throw new Error("Event start and end instants must be provided together")
+      throw new Error("eventStartEndInstantsProvidedTogether")
     }
     if (args.allDay && hasExactInstants) {
-      throw new Error("All-day events cannot include timed instants")
+      throw new Error("allDayEventsCannotIncludeTimedInstants")
     }
     const startsAt = args.startUtc ? Date.parse(args.startUtc) : null
     const endsAt = args.endUtc ? Date.parse(args.endUtc) : null
@@ -272,14 +308,14 @@ export const saveEvent = mutation({
       (startsAt !== null && Number.isNaN(startsAt)) ||
       (endsAt !== null && Number.isNaN(endsAt))
     ) {
-      throw new Error("Event contains an invalid exact date")
+      throw new Error("eventContainsAnInvalidExactDate")
     }
     if (
       hasExactInstants
         ? (endsAt as number) <= (startsAt as number)
         : args.end <= args.start
     )
-      throw new Error("Event end must be after its start")
+      throw new Error("eventEndAfterStart")
     const existing = await ctx.db
       .query("events")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -287,21 +323,21 @@ export const saveEvent = mutation({
       )
       .unique()
     if (!existing && permission === "editor") {
-      throw new Error("Full content access is required to create content")
+      throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
-      title: required(args.title, "Event title", 140),
-      description: required(args.description, "Event description", 500),
+      title: required(args.title, "eventTitle", 140),
+      description: required(args.description, "eventDescription", 500),
       category: args.category,
-      start: required(args.start, "Event start", 40),
-      end: required(args.end, "Event end", 40),
+      start: required(args.start, "eventStart", 40),
+      end: required(args.end, "eventEnd", 40),
       allDay: args.allDay ?? false,
       startUtc: args.startUtc ?? undefined,
       endUtc: args.endUtc ?? undefined,
       icalUid: args.icalUid
-        ? required(args.icalUid, "iCalendar UID", 512)
+        ? required(args.icalUid, "iCalendarUid", 512)
         : undefined,
-      location: required(args.location, "Event location", 140),
+      location: required(args.location, "eventLocation", 140),
       notes: args.notes.trim().slice(0, 4000),
       published: args.published,
     }
@@ -309,7 +345,7 @@ export const saveEvent = mutation({
       ? (await ctx.db.patch("events", existing._id, value), existing._id)
       : await ctx.db.insert("events", {
           hubId: args.hubId,
-          slug: required(args.slug, "Event slug", 100),
+          slug: required(args.slug, "eventSlug", 100),
           ...value,
         })
 
@@ -331,13 +367,13 @@ export const saveEvent = mutation({
       for (const employeeProfileId of selectedIds) {
         const profile = await ctx.db.get("employeeProfiles", employeeProfileId)
         if (!profile || profile.hubId !== args.hubId) {
-          throw new Error("Employee does not belong to this workplace")
+          throw new Error("employeeNotBelongWorkplace")
         }
         if (
           profile.status === "deactivated" &&
           !oldByEmployeeId.has(employeeProfileId)
         ) {
-          throw new Error("Deactivated employees cannot be added to events")
+          throw new Error("deactivatedEmployeesCannotAddedEvents")
         }
         if (!oldByEmployeeId.has(employeeProfileId)) {
           await ctx.db.insert("eventEmployees", {
@@ -508,7 +544,7 @@ export const saveAnnouncement = mutation({
   handler: async (ctx, args) => {
     const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     if (args.expiresAt < args.publishedAt)
-      throw new Error("Expiry must be on or after publish date")
+      throw new Error("expiryAfterPublishDate")
     const guide = args.guideSlug
       ? await ctx.db
           .query("guides")
@@ -532,13 +568,13 @@ export const saveAnnouncement = mutation({
       )
       .unique()
     if (!existing && permission === "editor") {
-      throw new Error("Full content access is required to create content")
+      throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
-      title: required(args.title, "Announcement title", 140),
+      title: required(args.title, "announcementTitle", 140),
       content: args.content,
-      publishedAt: required(args.publishedAt, "Publish date", 10),
-      expiresAt: required(args.expiresAt, "Expiry date", 10),
+      publishedAt: required(args.publishedAt, "publishDate", 10),
+      expiresAt: required(args.expiresAt, "expiryDate", 10),
       priority: args.priority,
       pinned: args.pinned,
       published: args.published,
@@ -549,7 +585,7 @@ export const saveAnnouncement = mutation({
     else
       await ctx.db.insert("announcements", {
         hubId: args.hubId,
-        slug: required(args.slug, "Announcement slug", 100),
+        slug: required(args.slug, "announcementSlug", 100),
         ...value,
       })
     await notifyPublicationChange(ctx, {
@@ -612,11 +648,11 @@ export const saveFaq = mutation({
       )
       .unique()
     if (!existing && permission === "editor") {
-      throw new Error("Full content access is required to create content")
+      throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
-      question: required(args.question, "Question", 300),
-      answer: required(args.answer, "Answer", 4000),
+      question: required(args.question, "question", 300),
+      answer: required(args.answer, "answer", 4000),
       published: args.published,
     }
     if (existing) await ctx.db.patch("faqs", existing._id, value)
@@ -627,7 +663,7 @@ export const saveFaq = mutation({
         .take(500)
       await ctx.db.insert("faqs", {
         hubId: args.hubId,
-        slug: required(args.slug, "Question slug", 120),
+        slug: required(args.slug, "questionSlug", 120),
         order: faqs.length,
         ...value,
       })
@@ -709,12 +745,12 @@ export const submitHelpRequest = mutation({
       .withIndex("by_slug", (q) => q.eq("slug", args.hubSlug))
       .unique()
     if (!hub || !(await canReadPublishedHub(ctx, hub, args.credential)))
-      throw new Error("Hub access required")
-    const topic = required(args.topic, "Topic", 140)
+      throw new Error("hubAccessRequired")
+    const topic = required(args.topic, "topic", 140)
     await ctx.db.insert("helpRequests", {
       hubId: hub._id,
       topic,
-      message: required(args.message, "Question", 2000),
+      message: required(args.message, "helpMessage", 2000),
       submittedAt: Date.now(),
       status: "open",
     })
@@ -759,7 +795,7 @@ export const setHelpRequestStatus = mutation({
     await requireHubPermission(ctx, args.hubId, "owner")
     const request = await ctx.db.get("helpRequests", args.requestId)
     if (!request || request.hubId !== args.hubId)
-      throw new Error("Help request not found")
+      throw new Error("helpRequestNotFound")
     await ctx.db.patch("helpRequests", request._id, { status: args.status })
     return null
   },
@@ -774,7 +810,7 @@ export const deleteHelpRequest = mutation({
     await requireHubPermission(ctx, args.hubId, "owner")
     const request = await ctx.db.get("helpRequests", args.requestId)
     if (!request || request.hubId !== args.hubId)
-      throw new Error("Help request not found")
+      throw new Error("helpRequestNotFound")
     await ctx.db.delete("helpRequests", request._id)
     return null
   },

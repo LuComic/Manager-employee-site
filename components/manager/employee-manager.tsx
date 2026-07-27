@@ -1,7 +1,10 @@
 "use client"
 
 import { T } from "@/components/translated-text"
-import { useAppTranslations } from "@/i18n/use-app-translations"
+import {
+  useAppErrorTranslation,
+  useAppTranslations,
+} from "@/i18n/use-app-translations"
 
 import { useMemo, useState } from "react"
 import { useSession } from "@clerk/nextjs"
@@ -86,6 +89,7 @@ const invitationStatusLabelKeys = {
 
 export function EmployeeManager() {
   const t = useAppTranslations()
+  const translateError = useAppErrorTranslation()
   const { hub, employees, createEmployee, updateEmployee, showFeedback } =
     useOperations()
   const { session } = useSession()
@@ -133,8 +137,8 @@ export function EmployeeManager() {
   }
 
   async function save() {
-    if (!form.displayName.trim()) return setError("addTheEmployeeSName")
-    if (!form.email.trim()) return setError("addTheEmployeeSEmail")
+    if (!form.displayName.trim()) return setError(t("addTheEmployeeSName"))
+    if (!form.email.trim()) return setError(t("addTheEmployeeSEmail"))
     setPending(true)
     setError("")
     try {
@@ -151,8 +155,8 @@ export function EmployeeManager() {
       }
       showFeedback(editing === "new" ? "employeeCreated" : "employeeSaved")
       setEditing(null)
-    } catch {
-      setError("couldNotSaveEmployee")
+    } catch (caught) {
+      setError(translateError(caught))
     } finally {
       setPending(false)
     }
@@ -184,7 +188,7 @@ export function EmployeeManager() {
         error?: string
         refreshSession?: boolean
       }
-      if (!response.ok) throw new Error(result.error ?? "Action failed")
+      if (!response.ok) throw new Error(result.error ?? "actionFailed")
       if (result.refreshSession) await session?.reload()
       showFeedback(
         action === "reconcile"
@@ -198,8 +202,8 @@ export function EmployeeManager() {
                 : "employeeAccessUpdated"
       )
       return true
-    } catch {
-      setError("actionFailed")
+    } catch (caught) {
+      setError(translateError(caught))
       return false
     } finally {
       setActionId(null)
@@ -281,7 +285,7 @@ export function EmployeeManager() {
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
-          <T>{error}</T>
+          {error}
         </p>
       )}
       {visible.length ? (
@@ -534,7 +538,7 @@ export function EmployeeManager() {
 
               {error && (
                 <p role="alert" className="text-sm text-destructive">
-                  <T>{error}</T>
+                  {error}
                 </p>
               )}
             </div>

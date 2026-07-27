@@ -30,6 +30,7 @@ describe("iCalendar export", () => {
     const calendar = serializeICalendar([event], {
       calendarName: "Venue calendar",
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
       now: new Date("2026-07-24T06:00:00Z"),
     })
 
@@ -56,6 +57,7 @@ describe("iCalendar export", () => {
     const calendar = serializeICalendar([event], {
       calendarName: "Venue calendar",
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
       now: new Date("2026-07-24T06:00:00Z"),
     })
     const result = parseICalendar(calendar, {
@@ -85,6 +87,7 @@ describe("iCalendar export", () => {
       serializeICalendar([detailedEvent], {
         calendarName: "Venue calendar",
         timeZone: "Europe/Tallinn",
+        uidNamespace: "hub-a",
       }),
       { timeZone: "Europe/Tallinn" }
     )
@@ -104,6 +107,7 @@ describe("iCalendar export", () => {
     const calendar = serializeICalendar([allDayEvent], {
       calendarName: "Venue calendar",
       timeZone: "Europe/Tallinn",
+      uidNamespace: "hub-a",
       now: new Date("2026-07-24T06:00:00Z"),
     })
 
@@ -121,6 +125,19 @@ describe("iCalendar export", () => {
     })
     expect(result.events[0]?.startUtc).toBeUndefined()
     expect(result.events[0]?.endUtc).toBeUndefined()
+  })
+
+  test("namespaces generated UIDs by workplace", () => {
+    const exportUid = (uidNamespace: string) =>
+      serializeICalendar([event], {
+        calendarName: "Venue calendar",
+        timeZone: "Europe/Tallinn",
+        uidNamespace,
+        now: new Date("2026-07-24T06:00:00Z"),
+      }).match(/^UID:(.+)$/m)?.[1]
+
+    expect(exportUid("hub-a")).toBe(exportUid("hub-a"))
+    expect(exportUid("hub-a")).not.toBe(exportUid("hub-b"))
   })
 })
 

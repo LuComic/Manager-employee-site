@@ -33,19 +33,19 @@ function parseBody(value: unknown) {
 export async function POST(request: Request) {
   const { isAuthenticated, userId, orgId, getToken } = await auth()
   if (!isAuthenticated || !userId) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 })
+    return Response.json({ error: "notAuthenticated" }, { status: 401 })
   }
   if (!orgId) {
     return Response.json(
-      { error: "Workplace admin access required" },
+      { error: "workplaceAdminAccessRequired" },
       { status: 403 }
     )
   }
   const body = parseBody(await request.json().catch(() => null))
-  if (!body) return Response.json({ error: "Invalid request" }, { status: 400 })
+  if (!body) return Response.json({ error: "invalidRequest" }, { status: 400 })
   const token = await getToken()
   if (!token)
-    return Response.json({ error: "Missing session token" }, { status: 401 })
+    return Response.json({ error: "missingSessionToken" }, { status: 401 })
   const convex = convexServerClient(token)
   const clerk = await clerkClient()
 
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     })
     if (!authorization.authorized) {
       return Response.json(
-        { error: "Workplace admin access required" },
+        { error: "workplaceAdminAccessRequired" },
         { status: 403 }
       )
     }
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       profileId: body.profileId!,
     })
     if (record.organizationId !== orgId)
-      throw new Error("Employee belongs to another workplace")
+      throw new Error("employeeBelongsToAnotherWorkplace")
 
     if (body.action === "reactivate") {
       await convex.mutation(api.employees.reactivateUnclaimed, {
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
           })
         }
       }
-      throw new Error("Employee removal could not be completed")
+      throw new Error("employeeRemovalCouldNotBeCompleted")
     }
 
     await convex.mutation(api.employees.deactivateAfterClerkRemoval, {
@@ -183,7 +183,7 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     return Response.json(
-      { error: safeErrorMessage(error, "Could not update the employee") },
+      { error: safeErrorMessage(error, "couldNotUpdateEmployee") },
       { status: 400 }
     )
   }

@@ -7,10 +7,23 @@ import {
   formatEventTime,
   formatTime,
   getAnnouncementState,
+  normalizeEventCategory,
   normalizeReadingTime,
   toDateKey,
   type CalendarEvent,
 } from "@/lib/operations"
+
+describe("normalizeEventCategory", () => {
+  test("preserves supported categories", () => {
+    expect(normalizeEventCategory("Training")).toBe("Training")
+  })
+
+  test("falls back safely for obsolete or unknown categories", () => {
+    expect(normalizeEventCategory("Promotion")).toBe("Reservation")
+    expect(normalizeEventCategory("Delivery")).toBe("Reservation")
+    expect(normalizeEventCategory("Anything else")).toBe("Reservation")
+  })
+})
 
 const calendarEvent: CalendarEvent = {
   id: "event",

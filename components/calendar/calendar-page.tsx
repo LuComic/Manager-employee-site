@@ -120,6 +120,7 @@ export function CalendarPage() {
               name: hub?.name ?? t("workplace"),
             })}
             timeZone={hub?.timeZone ?? "UTC"}
+            uidNamespace={hub?.id ?? "unconfigured-workplace"}
           />
         }
       />

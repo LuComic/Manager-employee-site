@@ -122,7 +122,7 @@ async function employeeViewer(
     .withIndex("by_slug", (q) => q.eq("slug", args.hubSlug))
     .unique()
   if (!hub || !(await canReadPublishedHub(ctx, hub, args.credential))) {
-    throw new Error("Hub access required")
+    throw new Error("hubAccessRequired")
   }
 
   const identity = await getIdentity(ctx)
@@ -147,7 +147,7 @@ async function employeeViewer(
     guestDeviceId.length < 16 ||
     guestDeviceId.length > 100
   ) {
-    throw new Error("This device could not be identified")
+    throw new Error("thisDeviceCouldNotBeIdentified")
   }
   return {
     hub,

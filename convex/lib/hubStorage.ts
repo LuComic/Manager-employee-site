@@ -73,7 +73,7 @@ export async function registerHubStorage(
     ) {
       return existing._id
     }
-    throw new Error("File is already registered")
+    throw new Error("fileIsAlreadyRegistered")
   }
   const id = await ctx.db.insert("hubStorage", {
     hubId: args.hubId,
@@ -91,11 +91,11 @@ export async function requirePendingHubStorage(
 ) {
   const record = await findHubStorage(ctx, storageId)
   if (!record || record.hubId !== hubId) {
-    throw new Error("File does not belong to this workplace")
+    throw new Error("fileNotBelongWorkplace")
   }
-  if (record.binding) throw new Error("File is already in use")
+  if (record.binding) throw new Error("fileIsAlreadyInUse")
   const stored = await ctx.db.system.get("_storage", storageId)
-  if (!stored) throw new Error("Uploaded file not found")
+  if (!stored) throw new Error("uploadedFileNotFound")
   return { record, stored }
 }
 
@@ -121,10 +121,10 @@ export async function requireBoundHubStorage(
     record.hubId !== hubId ||
     !bindingMatches(record.binding, binding)
   ) {
-    throw new Error("File association is invalid")
+    throw new Error("fileAssociationIsInvalid")
   }
   const stored = await ctx.db.system.get("_storage", storageId)
-  if (!stored) throw new Error("Uploaded file not found")
+  if (!stored) throw new Error("uploadedFileNotFound")
   return { record, stored }
 }
 
@@ -142,7 +142,7 @@ export async function discardPendingHubStorage(
     args.storageId
   )
   if (record.uploadedBy !== args.uploadedBy) {
-    throw new Error("Only the uploader can discard this file")
+    throw new Error("onlyUploaderDiscardFile")
   }
   await ctx.storage.delete(args.storageId)
   await ctx.db.delete("hubStorage", record._id)
@@ -159,13 +159,13 @@ export async function deleteReferencedHubStorage(
 ) {
   const record = await findHubStorage(ctx, args.storageId)
   if (!record) {
-    if (!args.allowUntracked) throw new Error("File association is invalid")
+    if (!args.allowUntracked) throw new Error("fileAssociationIsInvalid")
   } else {
     if (
       record.hubId !== args.hubId ||
       !bindingMatches(record.binding, args.binding)
     ) {
-      throw new Error("File association is invalid")
+      throw new Error("fileAssociationIsInvalid")
     }
     await ctx.db.delete("hubStorage", record._id)
   }
