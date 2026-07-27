@@ -26,6 +26,27 @@ function translatedSourceMessages() {
     if (normalized) messages.add(normalized)
   }
 
+  const addTranslationExpression = (node: ts.Expression) => {
+    if (ts.isStringLiteralLike(node)) {
+      add(node.text)
+      return
+    }
+
+    if (ts.isConditionalExpression(node)) {
+      addTranslationExpression(node.whenTrue)
+      addTranslationExpression(node.whenFalse)
+      return
+    }
+
+    if (
+      ts.isParenthesizedExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isSatisfiesExpression(node)
+    ) {
+      addTranslationExpression(node.expression)
+    }
+  }
+
   for (const file of [...sourceFiles("app"), ...sourceFiles("components")]) {
     const source = ts.createSourceFile(
       file,
@@ -39,10 +60,9 @@ function translatedSourceMessages() {
       if (
         ts.isCallExpression(node) &&
         node.expression.getText(source) === "t" &&
-        node.arguments[0] &&
-        ts.isStringLiteralLike(node.arguments[0])
+        node.arguments[0]
       ) {
-        add(node.arguments[0].text)
+        addTranslationExpression(node.arguments[0])
       }
 
       if (
