@@ -17,6 +17,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppTranslations } from "@/i18n/use-app-translations"
+import { getCustomContactName } from "@/lib/contact"
 import { cn } from "@/lib/utils"
 import { useOperations } from "@/components/providers/operations-provider"
 
@@ -29,7 +31,9 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState("")
   const [pending, setPending] = useState(false)
   const { hub, submitHelpRequest } = useOperations()
-  const contactName = hub?.contactName || "shift lead"
+  const t = useAppTranslations()
+  const customContactName = getCustomContactName(hub?.contactName)
+  const contactName = customContactName ?? t("shiftLead")
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -54,7 +58,9 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                 <T>Question sent</T>
               </DialogTitle>
               <DialogDescription className="mt-2">
-                <T>Your note has been sent to</T> {contactName}.
+                {customContactName
+                  ? t("noteSentToContact", { contactName })
+                  : t("noteSentToShiftLead")}
               </DialogDescription>
               <Button className="mt-6" onClick={() => handleOpenChange(false)}>
                 <T>Done</T>
@@ -75,7 +81,9 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
             >
               <DialogHeader>
                 <DialogTitle className="tracking-normal normal-case">
-                  <T>Ask</T> {contactName}
+                  {customContactName
+                    ? t("askContact", { contactName })
+                    : t("askShiftLead")}
                 </DialogTitle>
                 <DialogDescription>
                   <T>
@@ -163,7 +171,11 @@ export function ContactButton({
 }) {
   const openContact = useContext(ContactContext)
   const { hub } = useOperations()
-  const contactName = hub?.contactName || "shift lead"
+  const t = useAppTranslations()
+  const customContactName = getCustomContactName(hub?.contactName)
+  const contactLabel = customContactName
+    ? t("contactContact", { contactName: customContactName })
+    : t("contactShiftLead")
 
   return (
     <Button
@@ -174,10 +186,10 @@ export function ContactButton({
         onBeforeOpen?.()
         openContact()
       }}
-      aria-label={compact ? `Contact ${contactName}` : undefined}
+      aria-label={compact ? contactLabel : undefined}
     >
       <Headphones />
-      {!compact && `Contact ${contactName}`}
+      {!compact && contactLabel}
     </Button>
   )
 }

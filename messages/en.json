@@ -61,6 +61,8 @@
     "workhalAccess": "workhal access",
     "applyLink": "Apply link",
     "ask": "Ask",
+    "askContact": "Ask {contactName}",
+    "askShiftLead": "Ask the shift lead",
     "assignedAutomaticallyFromTheWorkplaceName": "Assigned automatically from the workplace name:",
     "attachmentNotFound": "Attachment not found",
     "attachments": "Attachments",
@@ -115,6 +117,8 @@
     "clearSearchChooseStatusFilter": "Clear the search or choose another status filter.",
     "clearStepStepInstructionsTasksComeUpMessage": "Clear, step-by-step instructions for the tasks that come up during a shift.",
     "close": "Close",
+    "contactContact": "Contact {contactName}",
+    "contactShiftLead": "Contact the shift lead",
     "codePrivateLinkInvalidExpiredRotated": "That code or private link is invalid, expired, or has been rotated.",
     "collapseLabel": "Collapse {label}",
     "comingNext": "Coming next",
@@ -463,6 +467,8 @@
     "noUnsavedChanges": "No unsaved changes",
     "noUpcomingAnnouncements": "No upcoming announcements",
     "noUpcomingEvents": "No upcoming events",
+    "noteSentToContact": "Your note has been sent to {contactName}.",
+    "noteSentToShiftLead": "Your note has been sent to the shift lead.",
     "noUsefulGuidesYet": "No useful guides yet",
     "numberedList": "Numbered list",
     "onlyUploaderDiscardFile": "Only the uploader can discard this file",
@@ -717,7 +723,6 @@
     "yesRemove": "Yes, remove",
     "writeClearUpdateControlEmployeesSee": "Write a clear update and control when employees can see it.",
     "yourChangesWillNotBeSaved": "Your changes will not be saved.",
-    "yourNoteHasBeenSentTo": "Your note has been sent to",
     "yourWorkplaceLowercase": "your workplace"
   }
 }

@@ -20,6 +20,7 @@ import { getPathname } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
 import { SITE_NAME } from "@/lib/branding"
 import { clerkAppearance } from "@/lib/clerk-appearance"
+import { clerkLocalizationByLocale } from "@/lib/clerk-localization"
 import { cn } from "@/lib/utils"
 
 const notoSans = Noto_Sans({ subsets: ["latin"], variable: "--font-sans" })
@@ -81,6 +82,7 @@ export default async function RootLayout({
           <ClerkProvider
             appearance={clerkAppearance}
             afterSignOutUrl={getPathname({ locale, href: "/" })}
+            localization={clerkLocalizationByLocale[locale]}
           >
             <ConvexClientProvider>
               <ThemeProvider defaultTheme="light">

@@ -21,7 +21,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import { BANNER_IMAGE_ACCEPT } from "@/lib/banner-image"
+import { getCustomContactName } from "@/lib/contact"
 
 function settingsFromHub(
   hub: ReturnType<typeof useOperations>["hub"]
@@ -34,7 +36,7 @@ function settingsFromHub(
       hub?.timeZone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone ||
       "UTC",
-    contactName: hub?.contactName ?? "shift lead",
+    contactName: getCustomContactName(hub?.contactName) ?? "",
     contactEmail: hub?.contactEmail ?? "",
     contactPhone: hub?.contactPhone ?? "",
   }
@@ -46,6 +48,7 @@ type BannerChange =
   | null
 
 export function HubSettingsManager() {
+  const t = useAppTranslations()
   const {
     hub,
     saveHubSettings,
@@ -292,7 +295,7 @@ export function HubSettingsManager() {
                 value={settings.contactName}
                 onChange={(event) => update("contactName", event.target.value)}
                 className="border border-input px-3"
-                placeholder="Shift lead"
+                placeholder={t("shiftLead")}
                 maxLength={100}
               />
             </Field>

@@ -61,6 +61,8 @@
     "workhalAccess": "workhali juurdepääs",
     "applyLink": "Rakenda link",
     "ask": "Küsi",
+    "askContact": "Küsi: {contactName}",
+    "askShiftLead": "Küsi vahetuse juhilt",
     "assignedAutomaticallyFromTheWorkplaceName": "Määratakse automaatselt töökoha nime järgi:",
     "attachmentNotFound": "Manust ei leitud",
     "attachments": "Manused",
@@ -115,6 +117,8 @@
     "clearSearchChooseStatusFilter": "Tühjenda otsing või vali muu olek.",
     "clearStepStepInstructionsTasksComeUpMessage": "Selged samm-sammulised juhised vahetuse ajal tekkivate ülesannete jaoks.",
     "close": "Sulge",
+    "contactContact": "Võta ühendust: {contactName}",
+    "contactShiftLead": "Võta ühendust vahetuse juhiga",
     "codePrivateLinkInvalidExpiredRotated": "See kood või privaatne link on vale, aegunud või uuendatud.",
     "collapseLabel": "Peida: {label}",
     "comingNext": "Järgmisena",
@@ -463,6 +467,8 @@
     "noUnsavedChanges": "Salvestamata muudatusi pole",
     "noUpcomingAnnouncements": "Tulemas pole ühtegi teadaannet",
     "noUpcomingEvents": "Tulemas pole ühtegi sündmust",
+    "noteSentToContact": "Sinu sõnum saadeti kontaktile {contactName}.",
+    "noteSentToShiftLead": "Sinu sõnum saadeti vahetuse juhile.",
     "noUsefulGuidesYet": "Kasulikke juhendeid veel pole",
     "numberedList": "Nummerdatud",
     "onlyUploaderDiscardFile": "Selle faili saab eemaldada ainult selle üleslaadija",
@@ -717,7 +723,6 @@
     "yesRemove": "Jah, eemalda",
     "writeClearUpdateControlEmployeesSee": "Kirjuta selge uuendus ja määra, millal töötajad seda näevad.",
     "yourChangesWillNotBeSaved": "Sinu muudatusi ei salvestata.",
-    "yourNoteHasBeenSentTo": "Sinu sõnum saadeti aadressile",
     "yourWorkplaceLowercase": "sinu töökohas"
   }
 }
