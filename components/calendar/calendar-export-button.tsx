@@ -26,7 +26,7 @@ export function CalendarExportButton({
       variant="outline"
       size={isEvent ? "default" : "sm"}
       disabled={!events.length}
-      title="Works with Google Calendar, Apple Calendar, Outlook, and other iCalendar apps"
+      title="worksGoogleCalendarAppleCalendarOutlookOtherMessage"
       onClick={() => {
         const contents = serializeICalendar(events, {
           calendarName,
@@ -47,7 +47,7 @@ export function CalendarExportButton({
       }}
     >
       {isEvent ? <CalendarPlus /> : <Download />}
-      <T>{isEvent ? "Add to calendar" : "Export calendar"}</T>
+      <T>{isEvent ? "addToCalendar" : "exportCalendar"}</T>
     </Button>
   )
 }

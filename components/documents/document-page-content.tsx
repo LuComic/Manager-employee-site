@@ -26,9 +26,9 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
     return (
       <EmptyState
         icon={Files}
-        title="Document not available"
-        description="This document may be unpublished or removed. Browse the library to find another."
-        actionLabel="Back to documents"
+        title="documentNotAvailable"
+        description="documentUnpublishedRemovedBrowseLibraryFind"
+        actionLabel="backToDocuments"
         actionHref="/documents"
       />
     )
@@ -48,7 +48,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             "-ml-3"
           )}
         >
-          <ArrowLeft /> <T>Back to documents</T>
+          <ArrowLeft /> <T>backToDocuments</T>
         </Link>
       </div>
 
@@ -93,10 +93,10 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {resource.kind === "file"
-                ? t("{size} · Opens in a new tab", {
+                ? t("fileSizeAndNewTab", {
                     size: formatFileSize(resource.size),
                   })
-                : t("Shared externally · Opens in a new tab")}
+                : t("sharedExternallyOpensNewTab")}
             </p>
           </div>
           <a
@@ -105,7 +105,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             rel="noreferrer"
             className={buttonVariants()}
           >
-            <T>{resource.kind === "file" ? "Open file" : "Open link"}</T>
+            <T>{resource.kind === "file" ? "openFile" : "openLink"}</T>
             <ExternalLink />
           </a>
         </CardContent>

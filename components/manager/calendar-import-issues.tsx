@@ -66,7 +66,7 @@ function IssueGroup({
         ))}
         {issues.length > 5 && (
           <li className="text-muted-foreground">
-            +{issues.length - 5} <T>more</T>
+            +{issues.length - 5} <T>moreLowercase</T>
           </li>
         )}
       </ul>

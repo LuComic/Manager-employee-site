@@ -48,9 +48,7 @@ export async function generateMetadata({
     },
     applicationName: SITE_NAME,
     description: t(
-      getMessageKey(
-        "Today’s information and practical guides for smooth shifts."
-      )
+      getMessageKey("todaySInformationPracticalGuidesSmoothShifts")
     ),
   }
 }

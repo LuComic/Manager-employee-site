@@ -117,8 +117,8 @@ export function EmployeeManager() {
   }
 
   async function save() {
-    if (!form.displayName.trim()) return setError("Add the employee’s name.")
-    if (!form.email.trim()) return setError("Add the employee’s email.")
+    if (!form.displayName.trim()) return setError("addTheEmployeeSName")
+    if (!form.email.trim()) return setError("addTheEmployeeSEmail")
     setPending(true)
     setError("")
     try {
@@ -198,8 +198,8 @@ export function EmployeeManager() {
     return (
       <EmptyState
         icon={Users}
-        title="Create the workplace first"
-        description="Use the upgrade action above before adding employees or invitations."
+        title="createTheWorkplaceFirst"
+        description="useUpgradeActionAboveBeforeAddingEmployeesMessage"
       />
     )
   }
@@ -207,8 +207,8 @@ export function EmployeeManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Employees"
-        description="Create employee profiles, send sign-in details, and control content access."
+        title="employees"
+        description="createEmployeeProfilesSendSignDetailsControlMessage"
         action={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -220,10 +220,10 @@ export function EmployeeManager() {
               <RefreshCw
                 className={actionId === "reconcile" ? "animate-spin" : ""}
               />{" "}
-              <T>Sync access</T>
+              <T>syncAccess</T>
             </Button>
             <Button onClick={() => openForm("new")}>
-              <Plus /> <T>Create employee</T>
+              <Plus /> <T>createEmployee</T>
             </Button>
           </div>
         }
@@ -234,7 +234,7 @@ export function EmployeeManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search employees…"
+            placeholder="searchEmployees"
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -244,25 +244,25 @@ export function EmployeeManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label={t("Filter employees by status")}
+            aria-label={t("filterEmployeesByStatus")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">
-              <T>All statuses</T>
+              <T>allStatuses</T>
             </SelectItem>
             <SelectItem value="unclaimed">
-              <T>Not joined</T>
+              <T>notJoined</T>
             </SelectItem>
             <SelectItem value="invited">
-              <T>Email invite sent</T>
+              <T>emailInviteSent</T>
             </SelectItem>
             <SelectItem value="active">
-              <T>Active</T>
+              <T>active</T>
             </SelectItem>
             <SelectItem value="deactivated">
-              <T>Deactivated</T>
+              <T>deactivated</T>
             </SelectItem>
           </SelectContent>
         </Select>
@@ -318,7 +318,7 @@ export function EmployeeManager() {
                     </p>
                     {employee.invitationStatus !== "not-sent" && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        <T>Email invitation:</T> {employee.invitationStatus}
+                        <T>emailInvitation</T> {employee.invitationStatus}
                         {employee.invitationError
                           ? ` · ${employee.invitationError}`
                           : ""}
@@ -331,7 +331,7 @@ export function EmployeeManager() {
                       size="sm"
                       onClick={() => openForm(employee)}
                     >
-                      <T>Edit</T>
+                      <T>edit</T>
                     </Button>
                     {employee.status === "deactivated" && (
                       <Button
@@ -341,7 +341,7 @@ export function EmployeeManager() {
                         disabled={Boolean(actionId)}
                         onClick={() => setRemoveTarget(employee)}
                       >
-                        <Trash2 /> <T>Remove</T>
+                        <Trash2 /> <T>remove</T>
                       </Button>
                     )}
                     {employee.email &&
@@ -354,11 +354,11 @@ export function EmployeeManager() {
                           onClick={() => void runAction(employee, "invite")}
                         >
                           <Mail />{" "}
-                          <T>
-                            {employee.invitationStatus === "pending"
-                              ? "Resend email"
-                              : "Send email invite"}
-                          </T>
+                          {employee.invitationStatus === "pending" ? (
+                            <T>resendEmail</T>
+                          ) : (
+                            <T>sendEmailInvite</T>
+                          )}
                         </Button>
                       )}
                     {employee.invitationStatus === "pending" && (
@@ -370,7 +370,7 @@ export function EmployeeManager() {
                           void runAction(employee, "revoke-invite")
                         }
                       >
-                        <T>Cancel email invite</T>
+                        <T>cancelEmailInvite</T>
                       </Button>
                     )}
                     {employee.status !== "deactivated" ? (
@@ -380,7 +380,7 @@ export function EmployeeManager() {
                         disabled={Boolean(actionId)}
                         onClick={() => setDeactivateTarget(employee)}
                       >
-                        <T>Deactivate</T>
+                        <T>deactivate</T>
                       </Button>
                     ) : (
                       <Button
@@ -389,7 +389,7 @@ export function EmployeeManager() {
                         disabled={Boolean(actionId)}
                         onClick={() => void runAction(employee, "reactivate")}
                       >
-                        <T>Reactivate</T>
+                        <T>reactivate</T>
                       </Button>
                     )}
                   </div>
@@ -401,8 +401,8 @@ export function EmployeeManager() {
       ) : (
         <EmptyState
           icon={Users}
-          title="No matching employees"
-          description="Create a profile or change the current filters."
+          title="noMatchingEmployees"
+          description="createProfileChangeCurrentFilters"
         />
       )}
 
@@ -419,12 +419,10 @@ export function EmployeeManager() {
           >
             <DialogHeader>
               <DialogTitle>
-                <T>{editing === "new" ? "Create employee" : "Edit employee"}</T>
+                <T>{editing === "new" ? "createEmployee" : "editEmployee"}</T>
               </DialogTitle>
               <DialogDescription>
-                <T>
-                  The profile can exist before the employee creates an account.
-                </T>
+                <T>profileExistBeforeEmployeeCreatesAccount</T>
               </DialogDescription>
             </DialogHeader>
             <div className="my-6 space-y-4">
@@ -458,7 +456,7 @@ export function EmployeeManager() {
               {jobTitles.length > 0 && (
                 <div
                   className="flex flex-wrap gap-2"
-                  aria-label={t("Saved job titles")}
+                  aria-label={t("savedJobTitles")}
                 >
                   {jobTitles.map((jobTitle) => {
                     const selected =
@@ -487,7 +485,7 @@ export function EmployeeManager() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="employee-access">
-                  <T>workhal access</T>
+                  <T>workhalAccess</T>
                 </Label>
                 <Select
                   value={form.accessLevel}
@@ -506,20 +504,19 @@ export function EmployeeManager() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="viewer">
-                      <T>View only – published content</T>
+                      <T>nothingViewPublishedContentOnly</T>
                     </SelectItem>
                     <SelectItem value="editor">
-                      <T>Content editing – update existing content</T>
+                      <T>editingUpdateExistingContent</T>
                     </SelectItem>
                     <SelectItem value="manager">
-                      <T>Full access – create and manage all content</T>
+                      <T>fullAccessCreateManageAllContent</T>
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   <T>
-                    Full access does not include employees, invitations,
-                    workplace settings, or access controls.
+                    fullAccessNotIncludeEmployeesInvitationsWorkplaceMessage
                   </T>
                 </p>
               </div>
@@ -536,10 +533,10 @@ export function EmployeeManager() {
                 variant="outline"
                 onClick={() => setEditing(null)}
               >
-                <T>Cancel</T>
+                <T>cancel</T>
               </Button>
               <Button type="submit" disabled={pending}>
-                <T>Save employee</T>
+                <T>saveEmployee</T>
               </Button>
             </DialogFooter>
           </form>
@@ -553,13 +550,11 @@ export function EmployeeManager() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              <T>Deactivate</T> {deactivateTarget?.displayName}?
+              <T>deactivate</T> {deactivateTarget?.displayName}?
             </DialogTitle>
             <DialogDescription>
               <T>
-                This removes their workplace membership, cancels any pending
-                email invitation, and preserves their profile and historical
-                event assignments.
+                removesWorkplaceMembershipCancelsPendingEmailInvitationMessage
               </T>
             </DialogDescription>
           </DialogHeader>
@@ -569,7 +564,7 @@ export function EmployeeManager() {
               variant="outline"
               onClick={() => setDeactivateTarget(null)}
             >
-              <T>No, keep active</T>
+              <T>noKeepActive</T>
             </Button>
             <Button
               type="button"
@@ -582,7 +577,7 @@ export function EmployeeManager() {
                 }
               }}
             >
-              <T>Yes, deactivate</T>
+              <T>yesDeactivate</T>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -595,14 +590,11 @@ export function EmployeeManager() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              <T>Permanently remove</T> {removeTarget?.displayName}?
+              <T>permanentlyRemove</T> {removeTarget?.displayName}?
             </DialogTitle>
             <DialogDescription>
               <T>
-                This permanently removes the employee from this workplace,
-                including their profile, email invitation, notifications, and
-                all event assignments. Their sign-in account and access to any
-                other workplaces will not be deleted. This cannot be undone.
+                permanentlyRemovesEmployeeWorkplaceIncludingProfileEmailError
               </T>
             </DialogDescription>
           </DialogHeader>
@@ -612,7 +604,7 @@ export function EmployeeManager() {
               variant="outline"
               onClick={() => setRemoveTarget(null)}
             >
-              <T>No, keep employee</T>
+              <T>noKeepEmployee</T>
             </Button>
             <Button
               type="button"
@@ -625,7 +617,7 @@ export function EmployeeManager() {
                 }
               }}
             >
-              <T>Yes, remove</T>
+              <T>yesRemove</T>
             </Button>
           </DialogFooter>
         </DialogContent>

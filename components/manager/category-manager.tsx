@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { AppMessageKey } from "@/i18n/messages"
 import { Textarea } from "@/components/ui/textarea"
 import {
   categoryIconOptions,
@@ -77,7 +78,7 @@ export function CategoryManager() {
     if (!editing) return
     const label = editing.label.trim()
     const description = editing.description.trim()
-    if (!label || !description) return setError("Add a name and description.")
+    if (!label || !description) return setError("addANameAndDescription")
     if (
       categories.some(
         (category) =>
@@ -85,7 +86,7 @@ export function CategoryManager() {
           category.label.toLowerCase() === label.toLowerCase()
       )
     )
-      return setError("A category with this name already exists.")
+      return setError("categoryNameAlreadyExists")
 
     let id = editing.id
     if (!id) {
@@ -106,8 +107,8 @@ export function CategoryManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Guide categories"
-        description="Manage the work areas shown in the employee sidebar and guide browser."
+        title="guideCategories"
+        description="manageWorkAreasShownEmployeeSidebarGuideMessage"
         action={
           canCreateContent ? (
             <Button
@@ -116,7 +117,7 @@ export function CategoryManager() {
                 setError("")
               }}
             >
-              <Plus /> <T>Create category</T>
+              <Plus /> <T>createCategory</T>
             </Button>
           ) : undefined
         }
@@ -145,7 +146,11 @@ export function CategoryManager() {
                       </span>
                       <Badge variant="secondary">
                         {guideCount}{" "}
-                        <T>{guideCount === 1 ? "guide" : "guides"}</T>
+                        <T>
+                          {guideCount === 1
+                            ? "guideLowercase"
+                            : "guidesLowercase"}
+                        </T>
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -158,7 +163,7 @@ export function CategoryManager() {
                       size="icon-sm"
                       disabled={index === 0}
                       onClick={() => moveCategory(category.id, -1)}
-                      aria-label={t("Move {name} up", {
+                      aria-label={t("moveNameUp", {
                         name: category.label,
                       })}
                     >
@@ -169,7 +174,7 @@ export function CategoryManager() {
                       size="icon-sm"
                       disabled={index === categories.length - 1}
                       onClick={() => moveCategory(category.id, 1)}
-                      aria-label={t("Move {name} down", {
+                      aria-label={t("moveNameDown", {
                         name: category.label,
                       })}
                     >
@@ -183,14 +188,14 @@ export function CategoryManager() {
                         setError("")
                       }}
                     >
-                      <FilePenLine /> <T>Edit</T>
+                      <FilePenLine /> <T>edit</T>
                     </Button>
                     {canCreateContent && (
                       <Button
                         variant="destructive"
                         size="icon-sm"
                         onClick={() => setDeleteTarget(category)}
-                        aria-label={t("Delete {name}", {
+                        aria-label={t("deleteName", {
                           name: category.label,
                         })}
                       >
@@ -206,8 +211,8 @@ export function CategoryManager() {
       ) : (
         <EmptyState
           icon={Tags}
-          title="No guide categories"
-          description="Create a work area before adding a guide."
+          title="noGuideCategories"
+          description="createWorkAreaBeforeAddingGuide"
         />
       )}
 
@@ -230,16 +235,14 @@ export function CategoryManager() {
             >
               <DialogHeader>
                 <DialogTitle>
-                  <T>{editing.id ? "Edit category" : "Create category"}</T>
+                  <T>{editing.id ? "editCategory" : "createCategory"}</T>
                 </DialogTitle>
                 <DialogDescription>
-                  <T>
-                    Category changes appear immediately on the employee site.
-                  </T>
+                  <T>categoryChangesAppearImmediatelyEmployeeSite</T>
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
-                <Field label="Name" id="category-name">
+                <Field label="name" id="category-name">
                   <Input
                     id="category-name"
                     value={editing.label}
@@ -249,7 +252,7 @@ export function CategoryManager() {
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field label="Description" id="category-description">
+                <Field label="description" id="category-description">
                   <Textarea
                     id="category-description"
                     value={editing.description}
@@ -264,7 +267,7 @@ export function CategoryManager() {
                 </Field>
                 <fieldset>
                   <legend className="text-sm font-medium">
-                    <T>Icon</T>
+                    <T>icon</T>
                   </legend>
                   <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {categoryIconOptions.map((option) => {
@@ -305,10 +308,10 @@ export function CategoryManager() {
                   variant="outline"
                   onClick={() => setEditing(null)}
                 >
-                  <T>Cancel</T>
+                  <T>cancel</T>
                 </Button>
                 <Button type="submit">
-                  <T>Save category</T>
+                  <T>saveCategory</T>
                 </Button>
               </DialogFooter>
             </form>
@@ -325,13 +328,17 @@ export function CategoryManager() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              <T>Reassign guides before deleting</T>
+              <T>reassignGuidesBeforeDeleting</T>
             </DialogTitle>
             <DialogDescription>
-              {deleteTarget?.label} <T>is still used by</T>{" "}
+              {deleteTarget?.label} <T>isStillUsedByLowercase</T>{" "}
               {affectedGuides.length}{" "}
-              <T>{affectedGuides.length === 1 ? "guide" : "guides"}</T>
-              <T>. Move them to another work area first.</T>
+              <T>
+                {affectedGuides.length === 1
+                  ? "guideLowercase"
+                  : "guidesLowercase"}
+              </T>
+              <T>moveGuidesBeforeDeleteHelp</T>
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 space-y-2">
@@ -351,7 +358,7 @@ export function CategoryManager() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              <T>Close</T>
+              <T>close</T>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -366,7 +373,7 @@ export function CategoryManager() {
         onConfirm={() => {
           if (deleteTarget) {
             deleteCategory(deleteTarget.id)
-            showFeedback("Category deleted.")
+            showFeedback("categoryDeleted")
           }
         }}
       />
@@ -379,13 +386,15 @@ function Field({
   id,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   id: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

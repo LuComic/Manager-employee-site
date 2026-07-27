@@ -72,15 +72,15 @@ export function AnnouncementManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Manage announcements"
-        description="Maintain temporary notices, dates, priority, and pinned state."
+        title="manageAnnouncements"
+        description="maintainTemporaryNoticesDatesPriorityPinnedState"
         action={
           canCreateContent ? (
             <Link
               href="/manager/announcements/new"
               className={buttonVariants()}
             >
-              <Plus /> <T>Create announcement</T>
+              <Plus /> <T>createAnnouncement</T>
             </Link>
           ) : undefined
         }
@@ -91,8 +91,8 @@ export function AnnouncementManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search announcements…"
-            aria-label="Search announcements"
+            placeholder="searchAnnouncementsPlaceholder"
+            aria-label="searchAnnouncements"
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -102,25 +102,25 @@ export function AnnouncementManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label={t("Filter announcements by status")}
+            aria-label={t("filterAnnouncementsByStatus")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All">
-              <T>All</T>
+              <T>all</T>
             </SelectItem>
             <SelectItem value="Active">
-              <T>Active</T>
+              <T>active</T>
             </SelectItem>
             <SelectItem value="Upcoming">
-              <T>Upcoming</T>
+              <T>upcoming</T>
             </SelectItem>
             <SelectItem value="Expired">
-              <T>Expired</T>
+              <T>expired</T>
             </SelectItem>
             <SelectItem value="Draft">
-              <T>Draft</T>
+              <T>draft</T>
             </SelectItem>
           </SelectContent>
         </Select>
@@ -168,7 +168,7 @@ export function AnnouncementManager() {
                             |
                           </span>
                           <Badge variant="secondary">
-                            <Pin /> <T>Pinned</T>
+                            <Pin /> <T>pinned</T>
                           </Badge>
                         </>
                       )}
@@ -195,11 +195,11 @@ export function AnnouncementManager() {
                     >
                       {announcement.pinned ? (
                         <>
-                          <PinOff /> <T>Unpin</T>
+                          <PinOff /> <T>unpin</T>
                         </>
                       ) : (
                         <>
-                          <Pin /> <T>Pin</T>
+                          <Pin /> <T>pin</T>
                         </>
                       )}
                     </Button>
@@ -218,7 +218,7 @@ export function AnnouncementManager() {
                         )
                       }}
                     >
-                      <T>{announcement.published ? "Unpublish" : "Publish"}</T>
+                      <T>{announcement.published ? "unpublish" : "publish"}</T>
                     </Button>
                     <Link
                       href={`/manager/announcements/${announcement.id}/edit`}
@@ -226,14 +226,14 @@ export function AnnouncementManager() {
                         buttonVariants({ variant: "outline", size: "sm" })
                       )}
                     >
-                      <FilePenLine /> <T>Edit</T>
+                      <FilePenLine /> <T>edit</T>
                     </Link>
                     {canCreateContent && (
                       <Button
                         variant="destructive"
                         size="icon-sm"
                         onClick={() => setDeleteTarget(announcement)}
-                        aria-label={t("Delete {name}", {
+                        aria-label={t("deleteName", {
                           name: announcement.title,
                         })}
                       >
@@ -249,8 +249,8 @@ export function AnnouncementManager() {
       ) : (
         <EmptyState
           icon={Megaphone}
-          title="No matching announcements"
-          description="Clear the search or choose another status filter."
+          title="noMatchingAnnouncements"
+          description="clearSearchChooseStatusFilter"
         />
       )}
       <ConfirmDeleteDialog
@@ -262,7 +262,7 @@ export function AnnouncementManager() {
         onConfirm={() => {
           if (deleteTarget) {
             deleteAnnouncement(deleteTarget.id)
-            showFeedback("Announcement deleted.")
+            showFeedback("announcementDeleted")
           }
         }}
       />

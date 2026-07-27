@@ -100,7 +100,7 @@ export function RichTextEditor({
       <div
         className="flex flex-wrap items-center gap-2 border-b bg-muted/40 p-2"
         role="toolbar"
-        aria-label={t("{label} formatting", { label: ariaLabel })}
+        aria-label={t("formattingForLabel", { label: ariaLabel })}
       >
         <Select
           value={blockType}
@@ -114,19 +114,19 @@ export function RichTextEditor({
           <SelectTrigger
             size="sm"
             className="border border-input bg-background px-3"
-            aria-label={t("Text style")}
+            aria-label={t("textStyle")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="paragraph">
-              <T>Paragraph</T>
+              <T>paragraph</T>
             </SelectItem>
             <SelectItem value="heading-2">
-              <T>Section heading</T>
+              <T>sectionHeading</T>
             </SelectItem>
             <SelectItem value="heading-3">
-              <T>Subsection heading</T>
+              <T>subsectionHeading</T>
             </SelectItem>
           </SelectContent>
         </Select>
@@ -211,8 +211,8 @@ export function RichTextEditor({
                   applyLink()
                 }
               }}
-              placeholder="https://example.com or mailto:name@example.com"
-              aria-label="Link address"
+              placeholder="linkOrEmailUrlExample"
+              aria-label="linkAddress"
               className="border border-input px-3"
             />
             {linkError && (
@@ -221,7 +221,7 @@ export function RichTextEditor({
           </div>
           <div className="flex gap-2">
             <Button type="button" size="sm" onClick={applyLink}>
-              <T>Apply link</T>
+              <T>applyLink</T>
             </Button>
             {editor.isActive("link") && (
               <Button
@@ -233,7 +233,7 @@ export function RichTextEditor({
                   setLinkOpen(false)
                 }}
               >
-                <T>Remove</T>
+                <T>remove</T>
               </Button>
             )}
           </div>

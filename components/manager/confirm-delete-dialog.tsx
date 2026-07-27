@@ -28,14 +28,11 @@ export function ConfirmDeleteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            <T>Delete “</T>
+            <T>deleteOpeningQuote</T>
             {title}”?
           </DialogTitle>
           <DialogDescription>
-            <T>
-              This permanently removes the item from the hub. This action cannot
-              be undone.
-            </T>
+            <T>permanentlyRemovesItemHubActionCannotUndone</T>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -44,7 +41,7 @@ export function ConfirmDeleteDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            <T>No, keep it</T>
+            <T>noKeepIt</T>
           </Button>
           <Button
             type="button"
@@ -54,7 +51,7 @@ export function ConfirmDeleteDialog({
               onOpenChange(false)
             }}
           >
-            <T>Yes, delete</T>
+            <T>yesDelete</T>
           </Button>
         </DialogFooter>
       </DialogContent>

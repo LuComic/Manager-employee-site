@@ -3,15 +3,16 @@ import { ArrowRight } from "lucide-react"
 
 import { T } from "@/components/translated-text"
 import { buttonVariants } from "@/components/ui/button"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export function SectionHeading({
   title,
   description,
   action,
 }: {
-  title: string
+  title: AppMessageKey
   description?: string
-  action?: { label: string; href: string }
+  action?: { label: AppMessageKey; href: string }
 }) {
   return (
     <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">

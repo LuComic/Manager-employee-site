@@ -54,29 +54,27 @@ export function SearchResults({ query }: { query: string }) {
   return (
     <div aria-busy={results === undefined}>
       <PageHeading
-        title="Search results"
+        title="searchResults"
         description={
           results === undefined
-            ? t("Searching for “{query}”…", { query: normalizedQuery })
+            ? t("searchingForQuery", { query: normalizedQuery })
             : t(
                 results.length === 1
-                  ? "{count} result found for “{query}”"
-                  : "{count} results found for “{query}”",
+                  ? "countResultFoundForQuery"
+                  : "countResultsFoundForQuery",
                 { count: results.length, query: normalizedQuery }
               )
         }
       />
       {results === undefined ? (
         <p className="mt-8 text-sm text-muted-foreground" role="status">
-          <T>Searching…</T>
+          <T>searching</T>
         </p>
       ) : results.length > 0 ? (
         <>
           <p className="sr-only" role="status">
             {t(
-              results.length === 1
-                ? "{count} result found."
-                : "{count} results found.",
+              results.length === 1 ? "countResultFound" : "countResultsFound",
               { count: results.length }
             )}
           </p>
@@ -121,17 +119,17 @@ export function SearchResults({ query }: { query: string }) {
       ) : (
         <>
           <p className="sr-only" role="status">
-            <T>No results found.</T>
+            <T>noResultsFound</T>
           </p>
           <div className="mt-6 flex min-h-40 flex-col items-center justify-center border bg-background p-6 text-center">
             <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
               <Search className="size-5" />
             </span>
             <h2 className="mt-4 text-lg font-semibold">
-              <T>No matching content</T>
+              <T>noMatchingContent</T>
             </h2>
             <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              <T>Try a shorter word or browse one of the main areas.</T>
+              <T>tryShorterWordBrowseOneMainAreas</T>
             </p>
           </div>
         </>

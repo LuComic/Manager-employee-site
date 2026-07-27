@@ -42,7 +42,7 @@ export function AnnouncementCard({
             </Badge>
             {announcement.pinned && (
               <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Pin className="size-3" /> <T>Pinned</T>
+                <Pin className="size-3" /> <T>pinned</T>
               </span>
             )}
           </div>
@@ -53,7 +53,7 @@ export function AnnouncementCard({
         </CardHeader>
         <CardFooter className="mt-auto justify-between text-xs text-muted-foreground">
           <span>
-            <T>Until</T>{" "}
+            <T>until</T>{" "}
             {formatDate(
               `${announcement.expiresAt}T12:00`,
               undefined,

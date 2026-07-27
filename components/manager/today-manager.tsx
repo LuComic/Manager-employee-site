@@ -50,8 +50,8 @@ export function TodayManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Today page"
-        description="Choose which sections employees see and arrange them in the order that matters most. Changes save automatically."
+        title="todayPage"
+        description="chooseWhichSectionsEmployeesSeeArrangeOrderMessage"
       />
 
       <div className="space-y-4">
@@ -81,7 +81,7 @@ export function TodayManager() {
                       |
                     </span>
                     <Badge variant={section.visible ? "default" : "secondary"}>
-                      <T>{section.visible ? "Visible" : "Hidden"}</T>
+                      <T>{section.visible ? "visible" : "hidden"}</T>
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -97,7 +97,7 @@ export function TodayManager() {
                       void moveTodaySection(section.key, -1)
                       showFeedback(`${detail?.title} moved up.`)
                     }}
-                    aria-label={t("Move {name} up", {
+                    aria-label={t("moveNameUp", {
                       name: detail?.title ?? "",
                     })}
                   >
@@ -111,7 +111,7 @@ export function TodayManager() {
                       void moveTodaySection(section.key, 1)
                       showFeedback(`${detail?.title} moved down.`)
                     }}
-                    aria-label={t("Move {name} down", {
+                    aria-label={t("moveNameDown", {
                       name: detail?.title ?? "",
                     })}
                   >
@@ -131,7 +131,7 @@ export function TodayManager() {
                     }}
                   >
                     {section.visible ? <EyeOff /> : <Eye />}
-                    <T>{section.visible ? "Hide" : "Unhide"}</T>
+                    <T>{section.visible ? "hide" : "unhide"}</T>
                   </Button>
                 </div>
               </CardContent>

@@ -10,7 +10,6 @@ import {
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { T } from "@/components/translated-text"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { cn } from "@/lib/utils"
 
@@ -61,7 +60,7 @@ function Button({
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   const t = useAppTranslations()
   const translatedChildren =
-    typeof children === "string" ? <T>{children}</T> : children
+    typeof children === "string" ? t(children) : children
   const translatedProps = {
     ...props,
     "aria-label":

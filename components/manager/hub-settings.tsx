@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import type { AppMessageKey } from "@/i18n/messages"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { BANNER_IMAGE_ACCEPT } from "@/lib/banner-image"
 import { getCustomContactName } from "@/lib/contact"
@@ -95,8 +96,8 @@ export function HubSettingsManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Establishment settings"
-        description="Update the workplace details employees see across the hub."
+        title="establishmentSettings"
+        description="updateWorkplaceDetailsEmployeesSeeAcrossHub"
       />
 
       <form
@@ -119,7 +120,7 @@ export function HubSettingsManager() {
               clearBannerPreview()
               setBannerChange(null)
             }
-            showFeedback("Establishment settings saved.")
+            showFeedback("establishmentSettingsSaved")
           } finally {
             setPending(false)
           }
@@ -131,17 +132,14 @@ export function HubSettingsManager() {
               <Building2 className="size-5" />
             </span>
             <CardTitle className="mt-4 text-base">
-              <T>Workplace details</T>
+              <T>workplaceDetails</T>
             </CardTitle>
             <CardDescription>
-              <T>
-                The name, description, and address appear on the employee home
-                page.
-              </T>
+              <T>nameDescriptionAddressAppearEmployeeHomePage</T>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <Field label="Establishment name" htmlFor="hub-name">
+            <Field label="establishmentName" htmlFor="hub-name">
               <Input
                 id="hub-name"
                 value={settings.name}
@@ -151,25 +149,22 @@ export function HubSettingsManager() {
                 maxLength={80}
               />
             </Field>
-            <Field label="Time zone" htmlFor="hub-time-zone">
+            <Field label="timeZone" htmlFor="hub-time-zone">
               <Input
                 id="hub-time-zone"
                 value={settings.timeZone}
                 onChange={(event) => update("timeZone", event.target.value)}
                 className="border border-input px-3"
-                placeholder="Europe/Tallinn"
+                placeholder="tallinnTimeZone"
                 required
               />
               <p className="text-xs text-muted-foreground">
-                <T>
-                  Use an IANA time zone such as Europe/Tallinn or
-                  America/New_York.
-                </T>
+                <T>useianaTimeZoneSuchEuropeTallinnMessage</T>
               </p>
             </Field>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="hub-description">
-                <T>Short description</T>
+                <T>shortDescription</T>
               </Label>
               <Textarea
                 id="hub-description"
@@ -181,14 +176,14 @@ export function HubSettingsManager() {
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="hub-address">
-                <T>Address</T>
+                <T>address</T>
               </Label>
               <Textarea
                 id="hub-address"
                 value={settings.address}
                 onChange={(event) => update("address", event.target.value)}
                 className="min-h-20 border border-input px-3"
-                placeholder="Street, city, postal code"
+                placeholder="streetCityPostalCode"
                 maxLength={500}
               />
             </div>
@@ -201,14 +196,10 @@ export function HubSettingsManager() {
               <ImageIcon className="size-5" />
             </span>
             <CardTitle className="mt-4 text-base">
-              <T>Today page banner</T>
+              <T>todayPageBanner</T>
             </CardTitle>
             <CardDescription>
-              <T>
-                Add a workplace photo behind the establishment name,
-                description, and location. A wide image at least 1600 × 600
-                works best.
-              </T>
+              <T>addWorkplacePhotoBehindEstablishmentNameDescriptionMessage</T>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -222,10 +213,10 @@ export function HubSettingsManager() {
             >
               <div className="bg-black/55 p-3">
                 <p className="text-xs text-white/75">
-                  <T>Banner preview</T>
+                  <T>bannerPreview</T>
                 </p>
                 <p className="mt-1 font-semibold text-white">
-                  <T>Today at</T> {settings.name || "your workplace"}
+                  <T>todayAt</T> {settings.name || "your workplace"}
                 </p>
               </div>
             </div>
@@ -252,7 +243,7 @@ export function HubSettingsManager() {
                 onClick={() => bannerInputRef.current?.click()}
               >
                 <Upload />
-                <T>{bannerPreviewUrl ? "Replace image" : "Upload image"}</T>
+                <T>{bannerPreviewUrl ? "replaceImage" : "uploadImage"}</T>
               </Button>
               {bannerPreviewUrl && (
                 <Button
@@ -266,12 +257,12 @@ export function HubSettingsManager() {
                     )
                   }}
                 >
-                  <Trash2 /> <T>Remove image</T>
+                  <Trash2 /> <T>removeImage</T>
                 </Button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              <T>JPG, PNG, WebP, or AVIF. Maximum file size 10 MB.</T>
+              <T>imageFormatAndSizeHelp</T>
             </p>
           </CardContent>
         </Card>
@@ -279,17 +270,14 @@ export function HubSettingsManager() {
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle className="text-base">
-              <T>Employee contact</T>
+              <T>employeeContact</T>
             </CardTitle>
             <CardDescription>
-              <T>
-                This person or role is used by the help button. Email and phone
-                are optional direct contact methods.
-              </T>
+              <T>personRoleUsedHelpButtonEmailPhoneMessage</T>
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3">
-            <Field label="Name or role" htmlFor="contact-name">
+            <Field label="nameOrRole" htmlFor="contact-name">
               <Input
                 id="contact-name"
                 value={settings.contactName}
@@ -299,18 +287,18 @@ export function HubSettingsManager() {
                 maxLength={100}
               />
             </Field>
-            <Field label="Email" htmlFor="contact-email">
+            <Field label="email" htmlFor="contact-email">
               <Input
                 id="contact-email"
                 type="email"
                 value={settings.contactEmail}
                 onChange={(event) => update("contactEmail", event.target.value)}
                 className="border border-input px-3"
-                placeholder="operations@example.com"
+                placeholder="operationsEmailExample"
                 maxLength={200}
               />
             </Field>
-            <Field label="Phone" htmlFor="contact-phone">
+            <Field label="phone" htmlFor="contact-phone">
               <Input
                 id="contact-phone"
                 type="tel"
@@ -326,7 +314,7 @@ export function HubSettingsManager() {
 
         <div className="sticky bottom-0 z-10 flex flex-col gap-3 border bg-background/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            <T>{dirty ? "Unsaved changes" : "No unsaved changes"}</T>
+            <T>{dirty ? "unsavedChanges" : "noUnsavedChanges"}</T>
           </p>
           <div className="flex gap-2">
             <Button
@@ -340,13 +328,13 @@ export function HubSettingsManager() {
                 setBannerChange(null)
               }}
             >
-              <T>Cancel</T>
+              <T>cancel</T>
             </Button>
             <Button
               type="submit"
               disabled={pending || !dirty || !settings.name.trim()}
             >
-              <T>{pending ? "Saving…" : "Save settings"}</T>
+              <T>{pending ? "saving" : "saveSettings"}</T>
             </Button>
           </div>
         </div>
@@ -360,13 +348,15 @@ function Field({
   htmlFor,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   htmlFor: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={htmlFor}>{label}</Label>
+      <Label htmlFor={htmlFor}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

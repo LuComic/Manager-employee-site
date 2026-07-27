@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef } from "react"
 import { toast } from "sonner"
 
 import { useRouter } from "@/i18n/navigation"
+import type { AppMessageKey } from "@/i18n/messages"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 
 const historyGuardKey = "__operationsUnsavedChangesGuard"
 
 type UnsavedChangesOptions = {
   dirty: boolean
-  itemName: string
+  itemName: AppMessageKey
   toastId: string
   onDiscard: () => void
 }
@@ -41,19 +42,19 @@ export function useUnsavedChanges({
   const showDiscardToast = useCallback(
     (discard: () => void) => {
       toast.warning(
-        t("Discard your unsaved {itemName} changes?", {
+        t("discardYourUnsavedItemNameChanges", {
           itemName: t(itemName),
         }),
         {
           id: toastId,
-          description: t("Your changes will not be saved."),
+          description: t("yourChangesWillNotBeSaved"),
           duration: Infinity,
           cancel: {
-            label: t("No, keep editing"),
+            label: t("noKeepEditing"),
             onClick: () => undefined,
           },
           action: {
-            label: t("Yes, discard"),
+            label: t("yesDiscard"),
             onClick: discard,
           },
         }

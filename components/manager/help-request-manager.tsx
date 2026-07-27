@@ -50,13 +50,11 @@ export function HelpRequestManager() {
     try {
       await setStatus({ hubId: hub.id, requestId: request.id, status })
       toast.success(
-        t(status === "resolved" ? "Request resolved." : "Request reopened.")
+        t(status === "resolved" ? "requestResolved" : "requestReopened")
       )
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? t(error.message)
-          : t("Could not update request")
+        error instanceof Error ? t(error.message) : t("couldNotUpdateRequest")
       )
     }
   }
@@ -64,12 +62,12 @@ export function HelpRequestManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Help requests"
-        description="Review questions employees sent from the help button."
+        title="helpRequests"
+        description="reviewQuestionsEmployeesSentHelpButton"
       />
 
       <div className="border-b pb-4">
-        <SegmentedControl aria-label="Help request status">
+        <SegmentedControl aria-label="helpRequestStatus">
           {(["open", "resolved"] as const).map((status) => (
             <SegmentedControlItem
               key={status}
@@ -77,7 +75,7 @@ export function HelpRequestManager() {
               size="sm"
               onClick={() => setFilter(status)}
             >
-              <T>{status === "open" ? "Open" : "Resolved"}</T>
+              <T>{status === "open" ? "open" : "resolved"}</T>
               <Badge variant="outline">
                 {requests?.filter((request) => request.status === status)
                   .length ?? 0}
@@ -89,7 +87,7 @@ export function HelpRequestManager() {
 
       {requests === undefined ? (
         <p className="text-sm text-muted-foreground" role="status">
-          <T>Loading help requests…</T>
+          <T>loadingHelpRequests</T>
         </p>
       ) : visible.length ? (
         <div className="space-y-4">
@@ -110,7 +108,7 @@ export function HelpRequestManager() {
                         request.status === "open" ? "secondary" : "outline"
                       }
                     >
-                      <T>{request.status === "open" ? "Open" : "Resolved"}</T>
+                      <T>{request.status === "open" ? "open" : "resolved"}</T>
                     </Badge>
                   </div>
                   <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
@@ -135,13 +133,13 @@ export function HelpRequestManager() {
                     ) : (
                       <RotateCcw />
                     )}
-                    <T>{request.status === "open" ? "Resolve" : "Reopen"}</T>
+                    <T>{request.status === "open" ? "resolve" : "reopen"}</T>
                   </Button>
                   <Button
                     variant="destructive"
                     size="icon-sm"
                     onClick={() => setDeleteTarget(request)}
-                    aria-label={t("Delete {name}", { name: request.topic })}
+                    aria-label={t("deleteName", { name: request.topic })}
                   >
                     <Trash2 />
                   </Button>
@@ -154,12 +152,12 @@ export function HelpRequestManager() {
         <EmptyState
           icon={filter === "open" ? Headphones : CheckCircle2}
           title={
-            filter === "open" ? "No open help requests" : "No resolved requests"
+            filter === "open" ? "noOpenHelpRequests" : "noResolvedRequests"
           }
           description={
             filter === "open"
-              ? "New employee questions will appear here."
-              : "Requests you resolve will appear here."
+              ? "newEmployeeQuestionsWillAppearHere"
+              : "requestsYouResolveWillAppearHere"
           }
         />
       )}

@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation"
 
 import { T } from "@/components/translated-text"
 import { buttonVariants } from "@/components/ui/button"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export function EmptyState({
   icon: Icon,
@@ -12,9 +13,9 @@ export function EmptyState({
   actionHref,
 }: {
   icon: LucideIcon
-  title: string
-  description: string
-  actionLabel?: string
+  title: AppMessageKey
+  description: AppMessageKey
+  actionLabel?: AppMessageKey
   actionHref?: string
 }) {
   return (

@@ -30,7 +30,7 @@ export function Brand({
             {SITE_NAME}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {hub?.name ?? t("Workplace")}
+            {hub?.name ?? t("workplace")}
           </span>
         </span>
       )}

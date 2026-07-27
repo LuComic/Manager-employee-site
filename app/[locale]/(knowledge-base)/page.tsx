@@ -20,6 +20,7 @@ import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Card, CardContent } from "@/components/ui/card"
+import type { AppMessageKey } from "@/i18n/messages"
 import {
   eventOccursOnDate,
   formatDate,
@@ -34,23 +35,28 @@ import {
 const quickLinks = [
   {
     href: "/guides",
-    title: "Guides",
-    description: "Find practical instructions by work area.",
+    title: "guides",
+    description: "findPracticalInstructionsByWorkArea",
     icon: BookOpen,
   },
   {
     href: "/calendar",
-    title: "Calendar",
-    description: "See reservations, training, and visits.",
+    title: "calendar",
+    description: "seeReservationsTrainingAndVisits",
     icon: CalendarDays,
   },
   {
     href: "/announcements",
-    title: "Announcements",
-    description: "Check temporary operational updates.",
+    title: "announcements",
+    description: "checkTemporaryOperationalUpdates",
     icon: Megaphone,
   },
-]
+] satisfies {
+  href: string
+  title: AppMessageKey
+  description: AppMessageKey
+  icon: typeof BookOpen
+}[]
 
 export default function TodayPage() {
   const t = useAppTranslations()
@@ -107,13 +113,11 @@ export default function TodayPage() {
                 )}
               </p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                <T>Today at</T> {hub?.name ?? t("your workplace")}
+                <T>todayAt</T> {hub?.name ?? t("yourWorkplaceLowercase")}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-foreground/80 sm:text-base">
                 {hub?.description ||
-                  t(
-                    "Current updates, important times, and the guides you may need during the day."
-                  )}
+                  t("currentUpdatesImportantTimesGuidesNeedDuringMessage")}
               </p>
               {hub?.address && (
                 <p className="mt-3 flex items-center gap-2 text-sm text-primary-foreground/80">
@@ -127,8 +131,8 @@ export default function TodayPage() {
         return (
           <section>
             <SectionHeading
-              title="Quick links"
-              description="Go straight to workhal’s main areas."
+              title="quickLinks"
+              description="goToWorkhalMainAreas"
             />
             <div className="grid gap-3 md:grid-cols-3">
               {quickLinks.map(({ href, title, description, icon: Icon }) => (
@@ -165,9 +169,9 @@ export default function TodayPage() {
         return (
           <section>
             <SectionHeading
-              title="Happening today"
-              description="Events and important times for the current day."
-              action={{ label: "Open calendar", href: "/calendar" }}
+              title="happeningToday"
+              description="eventsImportantTimesCurrentDay"
+              action={{ label: "openCalendar", href: "/calendar" }}
             />
             {todayEvents.length ? (
               <div className="grid gap-3 lg:grid-cols-2">
@@ -178,8 +182,8 @@ export default function TodayPage() {
             ) : (
               <EmptyState
                 icon={CalendarDays}
-                title="Nothing scheduled today"
-                description="Use the calendar to look ahead at upcoming events."
+                title="nothingScheduledToday"
+                description="useCalendarLookAheadUpcomingEvents"
               />
             )}
           </section>
@@ -188,10 +192,10 @@ export default function TodayPage() {
         return (
           <section>
             <SectionHeading
-              title="Current announcements"
-              description="Temporary information that matters right now."
+              title="currentAnnouncements"
+              description="temporaryInformationThatMattersRightNow"
               action={{
-                label: "All announcements",
+                label: "allAnnouncements",
                 href: "/announcements",
               }}
             />
@@ -207,8 +211,8 @@ export default function TodayPage() {
             ) : (
               <EmptyState
                 icon={Megaphone}
-                title="No current announcements"
-                description="There are no active operational updates."
+                title="noCurrentAnnouncements"
+                description="thereAreNoActiveOperationalUpdates"
               />
             )}
           </section>
@@ -217,8 +221,8 @@ export default function TodayPage() {
         return (
           <section>
             <SectionHeading
-              title="Coming next"
-              description="A small preview of what is ahead."
+              title="comingNext"
+              description="smallPreviewWhatAhead"
             />
             {upcomingEvents.length ? (
               <div className="grid gap-3 lg:grid-cols-3">
@@ -234,8 +238,8 @@ export default function TodayPage() {
             ) : (
               <EmptyState
                 icon={CalendarDays}
-                title="No upcoming events"
-                description="Published future events will appear here."
+                title="noUpcomingEvents"
+                description="publishedFutureEventsWillAppearHere"
               />
             )}
           </section>
@@ -244,9 +248,9 @@ export default function TodayPage() {
         return (
           <section>
             <SectionHeading
-              title="Useful guides"
-              description="Frequently used instructions for a smooth shift."
-              action={{ label: "All guides", href: "/guides" }}
+              title="usefulGuides"
+              description="frequentlyUsedInstructionsSmoothShift"
+              action={{ label: "allGuides", href: "/guides" }}
             />
             {usefulGuides.length ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -257,8 +261,8 @@ export default function TodayPage() {
             ) : (
               <EmptyState
                 icon={BookOpen}
-                title="No useful guides yet"
-                description="Featured published guides will appear here."
+                title="noUsefulGuidesYet"
+                description="featuredPublishedGuidesWillAppearHere"
               />
             )}
           </section>

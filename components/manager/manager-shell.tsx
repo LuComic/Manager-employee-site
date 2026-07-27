@@ -41,59 +41,63 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { AppMessageKey } from "@/i18n/messages"
 import { cn } from "@/lib/utils"
 
 type NavigationLink = {
   href: string
-  label: string
+  label: AppMessageKey
   icon: LucideIcon
 }
 
 const primaryNavigationItems: NavigationLink[] = [
-  { href: "/manager", label: "Overview", icon: LayoutDashboard },
-  { href: "/manager/today", label: "Today", icon: Home },
+  { href: "/manager", label: "overview", icon: LayoutDashboard },
+  { href: "/manager/today", label: "today", icon: Home },
 ]
 
 const guideNavigationItems: NavigationLink[] = [
-  { href: "/manager/guides", label: "Guides", icon: BookOpen },
-  { href: "/manager/categories", label: "Guide categories", icon: Tags },
+  { href: "/manager/guides", label: "guides", icon: BookOpen },
+  { href: "/manager/categories", label: "guideCategories", icon: Tags },
 ]
 
-const moreNavigationGroups: { label: string; items: NavigationLink[] }[] = [
+const moreNavigationGroups: {
+  label: AppMessageKey
+  items: NavigationLink[]
+}[] = [
   {
-    label: "Content",
+    label: "content",
     items: [
       {
         href: "/manager/calendar",
-        label: "Calendar events",
+        label: "calendarEvents",
         icon: CalendarDays,
       },
       {
         href: "/manager/announcements",
-        label: "Announcements",
+        label: "announcements",
         icon: Megaphone,
       },
-      { href: "/manager/documents", label: "Documents", icon: Files },
+      { href: "/manager/documents", label: "documents", icon: Files },
       {
         href: "/manager/questions",
-        label: "Common questions",
+        label: "commonQuestions",
         icon: CircleHelp,
       },
     ],
   },
   {
-    label: "People and workplace",
+    label: "peopleAndWorkplace",
     items: [
-      { href: "/manager/help", label: "Help requests", icon: Headphones },
-      { href: "/manager/employees", label: "Employees", icon: Users },
+      { href: "/manager/help", label: "helpRequests", icon: Headphones },
+      { href: "/manager/employees", label: "employees", icon: Users },
       {
         href: "/manager/access",
-        label: "Employee access",
+        label: "employeeAccess",
         icon: ShieldCheck,
       },
       {
         href: "/manager/settings",
-        label: "Establishment",
+        label: "establishment",
         icon: Building2,
       },
     ],
@@ -113,7 +117,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
   const visibleMoreNavigationGroups =
     managerAccess === "owner"
       ? moreNavigationGroups
-      : moreNavigationGroups.filter((group) => group.label === "Content")
+      : moreNavigationGroups.filter((group) => group.label === "content")
   const contentRoute =
     pathname === "/manager" ||
     pathname.startsWith("/manager/today") ||
@@ -148,7 +152,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "tracking-normal normal-case"
                   )}
                 >
-                  <ArrowLeft /> <T>Employee site</T>
+                  <ArrowLeft /> <T>employeeSite</T>
                 </Link>
               )}
               <UserButton />
@@ -161,22 +165,22 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             <p className="text-lg font-semibold">
               {t(
                 managerAccess === "owner"
-                  ? "Manager area"
+                  ? "managerArea"
                   : managerAccess === "manager"
-                    ? "Content manager area"
-                    : "Content editor area"
+                    ? "contentManagerArea"
+                    : "contentEditorArea"
               )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {hub
-                ? t("{name} · Workplace administration", { name: hub.name })
-                : t("Choose or create a workplace")}
+                ? t("workplaceAdministrationTitle", { name: hub.name })
+                : t("chooseOrCreateAWorkplace")}
             </p>
           </div>
           {!focusedEditor && (
             <nav
               className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
-              aria-label={t("Manager navigation")}
+              aria-label={t("managerNavigation")}
             >
               {primaryNavigationItems.map((item) => {
                 const { href, label, icon: Icon } = item
@@ -211,7 +215,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                   )}
                 >
-                  <BookOpen /> <T>Guides</T> <ChevronDown />
+                  <BookOpen /> <T>guides</T> <ChevronDown />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   {guideNavigationItems.map((link) => {
@@ -247,7 +251,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
                   )}
                 >
-                  <Menu /> <T>More tools</T> <ChevronDown />
+                  <Menu /> <T>moreTools</T> <ChevronDown />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64">
                   {visibleMoreNavigationGroups.map((group, groupIndex) => (
@@ -282,30 +286,24 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {hubState === "loading" ? (
           <p role="status" className="text-sm text-muted-foreground">
-            <T>Loading your hub…</T>
+            <T>loadingYourHub</T>
           </p>
         ) : hubState === "auth-error" ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
             <h2 className="font-semibold">
-              <T>Manager session is not connected</T>
+              <T>managerSessionIsNotConnected</T>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              <T>
-                You are signed in, but this session could not be validated. Sign
-                out and back in, then contact support if the issue continues.
-              </T>
+              <T>signedButSessionNotValidatedSignOutError</T>
             </p>
           </div>
         ) : hubState === "forbidden" ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
             <h2 className="font-semibold">
-              <T>Manager access is not enabled</T>
+              <T>managerAccessIsNotEnabled</T>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              <T>
-                Your employee profile can view the workplace, but it does not
-                have editing or manager access.
-              </T>
+              <T>employeeProfileViewWorkplaceButNotEditingMessage</T>
             </p>
             <Link
               href="/"
@@ -314,7 +312,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 "mt-4 tracking-normal normal-case"
               )}
             >
-              <T>Open employee site</T>
+              <T>openEmployeeSite</T>
             </Link>
           </div>
         ) : hubState === "needs-setup" ? (
@@ -322,13 +320,10 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
         ) : !routeAllowed ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
             <h2 className="font-semibold">
-              <T>Manager access required</T>
+              <T>managerAccessRequired</T>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              <T>
-                Your content role does not include employee administration,
-                workplace settings, access controls, or this page.
-              </T>
+              <T>contentRoleNotIncludeEmployeeAdministrationWorkplaceMessage</T>
             </p>
             <Link
               href="/manager"
@@ -337,7 +332,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 "mt-4 tracking-normal normal-case"
               )}
             >
-              <T>Back to content</T>
+              <T>backToContent</T>
             </Link>
           </div>
         ) : (

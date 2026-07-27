@@ -55,7 +55,7 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                 <CheckCircle2 />
               </span>
               <DialogTitle className="mt-4 tracking-normal normal-case">
-                <T>Question sent</T>
+                <T>questionSent</T>
               </DialogTitle>
               <DialogDescription className="mt-2">
                 {customContactName
@@ -63,7 +63,7 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                   : t("noteSentToShiftLead")}
               </DialogDescription>
               <Button className="mt-6" onClick={() => handleOpenChange(false)}>
-                <T>Done</T>
+                <T>done</T>
               </Button>
             </div>
           ) : (
@@ -86,10 +86,7 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                     : t("askShiftLead")}
                 </DialogTitle>
                 <DialogDescription>
-                  <T>
-                    Send a quick note. For anything urgent or related to safety,
-                    speak to someone in person.
-                  </T>
+                  <T>sendQuickNoteAnythingUrgentRelatedSafetyMessage</T>
                 </DialogDescription>
               </DialogHeader>
               {(hub?.contactEmail || hub?.contactPhone) && (
@@ -115,27 +112,27 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="topic">
-                    <T>Topic</T>
+                    <T>topic</T>
                   </Label>
                   <Input
                     id="topic"
                     required
                     value={topic}
                     onChange={(event) => setTopic(event.target.value)}
-                    placeholder="For example: refund approval"
+                    placeholder="forExampleRefundApproval"
                     className="border border-input px-3 focus-visible:border-ring"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="message">
-                    <T>Question</T>
+                    <T>question</T>
                   </Label>
                   <Textarea
                     id="message"
                     required
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
-                    placeholder="Describe what you need help with…"
+                    placeholder="describeWhatYouNeedHelpWith"
                     className="min-h-28 border border-input px-3 focus-visible:border-ring"
                   />
                 </div>
@@ -146,10 +143,10 @@ export function ContactProvider({ children }: { children: React.ReactNode }) {
                   variant="outline"
                   onClick={() => handleOpenChange(false)}
                 >
-                  <T>Cancel</T>
+                  <T>cancel</T>
                 </Button>
                 <Button type="submit" disabled={pending}>
-                  <T>{pending ? "Sending…" : "Send question"}</T> <ArrowRight />
+                  <T>{pending ? "sending" : "sendQuestion"}</T> <ArrowRight />
                 </Button>
               </DialogFooter>
             </form>

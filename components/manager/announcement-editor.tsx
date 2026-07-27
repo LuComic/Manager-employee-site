@@ -18,6 +18,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { AppMessageKey } from "@/i18n/messages"
 import {
   Select,
   SelectContent,
@@ -101,11 +102,11 @@ export function AnnouncementEditor({
   async function submit() {
     if (!draft) return
     if (!draft.title.trim() || isRichTextEmpty(draft.content))
-      return setError("Add a title and message.")
+      return setError("addATitleAndMessage")
     if (!draft.publishedAt || !draft.expiresAt)
-      return setError("Add publish and expiration dates.")
+      return setError("addPublishAndExpirationDates")
     if (draft.expiresAt < draft.publishedAt)
-      return setError("The expiration date cannot be before the publish date.")
+      return setError("expirationDateCannotBeforePublishDate")
 
     let id = draft.id
     if (!id) {
@@ -138,9 +139,9 @@ export function AnnouncementEditor({
     return (
       <EmptyState
         icon={Megaphone}
-        title="Announcement not found"
-        description="This announcement may have been removed from the current session."
-        actionLabel="Back to announcements"
+        title="announcementNotFound"
+        description="announcementRemovedCurrentSession"
+        actionLabel="backToAnnouncements"
         actionHref="/manager/announcements"
       />
     )
@@ -162,29 +163,29 @@ export function AnnouncementEditor({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Button variant="ghost" size="sm" onClick={leave}>
-            <ArrowLeft /> <T>Back to announcements</T>
+            <ArrowLeft /> <T>backToAnnouncements</T>
           </Button>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-            <T>{draft.id ? "Edit announcement" : "Create announcement"}</T>
+            <T>{draft.id ? "editAnnouncement" : "createAnnouncement"}</T>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            <T>Write a clear update and control when employees can see it.</T>
+            <T>writeClearUpdateControlEmployeesSee</T>
           </p>
         </div>
-        <SegmentedControl aria-label="Announcement editor view">
+        <SegmentedControl aria-label="announcementEditorView">
           <SegmentedControlItem
             type="button"
             selected={mode === "edit"}
             onClick={() => setMode("edit")}
           >
-            <Pencil /> <T>Edit</T>
+            <Pencil /> <T>edit</T>
           </SegmentedControlItem>
           <SegmentedControlItem
             type="button"
             selected={mode === "preview"}
             onClick={() => setMode("preview")}
           >
-            <Eye /> <T>Preview</T>
+            <Eye /> <T>preview</T>
           </SegmentedControlItem>
         </SegmentedControl>
       </div>
@@ -203,7 +204,7 @@ export function AnnouncementEditor({
           <div className="space-y-6">
             <Card className="shadow-none">
               <CardContent>
-                <Field label="Title" id="announcement-title">
+                <Field label="title" id="announcement-title">
                   <Input
                     id="announcement-title"
                     value={draft.title}
@@ -215,7 +216,7 @@ export function AnnouncementEditor({
             </Card>
             <div>
               <Label className="mb-2 block">
-                <T>Message</T>
+                <T>message</T>
               </Label>
               <RichTextEditor
                 value={draft.content}
@@ -223,17 +224,14 @@ export function AnnouncementEditor({
                 ariaLabel="Announcement message"
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                <T>
-                  Use headings and lists when the announcement needs more
-                  detail.
-                </T>
+                <T>useHeadingsListsAnnouncementNeedsMoreDetail</T>
               </p>
             </div>
           </div>
 
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
-              <Field label="Publish date" id="announcement-start">
+              <Field label="publishDate" id="announcement-start">
                 <Input
                   id="announcement-start"
                   type="date"
@@ -244,7 +242,7 @@ export function AnnouncementEditor({
                   className="border border-input px-3"
                 />
               </Field>
-              <Field label="Expiration date" id="announcement-end">
+              <Field label="expirationDate" id="announcement-end">
                 <Input
                   id="announcement-end"
                   type="date"
@@ -255,7 +253,7 @@ export function AnnouncementEditor({
                   className="border border-input px-3"
                 />
               </Field>
-              <Field label="Priority" id="announcement-priority">
+              <Field label="priority" id="announcement-priority">
                 <Select
                   value={draft.priority}
                   onValueChange={(value) =>
@@ -272,18 +270,18 @@ export function AnnouncementEditor({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Normal">
-                      <T>Normal</T>
+                      <T>normal</T>
                     </SelectItem>
                     <SelectItem value="Important">
-                      <T>Important</T>
+                      <T>important</T>
                     </SelectItem>
                     <SelectItem value="Urgent">
-                      <T>Urgent</T>
+                      <T>urgent</T>
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Related guide" id="announcement-guide">
+              <Field label="relatedGuide" id="announcement-guide">
                 <Select
                   value={draft.guideId ?? "none"}
                   onValueChange={(value) =>
@@ -300,7 +298,7 @@ export function AnnouncementEditor({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">
-                      <T>No related guide</T>
+                      <T>noRelatedGuide</T>
                     </SelectItem>
                     {guides.map((guide) => (
                       <SelectItem key={guide.id} value={guide.id}>
@@ -310,7 +308,7 @@ export function AnnouncementEditor({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Related event" id="announcement-event">
+              <Field label="relatedEvent" id="announcement-event">
                 <Select
                   value={draft.eventId ?? "none"}
                   onValueChange={(value) =>
@@ -327,7 +325,7 @@ export function AnnouncementEditor({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">
-                      <T>No related event</T>
+                      <T>noRelatedEvent</T>
                     </SelectItem>
                     {events.map((event) => (
                       <SelectItem key={event.id} value={event.id}>
@@ -345,7 +343,7 @@ export function AnnouncementEditor({
                     change({ published: event.target.checked })
                   }
                 />
-                <T>Publish now</T>
+                <T>publishNow</T>
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -353,7 +351,7 @@ export function AnnouncementEditor({
                   checked={draft.pinned}
                   onChange={(event) => change({ pinned: event.target.checked })}
                 />
-                <T>Pin announcement</T>
+                <T>pinAnnouncement</T>
               </label>
             </CardContent>
           </Card>
@@ -368,16 +366,16 @@ export function AnnouncementEditor({
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              <T>{dirty ? "Unsaved changes" : "No unsaved changes"}</T>
+              <T>{dirty ? "unsavedChanges" : "noUnsavedChanges"}</T>
             </p>
           )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={leave}>
-            <T>Cancel</T>
+            <T>cancel</T>
           </Button>
           <Button onClick={() => void submit()} disabled={saving}>
-            <T>{saving ? "Saving…" : "Save announcement"}</T>
+            <T>{saving ? "saving" : "saveAnnouncement"}</T>
           </Button>
         </div>
       </div>
@@ -390,13 +388,15 @@ function Field({
   id,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   id: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

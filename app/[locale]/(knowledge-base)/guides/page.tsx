@@ -18,13 +18,13 @@ export default function GuidesPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Guides"
-        description="Clear, step-by-step instructions for the tasks that come up during a shift."
+        title="guides"
+        description="clearStepStepInstructionsTasksComeUpMessage"
       />
       <section>
         <SectionHeading
-          title="By work area"
-          description="Choose the area that best matches the task in front of you."
+          title="byWorkArea"
+          description="chooseAreaBestMatchesTaskFront"
         />
         {categories.length ? (
           <div className="grid gap-px overflow-hidden border bg-border sm:grid-cols-2 xl:grid-cols-3">
@@ -43,15 +43,15 @@ export default function GuidesPage() {
         ) : (
           <EmptyState
             icon={BookOpen}
-            title="No guide categories"
-            description="Work areas will appear here when a manager creates them."
+            title="noGuideCategories"
+            description="workAreasAppearHereManagerCreates"
           />
         )}
       </section>
       <section>
         <SectionHeading
-          title="All guides"
-          description={t("{count} published guides available.", {
+          title="allGuides"
+          description={t("countPublishedGuidesAvailable", {
             count: publishedGuides.length,
           })}
         />
@@ -64,8 +64,8 @@ export default function GuidesPage() {
         ) : (
           <EmptyState
             icon={BookOpen}
-            title="No published guides"
-            description="Published guides will appear here."
+            title="noPublishedGuides"
+            description="publishedGuidesWillAppearHere"
           />
         )}
       </section>

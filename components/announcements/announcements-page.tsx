@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Megaphone } from "lucide-react"
 
 import { T } from "@/components/translated-text"
-import { useAppTranslations } from "@/i18n/use-app-translations"
 import { AnnouncementCard } from "@/components/operations/announcement-card"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -13,12 +12,18 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@/components/ui/segmented-control"
+import type { AppMessageKey } from "@/i18n/messages"
 import { getAnnouncementState } from "@/lib/operations"
 
 type Filter = "Active" | "Upcoming" | "Expired"
 
+const filterLabelKeys = {
+  Active: "active",
+  Upcoming: "upcoming",
+  Expired: "expired",
+} satisfies Record<Filter, AppMessageKey>
+
 export function AnnouncementsPage() {
-  const t = useAppTranslations()
   const { announcements, hub } = useOperations()
   const [filter, setFilter] = useState<Filter>("Active")
   const visible = announcements
@@ -35,11 +40,11 @@ export function AnnouncementsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Announcements"
-        description="Temporary operational updates, changes, and notices for the whole establishment."
+        title="announcements"
+        description="temporaryOperationalUpdatesChangesNoticesWholeEstablishment"
       />
       <div className="border-b pb-4">
-        <SegmentedControl aria-label="Announcement status">
+        <SegmentedControl aria-label="announcementStatus">
           {(["Active", "Upcoming", "Expired"] as const).map((item) => {
             const count = announcements.filter(
               (announcement) =>
@@ -56,7 +61,7 @@ export function AnnouncementsPage() {
                 size="sm"
                 onClick={() => setFilter(item)}
               >
-                <T>{item}</T> ({count})
+                <T>{filterLabelKeys[item]}</T> ({count})
               </SegmentedControlItem>
             )
           })}
@@ -74,11 +79,19 @@ export function AnnouncementsPage() {
       ) : (
         <EmptyState
           icon={Megaphone}
-          title={t(`No ${filter.toLowerCase()} announcements`)}
+          title={
+            filter === "Active"
+              ? "noActiveAnnouncements"
+              : filter === "Upcoming"
+                ? "noUpcomingAnnouncements"
+                : "noExpiredAnnouncements"
+          }
           description={
             filter === "Active"
-              ? "There are no current operational updates."
-              : t(`There are no ${filter.toLowerCase()} announcements to show.`)
+              ? "noCurrentOperationalUpdates"
+              : filter === "Upcoming"
+                ? "thereNoUpcomingAnnouncementsShow"
+                : "thereNoExpiredAnnouncementsShow"
           }
         />
       )}

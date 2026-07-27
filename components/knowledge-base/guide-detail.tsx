@@ -31,7 +31,7 @@ export function GuideDetail({
             "mb-6 tracking-normal normal-case"
           )}
         >
-          <ArrowLeft /> <T>Back to</T> {category?.label ?? "guides"}
+          <ArrowLeft /> <T>backTo</T> {category?.label ?? "guides"}
         </Link>
       )}
 

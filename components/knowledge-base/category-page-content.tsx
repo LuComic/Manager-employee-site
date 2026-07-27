@@ -14,8 +14,8 @@ export function CategoryPageContent({ categoryId }: { categoryId: string }) {
     return (
       <EmptyState
         icon={BookOpen}
-        title="Category not found"
-        description="Choose another guide category from the navigation."
+        title="categoryNotFound"
+        description="chooseGuideCategoryNavigation"
       />
     )
   const categoryGuides = guides.filter(
@@ -34,8 +34,8 @@ export function CategoryPageContent({ categoryId }: { categoryId: string }) {
         <div className="mt-6">
           <EmptyState
             icon={BookOpen}
-            title="No published guides"
-            description="Published guides in this category will appear here."
+            title="noPublishedGuides"
+            description="publishedGuidesCategoryAppearHere"
           />
         </div>
       )}

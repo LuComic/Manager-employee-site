@@ -33,36 +33,36 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
   return (
     <nav
       className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
-      aria-label={t("Knowledge base navigation")}
+      aria-label={t("knowledgeBaseNavigation")}
     >
-      <SidebarSection label={t("Workspace")} href="/" active={pathname === "/"}>
-        <NavLink href="/" label={t("Today")} active={pathname === "/"}>
+      <SidebarSection label={t("workspace")} href="/" active={pathname === "/"}>
+        <NavLink href="/" label={t("today")} active={pathname === "/"}>
           <Home />
         </NavLink>
         <NavLink
           href="/notifications"
-          label={t("Notifications")}
+          label={t("notifications")}
           active={pathname === "/notifications"}
         >
           <Bell />
         </NavLink>
         <NavLink
           href="/guides"
-          label={t("Guides")}
+          label={t("guidesLowercase")}
           active={pathname === "/guides" || pathname.startsWith("/guides/")}
         >
           <BookOpen />
         </NavLink>
         <NavLink
           href="/calendar"
-          label={t("Calendar")}
+          label={t("calendarLowercase")}
           active={pathname.startsWith("/calendar")}
         >
           <CalendarDays />
         </NavLink>
         <NavLink
           href="/announcements"
-          label={t("Announcements")}
+          label={t("announcements")}
           active={pathname.startsWith("/announcements")}
         >
           <Megaphone />
@@ -70,7 +70,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label={t("Guide categories")}
+        label={t("guideCategories")}
         href="/categories"
         active={pathname.startsWith("/categories")}
       >
@@ -91,7 +91,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label={t("Documents")}
+        label={t("documents")}
         href="/documents"
         active={pathname.startsWith("/documents")}
       >
@@ -111,19 +111,19 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       </SidebarSection>
 
       <SidebarSection
-        label={t("Help and tools")}
+        label={t("helpAndTools")}
         href="/questions"
         active={pathname === "/questions"}
       >
         <NavLink
           href="/questions"
-          label={t("Common questions")}
+          label={t("commonQuestions")}
           active={pathname === "/questions"}
         >
           <CircleHelp />
         </NavLink>
         {managerAccess && (
-          <NavLink href="/manager" label={t("Manager area")} active={false}>
+          <NavLink href="/manager" label={t("managerArea")} active={false}>
             <Settings />
           </NavLink>
         )}
@@ -150,7 +150,7 @@ function LanguageSelector() {
     href: pathname,
   })
   const href = `${localizedPathname}${search ? `?${search}` : ""}`
-  const currentLanguage = locale === "et" ? t("Estonian") : t("English")
+  const currentLanguage = locale === "et" ? t("estonian") : t("english")
 
   // Locale changes replace the root document language and must let next-themes
   // run its bootstrap script during document parsing rather than a client render.
@@ -158,7 +158,7 @@ function LanguageSelector() {
     <a
       href={href}
       hrefLang={nextLocale}
-      aria-label={`${t("Language")}: ${currentLanguage}`}
+      aria-label={`${t("language")}: ${currentLanguage}`}
       className={cn(
         buttonVariants({ variant: "ghost" }),
         "h-10 w-full justify-start gap-3 px-3 tracking-normal normal-case"
@@ -204,7 +204,7 @@ function SidebarSection({
           type="button"
           className="flex size-8 shrink-0 items-center justify-center text-primary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/30"
           onClick={() => setOpen((current) => !current)}
-          aria-label={t(open ? "Collapse {label}" : "Expand {label}", {
+          aria-label={t(open ? "collapseLabel" : "expandLabel", {
             label,
           })}
           aria-expanded={open}

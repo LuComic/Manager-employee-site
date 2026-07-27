@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 export function PrintButton() {
   return (
     <Button variant="outline" size="sm" onClick={() => window.print()}>
-      <FileText /> <T>Print this guide</T>
+      <FileText /> <T>printThisGuide</T>
     </Button>
   )
 }

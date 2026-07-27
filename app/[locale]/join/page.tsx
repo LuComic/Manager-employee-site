@@ -15,12 +15,8 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: t(getMessageKey("Join a workplace")),
-    description: t(
-      getMessageKey(
-        "Sign in, create an account, or open a workplace with a workplace link, ID, or employee code."
-      )
-    ),
+    title: t(getMessageKey("joinAWorkplace")),
+    description: t(getMessageKey("signInCreateAccountOpenWorkplace")),
   }
 }
 

@@ -36,8 +36,8 @@ export function AnnouncementDetail({
     return (
       <EmptyState
         icon={Megaphone}
-        title="Announcement not available"
-        description="This announcement may be unpublished or removed. Return to announcements for current updates."
+        title="announcementNotAvailable"
+        description="announcementUnpublishedRemovedReturnAnnouncementsCurrentUpdates"
       />
     )
   const guide = guides.find(
@@ -79,7 +79,7 @@ export function AnnouncementArticle({
             "tracking-normal normal-case"
           )}
         >
-          <ArrowLeft /> <T>Back to announcements</T>
+          <ArrowLeft /> <T>backToAnnouncements</T>
         </Link>
       )}
       <Card className="shadow-none">
@@ -95,7 +95,7 @@ export function AnnouncementArticle({
             <Badge variant="secondary">{state}</Badge>
             {announcement.pinned && (
               <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Pin className="size-3" /> <T>Pinned</T>
+                <Pin className="size-3" /> <T>pinned</T>
               </span>
             )}
           </div>
@@ -107,7 +107,7 @@ export function AnnouncementArticle({
           <RichTextContent content={announcement.content} />
           <div className="mt-6 flex flex-wrap gap-4 border-t pt-4 text-sm text-muted-foreground">
             <span>
-              <T>Published</T>{" "}
+              <T>published</T>{" "}
               {formatDate(
                 `${announcement.publishedAt}T12:00`,
                 undefined,
@@ -116,7 +116,7 @@ export function AnnouncementArticle({
               )}
             </span>
             <span>
-              <T>Expires</T>{" "}
+              <T>expires</T>{" "}
               {formatDate(
                 `${announcement.expiresAt}T12:00`,
                 undefined,
@@ -130,7 +130,7 @@ export function AnnouncementArticle({
       {(event || guide) && (
         <section>
           <h2 className="mb-4 text-xl font-semibold">
-            <T>Related information</T>
+            <T>relatedInformation</T>
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {event && (
@@ -143,8 +143,8 @@ export function AnnouncementArticle({
       {!preview && !event && announcement.eventId && (
         <EmptyState
           icon={CalendarDays}
-          title="Related event is not published"
-          description="The linked event is not currently available to employees."
+          title="relatedEventIsNotPublished"
+          description="linkedEventNotCurrentlyAvailableEmployees"
         />
       )}
     </article>

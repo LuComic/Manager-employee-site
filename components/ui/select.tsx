@@ -4,7 +4,6 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-import { T } from "@/components/translated-text"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { cn } from "@/lib/utils"
 
@@ -131,6 +130,8 @@ function SelectItem({
   children,
   ...props
 }: SelectPrimitive.Item.Props) {
+  const t = useAppTranslations()
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -141,7 +142,7 @@ function SelectItem({
       {...props}
     >
       <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
-        {typeof children === "string" ? <T>{children}</T> : children}
+        {typeof children === "string" ? t(children) : children}
       </SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator
         render={

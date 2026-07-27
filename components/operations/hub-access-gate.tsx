@@ -67,7 +67,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
       >
         <LoaderCircle className="size-6 animate-spin text-primary" />
         <span className="sr-only">
-          <T>Loading hub</T>
+          <T>loadingHub</T>
         </span>
       </div>
     )
@@ -89,12 +89,11 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
         <Card className="w-full max-w-lg shadow-none">
           <CardHeader>
             <h1 className="font-heading text-lg font-semibold">
-              <T>Workplace access removed</T>
+              <T>workplaceAccessRemoved</T>
             </h1>
             <CardDescription>
               <T>
-                Your employee profile is deactivated. Choose another workplace
-                or contact a manager if this is unexpected.
+                employeeProfileDeactivatedChooseWorkplaceContactManagerMessage
               </T>
             </CardDescription>
           </CardHeader>
@@ -119,10 +118,10 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
               <ShieldCheck />
             </span>
             <h1 className="font-heading text-lg font-semibold">
-              {hub?.name ?? t("Private workplace")}
+              {hub?.name ?? t("privateWorkplace")}
             </h1>
             <CardDescription>
-              <T>Enter the employee join code. You do not need an account.</T>
+              <T>enterEmployeeJoinCodeNotNeedAccount</T>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -135,7 +134,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
             >
               <div className="space-y-2">
                 <Label htmlFor="join-code">
-                  <T>Employee join code</T>
+                  <T>employeeJoinCode</T>
                 </Label>
                 <Input
                   id="join-code"
@@ -143,7 +142,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
                   onChange={(event) =>
                     setCode(event.target.value.toUpperCase())
                   }
-                  placeholder="XXXX-XXXX"
+                  placeholder="employeeCodeExample"
                   autoComplete="one-time-code"
                   className="border border-input px-3 font-mono uppercase"
                   required
@@ -151,14 +150,11 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
               </div>
               {credential && (
                 <p role="alert" className="text-sm text-destructive">
-                  <T>
-                    That code or private link is invalid, expired, or has been
-                    rotated.
-                  </T>
+                  <T>codePrivateLinkInvalidExpiredRotated</T>
                 </p>
               )}
               <Button type="submit" className="w-full">
-                <KeyRound /> <T>Open hub</T>
+                <KeyRound /> <T>openHub</T>
               </Button>
             </form>
           </CardContent>
@@ -177,7 +173,7 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
           className="fixed right-4 bottom-4 z-40 bg-background shadow-sm"
           onClick={leaveHub}
         >
-          <LogOut /> <T>Leave hub</T>
+          <LogOut /> <T>leaveHub</T>
         </Button>
       )}
     </>
@@ -225,7 +221,7 @@ export function HubEntryScreen({
       >
         <LoaderCircle className="size-6 animate-spin text-primary" />
         <span className="sr-only">
-          <T>Opening workplace</T>
+          <T>openingWorkplace</T>
         </span>
       </main>
     )
@@ -244,13 +240,10 @@ export function HubEntryScreen({
                 {SITE_NAME}
               </p>
               <h1 className="mt-2 max-w-md text-3xl font-semibold tracking-tight sm:text-4xl">
-                <T>Everything your shift needs, in one place.</T>
+                <T>everythingShiftNeedsOnePlace</T>
               </h1>
               <p className="mt-4 max-w-lg text-sm leading-6 text-primary-foreground/75 sm:text-base">
-                <T>
-                  Open today’s updates, practical guides, announcements, and
-                  workplace events.
-                </T>
+                <T>openTodaySUpdatesPracticalGuidesAnnouncementsMessage</T>
               </p>
             </div>
 
@@ -260,8 +253,8 @@ export function HubEntryScreen({
                   <p className="text-sm text-primary-foreground/75">
                     {t(
                       hasActiveOrganization
-                        ? "The selected workplace is not connected to a hub. Choose another workplace."
-                        : "Choose a workplace or manage your own hub."
+                        ? "selectedWorkplaceNotConnectedHubChooseWorkplace"
+                        : "chooseWorkplaceManageOwnHub"
                     )}
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
@@ -292,24 +285,24 @@ export function HubEntryScreen({
                           "h-10 transform-none transition-colors hover:transform-none active:transform-none",
                       })}
                     >
-                      <Building2 /> <T>Manager area</T>
+                      <Building2 /> <T>managerArea</T>
                     </Link>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-primary-foreground/75">
-                    <T>Have an employee or manager account?</T>
+                    <T>haveAnEmployeeOrManagerAccount</T>
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <SignInButton mode="modal">
                       <Button variant="secondary">
-                        <LogIn /> <T>Sign in</T>
+                        <LogIn /> <T>signIn</T>
                       </Button>
                     </SignInButton>
                     <SignUpButton mode="modal">
                       <Button className="border border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10">
-                        <UserPlus /> <T>Create account</T>
+                        <UserPlus /> <T>createAccount</T>
                       </Button>
                     </SignUpButton>
                   </div>
@@ -323,13 +316,10 @@ export function HubEntryScreen({
               <KeyRound className="size-5" />
             </div>
             <h2 className="mt-4 text-xl font-semibold tracking-tight">
-              <T>Join a workplace</T>
+              <T>joinAWorkplace</T>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              <T>
-                No account is needed. Use the link or workplace ID shared by
-                your manager.
-              </T>
+              <T>noAccountNeededUseLinkWorkplaceidMessage</T>
             </p>
 
             <Separator className="my-4" />
@@ -344,7 +334,7 @@ export function HubEntryScreen({
                   window.location.origin
                 )
                 if (!entry) {
-                  setError(t("Enter a valid workplace link or ID."))
+                  setError(t("enterValidWorkplaceLinkid"))
                   return
                 }
                 window.location.assign(href(hubEntryHref(entry)))
@@ -352,7 +342,7 @@ export function HubEntryScreen({
             >
               <div className="space-y-2">
                 <Label htmlFor="workplace-entry">
-                  <T>Workplace link or ID</T>
+                  <T>workplaceLinkOrid</T>
                 </Label>
                 <Input
                   id="workplace-entry"
@@ -361,7 +351,7 @@ export function HubEntryScreen({
                     setWorkplace(event.target.value)
                     setError("")
                   }}
-                  placeholder="north-pine or paste the full link"
+                  placeholder="northPinePasteFullLinkLowercase"
                   autoComplete="url"
                   className="border border-input px-3"
                   required
@@ -369,29 +359,23 @@ export function HubEntryScreen({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="employee-code">
-                  <T>Employee code</T>
+                  <T>employeeCode</T>
                 </Label>
                 <Input
                   id="employee-code"
                   value={employeeCode}
                   onChange={(event) => setEmployeeCode(event.target.value)}
-                  placeholder="Enter the employee code"
+                  placeholder="enterTheEmployeeCode"
                   autoComplete="one-time-code"
                   className="border border-input px-3 font-mono uppercase"
                 />
                 <p className="text-xs text-muted-foreground">
-                  <T>
-                    Use the code shared by your manager, or leave this blank
-                    when pasting a private join link.
-                  </T>
+                  <T>useCodeSharedManagerLeaveBlankPastingMessage</T>
                 </p>
               </div>
               {initialHubSlug && (
                 <p role="alert" className="text-sm text-destructive">
-                  <T>
-                    That workplace could not be found. Check the link or ID and
-                    try again.
-                  </T>
+                  <T>workplaceNotFoundCheckLinkidTryError</T>
                 </p>
               )}
               {error && (
@@ -400,7 +384,7 @@ export function HubEntryScreen({
                 </p>
               )}
               <Button type="submit" className="w-full">
-                <T>Open workplace</T> <ArrowRight />
+                <T>openWorkplace</T> <ArrowRight />
               </Button>
             </form>
           </section>

@@ -133,8 +133,8 @@ export function NotificationButton({
       )}
       aria-label={
         unreadCount
-          ? t("Notifications, {count} unread", { count: unreadCount })
-          : t("Notifications")
+          ? t("notificationsCountUnread", { count: unreadCount })
+          : t("notifications")
       }
     >
       <Bell />
@@ -169,13 +169,13 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
 
   const heading = manager ? (
     <ManagerHeading
-      title="Notifications"
-      description="Employee questions, account activity, and other workplace updates."
+      title="notifications"
+      description="employeeQuestionsAccountActivityOtherWorkplaceUpdates"
     />
   ) : (
     <PageHeading
-      title="Notifications"
-      description="New guides, events, announcements, assignments, and workplace updates."
+      title="notifications"
+      description="newGuidesEventsAnnouncementsAssignmentsWorkplaceUpdates"
     />
   )
 
@@ -184,7 +184,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
       {heading}
       {feed === undefined ? (
         <p className="text-sm text-muted-foreground" role="status">
-          <T>Loading notifications…</T>
+          <T>loadingNotifications</T>
         </p>
       ) : feed.notifications.length ? (
         <div className="space-y-3">
@@ -213,7 +213,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
                         <h2 className="font-semibold">{notification.title}</h2>
                         {wasUnread && (
                           <Badge variant="secondary">
-                            <T>New</T>
+                            <T>new</T>
                           </Badge>
                         )}
                       </div>
@@ -233,11 +233,11 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
       ) : (
         <EmptyState
           icon={Bell}
-          title="No notifications yet"
+          title="noNotificationsYet"
           description={
             manager
-              ? "Employee activity will appear here."
-              : "New workplace updates will appear here."
+              ? "employeeActivityWillAppearHere"
+              : "newWorkplaceUpdatesWillAppearHere"
           }
         />
       )}

@@ -17,10 +17,8 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "App" })
 
   return {
-    title: t(getMessageKey("Search")),
-    description: t(
-      getMessageKey("Search workhal for published workplace content.")
-    ),
+    title: t(getMessageKey("search")),
+    description: t(getMessageKey("searchWorkhalMetadataDescription")),
     robots: {
       index: false,
       follow: true,
@@ -40,19 +38,16 @@ export default async function SearchPage({
 
   return (
     <div>
-      <PageHeading
-        title="Search"
-        description="Find guides, events, announcements, documents, and questions in workhal."
-      />
+      <PageHeading title="search" description="findContentInWorkhal" />
       <div className="mt-6 flex min-h-40 flex-col items-center justify-center border bg-background p-6 text-center">
         <span className="flex size-10 items-center justify-center bg-muted text-muted-foreground">
           <Search className="size-5" />
         </span>
         <h2 className="mt-4 text-lg font-semibold">
-          <T>What are you looking for?</T>
+          <T>whatAreYouLookingFor</T>
         </h2>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          <T>Type in the search field above to search all published content.</T>
+          <T>typeSearchFieldAboveSearchAllPublishedMessage</T>
         </p>
       </div>
     </div>

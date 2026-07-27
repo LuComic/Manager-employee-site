@@ -46,7 +46,7 @@ export function FaqManager() {
     const question = editing.question.trim()
     const answer = editing.answer.trim()
     if (!question || !answer) {
-      setError("Add both a question and an answer.")
+      setError("addBothQuestionAnswer")
       return
     }
     let id = editing.id
@@ -74,8 +74,8 @@ export function FaqManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Common questions"
-        description="Manage the quick answers employees see on the questions page and in search."
+        title="commonQuestions"
+        description="manageQuickAnswersEmployeesSeeQuestionsPageMessage"
         action={
           canCreateContent ? (
             <Button
@@ -90,7 +90,7 @@ export function FaqManager() {
                 setError("")
               }}
             >
-              <Plus /> <T>Create question</T>
+              <Plus /> <T>createQuestion</T>
             </Button>
           ) : undefined
         }
@@ -111,7 +111,7 @@ export function FaqManager() {
                       |
                     </span>
                     <Badge variant={faq.published ? "secondary" : "outline"}>
-                      <T>{faq.published ? "Published" : "Draft"}</T>
+                      <T>{faq.published ? "published" : "draft"}</T>
                     </Badge>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -124,7 +124,7 @@ export function FaqManager() {
                     size="icon-sm"
                     disabled={index === 0}
                     onClick={() => moveFaq(faq.id, -1)}
-                    aria-label={t("Move {name} up", { name: faq.question })}
+                    aria-label={t("moveNameUp", { name: faq.question })}
                   >
                     <ArrowUp />
                   </Button>
@@ -133,7 +133,7 @@ export function FaqManager() {
                     size="icon-sm"
                     disabled={index === faqs.length - 1}
                     onClick={() => moveFaq(faq.id, 1)}
-                    aria-label={t("Move {name} down", { name: faq.question })}
+                    aria-label={t("moveNameDown", { name: faq.question })}
                   >
                     <ArrowDown />
                   </Button>
@@ -149,7 +149,7 @@ export function FaqManager() {
                       )
                     }}
                   >
-                    <T>{faq.published ? "Unpublish" : "Publish"}</T>
+                    <T>{faq.published ? "unpublish" : "publish"}</T>
                   </Button>
                   <Button
                     variant="outline"
@@ -159,14 +159,14 @@ export function FaqManager() {
                       setError("")
                     }}
                   >
-                    <FilePenLine /> <T>Edit</T>
+                    <FilePenLine /> <T>edit</T>
                   </Button>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(faq)}
-                      aria-label={t("Delete {name}", { name: faq.question })}
+                      aria-label={t("deleteName", { name: faq.question })}
                     >
                       <Trash2 />
                     </Button>
@@ -179,8 +179,8 @@ export function FaqManager() {
       ) : (
         <EmptyState
           icon={CircleHelp}
-          title="No common questions"
-          description="Add the answers employees need most often."
+          title="noCommonQuestions"
+          description="addAnswersEmployeesNeedMostOften"
         />
       )}
 
@@ -203,18 +203,16 @@ export function FaqManager() {
             >
               <DialogHeader>
                 <DialogTitle>
-                  <T>{editing.id ? "Edit question" : "Create question"}</T>
+                  <T>{editing.id ? "editQuestion" : "createQuestion"}</T>
                 </DialogTitle>
                 <DialogDescription>
-                  <T>
-                    Published answers appear immediately on the employee site.
-                  </T>
+                  <T>publishedAnswersAppearImmediatelyEmployeeSite</T>
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="faq-question">
-                    <T>Question</T>
+                    <T>question</T>
                   </Label>
                   <Textarea
                     id="faq-question"
@@ -233,7 +231,7 @@ export function FaqManager() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="faq-answer">
-                    <T>Answer</T>
+                    <T>answer</T>
                   </Label>
                   <Textarea
                     id="faq-answer"
@@ -262,10 +260,10 @@ export function FaqManager() {
                   variant="outline"
                   onClick={() => setEditing(null)}
                 >
-                  <T>Cancel</T>
+                  <T>cancel</T>
                 </Button>
                 <Button type="submit" disabled={pending}>
-                  <T>{pending ? "Saving…" : "Save question"}</T>
+                  <T>{pending ? "saving" : "saveQuestion"}</T>
                 </Button>
               </DialogFooter>
             </form>
@@ -282,7 +280,7 @@ export function FaqManager() {
         onConfirm={async () => {
           if (!deleteTarget) return
           await deleteFaq(deleteTarget.id)
-          showFeedback("Question deleted.")
+          showFeedback("questionDeleted")
           setDeleteTarget(null)
         }}
       />

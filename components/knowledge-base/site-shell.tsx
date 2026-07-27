@@ -69,7 +69,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 size="icon-sm"
                 className="lg:hidden"
                 onClick={() => setMobileOpen(true)}
-                aria-label={t("Open menu")}
+                aria-label={t("openMenu")}
               >
                 <Menu />
               </Button>
@@ -107,7 +107,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   <Brand />
                 </SheetTitle>
                 <SheetDescription>
-                  <T>Today’s information and practical guides.</T>
+                  <T>todaySInformationAndPracticalGuides</T>
                 </SheetDescription>
               </SheetHeader>
               <SidebarNav onContact={() => setMobileOpen(false)} />

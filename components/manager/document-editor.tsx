@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { AppMessageKey } from "@/i18n/messages"
 import { Textarea } from "@/components/ui/textarea"
 import { BANNER_IMAGE_ACCEPT } from "@/lib/banner-image"
 import {
@@ -104,17 +105,17 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
   async function submit() {
     if (!draft) return
     if (!draft.title.trim() || !draft.description.trim()) {
-      return setError("Add a name and description.")
+      return setError("addANameAndDescription")
     }
     if (
       resourceMode === "file" &&
       !resourceFile &&
       draft.resource?.kind !== "file"
     ) {
-      return setError("Choose a file to upload.")
+      return setError("chooseAFileToUpload")
     }
     if (resourceMode === "link" && !isValidSharedLink(linkUrl.trim())) {
-      return setError("Add a valid HTTP or HTTPS shared link.")
+      return setError("addValidhttphttpsSharedLink")
     }
 
     let id = draft.id
@@ -164,9 +165,9 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
     return (
       <EmptyState
         icon={FileText}
-        title="Document not found"
-        description="This document may have been removed from the current hub."
-        actionLabel="Back to documents"
+        title="documentNotFound"
+        description="documentRemovedCurrentHub"
+        actionLabel="backToDocuments"
         actionHref="/manager/documents"
       />
     )
@@ -182,16 +183,13 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
     <div className="space-y-6">
       <div>
         <Button variant="ghost" size="sm" onClick={leave}>
-          <ArrowLeft /> <T>Back to documents</T>
+          <ArrowLeft /> <T>backToDocuments</T>
         </Button>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-          <T>{draft.id ? "Edit document" : "Share a document"}</T>
+          <T>{draft.id ? "editDocument" : "shareADocument"}</T>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          <T>
-            Add the details, choose who it relates to, then upload a file or
-            share a link from Google, Microsoft, or another service.
-          </T>
+          <T>addDetailsChooseWhoRelatesThenUploadMessage</T>
         </p>
       </div>
 
@@ -200,29 +198,29 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="text-base">
-                <T>Details</T>
+                <T>details</T>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Name" id="document-name">
+              <Field label="name" id="document-name">
                 <Input
                   id="document-name"
                   value={draft.title}
                   onChange={(event) =>
                     changeBase({ title: event.target.value })
                   }
-                  placeholder="Opening checklist"
+                  placeholder="openingChecklist"
                   className="border border-input px-3 text-base"
                 />
               </Field>
-              <Field label="Description" id="document-description">
+              <Field label="description" id="document-description">
                 <Textarea
                   id="document-description"
                   value={draft.description}
                   onChange={(event) =>
                     changeBase({ description: event.target.value })
                   }
-                  placeholder="Explain what this resource contains and when to use it."
+                  placeholder="explainWhatResourceContainsUse"
                   className="min-h-24 border border-input px-3"
                 />
               </Field>
@@ -232,13 +230,13 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="text-base">
-                <T>File or shared link</T>
+                <T>fileOrSharedLink</T>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div
                 className="grid grid-cols-2 gap-2"
-                aria-label={t("Resource type")}
+                aria-label={t("resourceType")}
               >
                 <Button
                   type="button"
@@ -249,7 +247,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                   }}
                   aria-pressed={resourceMode === "file"}
                 >
-                  <FileUp /> <T>Upload file</T>
+                  <FileUp /> <T>uploadFile</T>
                 </Button>
                 <Button
                   type="button"
@@ -260,14 +258,14 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                   }}
                   aria-pressed={resourceMode === "link"}
                 >
-                  <Link2 /> <T>Share link</T>
+                  <Link2 /> <T>shareLink</T>
                 </Button>
               </div>
 
               {resourceMode === "file" ? (
                 <div className="space-y-3">
                   <Label htmlFor="document-file">
-                    <T>Choose file</T>
+                    <T>chooseFile</T>
                   </Label>
                   <Input
                     id="document-file"
@@ -280,8 +278,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                   />
                   <p className="text-xs text-muted-foreground">
                     <T>
-                      Upload documents, spreadsheets, presentations, PDFs,
-                      images, or other files your team needs.
+                      uploadDocumentsSpreadsheetsPresentationsPdfsImagesOtherMessage
                     </T>
                   </p>
                   {(resourceFile || currentFile) && (
@@ -295,14 +292,19 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                           {formatFileSize(
                             resourceFile?.size ?? currentFile?.size ?? 0
                           )}
-                          <T>{resourceFile ? " · Ready to upload" : ""}</T>
+                          {resourceFile && (
+                            <>
+                              {" "}
+                              <T>readyToUploadListSuffix</T>
+                            </>
+                          )}
                         </p>
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <Field label="Shared link" id="document-link">
+                <Field label="sharedLink" id="document-link">
                   <Input
                     id="document-link"
                     type="url"
@@ -312,7 +314,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                       setLinkUrl(event.target.value)
                       markChanged()
                     }}
-                    placeholder="https://docs.google.com/…"
+                    placeholder="sharedDocumentUrlExample"
                     className="border border-input px-3"
                   />
                 </Field>
@@ -323,13 +325,13 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="size-4" /> <T>Related employees</T>
+                <Users className="size-4" /> <T>relatedEmployees</T>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div
                 className="flex flex-wrap gap-2"
-                aria-label={t("Select employees")}
+                aria-label={t("selectEmployees")}
               >
                 {employees
                   .filter(
@@ -376,8 +378,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                 {!employees.length && (
                   <p className="text-sm text-muted-foreground">
                     <T>
-                      Create employee profiles first, or share this resource
-                      without related employees.
+                      createEmployeeProfilesFirstShareResourceWithoutMessage
                     </T>
                   </p>
                 )}
@@ -390,7 +391,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="text-base">
-                <T>Banner</T>
+                <T>banner</T>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -414,7 +415,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                 )}
               </div>
               <Label htmlFor="document-banner">
-                <T>Banner image</T>
+                <T>bannerImage</T>
               </Label>
               <Input
                 id="document-banner"
@@ -432,7 +433,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                 className="border border-input px-3"
               />
               <p className="text-xs text-muted-foreground">
-                <T>Optional. JPG, PNG, WebP, or AVIF up to 10 MB.</T>
+                <T>optionaljpgpngWebpavifUpMessage</T>
               </p>
               {visibleBanner && (
                 <Button
@@ -446,7 +447,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                     markChanged()
                   }}
                 >
-                  <X /> <T>Remove banner</T>
+                  <X /> <T>removeBanner</T>
                 </Button>
               )}
             </CardContent>
@@ -462,12 +463,10 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                     changeBase({ published: event.target.checked })
                   }
                 />
-                <T>Publish now</T>
+                <T>publishNow</T>
               </label>
               <p className="text-xs text-muted-foreground">
-                <T>
-                  Published resources appear in the employee document library.
-                </T>
+                <T>publishedResourcesAppearEmployeeDocumentLibrary</T>
               </p>
             </CardContent>
           </Card>
@@ -482,16 +481,16 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              <T>{dirty ? "Unsaved changes" : "No unsaved changes"}</T>
+              <T>{dirty ? "unsavedChanges" : "noUnsavedChanges"}</T>
             </p>
           )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={leave}>
-            <T>Cancel</T>
+            <T>cancel</T>
           </Button>
           <Button onClick={() => void submit()} disabled={saving}>
-            <T>{saving ? "Saving…" : "Save document"}</T>
+            <T>{saving ? "saving" : "saveDocument"}</T>
           </Button>
         </div>
       </div>
@@ -504,13 +503,15 @@ function Field({
   id,
   children,
 }: {
-  label: string
+  label: AppMessageKey
   id: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        <T>{label}</T>
+      </Label>
       {children}
     </div>
   )

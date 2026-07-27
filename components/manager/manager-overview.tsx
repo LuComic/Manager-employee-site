@@ -15,12 +15,25 @@ import {
   ShieldCheck,
   Tags,
   Users,
+  type LucideIcon,
 } from "lucide-react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Card, CardContent } from "@/components/ui/card"
+import type { AppMessageKey } from "@/i18n/messages"
 import { getAnnouncementState } from "@/lib/operations"
+
+type OverviewSection = {
+  title: AppMessageKey
+  cards: {
+    href: string
+    title: AppMessageKey
+    value: string | number
+    detail: string
+    icon: LucideIcon
+  }[]
+}
 
 export function ManagerOverview() {
   const t = useAppTranslations()
@@ -35,96 +48,99 @@ export function ManagerOverview() {
     employees,
     managerAccess,
   } = useOperations()
-  const sections = [
-    {
-      title: "Guides",
-      cards: [
-        {
-          href: "/manager/categories",
-          title: "Guide categories",
-          value: categories.length,
-          detail: "Shown in guide navigation",
-          icon: Tags,
-        },
-        {
-          href: "/manager/guides",
-          title: "Guides",
-          value: guides.length,
-          detail: t("{count} published", {
-            count: guides.filter((item) => item.published).length,
-          }),
-          icon: BookOpen,
-        },
-      ],
-    },
-    {
-      title: "Workforce",
-      cards: [
-        {
-          href: "/manager/employees",
-          title: "Employees",
-          value: employees.length,
-          detail: t("{count} active", {
-            count: employees.filter((item) => item.status === "active").length,
-          }),
-          icon: Users,
-        },
-        {
-          href: "/manager/access",
-          title: "Employee access",
-          value: "Protected",
-          detail: "Join code and private link",
-          icon: ShieldCheck,
-        },
-      ],
-    },
-    {
-      title: "Other content",
-      cards: [
-        {
-          href: "/manager/calendar",
-          title: "Calendar events",
-          value: events.length,
-          detail: t("{count} published", {
-            count: events.filter((item) => item.published).length,
-          }),
-          icon: CalendarDays,
-        },
-        {
-          href: "/manager/announcements",
-          title: "Announcements",
-          value: announcements.length,
-          detail: t("{count} active", {
-            count: announcements.filter(
-              (item) =>
-                getAnnouncementState(item, new Date(), hub?.timeZone) ===
-                "Active"
-            ).length,
-          }),
-          icon: Megaphone,
-        },
-        {
-          href: "/manager/documents",
-          title: "Documents",
-          value: documents.length,
-          detail: t("{count} published", {
-            count: documents.filter((item) => item.published).length,
-          }),
-          icon: Files,
-        },
-        {
-          href: "/manager/questions",
-          title: "Common questions",
-          value: faqs.length,
-          detail: t("{count} published", {
-            count: faqs.filter((item) => item.published).length,
-          }),
-          icon: CircleHelp,
-        },
-      ],
-    },
-  ].filter(
-    (section) => managerAccess === "owner" || section.title !== "Workforce"
+  const sections = (
+    [
+      {
+        title: "guides",
+        cards: [
+          {
+            href: "/manager/categories",
+            title: "guideCategories",
+            value: categories.length,
+            detail: t("shownInGuideNavigation"),
+            icon: Tags,
+          },
+          {
+            href: "/manager/guides",
+            title: "guides",
+            value: guides.length,
+            detail: t("publishedCount", {
+              count: guides.filter((item) => item.published).length,
+            }),
+            icon: BookOpen,
+          },
+        ],
+      },
+      {
+        title: "workforce",
+        cards: [
+          {
+            href: "/manager/employees",
+            title: "employees",
+            value: employees.length,
+            detail: t("activeCount", {
+              count: employees.filter((item) => item.status === "active")
+                .length,
+            }),
+            icon: Users,
+          },
+          {
+            href: "/manager/access",
+            title: "employeeAccess",
+            value: t("protectedStatus"),
+            detail: t("joinCodeAndPrivateLink"),
+            icon: ShieldCheck,
+          },
+        ],
+      },
+      {
+        title: "otherContent",
+        cards: [
+          {
+            href: "/manager/calendar",
+            title: "calendarEvents",
+            value: events.length,
+            detail: t("publishedCount", {
+              count: events.filter((item) => item.published).length,
+            }),
+            icon: CalendarDays,
+          },
+          {
+            href: "/manager/announcements",
+            title: "announcements",
+            value: announcements.length,
+            detail: t("activeCount", {
+              count: announcements.filter(
+                (item) =>
+                  getAnnouncementState(item, new Date(), hub?.timeZone) ===
+                  "Active"
+              ).length,
+            }),
+            icon: Megaphone,
+          },
+          {
+            href: "/manager/documents",
+            title: "documents",
+            value: documents.length,
+            detail: t("publishedCount", {
+              count: documents.filter((item) => item.published).length,
+            }),
+            icon: Files,
+          },
+          {
+            href: "/manager/questions",
+            title: "commonQuestions",
+            value: faqs.length,
+            detail: t("publishedCount", {
+              count: faqs.filter((item) => item.published).length,
+            }),
+            icon: CircleHelp,
+          },
+        ],
+      },
+    ] satisfies OverviewSection[]
+  ).filter(
+    (section) => managerAccess === "owner" || section.title !== "workforce"
   )
   const drafts =
     guides.filter((item) => !item.published).length +
@@ -135,8 +151,8 @@ export function ManagerOverview() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Overview"
-        description="See what is available to employees and choose an area to manage."
+        title="overview"
+        description="seeWhatAvailableEmployeesChooseAreaManage"
       />
       {drafts > 0 && (
         <div
@@ -150,16 +166,13 @@ export function ManagerOverview() {
             <p className="font-semibold">
               {t(
                 drafts === 1
-                  ? "{count} draft needs review"
-                  : "{count} drafts need review",
+                  ? "draftReviewCountSingular"
+                  : "draftReviewCountPlural",
                 { count: drafts }
               )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              <T>
-                Draft items are not visible to employees until they are
-                published.
-              </T>
+              <T>draftItemsNotVisibleEmployeesUntilTheyMessage</T>
             </p>
           </div>
         </div>
@@ -189,7 +202,7 @@ export function ManagerOverview() {
                         <T>{title}</T>
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        <T>{detail}</T>
+                        {detail}
                       </p>
                     </div>
                     <span className="shrink-0 text-lg font-semibold">

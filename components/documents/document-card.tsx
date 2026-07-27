@@ -80,8 +80,8 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
             {document.employees.length
               ? t(
                   document.employees.length === 1
-                    ? " · {count} employee"
-                    : " · {count} employees",
+                    ? "countEmployee"
+                    : "countEmployees",
                   { count: document.employees.length }
                 )
               : ""}

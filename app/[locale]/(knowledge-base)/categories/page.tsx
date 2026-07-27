@@ -14,8 +14,8 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Guide categories"
-        description="Choose a work area to see all of its published guides."
+        title="guideCategories"
+        description="chooseWorkAreaSeeAllPublishedGuides"
       />
 
       {categories.length ? (
@@ -35,8 +35,8 @@ export default function CategoriesPage() {
       ) : (
         <EmptyState
           icon={BookOpen}
-          title="No guide categories"
-          description="Work areas will appear here when a manager creates them."
+          title="noGuideCategories"
+          description="workAreasAppearHereManagerCreates"
         />
       )}
     </div>

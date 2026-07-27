@@ -1,7 +1,6 @@
 import { Link } from "@/i18n/navigation"
 import { ArrowRight, Clock3, MapPin } from "lucide-react"
 
-import { T } from "@/components/translated-text"
 import { useLanguageTag } from "@/i18n/use-app-translations"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -49,7 +48,7 @@ export function EventCard({
             <span className="flex items-center gap-2">
               <Clock3 className="size-4" />{" "}
               {formatEventDate(event, undefined, timeZone, languageTag)},{" "}
-              <T>{formatEventTime(event, timeZone, languageTag)}</T>
+              {formatEventTime(event, timeZone, languageTag)}
             </span>
             <span className="flex items-center gap-2">
               <MapPin className="size-4" /> {event.location}

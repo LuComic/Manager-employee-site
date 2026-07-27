@@ -33,7 +33,9 @@ export function CategoryCard({
           {category.description}
         </span>
         <Badge variant="secondary" className="mt-3">
-          {t(count === 1 ? "{count} guide" : "{count} guides", { count })}
+          {t(count === 1 ? "guideCountSingular" : "guideCountPlural", {
+            count,
+          })}
         </Badge>
       </span>
     </Link>

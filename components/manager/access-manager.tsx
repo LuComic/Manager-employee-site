@@ -53,20 +53,16 @@ export function AccessManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Employee access"
-        description="Control accountless access to published hub content. Join codes and private links are bearer credentials."
+        title="employeeAccess"
+        description="controlAccountlessAccessPublishedHubContentJoinMessage"
       />
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheck className="size-5 text-primary" /> <T>Access mode</T>
+            <ShieldCheck className="size-5 text-primary" /> <T>accessMode</T>
           </CardTitle>
           <CardDescription>
-            <T>
-              Public mode opens published content to anyone with the workplace
-              URL. Restricted mode requires the employee join code or private
-              link. Signed-in workplace members keep their normal access.
-            </T>
+            <T>publicModeOpensPublishedContentAnyoneWorkplaceMessage</T>
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-start gap-3">
@@ -94,14 +90,14 @@ export function AccessManager() {
             <ShieldCheck />
             <T>
               {hub.accessMode === "restricted"
-                ? "Restricted access on"
-                : "Require code or private link"}
+                ? "restrictedAccessOn"
+                : "requireCodeOrPrivateLink"}
             </T>
           </Button>
           <p className="text-sm text-muted-foreground">
-            <T>Current mode:</T>{" "}
+            <T>currentMode</T>{" "}
             <span className="font-medium text-foreground">
-              <T>{hub.accessMode === "restricted" ? "Restricted" : "Public"}</T>
+              <T>{hub.accessMode === "restricted" ? "restricted" : "public"}</T>
             </span>
           </p>
         </CardContent>
@@ -131,15 +127,10 @@ export function AccessManager() {
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="text-base">
-            <T>Rotate or revoke access</T>
+            <T>rotateOrRevokeAccess</T>
           </CardTitle>
           <CardDescription>
-            <T>
-              Rotation immediately invalidates the previous code and link,
-              including copies remembered by employee browsers. Only credential
-              hashes are stored in Convex; the readable values are kept in this
-              owner’s browser.
-            </T>
+            <T>rotationImmediatelyInvalidatesPreviousCodeLinkIncludingError</T>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -150,13 +141,13 @@ export function AccessManager() {
               setPending(true)
               try {
                 await rotateCredentials()
-                showFeedback("Join code and private link rotated.")
+                showFeedback("joinCodeAndPrivateLinkRotated")
               } finally {
                 setPending(false)
               }
             }}
           >
-            <RefreshCw /> <T>Rotate code and link</T>
+            <RefreshCw /> <T>rotateCodeAndLink</T>
           </Button>
         </CardContent>
       </Card>
@@ -201,7 +192,7 @@ function CredentialCard({
           disabled={disabled}
           onClick={onCopy}
         >
-          {copied ? <Check /> : <Copy />} <T>{copied ? "Copied" : "Copy"}</T>
+          {copied ? <Check /> : <Copy />} <T>{copied ? "copied" : "copy"}</T>
         </Button>
       </CardContent>
     </Card>

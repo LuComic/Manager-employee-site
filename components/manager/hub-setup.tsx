@@ -45,13 +45,10 @@ export function HubSetup() {
             <Building2 />
           </span>
           <h1 className="font-heading text-lg font-semibold">
-            <T>Create your workplace</T>
+            <T>createYourWorkplace</T>
           </h1>
           <CardDescription>
-            <T>
-              Choose the workplace name and logo. You will become its first
-              owner.
-            </T>
+            <T>chooseWorkplaceNameLogoBecomeFirstOwner</T>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -64,14 +61,11 @@ export function HubSetup() {
               })
             }
           >
-            <Building2 /> <T>Create workplace</T>
+            <Building2 /> <T>createWorkplace</T>
           </Button>
           <div className="border-t pt-5">
             <p className="mb-3 text-sm text-muted-foreground">
-              <T>
-                Joining as an employee? Use the workplace link, ID, or code your
-                manager shared with you.
-              </T>
+              <T>joiningEmployeeUseWorkplaceLinkidCodeMessage</T>
             </p>
             <Link
               href="/join#join-workplace"
@@ -80,7 +74,7 @@ export function HubSetup() {
                 className: "w-full",
               })}
             >
-              <KeyRound /> <T>Join an existing workplace</T>
+              <KeyRound /> <T>joinAnExistingWorkplace</T>
             </Link>
           </div>
         </CardContent>
@@ -98,13 +92,10 @@ export function HubSetup() {
           <Building2 />
         </span>
         <h1 className="font-heading text-lg font-semibold">
-          <T>Finish setting up your workplace</T>
+          <T>finishSettingUpWorkplace</T>
         </h1>
         <CardDescription>
-          <T>
-            Your workplace account manages the name, logo, and members. workhal
-            will use the active workplace shown below.
-          </T>
+          <T>workplaceAccountUsesWorkhal</T>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -116,18 +107,18 @@ export function HubSetup() {
             afterSelectPersonalUrl={href("/manager")}
           />
           <span className="text-xs text-muted-foreground">
-            <T>Active workplace</T>
+            <T>activeWorkplace</T>
           </span>
         </div>
         <div className="border p-4 text-sm">
           <p className="font-medium">
-            <T>Employee address</T>
+            <T>employeeAddress</T>
           </p>
           <p className="mt-1 text-muted-foreground">
-            <T>Assigned automatically from the workplace name:</T>
+            <T>assignedAutomaticallyFromTheWorkplaceName</T>
           </p>
           <p className="mt-2 font-mono text-xs">
-            <T>?hub=</T>
+            <T>hubQueryParameter</T>
             {slug || "workplace"}
           </p>
         </div>
@@ -148,7 +139,7 @@ export function HubSetup() {
               setError(
                 caught instanceof Error
                   ? t(caught.message)
-                  : t("Could not create workplace")
+                  : t("couldNotCreateWorkplace")
               )
             } finally {
               setPending(false)
@@ -156,7 +147,7 @@ export function HubSetup() {
           }}
         >
           {pending ? <LoaderCircle className="animate-spin" /> : <Building2 />}
-          {t(pending ? "Creating workplace…" : "Create workplace")}
+          {t(pending ? "creatingWorkplace" : "createWorkplace")}
         </Button>
       </CardContent>
     </Card>

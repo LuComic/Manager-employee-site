@@ -13,10 +13,7 @@ export function DocumentsPageContent() {
 
   return (
     <div>
-      <PageHeading
-        title="Documents"
-        description="Files and shared links your team needs."
-      />
+      <PageHeading title="documents" description="filesSharedLinksTeamNeeds" />
       {publishedDocuments.length ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {publishedDocuments.map((document) => (
@@ -27,8 +24,8 @@ export function DocumentsPageContent() {
         <div className="mt-6">
           <EmptyState
             icon={Files}
-            title="No published documents"
-            description="Documents will appear here when a manager publishes them."
+            title="noPublishedDocuments"
+            description="documentsAppearHereManagerPublishes"
           />
         </div>
       )}

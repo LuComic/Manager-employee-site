@@ -44,7 +44,7 @@ export function InvitationComplete() {
           setError(
             caught instanceof Error
               ? t(caught.message)
-              : t("Could not activate profile")
+              : t("couldNotActivateProfile")
           )
       })
     return () => {
@@ -68,10 +68,10 @@ export function InvitationComplete() {
             <MailCheck />
           </span>
           <h1 className="font-heading text-lg font-semibold">
-            <T>Opening your workplace</T>
+            <T>openingYourWorkplace</T>
           </h1>
           <CardDescription>
-            <T>Your invitation is being connected to the employee profile.</T>
+            <T>invitationConnectedEmployeeProfile</T>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -82,7 +82,7 @@ export function InvitationComplete() {
           ) : (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" />{" "}
-              <T>Activating employee access…</T>
+              <T>activatingEmployeeAccess</T>
             </p>
           )}
         </CardContent>

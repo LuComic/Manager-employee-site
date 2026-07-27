@@ -1,12 +1,13 @@
 import { T } from "@/components/translated-text"
+import type { AppMessageKey } from "@/i18n/messages"
 
 export function ManagerHeading({
   title,
   description,
   action,
 }: {
-  title: string
-  description: string
+  title: AppMessageKey
+  description: AppMessageKey
   action?: React.ReactNode
 }) {
   return (

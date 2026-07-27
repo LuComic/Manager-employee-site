@@ -65,12 +65,12 @@ export function DocumentManager() {
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="Manage documents"
-        description="Share files and external links with the right employees."
+        title="manageDocuments"
+        description="shareFilesExternalLinksRightEmployees"
         action={
           canCreateContent ? (
             <Link href="/manager/documents/new" className={buttonVariants()}>
-              <Plus /> <T>Share document</T>
+              <Plus /> <T>shareDocument</T>
             </Link>
           ) : undefined
         }
@@ -81,8 +81,8 @@ export function DocumentManager() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search documents…"
-            aria-label="Search documents"
+            placeholder="searchDocumentsPlaceholder"
+            aria-label="searchDocuments"
             className="border border-input pr-3 pl-10"
           />
         </div>
@@ -92,19 +92,19 @@ export function DocumentManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label={t("Filter documents by resource type")}
+            aria-label={t("filterDocumentsByResourceType")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">
-              <T>All resources</T>
+              <T>allResources</T>
             </SelectItem>
             <SelectItem value="file">
-              <T>Uploaded files</T>
+              <T>uploadedFiles</T>
             </SelectItem>
             <SelectItem value="link">
-              <T>Shared links</T>
+              <T>sharedLinks</T>
             </SelectItem>
           </SelectContent>
         </Select>
@@ -114,19 +114,19 @@ export function DocumentManager() {
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
-            aria-label={t("Filter documents by status")}
+            aria-label={t("filterDocumentsByStatus")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All">
-              <T>All</T>
+              <T>all</T>
             </SelectItem>
             <SelectItem value="Published">
-              <T>Published</T>
+              <T>published</T>
             </SelectItem>
             <SelectItem value="Draft">
-              <T>Draft</T>
+              <T>draft</T>
             </SelectItem>
           </SelectContent>
         </Select>
@@ -148,7 +148,7 @@ export function DocumentManager() {
                     <Badge
                       variant={document.published ? "secondary" : "outline"}
                     >
-                      <T>{document.published ? "Published" : "Draft"}</T>
+                      <T>{document.published ? "published" : "draft"}</T>
                     </Badge>
                     <span aria-hidden="true" className="text-border">
                       |
@@ -184,7 +184,7 @@ export function DocumentManager() {
                       })()
                     }}
                   >
-                    <T>{document.published ? "Unpublish" : "Publish"}</T>
+                    <T>{document.published ? "unpublish" : "publish"}</T>
                   </Button>
                   <Link
                     href={`/manager/documents/${document.id}/edit`}
@@ -192,14 +192,14 @@ export function DocumentManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> <T>Edit</T>
+                    <FilePenLine /> <T>edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"
                       onClick={() => setDeleteTarget(document)}
-                      aria-label={t("Delete {name}", {
+                      aria-label={t("deleteName", {
                         name: document.title,
                       })}
                     >
@@ -214,16 +214,14 @@ export function DocumentManager() {
       ) : (
         <EmptyState
           icon={Files}
-          title={
-            documents.length ? "No matching documents" : "No documents yet"
-          }
+          title={documents.length ? "noMatchingDocuments" : "noDocumentsYet"}
           description={
             documents.length
-              ? "Clear the search or choose another filter."
-              : "Upload a file or share a link with the team."
+              ? "clearSearchChooseFilter"
+              : "uploadFileOrShareLinkWithTeam"
           }
           actionLabel={
-            documents.length || !canCreateContent ? undefined : "Share document"
+            documents.length || !canCreateContent ? undefined : "shareDocument"
           }
           actionHref={
             documents.length || !canCreateContent
@@ -243,7 +241,7 @@ export function DocumentManager() {
           void (async () => {
             try {
               await deleteDocument(deleteTarget.id)
-              showFeedback("Document deleted.")
+              showFeedback("documentDeleted")
             } catch {
               // The shared operation runner already shows the error.
             }
