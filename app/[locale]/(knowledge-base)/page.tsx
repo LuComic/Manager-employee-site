@@ -20,6 +20,7 @@ import { GuideCard } from "@/components/knowledge-base/guide-card"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Card, CardContent } from "@/components/ui/card"
+import { WorkerNotes } from "@/components/worker-notes/worker-notes"
 import type { AppMessageKey } from "@/i18n/messages"
 import {
   eventOccursOnDate,
@@ -271,12 +272,15 @@ export default function TodayPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {(hub?.todaySections ?? defaultTodaySections)
-        .filter((section) => section.visible)
-        .map((section) => (
-          <Fragment key={section.key}>{renderSection(section.key)}</Fragment>
-        ))}
-    </div>
+    <>
+      <div className="space-y-6">
+        {(hub?.todaySections ?? defaultTodaySections)
+          .filter((section) => section.visible)
+          .map((section) => (
+            <Fragment key={section.key}>{renderSection(section.key)}</Fragment>
+          ))}
+      </div>
+      <WorkerNotes key={hub?.id ?? "no-workplace"} />
+    </>
   )
 }

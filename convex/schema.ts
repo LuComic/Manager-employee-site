@@ -294,6 +294,17 @@ export default defineSchema({
     status: v.union(v.literal("open"), v.literal("resolved")),
   }).index("by_hubId_and_submittedAt", ["hubId", "submittedAt"]),
 
+  workerNotes: defineTable({
+    hubId: v.id("hubs"),
+    text: v.string(),
+    pinned: v.boolean(),
+    expiresAt: v.number(),
+  }).index("by_hubId_and_pinned_and_expiresAt", [
+    "hubId",
+    "pinned",
+    "expiresAt",
+  ]),
+
   notifications: defineTable({
     hubId: v.id("hubs"),
     audience: v.union(
