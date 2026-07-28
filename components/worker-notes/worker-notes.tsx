@@ -123,6 +123,11 @@ export function WorkerNotes() {
   const [isWriting, setIsWriting] = useState(false)
   const [noteText, setNoteText] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingNoteId, setEditingNoteId] = useState<Id<"workerNotes"> | null>(
+    null
+  )
+  const [editingText, setEditingText] = useState("")
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [pendingNoteId, setPendingNoteId] = useState<Id<"workerNotes"> | null>(
     null
   )
@@ -131,6 +136,9 @@ export function WorkerNotes() {
   const [restoredHubId, setRestoredHubId] = useState<string | null>(null)
   const windowRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const editInputRef = useRef<HTMLInputElement>(null)
+  const editSaveRef = useRef(false)
+  const cancelEditRef = useRef(false)
   const dragRef = useRef<DragState | null>(null)
   const activeHubId = hub?.id
   const isMemberView =
@@ -146,6 +154,7 @@ export function WorkerNotes() {
   ) as WorkerNote[] | undefined
   const createNote = useMutation(api.workerNotes.create)
   const togglePinned = useMutation(api.workerNotes.togglePinned)
+  const updateNoteText = useMutation(api.workerNotes.updateText)
 
   useEffect(() => {
     const desktop = window.matchMedia(DESKTOP_MEDIA_QUERY)
@@ -187,9 +196,19 @@ export function WorkerNotes() {
   }, [isWriting])
 
   useEffect(() => {
+    if (!editingNoteId) return
+    const input = editInputRef.current
+    if (!input) return
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
+  }, [editingNoteId])
+
+  useEffect(() => {
     if (!isOpen) return
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape" && !isWriting) setIsOpen(false)
+      if (event.key === "Escape" && !isWriting && !editingNoteId) {
+        setIsOpen(false)
+      }
     }
     const handleResize = () => {
       const panel = windowRef.current
@@ -205,7 +224,7 @@ export function WorkerNotes() {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("resize", handleResize)
     }
-  }, [isOpen, isWriting])
+  }, [editingNoteId, isOpen, isWriting])
 
   if (!isMemberView || !hub) return null
   const hubId = hub.id
@@ -259,6 +278,92 @@ export function WorkerNotes() {
     }
   }
 
+  function beginEditing(note: WorkerNote) {
+    cancelEditRef.current = false
+    setIsWriting(false)
+    setEditingNoteId(note.id)
+    setEditingText(note.text)
+  }
+
+  async function finishEditing(openNewLine: boolean) {
+    if (!editingNoteId || editSaveRef.current) return
+    const noteId = editingNoteId
+    const text = editingText
+    editSaveRef.current = true
+    setIsSavingEdit(true)
+    try {
+      await updateNoteText({ hubId, noteId, text })
+      setEditingNoteId(null)
+      setEditingText("")
+      if (openNewLine) setIsWriting(true)
+    } catch (error) {
+      toast.error(translateError(error))
+    } finally {
+      editSaveRef.current = false
+      setIsSavingEdit(false)
+    }
+  }
+
+  async function deleteEditingNoteAndMoveUp(note: WorkerNote) {
+    if (editSaveRef.current) return
+    const noteIndex = notes?.findIndex((item) => item.id === note.id) ?? -1
+    const previousNote =
+      noteIndex > 0 && notes ? notes[noteIndex - 1] : undefined
+    editSaveRef.current = true
+    setIsSavingEdit(true)
+    try {
+      await updateNoteText({ hubId, noteId: note.id, text: "" })
+      if (previousNote) {
+        setEditingNoteId(previousNote.id)
+        setEditingText(previousNote.text)
+        setIsWriting(false)
+      } else {
+        setEditingNoteId(null)
+        setEditingText("")
+        setIsWriting(true)
+      }
+    } catch (error) {
+      toast.error(translateError(error))
+    } finally {
+      editSaveRef.current = false
+      setIsSavingEdit(false)
+    }
+  }
+
+  function handleNewNoteKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setNoteText("")
+      setIsWriting(false)
+      return
+    }
+    if (event.key !== "Backspace" || noteText) return
+    const previousNote = notes ? notes[notes.length - 1] : undefined
+    if (!previousNote) return
+    event.preventDefault()
+    beginEditing(previousNote)
+  }
+
+  function handleEditingKeyDown(
+    event: KeyboardEvent<HTMLInputElement>,
+    note: WorkerNote
+  ) {
+    if (event.key === "Escape") {
+      cancelEditRef.current = true
+      setEditingNoteId(null)
+      setEditingText("")
+      setIsWriting(true)
+      return
+    }
+    if (event.key === "Enter") {
+      event.preventDefault()
+      void finishEditing(true)
+      return
+    }
+    if (event.key !== "Backspace" || editingText) return
+    event.preventDefault()
+    void deleteEditingNoteAndMoveUp(note)
+  }
+
   async function handleTogglePinned(note: WorkerNote) {
     if (pendingNoteId) return
     setPendingNoteId(note.id)
@@ -285,13 +390,13 @@ export function WorkerNotes() {
       <Button
         type="button"
         variant={isOpen ? "selected" : "outline"}
-        className="fixed right-4 bottom-4 z-40 h-auto w-28 flex-col gap-2 bg-background px-3 py-4 whitespace-normal shadow-md"
+        className="fixed right-4 bottom-4 z-40 h-auto items-center justify-center gap-2 bg-background px-3! py-2 whitespace-normal shadow-md"
         aria-expanded={isOpen}
         aria-controls="worker-notes-window"
         onClick={() => setIsOpen((open) => !open)}
       >
         <StickyNote className="size-5" />
-        <span className="w-full text-center leading-4 break-words whitespace-normal">
+        <span className="w-full text-center leading-4 wrap-break-word whitespace-normal">
           {t("workersNotes")}
         </span>
       </Button>
@@ -302,7 +407,7 @@ export function WorkerNotes() {
           id="worker-notes-window"
           role="dialog"
           aria-labelledby="worker-notes-title"
-          className="fixed z-50 flex h-[min(34rem,calc(100vh-2rem))] w-[28rem] flex-col overflow-hidden border bg-card text-card-foreground shadow-xl ring-1 ring-foreground/10"
+          className="fixed z-50 flex h-[min(34rem,calc(100vh-2rem))] w-md flex-col overflow-hidden border bg-card text-card-foreground shadow-xl"
           style={
             position
               ? { left: position.x, top: position.y }
@@ -342,7 +447,9 @@ export function WorkerNotes() {
 
           <div
             className="min-h-0 flex-1 cursor-text overflow-y-auto px-6 py-6"
-            onClick={() => setIsWriting(true)}
+            onClick={() => {
+              if (!editingNoteId) setIsWriting(true)
+            }}
           >
             {notes === undefined ? (
               <p className="text-sm text-muted-foreground" role="status">
@@ -350,30 +457,46 @@ export function WorkerNotes() {
               </p>
             ) : (
               <ul>
-                {notes.map((note) => (
-                  <li key={note.id}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "group/note flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6 transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
-                        note.pinned && "font-medium"
-                      )}
-                      aria-label={t(
-                        note.pinned ? "unpinWorkerNote" : "pinWorkerNote",
-                        { note: note.text }
-                      )}
+                {notes.map((note) =>
+                  editingNoteId === note.id ? (
+                    <li
+                      key={note.id}
+                      className="group/note flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6"
                       title={t("doubleClickToPinWorkerNote")}
-                      disabled={pendingNoteId === note.id}
                       onDoubleClick={() => void handleTogglePinned(note)}
-                      onKeyDown={(event) => handleNoteKeyDown(event, note)}
                     >
                       <span
                         className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
                         aria-hidden="true"
                       />
-                      <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
-                        {note.text}
-                      </span>
+                      <form
+                        className="min-w-0 flex-1"
+                        onSubmit={(event) => {
+                          event.preventDefault()
+                          void finishEditing(true)
+                        }}
+                      >
+                        <Input
+                          ref={editInputRef}
+                          value={editingText}
+                          maxLength={500}
+                          aria-label={note.text}
+                          readOnly={isSavingEdit}
+                          aria-busy={isSavingEdit}
+                          className="h-6 border-0 py-0 text-sm leading-6 focus-visible:border-0"
+                          onChange={(event) =>
+                            setEditingText(event.target.value)
+                          }
+                          onKeyDown={(event) =>
+                            handleEditingKeyDown(event, note)
+                          }
+                          onBlur={() => {
+                            if (!cancelEditRef.current) {
+                              void finishEditing(false)
+                            }
+                          }}
+                        />
+                      </form>
                       <Pin
                         className={cn(
                           "mt-1 size-4 shrink-0 transition-opacity",
@@ -383,10 +506,45 @@ export function WorkerNotes() {
                         )}
                         aria-hidden="true"
                       />
-                    </button>
-                  </li>
-                ))}
-                {isWriting ? (
+                    </li>
+                  ) : (
+                    <li key={note.id}>
+                      <button
+                        type="button"
+                        className={cn(
+                          "group/note flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6 transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
+                          note.pinned && "font-medium"
+                        )}
+                        aria-label={t(
+                          note.pinned ? "unpinWorkerNote" : "pinWorkerNote",
+                          { note: note.text }
+                        )}
+                        title={t("doubleClickToPinWorkerNote")}
+                        disabled={pendingNoteId === note.id}
+                        onDoubleClick={() => void handleTogglePinned(note)}
+                        onKeyDown={(event) => handleNoteKeyDown(event, note)}
+                      >
+                        <span
+                          className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
+                          {note.text}
+                        </span>
+                        <Pin
+                          className={cn(
+                            "mt-1 size-4 shrink-0 transition-opacity",
+                            note.pinned
+                              ? "fill-primary text-primary opacity-100"
+                              : "text-muted-foreground opacity-0 group-hover/note:opacity-50 group-focus-visible/note:opacity-50"
+                          )}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </li>
+                  )
+                )}
+                {editingNoteId ? null : isWriting ? (
                   <li className={ENTRY_ROW_CLASS}>
                     <span
                       className={cn(ENTRY_BULLET_CLASS, "bg-foreground")}
@@ -397,17 +555,12 @@ export function WorkerNotes() {
                         ref={inputRef}
                         value={noteText}
                         maxLength={500}
-                        placeholder={t("workerNotePlaceholder")}
                         aria-label={t("workerNotePlaceholder")}
                         readOnly={isSubmitting}
                         aria-busy={isSubmitting}
                         className="h-6 border-0 py-0 text-sm leading-6 focus-visible:border-0"
                         onChange={(event) => setNoteText(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Escape") return
-                          setNoteText("")
-                          setIsWriting(false)
-                        }}
+                        onKeyDown={handleNewNoteKeyDown}
                         onBlur={() => {
                           if (!noteText.trim()) setIsWriting(false)
                         }}

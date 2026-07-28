@@ -95,6 +95,41 @@ describe("worker notes", () => {
     ).rejects.toThrow("unauthorized")
   })
 
+  test("lets employees edit and delete shared notes", async () => {
+    const t = convexTest(schema, modules)
+    const hubId = await createHubWithActiveMember(t)
+    const member = t.withIdentity(memberIdentity)
+    const owner = t.withIdentity(ownerIdentity)
+    const noteId = await member.mutation(api.workerNotes.create, {
+      hubId,
+      text: "Original note",
+    })
+
+    await owner.mutation(api.workerNotes.updateText, {
+      hubId,
+      noteId,
+      text: "  Updated together  ",
+    })
+    expect(
+      await member.query(api.workerNotes.list, {
+        hubId,
+        now: Date.now(),
+      })
+    ).toMatchObject([{ id: noteId, text: "Updated together" }])
+
+    await member.mutation(api.workerNotes.updateText, {
+      hubId,
+      noteId,
+      text: "",
+    })
+    expect(
+      await owner.query(api.workerNotes.list, {
+        hubId,
+        now: Date.now(),
+      })
+    ).toEqual([])
+  })
+
   test("keeps pinned notes and deletes them when unpinned after 24 hours", async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-07-28T12:00:00.000Z"))

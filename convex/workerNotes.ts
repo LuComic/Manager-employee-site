@@ -108,6 +108,30 @@ export const togglePinned = mutation({
   },
 })
 
+export const updateText = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    noteId: v.id("workerNotes"),
+    text: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireHubPermission(ctx, args.hubId, "viewer")
+    const note = await ctx.db.get("workerNotes", args.noteId)
+    if (!note || note.hubId !== args.hubId) return null
+
+    const text = args.text.trim()
+    if (text.length > MAX_NOTE_LENGTH) throw new Error("workerNoteTooLong")
+    if (!text) {
+      await ctx.db.delete("workerNotes", note._id)
+      return null
+    }
+
+    await ctx.db.patch("workerNotes", note._id, { text })
+    return null
+  },
+})
+
 export const deleteIfExpired = internalMutation({
   args: {
     noteId: v.id("workerNotes"),
