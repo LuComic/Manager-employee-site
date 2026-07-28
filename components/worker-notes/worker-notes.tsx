@@ -136,6 +136,8 @@ export function WorkerNotes() {
   const [restoredHubId, setRestoredHubId] = useState<string | null>(null)
   const windowRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const createSaveRef = useRef(false)
+  const closeAfterCreateRef = useRef(false)
   const editInputRef = useRef<HTMLInputElement>(null)
   const editSaveRef = useRef(false)
   const cancelEditRef = useRef(false)
@@ -263,19 +265,38 @@ export function WorkerNotes() {
     }
   }
 
-  async function submitNote(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function saveNewNote(closeAfterSave: boolean) {
+    if (closeAfterSave) closeAfterCreateRef.current = true
+    if (createSaveRef.current) return
+
     const text = noteText.trim()
-    if (!text || isSubmitting) return
+    if (!text) {
+      if (closeAfterSave) {
+        setNoteText("")
+        setIsWriting(false)
+        closeAfterCreateRef.current = false
+      }
+      return
+    }
+
+    createSaveRef.current = true
     setIsSubmitting(true)
     try {
       await createNote({ hubId, text })
       setNoteText("")
+      setIsWriting(!closeAfterCreateRef.current)
     } catch (error) {
       toast.error(translateError(error))
     } finally {
+      createSaveRef.current = false
+      closeAfterCreateRef.current = false
       setIsSubmitting(false)
     }
+  }
+
+  function submitNote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void saveNewNote(false)
   }
 
   function beginEditing(note: WorkerNote) {
@@ -447,8 +468,8 @@ export function WorkerNotes() {
 
           <div
             className="min-h-0 flex-1 cursor-text overflow-y-auto px-6 py-6"
-            onClick={() => {
-              if (!editingNoteId) setIsWriting(true)
+            onPointerDown={() => {
+              if (!editingNoteId && !isWriting) setIsWriting(true)
             }}
           >
             {notes === undefined ? (
@@ -562,9 +583,7 @@ export function WorkerNotes() {
                         className="h-6 border-0 py-0 text-sm leading-6 focus-visible:border-0"
                         onChange={(event) => setNoteText(event.target.value)}
                         onKeyDown={handleNewNoteKeyDown}
-                        onBlur={() => {
-                          if (!noteText.trim()) setIsWriting(false)
-                        }}
+                        onBlur={() => void saveNewNote(true)}
                       />
                     </form>
                   </li>
