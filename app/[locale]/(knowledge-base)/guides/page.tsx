@@ -51,7 +51,7 @@ export default function GuidesPage() {
       <section>
         <SectionHeading
           title="allGuides"
-          description={t("countPublishedGuidesAvailable", {
+          descriptionText={t("countPublishedGuidesAvailable", {
             count: publishedGuides.length,
           })}
         />

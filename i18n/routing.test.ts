@@ -262,6 +262,11 @@ describe("translation dictionaries", () => {
     expect(source).toContain("import type en")
   })
 
+  test("guards runtime values before resolving them as message keys", () => {
+    const source = readFileSync("i18n/use-app-translations.ts", "utf8")
+    expect(source).toContain("translations.has(key)")
+  })
+
   test("uses semantic keys in statically declared T and t calls", () => {
     const nonSemantic = [...translatedSourceMessages()].filter(
       (message) => !Object.hasOwn(en.App, message)

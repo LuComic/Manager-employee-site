@@ -246,15 +246,15 @@ export function CalendarPage() {
                           className="block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
                         >
                           <span className="block truncate">
-                            <T>
-                              {event.allDay
-                                ? "allDay"
-                                : formatTime(
-                                    event.startUtc ?? event.start,
-                                    hub?.timeZone,
-                                    languageTag
-                                  )}
-                            </T>{" "}
+                            {event.allDay ? (
+                              <T>allDay</T>
+                            ) : (
+                              formatTime(
+                                event.startUtc ?? event.start,
+                                hub?.timeZone,
+                                languageTag
+                              )
+                            )}{" "}
                             {event.title}
                           </span>
                         </Link>
