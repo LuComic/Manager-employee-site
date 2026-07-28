@@ -667,7 +667,7 @@
     "todaySInformationAndPracticalGuides": "Today’s information and practical guides.",
     "todaySInformationPracticalGuidesSmoothShifts": "Today’s information and practical guides for smooth shifts.",
     "workersNotes": "Workers’ notes",
-    "workersNotesDescription": "Shared notes save automatically when you stop typing.",
+    "workersNotesDescription": "Saved automatically. Lines are cleared 24 hours after the notes are last edited; start a line with ! to keep it.",
     "loadingWorkersNotes": "Loading workers’ notes…",
     "workerNotePlaceholder": "Write a note for the team",
     "workerNoteTooLong": "Workers’ notes can be up to 10,000 characters",

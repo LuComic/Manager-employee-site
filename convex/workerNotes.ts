@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 
+import { internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import {
   internalMutation,
@@ -10,28 +11,25 @@ import {
 } from "./_generated/server"
 import { requireHubPermission } from "./lib/access"
 
+const TEMPORARY_NOTES_LIFETIME_MS = 24 * 60 * 60 * 1000
 const MAX_NOTES_LENGTH = 10_000
-const MAX_LEGACY_NOTES = 101
+
+function persistentLines(text: string) {
+  return text
+    .split("\n")
+    .filter((line) => line.startsWith("!"))
+    .join("\n")
+}
+
+function hasTemporaryLines(text: string) {
+  return text.split("\n").some((line) => line.trim() && !line.startsWith("!"))
+}
 
 async function getHubNotes(ctx: QueryCtx | MutationCtx, hubId: Id<"hubs">) {
   return await ctx.db
     .query("workerNotes")
-    .withIndex("by_hubId_and_pinned_and_expiresAt", (q) => q.eq("hubId", hubId))
-    .take(MAX_LEGACY_NOTES)
-}
-
-function visibleText(
-  notes: Awaited<ReturnType<typeof getHubNotes>>,
-  now: number
-) {
-  return notes
-    .filter((note) => note.pinned || note.expiresAt > now)
-    .sort(
-      (a, b) =>
-        Number(b.pinned) - Number(a.pinned) || a._creationTime - b._creationTime
-    )
-    .map((note) => note.text)
-    .join("\n")
+    .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+    .unique()
 }
 
 export const get = query({
@@ -42,7 +40,15 @@ export const get = query({
   returns: v.string(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "viewer")
-    return visibleText(await getHubNotes(ctx, args.hubId), args.now)
+    const notes = await getHubNotes(ctx, args.hubId)
+    if (!notes) return ""
+    if (
+      notes.temporaryExpiresAt !== undefined &&
+      notes.temporaryExpiresAt <= args.now
+    ) {
+      return persistentLines(notes.text)
+    }
+    return notes.text
   },
 })
 
@@ -59,44 +65,62 @@ export const save = mutation({
     }
 
     const notes = await getHubNotes(ctx, args.hubId)
-    const [primaryNote, ...extraNotes] = notes
-    for (const note of extraNotes) {
-      await ctx.db.delete("workerNotes", note._id)
-    }
-
     if (!args.text.trim()) {
-      if (primaryNote) await ctx.db.delete("workerNotes", primaryNote._id)
+      if (notes) await ctx.db.delete("workerNotes", notes._id)
       return null
     }
 
-    if (primaryNote) {
-      await ctx.db.patch("workerNotes", primaryNote._id, {
-        text: args.text,
-        pinned: true,
-        expiresAt: Number.MAX_SAFE_INTEGER,
-      })
+    const temporaryExpiresAt = hasTemporaryLines(args.text)
+      ? Date.now() + TEMPORARY_NOTES_LIFETIME_MS
+      : null
+    const value = {
+      hubId: args.hubId,
+      text: args.text,
+      ...(temporaryExpiresAt === null ? {} : { temporaryExpiresAt }),
+    }
+    let noteId: Id<"workerNotes">
+    if (notes) {
+      await ctx.db.replace("workerNotes", notes._id, value)
+      noteId = notes._id
     } else {
-      await ctx.db.insert("workerNotes", {
-        hubId: args.hubId,
-        text: args.text,
-        pinned: true,
-        expiresAt: Number.MAX_SAFE_INTEGER,
-      })
+      noteId = await ctx.db.insert("workerNotes", value)
+    }
+
+    if (temporaryExpiresAt !== null) {
+      await ctx.scheduler.runAt(
+        temporaryExpiresAt,
+        internal.workerNotes.clearTemporaryLines,
+        { noteId, temporaryExpiresAt }
+      )
     }
     return null
   },
 })
 
-// Keep the legacy scheduled callback until all pre-textarea expiry jobs drain.
-export const deleteIfExpired = internalMutation({
+export const clearTemporaryLines = internalMutation({
   args: {
     noteId: v.id("workerNotes"),
+    temporaryExpiresAt: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const note = await ctx.db.get("workerNotes", args.noteId)
-    if (note && !note.pinned && note.expiresAt <= Date.now()) {
-      await ctx.db.delete("workerNotes", note._id)
+    const notes = await ctx.db.get("workerNotes", args.noteId)
+    if (
+      !notes ||
+      notes.temporaryExpiresAt !== args.temporaryExpiresAt ||
+      notes.temporaryExpiresAt > Date.now()
+    ) {
+      return null
+    }
+
+    const text = persistentLines(notes.text)
+    if (!text) {
+      await ctx.db.delete("workerNotes", notes._id)
+    } else {
+      await ctx.db.replace("workerNotes", notes._id, {
+        hubId: notes.hubId,
+        text,
+      })
     }
     return null
   },

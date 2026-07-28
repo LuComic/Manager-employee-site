@@ -297,13 +297,8 @@ export default defineSchema({
   workerNotes: defineTable({
     hubId: v.id("hubs"),
     text: v.string(),
-    pinned: v.boolean(),
-    expiresAt: v.number(),
-  }).index("by_hubId_and_pinned_and_expiresAt", [
-    "hubId",
-    "pinned",
-    "expiresAt",
-  ]),
+    temporaryExpiresAt: v.optional(v.number()),
+  }).index("by_hubId", ["hubId"]),
 
   notifications: defineTable({
     hubId: v.id("hubs"),

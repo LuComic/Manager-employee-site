@@ -667,7 +667,7 @@
     "todaySInformationAndPracticalGuides": "Tänane teave ja praktilised juhendid.",
     "todaySInformationPracticalGuidesSmoothShifts": "Tänane teave ja praktilised juhendid sujuvateks vahetusteks.",
     "workersNotes": "Töötajate märkmed",
-    "workersNotesDescription": "Jagatud märkmed salvestatakse automaatselt, kui kirjutamise lõpetad.",
+    "workersNotesDescription": "Salvestatakse automaatselt. Read kustutatakse 24 tundi pärast märkmete viimast muutmist; säilitamiseks alusta rida !-märgiga.",
     "loadingWorkersNotes": "Töötajate märkmete laadimine…",
     "workerNotePlaceholder": "Kirjuta meeskonnale märge",
     "workerNoteTooLong": "Töötajate märkmed võivad olla kuni 10 000 tähemärki",
