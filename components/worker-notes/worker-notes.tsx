@@ -54,12 +54,17 @@ function NotePinButton({
       variant="ghost"
       size="icon-sm"
       className={cn(
-        "-my-1 -mr-1 size-6 shrink-0 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100",
+        "absolute top-1 right-1 z-10 size-6 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100",
         note.pinned && "opacity-100"
       )}
       aria-label={label}
       disabled={pending}
+      onPointerDown={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+      }}
       onClick={(event) => {
+        event.preventDefault()
         event.stopPropagation()
         void onToggle(note)
       }}
@@ -556,9 +561,15 @@ export function WorkerNotes() {
             onPointerDownCapture={() => {
               noteAreaWasActiveRef.current = isWriting || editingNoteId !== null
             }}
-            onClick={() => {
+            onClick={(event) => {
               const wasActive = noteAreaWasActiveRef.current
               noteAreaWasActiveRef.current = false
+              if (
+                event.target instanceof HTMLElement &&
+                event.target.closest("button, input")
+              ) {
+                return
+              }
               if (!wasActive && !editingNoteId && !isWriting && !isAtLimit) {
                 setIsWriting(true)
               }
@@ -574,7 +585,7 @@ export function WorkerNotes() {
                   editingNoteId === note.id ? (
                     <li
                       key={note.id}
-                      className={cn(NOTE_ROW_CLASS, "group/note")}
+                      className={cn(NOTE_ROW_CLASS, "group/note relative pr-9")}
                     >
                       <span
                         className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
@@ -623,7 +634,7 @@ export function WorkerNotes() {
                       key={note.id}
                       className={cn(
                         NOTE_ROW_CLASS,
-                        "group/note transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 hover:bg-muted/60",
+                        "group/note relative pr-9 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 hover:bg-muted/60",
                         note.pinned && "font-medium"
                       )}
                     >
