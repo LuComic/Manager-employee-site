@@ -1,13 +1,6 @@
 "use client"
 
-import {
-  type FormEvent,
-  type KeyboardEvent,
-  useEffect,
-  useReducer,
-  useRef,
-  useState,
-} from "react"
+import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import { StickyNote, X } from "lucide-react"
@@ -25,15 +18,12 @@ import {
 import { cn } from "@/lib/utils"
 
 import {
-  initialWorkerNotesEditorState,
-  workerNotesEditorReducer,
-} from "./worker-notes-editor-state"
-import {
   ENTRY_BULLET_CLASS,
   NOTE_ROW_CLASS,
   NotePinButton,
   type WorkerNote,
 } from "./worker-note-row"
+import { useWorkerNotesEditor } from "./use-worker-notes-editor"
 import { useWorkerNotesWindow } from "./use-worker-notes-window"
 
 export function WorkerNotes() {
@@ -54,24 +44,11 @@ export function WorkerNotes() {
     moveWindow,
     stopDragging,
   } = useWorkerNotesWindow(activeHubId)
-  const [editor, dispatchEditor] = useReducer(
-    workerNotesEditorReducer,
-    initialWorkerNotesEditorState
-  )
   const [pendingNoteId, setPendingNoteId] = useState<Id<"workerNotes"> | null>(
     null
   )
   const [now, setNow] = useState(() => Date.now())
-  const inputRef = useRef<HTMLInputElement>(null)
-  const createSaveRef = useRef(false)
-  const closeAfterCreateRef = useRef(false)
-  const editInputRef = useRef<HTMLInputElement>(null)
-  const editSaveRef = useRef(false)
-  const editDestinationRef = useRef<WorkerNote | "new" | null>(null)
-  const cancelEditRef = useRef(false)
   const noteAreaWasActiveRef = useRef(false)
-  const isWriting = editor.mode === "creating"
-  const editingNoteId = editor.editingNoteId
   const isMemberView =
     isDesktop &&
     isAuthenticated &&
@@ -86,42 +63,29 @@ export function WorkerNotes() {
   const notes = notesResult?.notes
   const isAtLimit =
     notesResult !== undefined && notesResult.count >= notesResult.limit
-  const createNote = useMutation(api.workerNotes.create)
+  const {
+    editor,
+    isWriting,
+    editingNoteId,
+    inputRef,
+    editInputRef,
+    startCreating,
+    changeDraft,
+    submitNote,
+    saveNewNote,
+    finishEditing,
+    handleNewNoteKeyDown,
+    handleEditingKeyDown,
+    handleEditingBlur,
+    activateNote,
+  } = useWorkerNotesEditor({ hubId: hub?.id, notes })
   const setPinned = useMutation(api.workerNotes.setPinned)
-  const updateNoteText = useMutation(api.workerNotes.updateText)
 
   useEffect(() => {
     if (!isMemberView || !isOpen) return
     const interval = window.setInterval(() => setNow(Date.now()), 60_000)
     return () => window.clearInterval(interval)
   }, [isMemberView, isOpen])
-
-  useEffect(() => {
-    if (!isWriting) return
-    inputRef.current?.focus()
-  }, [isWriting])
-
-  useEffect(() => {
-    if (!editingNoteId) return
-    const input = editInputRef.current
-    if (!input) return
-    input.focus()
-    input.setSelectionRange(input.value.length, input.value.length)
-  }, [editingNoteId])
-
-  useEffect(() => {
-    if (
-      editor.mode !== "editing" ||
-      notes === undefined ||
-      notes.some((note) => note.id === editor.editingNoteId)
-    ) {
-      return
-    }
-    const timeout = window.setTimeout(() => {
-      dispatchEditor({ type: "noteDisappeared" })
-    }, 0)
-    return () => window.clearTimeout(timeout)
-  }, [editor.editingNoteId, editor.mode, notes])
 
   useEffect(() => {
     if (!isOpen) return
@@ -137,160 +101,6 @@ export function WorkerNotes() {
   if (!isMemberView || !hub) return null
   const hubId = hub.id
 
-  async function saveNewNote(closeAfterSave: boolean) {
-    if (closeAfterSave) closeAfterCreateRef.current = true
-    if (createSaveRef.current) return
-
-    const text = editor.draft.trim()
-    if (!text) {
-      if (closeAfterSave) {
-        dispatchEditor({ type: "finish", mode: "idle" })
-        closeAfterCreateRef.current = false
-      }
-      return
-    }
-
-    createSaveRef.current = true
-    dispatchEditor({ type: "setSaving", saving: true })
-    try {
-      await createNote({ hubId, text })
-      dispatchEditor({
-        type: "finish",
-        mode: closeAfterCreateRef.current ? "idle" : "creating",
-      })
-    } catch (error) {
-      toast.error(translateError(error))
-    } finally {
-      createSaveRef.current = false
-      closeAfterCreateRef.current = false
-      dispatchEditor({ type: "setSaving", saving: false })
-    }
-  }
-
-  function submitNote(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    void saveNewNote(false)
-  }
-
-  function beginEditing(note: WorkerNote) {
-    cancelEditRef.current = false
-    editDestinationRef.current = null
-    dispatchEditor({
-      type: "beginEditing",
-      noteId: note.id,
-      text: note.text,
-    })
-  }
-
-  async function finishEditing(openNewLine: boolean) {
-    if (!editingNoteId || editSaveRef.current) return
-    if (openNewLine) editDestinationRef.current = "new"
-    const noteId = editingNoteId
-    const text = editor.draft
-    const expectedText = editor.originalText
-    editSaveRef.current = true
-    dispatchEditor({ type: "setSaving", saving: true })
-    try {
-      await updateNoteText({ hubId, noteId, text, expectedText })
-      const destination = editDestinationRef.current
-      editDestinationRef.current = null
-      if (destination && destination !== "new") {
-        beginEditing(destination)
-      } else {
-        dispatchEditor({
-          type: "finish",
-          mode: destination === "new" ? "creating" : "idle",
-        })
-      }
-    } catch (error) {
-      editDestinationRef.current = null
-      toast.error(translateError(error))
-    } finally {
-      editSaveRef.current = false
-      dispatchEditor({ type: "setSaving", saving: false })
-    }
-  }
-
-  async function deleteEditingNoteAndMoveUp(note: WorkerNote) {
-    if (editSaveRef.current) return
-    const noteIndex = notes?.findIndex((item) => item.id === note.id) ?? -1
-    const previousNote =
-      noteIndex > 0 && notes ? notes[noteIndex - 1] : undefined
-    editSaveRef.current = true
-    dispatchEditor({ type: "setSaving", saving: true })
-    try {
-      await updateNoteText({
-        hubId,
-        noteId: note.id,
-        text: "",
-        expectedText: editor.originalText,
-      })
-      if (previousNote) {
-        beginEditing(previousNote)
-      } else {
-        dispatchEditor({ type: "finish", mode: "creating" })
-      }
-    } catch (error) {
-      toast.error(translateError(error))
-    } finally {
-      editSaveRef.current = false
-      dispatchEditor({ type: "setSaving", saving: false })
-    }
-  }
-
-  function handleNewNoteKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      dispatchEditor({ type: "finish", mode: "idle" })
-      return
-    }
-    if (
-      (event.key !== "Backspace" && event.key !== "ArrowUp") ||
-      editor.draft
-    ) {
-      return
-    }
-    const previousNote = notes ? notes[notes.length - 1] : undefined
-    if (!previousNote) return
-    event.preventDefault()
-    beginEditing(previousNote)
-  }
-
-  function handleEditingKeyDown(
-    event: KeyboardEvent<HTMLInputElement>,
-    note: WorkerNote
-  ) {
-    if (event.key === "Escape") {
-      cancelEditRef.current = true
-      editDestinationRef.current = null
-      dispatchEditor({ type: "finish", mode: "creating" })
-      return
-    }
-    if (event.key === "Enter") {
-      event.preventDefault()
-      void finishEditing(true)
-      return
-    }
-    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-      const noteIndex = notes?.findIndex((item) => item.id === note.id) ?? -1
-      const destination =
-        event.key === "ArrowUp"
-          ? noteIndex > 0 && notes
-            ? notes[noteIndex - 1]
-            : null
-          : notes && noteIndex >= 0 && noteIndex < notes.length - 1
-            ? notes[noteIndex + 1]
-            : "new"
-      if (!destination) return
-      event.preventDefault()
-      editDestinationRef.current = destination
-      void finishEditing(false)
-      return
-    }
-    if (event.key !== "Backspace" || editor.draft) return
-    event.preventDefault()
-    void deleteEditingNoteAndMoveUp(note)
-  }
-
   async function handleSetPinned(note: WorkerNote) {
     if (pendingNoteId) return
     setPendingNoteId(note.id)
@@ -305,15 +115,6 @@ export function WorkerNotes() {
     } finally {
       setPendingNoteId(null)
     }
-  }
-
-  function activateNote(note: WorkerNote) {
-    if (editInputRef.current) {
-      editDestinationRef.current = note
-      void finishEditing(false)
-      return
-    }
-    beginEditing(note)
   }
 
   return (
@@ -407,7 +208,7 @@ export function WorkerNotes() {
                 return
               }
               if (!wasActive && !editingNoteId && !isWriting && !isAtLimit) {
-                dispatchEditor({ type: "startCreating" })
+                startCreating()
               }
             }}
           >
@@ -442,21 +243,23 @@ export function WorkerNotes() {
                           readOnly={editor.saving}
                           aria-busy={editor.saving}
                           className="h-6 border-0! py-0 text-sm leading-6 focus-visible:border-0!"
-                          onChange={(event) =>
-                            dispatchEditor({
-                              type: "changeDraft",
-                              draft: event.target.value,
-                            })
-                          }
+                          onChange={(event) => changeDraft(event.target.value)}
                           onKeyDown={(event) =>
                             handleEditingKeyDown(event, note)
                           }
-                          onBlur={() => {
-                            if (!cancelEditRef.current) {
-                              void finishEditing(false)
-                            }
-                          }}
+                          onBlur={handleEditingBlur}
                         />
+                        {editor.conflictText && (
+                          <p
+                            className="mt-2 text-xs leading-5 text-destructive"
+                            role="alert"
+                          >
+                            {t("workerNoteChanged")}{" "}
+                            {t("workerNoteLatestText", {
+                              note: editor.conflictText,
+                            })}
+                          </p>
+                        )}
                       </form>
                       <NotePinButton
                         label={t(
@@ -521,12 +324,7 @@ export function WorkerNotes() {
                         readOnly={editor.saving}
                         aria-busy={editor.saving}
                         className="h-6 border-0! py-0 text-sm leading-6 focus-visible:border-0!"
-                        onChange={(event) =>
-                          dispatchEditor({
-                            type: "changeDraft",
-                            draft: event.target.value,
-                          })
-                        }
+                        onChange={(event) => changeDraft(event.target.value)}
                         onKeyDown={handleNewNoteKeyDown}
                         onBlur={() => void saveNewNote(true)}
                       />
@@ -540,7 +338,7 @@ export function WorkerNotes() {
                         NOTE_ROW_CLASS,
                         "text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
                       )}
-                      onClick={() => dispatchEditor({ type: "startCreating" })}
+                      onClick={startCreating}
                     >
                       <span
                         className={cn(

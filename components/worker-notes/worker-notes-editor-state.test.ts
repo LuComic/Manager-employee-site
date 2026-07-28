@@ -25,6 +25,8 @@ describe("worker notes editor state", () => {
       editingNoteId: null,
       originalText: "",
       saving: false,
+      conflictText: null,
+      revision: 2,
     })
   })
 
@@ -47,18 +49,48 @@ describe("worker notes editor state", () => {
     })
   })
 
-  test("clears edit identity when finishing", () => {
-    const editing = workerNotesEditorReducer(initialWorkerNotesEditorState, {
+  test("ignores a create completion after the user starts editing a note", () => {
+    const creating = workerNotesEditorReducer(initialWorkerNotesEditorState, {
+      type: "startCreating",
+    })
+    const editing = workerNotesEditorReducer(creating, {
       type: "beginEditing",
       noteId,
-      text: "Shared note",
+      text: "Existing note",
     })
 
     expect(
       workerNotesEditorReducer(editing, {
-        type: "finish",
+        type: "finishIfCurrent",
+        revision: creating.revision,
         mode: "idle",
       })
-    ).toEqual(initialWorkerNotesEditorState)
+    ).toEqual(editing)
+  })
+
+  test("preserves the draft and exposes the latest text after a conflict", () => {
+    const editing = workerNotesEditorReducer(initialWorkerNotesEditorState, {
+      type: "beginEditing",
+      noteId,
+      text: "Original text",
+    })
+    const changed = workerNotesEditorReducer(editing, {
+      type: "changeDraft",
+      draft: "My update",
+    })
+
+    expect(
+      workerNotesEditorReducer(changed, {
+        type: "reconcileConflict",
+        revision: changed.revision,
+        currentText: "Coworker update",
+      })
+    ).toMatchObject({
+      mode: "editing",
+      draft: "My update",
+      originalText: "Coworker update",
+      conflictText: "Coworker update",
+      saving: false,
+    })
   })
 })

@@ -676,6 +676,7 @@
     "unpinWorkerNote": "Vabasta märge: {note}",
     "workerNoteRequired": "Enne märkme lisamist kirjuta midagi",
     "workerNoteChanged": "Seda märget muudeti redigeerimise ajal. Vaata uusim tekst üle ja proovi uuesti.",
+    "workerNoteLatestText": "Uusim versioon: {note}",
     "workerNoteTooLong": "Töötaja märge võib olla kuni 500 tähemärki",
     "workerNoteLimitReached": "Selle töökoha 100 märkme limiit on täis. Uue märkme lisamiseks kustuta mõni olemasolev märge.",
     "training": "Koolitus",

@@ -676,6 +676,7 @@
     "unpinWorkerNote": "Unpin note: {note}",
     "workerNoteRequired": "Write something before adding the note",
     "workerNoteChanged": "This note changed while you were editing it. Review the latest text and try again.",
+    "workerNoteLatestText": "Latest version: {note}",
     "workerNoteTooLong": "A worker note can be up to 500 characters",
     "workerNoteLimitReached": "This workplace has reached its 100-note limit. Delete a note before adding another.",
     "training": "Training",

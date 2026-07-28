@@ -88,9 +88,11 @@ describe("worker notes", () => {
         pinned: false,
       },
     ])
-    expect(
-      await t.run(async (ctx) => await ctx.db.get("workerNotes", noteId))
-    ).not.toHaveProperty("createdBy")
+    const storedNote = await t.run(
+      async (ctx) => await ctx.db.get("workerNotes", noteId)
+    )
+    expect(storedNote).not.toHaveProperty("createdBy")
+    expect(storedNote).not.toHaveProperty("createdAt")
     await expect(
       t.withIdentity(outsiderIdentity).query(api.workerNotes.list, {
         hubId,
@@ -249,7 +251,7 @@ describe("worker notes", () => {
     expect(result.notes).toMatchObject([{ id: noteId, pinned: true }])
   })
 
-  test("rejects a stale edit instead of overwriting a newer change", async () => {
+  test("returns the latest text so a stale edit can be reconciled", async () => {
     const t = convexTest(schema, modules)
     const hubId = await createHubWithActiveMember(t)
     const member = t.withIdentity(memberIdentity)
@@ -272,14 +274,26 @@ describe("worker notes", () => {
         text: "Stale update",
         expectedText: "Original",
       })
-    ).rejects.toThrow("workerNoteChanged")
+    ).resolves.toEqual({
+      status: "conflict",
+      currentText: "Coworker update",
+    })
+
+    await expect(
+      member.mutation(api.workerNotes.updateText, {
+        hubId,
+        noteId,
+        text: "Reviewed update",
+        expectedText: "Coworker update",
+      })
+    ).resolves.toEqual({ status: "saved" })
 
     const result = await member.query(api.workerNotes.list, {
       hubId,
       now: Date.now(),
     })
     expect(result.notes).toMatchObject([
-      { id: noteId, text: "Coworker update" },
+      { id: noteId, text: "Reviewed update" },
     ])
   })
 
@@ -296,7 +310,6 @@ describe("worker notes", () => {
             hubId,
             text: `Note ${index + 1}`,
             pinned: false,
-            createdAt: now + index,
             expiresAt: now + 24 * 60 * 60 * 1000 + index,
           })
         )
@@ -338,7 +351,6 @@ describe("worker notes", () => {
           hubId,
           text: `Legacy note ${index + 1}`,
           pinned: false,
-          createdAt: now + index,
           expiresAt: now + 24 * 60 * 60 * 1000 + index,
         })
       }

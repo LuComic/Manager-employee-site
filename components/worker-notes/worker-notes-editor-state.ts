@@ -6,6 +6,8 @@ export type WorkerNotesEditorState = {
   editingNoteId: Id<"workerNotes"> | null
   originalText: string
   saving: boolean
+  conflictText: string | null
+  revision: number
 }
 
 export type WorkerNotesEditorAction =
@@ -16,8 +18,18 @@ export type WorkerNotesEditorAction =
       text: string
     }
   | { type: "changeDraft"; draft: string }
-  | { type: "setSaving"; saving: boolean }
+  | { type: "setSaving"; revision: number; saving: boolean }
   | { type: "finish"; mode: "idle" | "creating" }
+  | {
+      type: "finishIfCurrent"
+      revision: number
+      mode: "idle" | "creating"
+    }
+  | {
+      type: "reconcileConflict"
+      revision: number
+      currentText: string
+    }
   | { type: "noteDisappeared" }
 
 export const initialWorkerNotesEditorState: WorkerNotesEditorState = {
@@ -26,6 +38,23 @@ export const initialWorkerNotesEditorState: WorkerNotesEditorState = {
   editingNoteId: null,
   originalText: "",
   saving: false,
+  conflictText: null,
+  revision: 0,
+}
+
+function finish(
+  state: WorkerNotesEditorState,
+  mode: "idle" | "creating"
+): WorkerNotesEditorState {
+  return {
+    mode,
+    draft: "",
+    editingNoteId: null,
+    originalText: "",
+    saving: false,
+    conflictText: null,
+    revision: state.revision + 1,
+  }
 }
 
 export function workerNotesEditorReducer(
@@ -40,6 +69,8 @@ export function workerNotesEditorReducer(
         editingNoteId: null,
         originalText: "",
         saving: false,
+        conflictText: null,
+        revision: state.revision + 1,
       }
     case "beginEditing":
       return {
@@ -48,27 +79,32 @@ export function workerNotesEditorReducer(
         editingNoteId: action.noteId,
         originalText: action.text,
         saving: false,
+        conflictText: null,
+        revision: state.revision + 1,
       }
     case "changeDraft":
       return { ...state, draft: action.draft }
     case "setSaving":
+      if (state.revision !== action.revision) return state
       return { ...state, saving: action.saving }
     case "finish":
+      return finish(state, action.mode)
+    case "finishIfCurrent":
+      if (state.revision !== action.revision) return state
+      return finish(state, action.mode)
+    case "reconcileConflict":
+      if (state.mode !== "editing" || state.revision !== action.revision) {
+        return state
+      }
       return {
-        mode: action.mode,
-        draft: "",
-        editingNoteId: null,
-        originalText: "",
+        ...state,
+        originalText: action.currentText,
         saving: false,
+        conflictText: action.currentText,
+        revision: state.revision + 1,
       }
     case "noteDisappeared":
       if (state.mode !== "editing") return state
-      return {
-        mode: "creating",
-        draft: "",
-        editingNoteId: null,
-        originalText: "",
-        saving: false,
-      }
+      return finish(state, "creating")
   }
 }

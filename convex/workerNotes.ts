@@ -21,6 +21,15 @@ const workerNoteValidator = v.object({
   pinned: v.boolean(),
 })
 
+const updateTextResultValidator = v.union(
+  v.object({ status: v.literal("saved") }),
+  v.object({ status: v.literal("missing") }),
+  v.object({
+    status: v.literal("conflict"),
+    currentText: v.string(),
+  })
+)
+
 async function getVisibleNotes(ctx: QueryCtx, hubId: Id<"hubs">, now: number) {
   const candidateLimit = MAX_WORKER_NOTES + 1
   const [pinnedNotes, activeNotes] = await Promise.all([
@@ -41,15 +50,11 @@ async function getVisibleNotes(ctx: QueryCtx, hubId: Id<"hubs">, now: number) {
   ])
   const candidates = [...pinnedNotes, ...activeNotes]
   const notes = candidates
-    .sort(
-      (a, b) => b.createdAt - a.createdAt || b._creationTime - a._creationTime
-    )
+    .sort((a, b) => b._creationTime - a._creationTime)
     .slice(0, MAX_WORKER_NOTES)
     .sort(
       (a, b) =>
-        Number(b.pinned) - Number(a.pinned) ||
-        a.createdAt - b.createdAt ||
-        a._creationTime - b._creationTime
+        Number(b.pinned) - Number(a.pinned) || a._creationTime - b._creationTime
     )
 
   return {
@@ -119,16 +124,15 @@ export const create = mutation({
     if (!text) throw new Error("workerNoteRequired")
     if (text.length > MAX_NOTE_LENGTH) throw new Error("workerNoteTooLong")
 
-    const createdAt = Date.now()
-    if (await hasReachedNoteLimit(ctx, args.hubId, createdAt)) {
+    const now = Date.now()
+    if (await hasReachedNoteLimit(ctx, args.hubId, now)) {
       throw new Error("workerNoteLimitReached")
     }
-    const expiresAt = createdAt + NOTE_LIFETIME_MS
+    const expiresAt = now + NOTE_LIFETIME_MS
     const noteId = await ctx.db.insert("workerNotes", {
       hubId: args.hubId,
       text,
       pinned: false,
-      createdAt,
       expiresAt,
     })
     await ctx.scheduler.runAt(expiresAt, internal.workerNotes.deleteIfExpired, {
@@ -159,7 +163,6 @@ export const setPinned = mutation({
     if (note.pinned !== args.pinned) {
       await ctx.db.patch("workerNotes", note._id, {
         pinned: args.pinned,
-        createdBy: undefined,
       })
     }
     return null
@@ -173,31 +176,32 @@ export const updateText = mutation({
     text: v.string(),
     expectedText: v.string(),
   },
-  returns: v.null(),
+  returns: updateTextResultValidator,
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "viewer")
     const note = await ctx.db.get("workerNotes", args.noteId)
-    if (!note || note.hubId !== args.hubId) return null
+    if (!note || note.hubId !== args.hubId) {
+      return { status: "missing" } as const
+    }
 
     const text = args.text.trim()
     if (text.length > MAX_NOTE_LENGTH) throw new Error("workerNoteTooLong")
     if (!note.pinned && note.expiresAt <= Date.now()) {
       await ctx.db.delete("workerNotes", note._id)
-      return null
+      return { status: "missing" } as const
     }
     if (note.text !== args.expectedText) {
-      throw new Error("workerNoteChanged")
+      return { status: "conflict", currentText: note.text } as const
     }
     if (!text) {
       await ctx.db.delete("workerNotes", note._id)
-      return null
+      return { status: "saved" } as const
     }
 
     await ctx.db.patch("workerNotes", note._id, {
       text,
-      createdBy: undefined,
     })
-    return null
+    return { status: "saved" } as const
   },
 })
 
