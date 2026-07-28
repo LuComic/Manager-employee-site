@@ -635,7 +635,7 @@ export function WorkerNotes() {
                       className={cn(
                         NOTE_ROW_CLASS,
                         "group/note relative pr-9 transition-colors hover:bg-muted/60",
-                        note.pinned && "font-medium"
+                        note.pinned && "font-semibold"
                       )}
                     >
                       <button
