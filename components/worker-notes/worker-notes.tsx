@@ -10,7 +10,7 @@ import {
 } from "react"
 import { useSearchParams } from "next/navigation"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
-import { GripHorizontal, Pin, Plus, StickyNote, X } from "lucide-react"
+import { Pin, StickyNote, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useOperations } from "@/components/providers/operations-provider"
@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils"
 
 const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)"
 const WINDOW_EDGE_GAP = 16
+const WINDOW_WIDTH = 448
+const WINDOW_MAX_HEIGHT = 544
 
 type WorkerNote = {
   id: Id<"workerNotes">
@@ -44,6 +46,49 @@ type DragState = {
   pointerId: number
   offsetX: number
   offsetY: number
+}
+
+type StoredWindowPreferences = {
+  isOpen: boolean
+  position: WindowPosition | null
+}
+
+function preferencesKey(hubId: string) {
+  return `workhal:worker-notes:${hubId}`
+}
+
+function readWindowPreferences(hubId: string): StoredWindowPreferences {
+  const fallback = { isOpen: false, position: null }
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem(preferencesKey(hubId)) ?? "null"
+    ) as {
+      isOpen?: unknown
+      position?: { x?: unknown; y?: unknown } | null
+    } | null
+    const position =
+      stored?.position &&
+      typeof stored.position.x === "number" &&
+      Number.isFinite(stored.position.x) &&
+      typeof stored.position.y === "number" &&
+      Number.isFinite(stored.position.y)
+        ? clampWindowPosition(
+            stored.position.x,
+            stored.position.y,
+            WINDOW_WIDTH,
+            Math.min(
+              WINDOW_MAX_HEIGHT,
+              window.innerHeight - WINDOW_EDGE_GAP * 2
+            )
+          )
+        : null
+    return {
+      isOpen: stored?.isOpen === true,
+      position,
+    }
+  } catch {
+    return fallback
+  }
 }
 
 function clampWindowPosition(
@@ -80,11 +125,17 @@ export function WorkerNotes() {
   )
   const [position, setPosition] = useState<WindowPosition | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [restoredHubId, setRestoredHubId] = useState<string | null>(null)
   const windowRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef<DragState | null>(null)
+  const activeHubId = hub?.id
   const isMemberView =
-    isDesktop && isAuthenticated && !searchParams.get("hub") && Boolean(hub)
+    isDesktop &&
+    isAuthenticated &&
+    !searchParams.get("hub") &&
+    Boolean(activeHubId) &&
+    restoredHubId === activeHubId
 
   const notes = useQuery(
     api.workerNotes.list,
@@ -97,7 +148,6 @@ export function WorkerNotes() {
     const desktop = window.matchMedia(DESKTOP_MEDIA_QUERY)
     const updateDesktop = () => {
       setIsDesktop(desktop.matches)
-      if (!desktop.matches) setIsOpen(false)
     }
     updateDesktop()
     desktop.addEventListener("change", updateDesktop)
@@ -108,6 +158,25 @@ export function WorkerNotes() {
     const interval = window.setInterval(() => setNow(Date.now()), 60_000)
     return () => window.clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (!activeHubId) return
+    const preferences = readWindowPreferences(activeHubId)
+    const timeout = window.setTimeout(() => {
+      setIsOpen(preferences.isOpen)
+      setPosition(preferences.position)
+      setRestoredHubId(activeHubId)
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [activeHubId])
+
+  useEffect(() => {
+    if (!activeHubId || restoredHubId !== activeHubId) return
+    localStorage.setItem(
+      preferencesKey(activeHubId),
+      JSON.stringify({ isOpen, position } satisfies StoredWindowPreferences)
+    )
+  }, [activeHubId, isOpen, position, restoredHubId])
 
   useEffect(() => {
     if (!isWriting) return
@@ -180,7 +249,6 @@ export function WorkerNotes() {
     try {
       await createNote({ hubId, text })
       setNoteText("")
-      setIsWriting(false)
     } catch (error) {
       toast.error(translateError(error))
     } finally {
@@ -239,25 +307,19 @@ export function WorkerNotes() {
           }
         >
           <div
-            className="flex touch-none items-start gap-4 border-b bg-muted/40 px-6 py-4 select-none"
+            className="flex cursor-move touch-none items-start gap-4 border-b bg-muted/40 px-6 py-4 select-none"
             onPointerDown={startDragging}
             onPointerMove={moveWindow}
             onPointerUp={stopDragging}
             onPointerCancel={stopDragging}
           >
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <GripHorizontal
-                  className="size-4 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <h2
-                  id="worker-notes-title"
-                  className="font-heading text-xl font-semibold"
-                >
-                  {t("workersNotes")}
-                </h2>
-              </div>
+              <h2
+                id="worker-notes-title"
+                className="font-heading text-xl font-semibold"
+              >
+                {t("workersNotes")}
+              </h2>
               <p className="mt-2 text-sm leading-5 text-muted-foreground">
                 {t("workersNotesDescription")}
               </p>
@@ -318,15 +380,10 @@ export function WorkerNotes() {
                     </button>
                   </li>
                 ))}
-                {!notes.length && !isWriting && (
-                  <li className="px-2 py-2 text-sm text-muted-foreground">
-                    {t("workersNotesEmpty")}
-                  </li>
-                )}
-                {isWriting && (
+                {isWriting ? (
                   <li className="flex items-start gap-3 px-2 py-2">
                     <span
-                      className="mt-4 size-1.5 shrink-0 rounded-full bg-foreground"
+                      className="mt-3 size-1.5 shrink-0 rounded-full bg-foreground"
                       aria-hidden="true"
                     />
                     <form className="min-w-0 flex-1" onSubmit={submitNote}>
@@ -336,7 +393,9 @@ export function WorkerNotes() {
                         maxLength={500}
                         placeholder={t("workerNotePlaceholder")}
                         aria-label={t("workerNotePlaceholder")}
-                        disabled={isSubmitting}
+                        readOnly={isSubmitting}
+                        aria-busy={isSubmitting}
+                        className="h-6 border-transparent py-0 text-sm focus-visible:border-transparent"
                         onChange={(event) => setNoteText(event.target.value)}
                         onKeyDown={(event) => {
                           if (event.key !== "Escape") return
@@ -347,29 +406,26 @@ export function WorkerNotes() {
                           if (!noteText.trim()) setIsWriting(false)
                         }}
                       />
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {t("workerNoteSubmitHint")}
-                      </p>
                     </form>
+                  </li>
+                ) : (
+                  <li>
+                    <button
+                      type="button"
+                      className="flex w-full items-start gap-3 border border-transparent px-2 py-2 text-left text-sm leading-6 text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                      onClick={() => setIsWriting(true)}
+                    >
+                      <span
+                        className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <span>{t("clickToWriteMore")}</span>
+                    </button>
                   </li>
                 )}
               </ul>
             )}
           </div>
-
-          {!isWriting && (
-            <div className="border-t px-6 py-4">
-              <Button
-                type="button"
-                variant="ghost"
-                className="px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
-                onClick={() => setIsWriting(true)}
-              >
-                <Plus />
-                {t("clickToWriteMore")}
-              </Button>
-            </div>
-          )}
         </div>
       )}
     </>
