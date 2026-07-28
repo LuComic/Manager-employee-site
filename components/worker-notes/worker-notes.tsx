@@ -28,6 +28,9 @@ const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)"
 const WINDOW_EDGE_GAP = 16
 const WINDOW_WIDTH = 448
 const WINDOW_MAX_HEIGHT = 544
+const ENTRY_ROW_CLASS =
+  "flex w-full items-start gap-3 border border-transparent px-2 py-2 text-left text-sm leading-6"
+const ENTRY_BULLET_CLASS = "mt-2 size-1.5 shrink-0 rounded-full"
 
 type WorkerNote = {
   id: Id<"workerNotes">
@@ -384,9 +387,9 @@ export function WorkerNotes() {
                   </li>
                 ))}
                 {isWriting ? (
-                  <li className="flex items-start gap-3 px-2 py-2">
+                  <li className={ENTRY_ROW_CLASS}>
                     <span
-                      className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
+                      className={cn(ENTRY_BULLET_CLASS, "bg-foreground")}
                       aria-hidden="true"
                     />
                     <form className="min-w-0 flex-1" onSubmit={submitNote}>
@@ -398,7 +401,7 @@ export function WorkerNotes() {
                         aria-label={t("workerNotePlaceholder")}
                         readOnly={isSubmitting}
                         aria-busy={isSubmitting}
-                        className="h-6 border-transparent py-0 text-sm focus-visible:border-transparent"
+                        className="h-6 border-0 py-0 text-sm leading-6 focus-visible:border-0"
                         onChange={(event) => setNoteText(event.target.value)}
                         onKeyDown={(event) => {
                           if (event.key !== "Escape") return
@@ -415,11 +418,17 @@ export function WorkerNotes() {
                   <li>
                     <button
                       type="button"
-                      className="flex w-full items-start gap-3 border border-transparent px-2 py-2 text-left text-sm leading-6 text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                      className={cn(
+                        ENTRY_ROW_CLASS,
+                        "text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                      )}
                       onClick={() => setIsWriting(true)}
                     >
                       <span
-                        className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground"
+                        className={cn(
+                          ENTRY_BULLET_CLASS,
+                          "bg-muted-foreground"
+                        )}
                         aria-hidden="true"
                       />
                       <span>{t("clickToWriteMore")}</span>
