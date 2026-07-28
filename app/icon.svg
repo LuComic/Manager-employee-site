@@ -2,8 +2,10 @@
   xmlns="http://www.w3.org/2000/svg"
   width="96"
   height="96"
-  viewBox="377 282 900 900"
+  viewBox="377 184 900 900"
 >
+  <path d="M 537 567 L 827 250 L 1116 567 Z" fill="#000000" />
+
   <path
     d="M 425 445
        L 414 445
