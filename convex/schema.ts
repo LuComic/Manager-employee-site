@@ -298,7 +298,8 @@ export default defineSchema({
     hubId: v.id("hubs"),
     text: v.string(),
     pinned: v.boolean(),
-    createdBy: v.string(),
+    // Transitional: notes created by earlier PR revisions may retain this field.
+    createdBy: v.optional(v.string()),
     createdAt: v.number(),
     expiresAt: v.number(),
   }).index("by_hubId_and_pinned_and_expiresAt", [

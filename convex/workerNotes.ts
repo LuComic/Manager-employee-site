@@ -9,7 +9,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server"
-import { requireHubPermission, requireIdentity } from "./lib/access"
+import { requireHubPermission } from "./lib/access"
 
 const NOTE_LIFETIME_MS = 24 * 60 * 60 * 1000
 const MAX_NOTE_LENGTH = 500
@@ -115,7 +115,6 @@ export const create = mutation({
   returns: v.id("workerNotes"),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "viewer")
-    const identity = await requireIdentity(ctx)
     const text = args.text.trim()
     if (!text) throw new Error("workerNoteRequired")
     if (text.length > MAX_NOTE_LENGTH) throw new Error("workerNoteTooLong")
@@ -129,7 +128,6 @@ export const create = mutation({
       hubId: args.hubId,
       text,
       pinned: false,
-      createdBy: identity.tokenIdentifier,
       createdAt,
       expiresAt,
     })
@@ -140,10 +138,11 @@ export const create = mutation({
   },
 })
 
-export const togglePinned = mutation({
+export const setPinned = mutation({
   args: {
     hubId: v.id("hubs"),
     noteId: v.id("workerNotes"),
+    pinned: v.boolean(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -151,14 +150,18 @@ export const togglePinned = mutation({
     const note = await ctx.db.get("workerNotes", args.noteId)
     if (!note || note.hubId !== args.hubId) return null
 
-    if (note.pinned && note.expiresAt <= Date.now()) {
+    const expired = note.expiresAt <= Date.now()
+    if (expired && (!note.pinned || !args.pinned)) {
       await ctx.db.delete("workerNotes", note._id)
       return null
     }
 
-    await ctx.db.patch("workerNotes", note._id, {
-      pinned: !note.pinned,
-    })
+    if (note.pinned !== args.pinned) {
+      await ctx.db.patch("workerNotes", note._id, {
+        pinned: args.pinned,
+        createdBy: undefined,
+      })
+    }
     return null
   },
 })
@@ -168,6 +171,7 @@ export const updateText = mutation({
     hubId: v.id("hubs"),
     noteId: v.id("workerNotes"),
     text: v.string(),
+    expectedText: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -177,12 +181,22 @@ export const updateText = mutation({
 
     const text = args.text.trim()
     if (text.length > MAX_NOTE_LENGTH) throw new Error("workerNoteTooLong")
+    if (!note.pinned && note.expiresAt <= Date.now()) {
+      await ctx.db.delete("workerNotes", note._id)
+      return null
+    }
+    if (note.text !== args.expectedText) {
+      throw new Error("workerNoteChanged")
+    }
     if (!text) {
       await ctx.db.delete("workerNotes", note._id)
       return null
     }
 
-    await ctx.db.patch("workerNotes", note._id, { text })
+    await ctx.db.patch("workerNotes", note._id, {
+      text,
+      createdBy: undefined,
+    })
     return null
   },
 })
