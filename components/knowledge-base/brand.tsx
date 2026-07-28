@@ -21,7 +21,7 @@ export function Brand({
   const { hub, hubSlug, isManagerRoute } = useOperations()
   const content = (
     <>
-      <BrandMark className="size-10 bg-primary-foreground" />
+      <BrandMark className="size-10" />
       {compact && <span className="sr-only">{SITE_NAME}</span>}
       {!compact && (
         <span>

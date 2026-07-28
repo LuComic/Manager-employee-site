@@ -233,9 +233,7 @@ export function HubEntryScreen({
         <div className="grid w-full overflow-hidden border bg-background shadow-sm lg:grid-cols-[1.05fr_0.95fr]">
           <section className="flex flex-col justify-between bg-primary p-6 text-primary-foreground sm:p-8">
             <div>
-              <span className="flex size-10 items-center justify-center bg-primary-foreground">
-                <BrandMark className="size-10" />
-              </span>
+              <BrandMark className="size-10" />
               <p className="mt-4 text-sm font-medium text-primary-foreground/75">
                 {SITE_NAME}
               </p>
