@@ -1,13 +1,14 @@
 /// <reference types="vite/client" />
 
-import { afterEach, describe, expect, test, vi } from "vitest"
 import { convexTest } from "convex-test"
+import { afterEach, describe, expect, test, vi } from "vitest"
 
-import { api } from "./_generated/api"
+import { api, internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import schema from "./schema"
 
 const modules = import.meta.glob("./**/*.ts")
+const DAY_MS = 24 * 60 * 60 * 1000
 const memberIdentity = {
   subject: "employee-a",
   issuer: "https://clerk.example.test",
@@ -64,303 +65,175 @@ afterEach(() => {
 })
 
 describe("worker notes", () => {
-  test("lets every active employee share notes within their workplace", async () => {
+  test("clears temporary lines after 24 hours and keeps ! lines", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-07-28T12:00:00.000Z"))
+    const t = convexTest(schema, modules)
+    const hubId = await createHubWithActiveMember(t)
+    const member = t.withIdentity(memberIdentity)
+    const text = [
+      "i am some temporary text",
+      "! i will stay here",
+      "some temp",
+      "more more temp",
+    ].join("\n")
+
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text,
+      expectedText: "",
+    })
+    await expect(
+      member.query(api.workerNotes.get, { hubId, now: Date.now() })
+    ).resolves.toBe(text)
+
+    vi.advanceTimersByTime(DAY_MS + 1)
+    await expect(
+      member.query(api.workerNotes.get, { hubId, now: Date.now() })
+    ).resolves.toBe("! i will stay here")
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+
+    const storedNotes = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("workerNotes")
+        .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+        .unique()
+    })
+    expect(storedNotes).toMatchObject({ text: "! i will stay here" })
+    expect(storedNotes).not.toHaveProperty("temporaryExpiresAt")
+  })
+
+  test("does not expire text when every non-empty line starts with !", async () => {
     const t = convexTest(schema, modules)
     const hubId = await createHubWithActiveMember(t)
     const member = t.withIdentity(memberIdentity)
 
-    const noteId = await member.mutation(api.workerNotes.create, {
+    await member.mutation(api.workerNotes.save, {
       hubId,
-      text: "  Restock the front desk  ",
+      text: "! Permanent one\n\n! Permanent two",
+      expectedText: "",
     })
-    const result = await t
-      .withIdentity(ownerIdentity)
-      .query(api.workerNotes.list, {
-        hubId,
-        now: Date.now(),
-      })
 
-    expect(result).toMatchObject({ count: 1, limit: 100 })
-    expect(result.notes).toMatchObject([
-      {
-        id: noteId,
-        text: "Restock the front desk",
-        pinned: false,
-      },
-    ])
-    const storedNote = await t.run(
-      async (ctx) => await ctx.db.get("workerNotes", noteId)
-    )
-    expect(storedNote).not.toHaveProperty("createdBy")
-    expect(storedNote).not.toHaveProperty("createdAt")
+    const storedNotes = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("workerNotes")
+        .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+        .unique()
+    })
+    expect(storedNotes).not.toHaveProperty("temporaryExpiresAt")
+  })
+
+  test("ignores an old cleanup after a later edit resets the clock", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-07-28T12:00:00.000Z"))
+    const t = convexTest(schema, modules)
+    const hubId = await createHubWithActiveMember(t)
+    const member = t.withIdentity(memberIdentity)
+
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text: "Temporary",
+      expectedText: "",
+    })
+    const firstVersion = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("workerNotes")
+        .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+        .unique()
+    })
+    expect(firstVersion?.temporaryExpiresAt).toBeDefined()
+
+    vi.advanceTimersByTime(DAY_MS - 1_000)
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text: "Temporary, edited",
+      expectedText: "Temporary",
+    })
+    await t.mutation(internal.workerNotes.clearTemporaryLines, {
+      noteId: firstVersion!._id,
+      temporaryExpiresAt: firstVersion!.temporaryExpiresAt!,
+    })
+
     await expect(
-      t.withIdentity(outsiderIdentity).query(api.workerNotes.list, {
+      member.query(api.workerNotes.get, { hubId, now: Date.now() })
+    ).resolves.toBe("Temporary, edited")
+  })
+
+  test("keeps notes scoped to their workplace", async () => {
+    const t = convexTest(schema, modules)
+    const hubId = await createHubWithActiveMember(t)
+    const outsider = t.withIdentity(outsiderIdentity)
+
+    await expect(
+      outsider.query(api.workerNotes.get, { hubId, now: Date.now() })
+    ).rejects.toThrow("unauthorized")
+    await expect(
+      outsider.mutation(api.workerNotes.save, {
         hubId,
-        now: Date.now(),
+        text: "Not allowed",
+        expectedText: "",
       })
     ).rejects.toThrow("unauthorized")
   })
 
-  test("lets employees edit and delete shared notes", async () => {
+  test("rejects a stale save instead of overwriting another worker", async () => {
     const t = convexTest(schema, modules)
     const hubId = await createHubWithActiveMember(t)
     const member = t.withIdentity(memberIdentity)
     const owner = t.withIdentity(ownerIdentity)
-    const noteId = await member.mutation(api.workerNotes.create, {
-      hubId,
-      text: "Original note",
-    })
 
-    await owner.mutation(api.workerNotes.updateText, {
+    await member.mutation(api.workerNotes.save, {
       hubId,
-      noteId,
-      text: "  Updated together  ",
-      expectedText: "Original note",
-    })
-    const updated = await member.query(api.workerNotes.list, {
-      hubId,
-      now: Date.now(),
-    })
-    expect(updated.notes).toMatchObject([
-      { id: noteId, text: "Updated together" },
-    ])
-
-    await member.mutation(api.workerNotes.updateText, {
-      hubId,
-      noteId,
-      text: "",
-      expectedText: "Updated together",
-    })
-    const afterDelete = await owner.query(api.workerNotes.list, {
-      hubId,
-      now: Date.now(),
-    })
-    expect(afterDelete.notes).toEqual([])
-    expect(afterDelete.count).toBe(0)
-  })
-
-  test("keeps pinned notes and deletes them when unpinned after 24 hours", async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date("2026-07-28T12:00:00.000Z"))
-    const t = convexTest(schema, modules)
-    const hubId = await createHubWithActiveMember(t)
-    const member = t.withIdentity(memberIdentity)
-    const noteId = await member.mutation(api.workerNotes.create, {
-      hubId,
-      text: "Permanent until unpinned",
-    })
-    await member.mutation(api.workerNotes.setPinned, {
-      hubId,
-      noteId,
-      pinned: true,
-    })
-
-    vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1)
-    await t.finishAllScheduledFunctions(vi.runAllTimers)
-    const whilePinned = await member.query(api.workerNotes.list, {
-      hubId,
-      now: Date.now(),
-    })
-    expect(whilePinned.notes).toHaveLength(1)
-
-    await member.mutation(api.workerNotes.setPinned, {
-      hubId,
-      noteId,
-      pinned: false,
-    })
-    const afterUnpin = await member.query(api.workerNotes.list, {
-      hubId,
-      now: Date.now(),
-    })
-    expect(afterUnpin.notes).toEqual([])
-  })
-
-  test("permanently deletes an unpinned note after 24 hours", async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date("2026-07-28T12:00:00.000Z"))
-    const t = convexTest(schema, modules)
-    const hubId = await createHubWithActiveMember(t)
-    const member = t.withIdentity(memberIdentity)
-    await member.mutation(api.workerNotes.create, {
-      hubId,
-      text: "Temporary note",
-    })
-
-    vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1)
-    await t.finishAllScheduledFunctions(vi.runAllTimers)
-
-    const afterExpiry = await member.query(api.workerNotes.list, {
-      hubId,
-      now: Date.now(),
-    })
-    expect(afterExpiry.notes).toEqual([])
-    expect(
-      await t.run(async (ctx) => {
-        return await ctx.db.query("workerNotes").take(10)
-      })
-    ).toEqual([])
-  })
-
-  test("does not revive an expired unpinned note before cleanup runs", async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date("2026-07-28T12:00:00.000Z"))
-    const t = convexTest(schema, modules)
-    const hubId = await createHubWithActiveMember(t)
-    const member = t.withIdentity(memberIdentity)
-    const noteId = await member.mutation(api.workerNotes.create, {
-      hubId,
-      text: "Already expired",
-    })
-
-    vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1)
-    await member.mutation(api.workerNotes.setPinned, {
-      hubId,
-      noteId,
-      pinned: true,
-    })
-
-    expect(
-      await t.run(async (ctx) => await ctx.db.get("workerNotes", noteId))
-    ).toBeNull()
-  })
-
-  test("setting a pin state repeatedly is idempotent", async () => {
-    const t = convexTest(schema, modules)
-    const hubId = await createHubWithActiveMember(t)
-    const member = t.withIdentity(memberIdentity)
-    const noteId = await member.mutation(api.workerNotes.create, {
-      hubId,
-      text: "Pin this once",
-    })
-
-    await member.mutation(api.workerNotes.setPinned, {
-      hubId,
-      noteId,
-      pinned: true,
-    })
-    await member.mutation(api.workerNotes.setPinned, {
-      hubId,
-      noteId,
-      pinned: true,
-    })
-
-    const result = await member.query(api.workerNotes.list, {
-      hubId,
-      now: Date.now(),
-    })
-    expect(result.notes).toMatchObject([{ id: noteId, pinned: true }])
-  })
-
-  test("returns the latest text so a stale edit can be reconciled", async () => {
-    const t = convexTest(schema, modules)
-    const hubId = await createHubWithActiveMember(t)
-    const member = t.withIdentity(memberIdentity)
-    const owner = t.withIdentity(ownerIdentity)
-    const noteId = await member.mutation(api.workerNotes.create, {
-      hubId,
-      text: "Original",
-    })
-
-    await owner.mutation(api.workerNotes.updateText, {
-      hubId,
-      noteId,
-      text: "Coworker update",
-      expectedText: "Original",
+      text: "Member update",
+      expectedText: "",
     })
     await expect(
-      member.mutation(api.workerNotes.updateText, {
+      owner.mutation(api.workerNotes.save, {
         hubId,
-        noteId,
-        text: "Stale update",
-        expectedText: "Original",
+        text: "Stale owner update",
+        expectedText: "",
       })
     ).resolves.toEqual({
       status: "conflict",
-      currentText: "Coworker update",
+      currentText: "Member update",
     })
+    await expect(
+      owner.query(api.workerNotes.get, { hubId, now: Date.now() })
+    ).resolves.toBe("Member update")
 
     await expect(
-      member.mutation(api.workerNotes.updateText, {
+      owner.mutation(api.workerNotes.save, {
         hubId,
-        noteId,
-        text: "Reviewed update",
-        expectedText: "Coworker update",
+        text: "Reviewed owner update",
+        expectedText: "Member update",
       })
     ).resolves.toEqual({ status: "saved" })
-
-    const result = await member.query(api.workerNotes.list, {
-      hubId,
-      now: Date.now(),
-    })
-    expect(result.notes).toMatchObject([
-      { id: noteId, text: "Reviewed update" },
-    ])
   })
 
-  test("enforces the workplace note limit and frees a slot after deletion", async () => {
+  test("clears blank notes and rejects oversized text", async () => {
     const t = convexTest(schema, modules)
     const hubId = await createHubWithActiveMember(t)
     const member = t.withIdentity(memberIdentity)
-    const now = Date.now()
-    const noteIds = await t.run(async (ctx) => {
-      const ids: Id<"workerNotes">[] = []
-      for (let index = 0; index < 100; index += 1) {
-        ids.push(
-          await ctx.db.insert("workerNotes", {
-            hubId,
-            text: `Note ${index + 1}`,
-            pinned: false,
-            expiresAt: now + 24 * 60 * 60 * 1000 + index,
-          })
-        )
-      }
-      return ids
-    })
 
-    const atLimit = await member.query(api.workerNotes.list, { hubId, now })
-    expect(atLimit).toMatchObject({ count: 100, limit: 100 })
-    await expect(
-      member.mutation(api.workerNotes.create, {
-        hubId,
-        text: "One note too many",
-      })
-    ).rejects.toThrow("workerNoteLimitReached")
-
-    await member.mutation(api.workerNotes.updateText, {
+    await member.mutation(api.workerNotes.save, {
       hubId,
-      noteId: noteIds[0],
-      text: "",
-      expectedText: "Note 1",
+      text: "Temporary",
+      expectedText: "",
+    })
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text: "   ",
+      expectedText: "Temporary",
     })
     await expect(
-      member.mutation(api.workerNotes.create, {
+      member.query(api.workerNotes.get, { hubId, now: Date.now() })
+    ).resolves.toBe("")
+    await expect(
+      member.mutation(api.workerNotes.save, {
         hubId,
-        text: "The freed slot",
+        text: "x".repeat(10_001),
+        expectedText: "",
       })
-    ).resolves.toBeDefined()
-  })
-
-  test("keeps the newest notes visible if legacy data exceeds the limit", async () => {
-    const t = convexTest(schema, modules)
-    const hubId = await createHubWithActiveMember(t)
-    const member = t.withIdentity(memberIdentity)
-    const now = Date.now()
-    await t.run(async (ctx) => {
-      for (let index = 0; index < 101; index += 1) {
-        await ctx.db.insert("workerNotes", {
-          hubId,
-          text: `Legacy note ${index + 1}`,
-          pinned: false,
-          expiresAt: now + 24 * 60 * 60 * 1000 + index,
-        })
-      }
-    })
-
-    const result = await member.query(api.workerNotes.list, { hubId, now })
-
-    expect(result).toMatchObject({ count: 100, limit: 100 })
-    expect(result.notes).toHaveLength(100)
-    expect(result.notes[0]?.text).toBe("Legacy note 2")
-    expect(result.notes.at(-1)?.text).toBe("Legacy note 101")
+    ).rejects.toThrow("workerNoteTooLong")
   })
 })

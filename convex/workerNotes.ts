@@ -11,209 +11,137 @@ import {
 } from "./_generated/server"
 import { requireHubPermission } from "./lib/access"
 
-const NOTE_LIFETIME_MS = 24 * 60 * 60 * 1000
-const MAX_NOTE_LENGTH = 500
-const MAX_WORKER_NOTES = 100
+const TEMPORARY_NOTES_LIFETIME_MS = 24 * 60 * 60 * 1000
+const MAX_NOTES_LENGTH = 10_000
 
-const workerNoteValidator = v.object({
-  id: v.id("workerNotes"),
-  text: v.string(),
-  pinned: v.boolean(),
-})
-
-const updateTextResultValidator = v.union(
+const saveResultValidator = v.union(
   v.object({ status: v.literal("saved") }),
-  v.object({ status: v.literal("missing") }),
   v.object({
     status: v.literal("conflict"),
     currentText: v.string(),
   })
 )
 
-async function getVisibleNotes(ctx: QueryCtx, hubId: Id<"hubs">, now: number) {
-  const candidateLimit = MAX_WORKER_NOTES + 1
-  const [pinnedNotes, activeNotes] = await Promise.all([
-    ctx.db
-      .query("workerNotes")
-      .withIndex("by_hubId_and_pinned_and_expiresAt", (q) =>
-        q.eq("hubId", hubId).eq("pinned", true)
-      )
-      .order("desc")
-      .take(candidateLimit),
-    ctx.db
-      .query("workerNotes")
-      .withIndex("by_hubId_and_pinned_and_expiresAt", (q) =>
-        q.eq("hubId", hubId).eq("pinned", false).gte("expiresAt", now)
-      )
-      .order("desc")
-      .take(candidateLimit),
-  ])
-  const candidates = [...pinnedNotes, ...activeNotes]
-  const notes = candidates
-    .sort((a, b) => b._creationTime - a._creationTime)
-    .slice(0, MAX_WORKER_NOTES)
-    .sort(
-      (a, b) =>
-        Number(b.pinned) - Number(a.pinned) || a._creationTime - b._creationTime
-    )
-
-  return {
-    notes,
-    count: Math.min(candidates.length, MAX_WORKER_NOTES),
-  }
+function persistentLines(text: string) {
+  return text
+    .split("\n")
+    .filter((line) => line.startsWith("!"))
+    .join("\n")
 }
 
-async function hasReachedNoteLimit(
-  ctx: MutationCtx,
-  hubId: Id<"hubs">,
+function hasTemporaryLines(text: string) {
+  return text.split("\n").some((line) => line.trim() && !line.startsWith("!"))
+}
+
+async function getHubNotes(ctx: QueryCtx | MutationCtx, hubId: Id<"hubs">) {
+  return await ctx.db
+    .query("workerNotes")
+    .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+    .unique()
+}
+
+function visibleText(
+  notes: Awaited<ReturnType<typeof getHubNotes>>,
   now: number
 ) {
-  const pinnedNotes = await ctx.db
-    .query("workerNotes")
-    .withIndex("by_hubId_and_pinned_and_expiresAt", (q) =>
-      q.eq("hubId", hubId).eq("pinned", true)
-    )
-    .take(MAX_WORKER_NOTES)
-  if (pinnedNotes.length >= MAX_WORKER_NOTES) return true
-
-  const remainingSlots = MAX_WORKER_NOTES - pinnedNotes.length
-  const activeNotes = await ctx.db
-    .query("workerNotes")
-    .withIndex("by_hubId_and_pinned_and_expiresAt", (q) =>
-      q.eq("hubId", hubId).eq("pinned", false).gte("expiresAt", now)
-    )
-    .take(remainingSlots)
-  return activeNotes.length >= remainingSlots
+  if (!notes) return ""
+  if (
+    notes.temporaryExpiresAt !== undefined &&
+    notes.temporaryExpiresAt <= now
+  ) {
+    return persistentLines(notes.text)
+  }
+  return notes.text
 }
 
-export const list = query({
+export const get = query({
   args: {
     hubId: v.id("hubs"),
     now: v.number(),
   },
-  returns: v.object({
-    notes: v.array(workerNoteValidator),
-    count: v.number(),
-    limit: v.number(),
-  }),
+  returns: v.string(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "viewer")
-    const result = await getVisibleNotes(ctx, args.hubId, args.now)
-
-    return {
-      notes: result.notes.map((note) => ({
-        id: note._id,
-        text: note.text,
-        pinned: note.pinned,
-      })),
-      count: result.count,
-      limit: MAX_WORKER_NOTES,
-    }
+    const notes = await getHubNotes(ctx, args.hubId)
+    return visibleText(notes, args.now)
   },
 })
 
-export const create = mutation({
+export const save = mutation({
   args: {
     hubId: v.id("hubs"),
-    text: v.string(),
-  },
-  returns: v.id("workerNotes"),
-  handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "viewer")
-    const text = args.text.trim()
-    if (!text) throw new Error("workerNoteRequired")
-    if (text.length > MAX_NOTE_LENGTH) throw new Error("workerNoteTooLong")
-
-    const now = Date.now()
-    if (await hasReachedNoteLimit(ctx, args.hubId, now)) {
-      throw new Error("workerNoteLimitReached")
-    }
-    const expiresAt = now + NOTE_LIFETIME_MS
-    const noteId = await ctx.db.insert("workerNotes", {
-      hubId: args.hubId,
-      text,
-      pinned: false,
-      expiresAt,
-    })
-    await ctx.scheduler.runAt(expiresAt, internal.workerNotes.deleteIfExpired, {
-      noteId,
-    })
-    return noteId
-  },
-})
-
-export const setPinned = mutation({
-  args: {
-    hubId: v.id("hubs"),
-    noteId: v.id("workerNotes"),
-    pinned: v.boolean(),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "viewer")
-    const note = await ctx.db.get("workerNotes", args.noteId)
-    if (!note || note.hubId !== args.hubId) return null
-
-    const expired = note.expiresAt <= Date.now()
-    if (expired && (!note.pinned || !args.pinned)) {
-      await ctx.db.delete("workerNotes", note._id)
-      return null
-    }
-
-    if (note.pinned !== args.pinned) {
-      await ctx.db.patch("workerNotes", note._id, {
-        pinned: args.pinned,
-      })
-    }
-    return null
-  },
-})
-
-export const updateText = mutation({
-  args: {
-    hubId: v.id("hubs"),
-    noteId: v.id("workerNotes"),
     text: v.string(),
     expectedText: v.string(),
   },
-  returns: updateTextResultValidator,
+  returns: saveResultValidator,
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "viewer")
-    const note = await ctx.db.get("workerNotes", args.noteId)
-    if (!note || note.hubId !== args.hubId) {
-      return { status: "missing" } as const
+    if (args.text.length > MAX_NOTES_LENGTH) {
+      throw new Error("workerNoteTooLong")
     }
 
-    const text = args.text.trim()
-    if (text.length > MAX_NOTE_LENGTH) throw new Error("workerNoteTooLong")
-    if (!note.pinned && note.expiresAt <= Date.now()) {
-      await ctx.db.delete("workerNotes", note._id)
-      return { status: "missing" } as const
+    const notes = await getHubNotes(ctx, args.hubId)
+    const currentText = visibleText(notes, Date.now())
+    if (currentText !== args.expectedText) {
+      return { status: "conflict", currentText } as const
     }
-    if (note.text !== args.expectedText) {
-      return { status: "conflict", currentText: note.text } as const
-    }
-    if (!text) {
-      await ctx.db.delete("workerNotes", note._id)
+
+    if (!args.text.trim()) {
+      if (notes) await ctx.db.delete("workerNotes", notes._id)
       return { status: "saved" } as const
     }
 
-    await ctx.db.patch("workerNotes", note._id, {
-      text,
-    })
+    const temporaryExpiresAt = hasTemporaryLines(args.text)
+      ? Date.now() + TEMPORARY_NOTES_LIFETIME_MS
+      : null
+    const value = {
+      hubId: args.hubId,
+      text: args.text,
+      ...(temporaryExpiresAt === null ? {} : { temporaryExpiresAt }),
+    }
+    let noteId: Id<"workerNotes">
+    if (notes) {
+      await ctx.db.replace("workerNotes", notes._id, value)
+      noteId = notes._id
+    } else {
+      noteId = await ctx.db.insert("workerNotes", value)
+    }
+
+    if (temporaryExpiresAt !== null) {
+      await ctx.scheduler.runAt(
+        temporaryExpiresAt,
+        internal.workerNotes.clearTemporaryLines,
+        { noteId, temporaryExpiresAt }
+      )
+    }
     return { status: "saved" } as const
   },
 })
 
-export const deleteIfExpired = internalMutation({
+export const clearTemporaryLines = internalMutation({
   args: {
     noteId: v.id("workerNotes"),
+    temporaryExpiresAt: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const note = await ctx.db.get("workerNotes", args.noteId)
-    if (note && !note.pinned && note.expiresAt <= Date.now()) {
-      await ctx.db.delete("workerNotes", note._id)
+    const notes = await ctx.db.get("workerNotes", args.noteId)
+    if (
+      !notes ||
+      notes.temporaryExpiresAt !== args.temporaryExpiresAt ||
+      notes.temporaryExpiresAt > Date.now()
+    ) {
+      return null
+    }
+
+    const text = persistentLines(notes.text)
+    if (!text) {
+      await ctx.db.delete("workerNotes", notes._id)
+    } else {
+      await ctx.db.replace("workerNotes", notes._id, {
+        hubId: notes.hubId,
+        text,
+      })
     }
     return null
   },

@@ -8,27 +8,205 @@ import { toast } from "sonner"
 
 import { useOperations } from "@/components/providers/operations-provider"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import {
   useAppErrorTranslation,
   useAppTranslations,
 } from "@/i18n/use-app-translations"
-import { cn } from "@/lib/utils"
 
-import {
-  ENTRY_BULLET_CLASS,
-  NOTE_ROW_CLASS,
-  NotePinButton,
-  type WorkerNote,
-} from "./worker-note-row"
-import { useWorkerNotesEditor } from "./use-worker-notes-editor"
 import { useWorkerNotesWindow } from "./use-worker-notes-window"
+
+const AUTOSAVE_DELAY_MS = 700
+const AUTOSAVE_RETRY_DELAY_MS = 3_000
+const MAX_NOTES_LENGTH = 10_000
+
+function useAutosavedWorkerNotes({
+  hubId,
+  remoteText,
+}: {
+  hubId: Id<"hubs"> | undefined
+  remoteText: string | undefined
+}) {
+  const translateError = useAppErrorTranslation()
+  const saveWorkerNotes = useMutation(api.workerNotes.save)
+  const [draft, setDraft] = useState("")
+  const [conflictText, setConflictText] = useState<string | null>(null)
+  const activeHubRef = useRef(hubId)
+  const loadedHubRef = useRef<Id<"hubs"> | undefined>(undefined)
+  const draftRef = useRef("")
+  const savedTextRef = useRef("")
+  const conflictTextRef = useRef<string | null>(null)
+  const pendingRemoteTextRef = useRef<string | null>(null)
+  const dirtyRef = useRef(false)
+  const saveErrorShownRef = useRef(false)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const savingHubRef = useRef<Id<"hubs"> | undefined>(undefined)
+
+  useEffect(() => {
+    activeHubRef.current = hubId
+  }, [hubId])
+
+  useEffect(() => {
+    if (remoteText === undefined) return
+    if (loadedHubRef.current !== hubId) {
+      loadedHubRef.current = hubId
+      dirtyRef.current = false
+      conflictTextRef.current = null
+      pendingRemoteTextRef.current = null
+      saveErrorShownRef.current = false
+      setConflictText(null)
+    }
+    if (dirtyRef.current) {
+      pendingRemoteTextRef.current =
+        remoteText === savedTextRef.current ? null : remoteText
+      if (
+        conflictTextRef.current !== null &&
+        conflictTextRef.current !== remoteText
+      ) {
+        conflictTextRef.current = remoteText
+        setConflictText(remoteText)
+      }
+      return
+    }
+
+    pendingRemoteTextRef.current = null
+    draftRef.current = remoteText
+    savedTextRef.current = remoteText
+    setDraft(remoteText)
+  }, [hubId, remoteText])
+
+  useEffect(() => {
+    return () => clearTimeout(timeoutRef.current)
+  }, [hubId])
+
+  async function saveNow() {
+    clearTimeout(timeoutRef.current)
+    if (
+      !hubId ||
+      activeHubRef.current !== hubId ||
+      savingHubRef.current === hubId ||
+      conflictTextRef.current !== null
+    ) {
+      return
+    }
+
+    savingHubRef.current = hubId
+    try {
+      while (
+        activeHubRef.current === hubId &&
+        draftRef.current !== savedTextRef.current
+      ) {
+        const text = draftRef.current
+        const expectedText = savedTextRef.current
+        try {
+          const result = await saveWorkerNotes({ hubId, text, expectedText })
+          if (result.status === "conflict") {
+            conflictTextRef.current = result.currentText
+            pendingRemoteTextRef.current = null
+            saveErrorShownRef.current = false
+            setConflictText(result.currentText)
+            break
+          }
+        } catch (error) {
+          if (!saveErrorShownRef.current) {
+            saveErrorShownRef.current = true
+            toast.error(translateError(error))
+          }
+          if (
+            activeHubRef.current === hubId &&
+            conflictTextRef.current === null &&
+            draftRef.current !== savedTextRef.current
+          ) {
+            timeoutRef.current = setTimeout(
+              () => void saveNow(),
+              AUTOSAVE_RETRY_DELAY_MS
+            )
+          }
+          break
+        }
+        savedTextRef.current = text
+        if (pendingRemoteTextRef.current === text) {
+          pendingRemoteTextRef.current = null
+        }
+        conflictTextRef.current = null
+        saveErrorShownRef.current = false
+        setConflictText(null)
+      }
+      dirtyRef.current = draftRef.current !== savedTextRef.current
+      const pendingRemoteText = pendingRemoteTextRef.current
+      if (
+        activeHubRef.current === hubId &&
+        !dirtyRef.current &&
+        conflictTextRef.current === null &&
+        pendingRemoteText !== null &&
+        pendingRemoteText !== savedTextRef.current
+      ) {
+        draftRef.current = pendingRemoteText
+        savedTextRef.current = pendingRemoteText
+        setDraft(pendingRemoteText)
+      }
+      pendingRemoteTextRef.current = null
+    } finally {
+      if (savingHubRef.current === hubId) savingHubRef.current = undefined
+    }
+  }
+
+  function changeDraft(text: string) {
+    clearTimeout(timeoutRef.current)
+    draftRef.current = text
+    dirtyRef.current =
+      text !== savedTextRef.current || savingHubRef.current === hubId
+    setDraft(text)
+
+    if (dirtyRef.current) {
+      if (conflictTextRef.current === null) {
+        timeoutRef.current = setTimeout(() => void saveNow(), AUTOSAVE_DELAY_MS)
+      }
+    }
+  }
+
+  function loadLatest() {
+    const latestText = conflictTextRef.current
+    if (latestText === null) return
+
+    clearTimeout(timeoutRef.current)
+    draftRef.current = latestText
+    savedTextRef.current = latestText
+    conflictTextRef.current = null
+    pendingRemoteTextRef.current = null
+    dirtyRef.current = false
+    saveErrorShownRef.current = false
+    setDraft(latestText)
+    setConflictText(null)
+  }
+
+  function overwriteWithDraft() {
+    const latestText = conflictTextRef.current
+    if (latestText === null) return
+
+    savedTextRef.current = latestText
+    conflictTextRef.current = null
+    pendingRemoteTextRef.current = null
+    dirtyRef.current = draftRef.current !== latestText
+    saveErrorShownRef.current = false
+    setConflictText(null)
+    if (dirtyRef.current) void saveNow()
+  }
+
+  return {
+    draft,
+    conflictText,
+    changeDraft,
+    saveNow,
+    loadLatest,
+    overwriteWithDraft,
+  }
+}
 
 export function WorkerNotes() {
   const t = useAppTranslations()
-  const translateError = useAppErrorTranslation()
   const searchParams = useSearchParams()
   const { hub } = useOperations()
   const { isAuthenticated } = useConvexAuth()
@@ -44,11 +222,7 @@ export function WorkerNotes() {
     moveWindow,
     stopDragging,
   } = useWorkerNotesWindow(activeHubId)
-  const [pendingNoteId, setPendingNoteId] = useState<Id<"workerNotes"> | null>(
-    null
-  )
   const [now, setNow] = useState(() => Date.now())
-  const noteAreaWasActiveRef = useRef(false)
   const isMemberView =
     isDesktop &&
     isAuthenticated &&
@@ -56,66 +230,32 @@ export function WorkerNotes() {
     Boolean(activeHubId) &&
     restored
 
-  const notesResult = useQuery(
-    api.workerNotes.list,
+  const remoteText = useQuery(
+    api.workerNotes.get,
     isMemberView && isOpen && hub ? { hubId: hub.id, now } : "skip"
   )
-  const notes = notesResult?.notes
-  const isAtLimit =
-    notesResult !== undefined && notesResult.count >= notesResult.limit
   const {
-    editor,
-    isWriting,
-    editingNoteId,
-    inputRef,
-    editInputRef,
-    startCreating,
+    draft,
+    conflictText,
     changeDraft,
-    submitNote,
-    saveNewNote,
-    finishEditing,
-    handleNewNoteKeyDown,
-    handleEditingKeyDown,
-    handleEditingBlur,
-    activateNote,
-  } = useWorkerNotesEditor({ hubId: hub?.id, notes })
-  const setPinned = useMutation(api.workerNotes.setPinned)
-
-  useEffect(() => {
-    if (!isMemberView || !isOpen) return
-    const interval = window.setInterval(() => setNow(Date.now()), 60_000)
-    return () => window.clearInterval(interval)
-  }, [isMemberView, isOpen])
+    saveNow,
+    loadLatest,
+    overwriteWithDraft,
+  } = useAutosavedWorkerNotes({
+    hubId: activeHubId,
+    remoteText,
+  })
 
   useEffect(() => {
     if (!isOpen) return
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape" && !isWriting && !editingNoteId) {
-        setIsOpen(false)
-      }
+      if (event.key === "Escape") setIsOpen(false)
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [editingNoteId, isOpen, isWriting, setIsOpen])
+  }, [isOpen, setIsOpen])
 
   if (!isMemberView || !hub) return null
-  const hubId = hub.id
-
-  async function handleSetPinned(note: WorkerNote) {
-    if (pendingNoteId) return
-    setPendingNoteId(note.id)
-    try {
-      await setPinned({
-        hubId,
-        noteId: note.id,
-        pinned: !note.pinned,
-      })
-    } catch (error) {
-      toast.error(translateError(error))
-    } finally {
-      setPendingNoteId(null)
-    }
-  }
 
   return (
     <>
@@ -163,21 +303,8 @@ export function WorkerNotes() {
               >
                 {t("workersNotes")}
               </h2>
-              <p
-                className={cn(
-                  "mt-2 text-sm leading-5 text-muted-foreground",
-                  isAtLimit && "text-destructive"
-                )}
-              >
-                {t(
-                  isAtLimit
-                    ? "workersNotesLimitWarning"
-                    : "workersNotesDescription",
-                  {
-                    count: notesResult?.count ?? "…",
-                    limit: notesResult?.limit ?? 100,
-                  }
-                )}
+              <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                {t("workersNotesDescription")}
               </p>
             </div>
             <Button
@@ -193,166 +320,48 @@ export function WorkerNotes() {
             </Button>
           </div>
 
-          <div
-            className="min-h-0 flex-1 cursor-text overflow-y-auto px-6 py-6"
-            onPointerDownCapture={() => {
-              noteAreaWasActiveRef.current = isWriting || editingNoteId !== null
-            }}
-            onClick={(event) => {
-              const wasActive = noteAreaWasActiveRef.current
-              noteAreaWasActiveRef.current = false
-              if (
-                event.target instanceof HTMLElement &&
-                event.target.closest("button, input")
-              ) {
-                return
-              }
-              if (!wasActive && !editingNoteId && !isWriting && !isAtLimit) {
-                startCreating()
-              }
-            }}
-          >
-            {notes === undefined ? (
-              <p className="text-sm text-muted-foreground" role="status">
-                {t("loadingWorkersNotes")}
-              </p>
-            ) : (
-              <ul>
-                {notes.map((note) =>
-                  editingNoteId === note.id ? (
-                    <li
-                      key={note.id}
-                      className={cn(NOTE_ROW_CLASS, "group/note relative pr-9")}
-                    >
-                      <span
-                        className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
-                        aria-hidden="true"
-                      />
-                      <form
-                        className="min-w-0 flex-1"
-                        onSubmit={(event) => {
-                          event.preventDefault()
-                          void finishEditing(true)
-                        }}
-                      >
-                        <Input
-                          ref={editInputRef}
-                          value={editor.draft}
-                          maxLength={500}
-                          aria-label={note.text}
-                          readOnly={editor.saving}
-                          aria-busy={editor.saving}
-                          className="h-6 border-0! py-0 text-sm leading-6 focus-visible:border-0!"
-                          onChange={(event) => changeDraft(event.target.value)}
-                          onKeyDown={(event) =>
-                            handleEditingKeyDown(event, note)
-                          }
-                          onBlur={handleEditingBlur}
-                        />
-                        {editor.conflictText && (
-                          <p
-                            className="mt-2 text-xs leading-5 text-destructive"
-                            role="alert"
-                          >
-                            {t("workerNoteChanged")}{" "}
-                            {t("workerNoteLatestText", {
-                              note: editor.conflictText,
-                            })}
-                          </p>
-                        )}
-                      </form>
-                      <NotePinButton
-                        label={t(
-                          note.pinned ? "unpinWorkerNote" : "pinWorkerNote",
-                          { note: note.text }
-                        )}
-                        note={note}
-                        pending={pendingNoteId !== null}
-                        onSetPinned={handleSetPinned}
-                      />
-                    </li>
-                  ) : (
-                    <li
-                      key={note.id}
-                      className={cn(
-                        NOTE_ROW_CLASS,
-                        "group/note relative pr-9 transition-colors hover:bg-muted/60",
-                        note.pinned && "font-semibold"
-                      )}
-                    >
-                      <button
-                        type="button"
-                        className="flex min-w-0 flex-1 items-start gap-3 text-left outline-none"
-                        aria-label={note.text}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          activateNote(note)
-                        }}
-                      >
-                        <span
-                          className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
-                          aria-hidden="true"
-                        />
-                        <span className="min-w-0 flex-1 wrap-break-word whitespace-pre-wrap">
-                          {note.text}
-                        </span>
-                      </button>
-                      <NotePinButton
-                        label={t(
-                          note.pinned ? "unpinWorkerNote" : "pinWorkerNote",
-                          { note: note.text }
-                        )}
-                        note={note}
-                        pending={pendingNoteId !== null}
-                        onSetPinned={handleSetPinned}
-                      />
-                    </li>
-                  )
-                )}
-                {editingNoteId ? null : isWriting ? (
-                  <li className={NOTE_ROW_CLASS}>
-                    <span
-                      className={cn(ENTRY_BULLET_CLASS, "bg-foreground")}
-                      aria-hidden="true"
-                    />
-                    <form className="min-w-0 flex-1" onSubmit={submitNote}>
-                      <Input
-                        ref={inputRef}
-                        value={editor.draft}
-                        maxLength={500}
-                        aria-label={t("workerNotePlaceholder")}
-                        readOnly={editor.saving}
-                        aria-busy={editor.saving}
-                        className="h-6 border-0! py-0 text-sm leading-6 focus-visible:border-0!"
-                        onChange={(event) => changeDraft(event.target.value)}
-                        onKeyDown={handleNewNoteKeyDown}
-                        onBlur={() => void saveNewNote(true)}
-                      />
-                    </form>
-                  </li>
-                ) : isAtLimit ? null : (
-                  <li>
-                    <button
-                      type="button"
-                      className={cn(
-                        NOTE_ROW_CLASS,
-                        "text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-                      )}
-                      onClick={startCreating}
-                    >
-                      <span
-                        className={cn(
-                          ENTRY_BULLET_CLASS,
-                          "bg-muted-foreground"
-                        )}
-                        aria-hidden="true"
-                      />
-                      <span>{t("clickToWriteMore")}</span>
-                    </button>
-                  </li>
-                )}
-              </ul>
+          <div className="flex min-h-0 flex-1 flex-col px-6 py-6">
+            {conflictText !== null && (
+              <div
+                className="mb-4 border border-destructive/40 bg-destructive/5 p-3 text-sm"
+                role="alert"
+              >
+                <p>{t("workerNotesChanged")}</p>
+                <p className="mt-3 font-medium">
+                  {t("workerNotesLatestVersion")}
+                </p>
+                <pre className="mt-1 max-h-24 overflow-auto bg-background p-2 font-sans text-xs whitespace-pre-wrap">
+                  {conflictText}
+                </pre>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" size="sm" onClick={loadLatest}>
+                    {t("loadLatestWorkerNotes")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={overwriteWithDraft}
+                  >
+                    {t("overwriteWorkerNotes")}
+                  </Button>
+                </div>
+              </div>
             )}
+            <Textarea
+              value={draft}
+              maxLength={MAX_NOTES_LENGTH}
+              disabled={remoteText === undefined}
+              aria-label={t("workerNotePlaceholder")}
+              placeholder={
+                remoteText === undefined
+                  ? t("loadingWorkersNotes")
+                  : t("workerNotePlaceholder")
+              }
+              className="h-full min-h-0 flex-1 resize-none border-0! p-0! leading-6 focus-visible:border-0!"
+              onChange={(event) => changeDraft(event.target.value)}
+              onBlur={saveNow}
+            />
           </div>
         </div>
       )}

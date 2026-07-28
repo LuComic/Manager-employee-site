@@ -48,14 +48,14 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         </NavLink>
         <NavLink
           href="/guides"
-          label={t("guidesLowercase")}
+          label={t("guides")}
           active={pathname === "/guides" || pathname.startsWith("/guides/")}
         >
           <BookOpen />
         </NavLink>
         <NavLink
           href="/calendar"
-          label={t("calendarLowercase")}
+          label={t("calendar")}
           active={pathname.startsWith("/calendar")}
         >
           <CalendarDays />
