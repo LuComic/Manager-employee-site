@@ -130,6 +130,7 @@ export function WorkerNotes() {
   )
   const [editingText, setEditingText] = useState("")
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [isNoteActivationPending, setIsNoteActivationPending] = useState(false)
   const [pendingNoteId, setPendingNoteId] = useState<Id<"workerNotes"> | null>(
     null
   )
@@ -440,6 +441,7 @@ export function WorkerNotes() {
   }
 
   function activateNote(note: WorkerNote) {
+    setIsNoteActivationPending(false)
     if (editInputRef.current) {
       editDestinationRef.current = note
       void finishEditing(false)
@@ -449,9 +451,11 @@ export function WorkerNotes() {
   }
 
   function clearNoteClickTimer() {
-    if (noteClickTimerRef.current === null) return
-    window.clearTimeout(noteClickTimerRef.current)
-    noteClickTimerRef.current = null
+    if (noteClickTimerRef.current !== null) {
+      window.clearTimeout(noteClickTimerRef.current)
+      noteClickTimerRef.current = null
+    }
+    setIsNoteActivationPending(false)
   }
 
   function handleNoteClick(
@@ -465,6 +469,7 @@ export function WorkerNotes() {
       activateNote(note)
       return
     }
+    setIsNoteActivationPending(true)
     noteClickTimerRef.current = window.setTimeout(() => {
       noteClickTimerRef.current = null
       activateNote(note)
@@ -621,6 +626,10 @@ export function WorkerNotes() {
                         aria-label={note.text}
                         title={t("doubleClickToPinWorkerNote")}
                         disabled={pendingNoteId === note.id}
+                        onPointerDown={() => setIsNoteActivationPending(true)}
+                        onPointerCancel={() =>
+                          setIsNoteActivationPending(false)
+                        }
                         onClick={(event) => handleNoteClick(event, note)}
                         onDoubleClick={(event) =>
                           handleNoteDoubleClick(event, note)
@@ -646,7 +655,7 @@ export function WorkerNotes() {
                     </li>
                   )
                 )}
-                {editingNoteId ? null : isWriting ? (
+                {editingNoteId || isNoteActivationPending ? null : isWriting ? (
                   <li className={NOTE_ROW_CLASS}>
                     <span
                       className={cn(ENTRY_BULLET_CLASS, "bg-foreground")}
