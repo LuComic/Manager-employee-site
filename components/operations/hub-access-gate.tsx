@@ -17,7 +17,6 @@ import {
 } from "@clerk/nextjs"
 import {
   ArrowRight,
-  BriefcaseBusiness,
   Building2,
   KeyRound,
   LoaderCircle,
@@ -27,6 +26,7 @@ import {
   UserPlus,
 } from "lucide-react"
 
+import { BrandMark } from "@/components/brand-mark"
 import { useOperations } from "@/components/providers/operations-provider"
 import { SITE_NAME } from "@/lib/branding"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -233,9 +233,7 @@ export function HubEntryScreen({
         <div className="grid w-full overflow-hidden border bg-background shadow-sm lg:grid-cols-[1.05fr_0.95fr]">
           <section className="flex flex-col justify-between bg-primary p-6 text-primary-foreground sm:p-8">
             <div>
-              <span className="flex size-10 items-center justify-center bg-primary-foreground text-primary">
-                <BriefcaseBusiness className="size-5" />
-              </span>
+              <BrandMark className="size-10" />
               <p className="mt-4 text-sm font-medium text-primary-foreground/75">
                 {SITE_NAME}
               </p>

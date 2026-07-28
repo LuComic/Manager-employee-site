@@ -3,8 +3,8 @@
 import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
-import { BriefcaseBusiness } from "lucide-react"
 
+import { BrandMark } from "@/components/brand-mark"
 import { useOperations } from "@/components/providers/operations-provider"
 import { SITE_NAME } from "@/lib/branding"
 
@@ -21,9 +21,8 @@ export function Brand({
   const { hub, hubSlug, isManagerRoute } = useOperations()
   const content = (
     <>
-      <span className="flex size-10 items-center justify-center bg-primary text-primary-foreground">
-        <BriefcaseBusiness className="size-5" />
-      </span>
+      <BrandMark className="size-10" />
+      {compact && <span className="sr-only">{SITE_NAME}</span>}
       {!compact && (
         <span>
           <span className="block font-semibold tracking-tight">
