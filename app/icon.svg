@@ -2,9 +2,17 @@
   xmlns="http://www.w3.org/2000/svg"
   width="96"
   height="96"
-  viewBox="377 184 900 900"
+  viewBox="327 50 1000 1000"
 >
-  <path d="M 537 567 L 827 250 L 1116 567 Z" fill="#000000" />
+  <path
+    d="M 537 567 L 827 190 L 1116 567"
+    fill="none"
+    stroke="#000000"
+    stroke-width="123"
+    stroke-linecap="butt"
+    stroke-linejoin="miter"
+    stroke-miterlimit="10"
+  />
 
   <path
     d="M 425 445
