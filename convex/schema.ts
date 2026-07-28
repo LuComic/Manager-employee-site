@@ -301,13 +301,11 @@ export default defineSchema({
     createdBy: v.string(),
     createdAt: v.number(),
     expiresAt: v.number(),
-  })
-    .index("by_hubId_and_pinned", ["hubId", "pinned"])
-    .index("by_hubId_and_pinned_and_expiresAt", [
-      "hubId",
-      "pinned",
-      "expiresAt",
-    ]),
+  }).index("by_hubId_and_pinned_and_expiresAt", [
+    "hubId",
+    "pinned",
+    "expiresAt",
+  ]),
 
   notifications: defineTable({
     hubId: v.id("hubs"),

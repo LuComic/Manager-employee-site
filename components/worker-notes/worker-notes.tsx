@@ -3,7 +3,6 @@
 import {
   type FormEvent,
   type KeyboardEvent,
-  type MouseEvent,
   type PointerEvent,
   useEffect,
   useRef,
@@ -11,6 +10,7 @@ import {
 } from "react"
 import { useSearchParams } from "next/navigation"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
+import type { FunctionReturnType } from "convex/server"
 import { Pin, StickyNote, X } from "lucide-react"
 import { toast } from "sonner"
 
@@ -29,17 +29,50 @@ const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)"
 const WINDOW_EDGE_GAP = 16
 const WINDOW_WIDTH = 448
 const WINDOW_MAX_HEIGHT = 544
-const NOTE_CLICK_DELAY_MS = 200
 const NOTE_ROW_CLASS =
   "flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6"
 const ENTRY_BULLET_CLASS = "mt-2 size-1.5 shrink-0 rounded-full"
 
-type WorkerNote = {
-  id: Id<"workerNotes">
-  text: string
-  pinned: boolean
-  createdAt: number
-  expiresAt: number
+type WorkerNote = FunctionReturnType<
+  typeof api.workerNotes.list
+>["notes"][number]
+
+function NotePinButton({
+  label,
+  note,
+  pending,
+  onToggle,
+}: {
+  label: string
+  note: WorkerNote
+  pending: boolean
+  onToggle: (note: WorkerNote) => Promise<void>
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className={cn(
+        "-my-1 -mr-1 size-6 shrink-0 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100",
+        note.pinned && "opacity-100"
+      )}
+      aria-label={label}
+      disabled={pending}
+      onClick={(event) => {
+        event.stopPropagation()
+        void onToggle(note)
+      }}
+    >
+      <Pin
+        className={cn(
+          "size-4",
+          note.pinned ? "fill-primary text-primary" : "text-muted-foreground"
+        )}
+        aria-hidden="true"
+      />
+    </Button>
+  )
 }
 
 type WindowPosition = {
@@ -130,7 +163,6 @@ export function WorkerNotes() {
   )
   const [editingText, setEditingText] = useState("")
   const [isSavingEdit, setIsSavingEdit] = useState(false)
-  const [isNoteActivationPending, setIsNoteActivationPending] = useState(false)
   const [pendingNoteId, setPendingNoteId] = useState<Id<"workerNotes"> | null>(
     null
   )
@@ -145,7 +177,6 @@ export function WorkerNotes() {
   const editSaveRef = useRef(false)
   const editDestinationRef = useRef<WorkerNote | "new" | null>(null)
   const cancelEditRef = useRef(false)
-  const noteClickTimerRef = useRef<number | null>(null)
   const noteAreaWasActiveRef = useRef(false)
   const dragRef = useRef<DragState | null>(null)
   const activeHubId = hub?.id
@@ -156,10 +187,13 @@ export function WorkerNotes() {
     Boolean(activeHubId) &&
     restoredHubId === activeHubId
 
-  const notes = useQuery(
+  const notesResult = useQuery(
     api.workerNotes.list,
-    isMemberView && hub ? { hubId: hub.id, now } : "skip"
-  ) as WorkerNote[] | undefined
+    isMemberView && isOpen && hub ? { hubId: hub.id, now } : "skip"
+  )
+  const notes = notesResult?.notes
+  const isAtLimit =
+    notesResult !== undefined && notesResult.count >= notesResult.limit
   const createNote = useMutation(api.workerNotes.create)
   const togglePinned = useMutation(api.workerNotes.togglePinned)
   const updateNoteText = useMutation(api.workerNotes.updateText)
@@ -175,18 +209,10 @@ export function WorkerNotes() {
   }, [])
 
   useEffect(() => {
+    if (!isMemberView || !isOpen) return
     const interval = window.setInterval(() => setNow(Date.now()), 60_000)
     return () => window.clearInterval(interval)
-  }, [])
-
-  useEffect(
-    () => () => {
-      if (noteClickTimerRef.current !== null) {
-        window.clearTimeout(noteClickTimerRef.current)
-      }
-    },
-    []
-  )
+  }, [isMemberView, isOpen])
 
   useEffect(() => {
     if (!activeHubId) return
@@ -441,48 +467,12 @@ export function WorkerNotes() {
   }
 
   function activateNote(note: WorkerNote) {
-    setIsNoteActivationPending(false)
     if (editInputRef.current) {
       editDestinationRef.current = note
       void finishEditing(false)
       return
     }
     beginEditing(note)
-  }
-
-  function clearNoteClickTimer() {
-    if (noteClickTimerRef.current !== null) {
-      window.clearTimeout(noteClickTimerRef.current)
-      noteClickTimerRef.current = null
-    }
-    setIsNoteActivationPending(false)
-  }
-
-  function handleNoteClick(
-    event: MouseEvent<HTMLButtonElement>,
-    note: WorkerNote
-  ) {
-    event.stopPropagation()
-    clearNoteClickTimer()
-    if (event.detail > 1) return
-    if (event.detail === 0) {
-      activateNote(note)
-      return
-    }
-    setIsNoteActivationPending(true)
-    noteClickTimerRef.current = window.setTimeout(() => {
-      noteClickTimerRef.current = null
-      activateNote(note)
-    }, NOTE_CLICK_DELAY_MS)
-  }
-
-  function handleNoteDoubleClick(
-    event: MouseEvent<HTMLButtonElement>,
-    note: WorkerNote
-  ) {
-    event.stopPropagation()
-    clearNoteClickTimer()
-    void handleTogglePinned(note)
   }
 
   return (
@@ -493,7 +483,10 @@ export function WorkerNotes() {
         className="fixed right-4 bottom-4 z-40 h-auto items-center justify-center gap-2 bg-background px-3! py-2 whitespace-normal shadow-md"
         aria-expanded={isOpen}
         aria-controls="worker-notes-window"
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={() => {
+          setNow(Date.now())
+          setIsOpen((open) => !open)
+        }}
       >
         <StickyNote className="size-5" />
         <span className="w-full text-center leading-4 wrap-break-word whitespace-normal">
@@ -528,8 +521,21 @@ export function WorkerNotes() {
               >
                 {t("workersNotes")}
               </h2>
-              <p className="mt-2 text-sm leading-5 text-muted-foreground">
-                {t("workersNotesDescription")}
+              <p
+                className={cn(
+                  "mt-2 text-sm leading-5 text-muted-foreground",
+                  isAtLimit && "text-destructive"
+                )}
+              >
+                {t(
+                  isAtLimit
+                    ? "workersNotesLimitWarning"
+                    : "workersNotesDescription",
+                  {
+                    count: notesResult?.count ?? "…",
+                    limit: notesResult?.limit ?? 100,
+                  }
+                )}
               </p>
             </div>
             <Button
@@ -553,7 +559,7 @@ export function WorkerNotes() {
             onClick={() => {
               const wasActive = noteAreaWasActiveRef.current
               noteAreaWasActiveRef.current = false
-              if (!wasActive && !editingNoteId && !isWriting) {
+              if (!wasActive && !editingNoteId && !isWriting && !isAtLimit) {
                 setIsWriting(true)
               }
             }}
@@ -569,8 +575,6 @@ export function WorkerNotes() {
                     <li
                       key={note.id}
                       className={cn(NOTE_ROW_CLASS, "group/note")}
-                      title={t("doubleClickToPinWorkerNote")}
-                      onDoubleClick={() => void handleTogglePinned(note)}
                     >
                       <span
                         className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
@@ -604,36 +608,33 @@ export function WorkerNotes() {
                           }}
                         />
                       </form>
-                      <Pin
-                        className={cn(
-                          "mt-1 size-4 shrink-0 transition-opacity",
-                          note.pinned
-                            ? "fill-primary text-primary opacity-100"
-                            : "text-muted-foreground opacity-0 group-hover/note:opacity-50 group-focus-visible/note:opacity-50"
+                      <NotePinButton
+                        label={t(
+                          note.pinned ? "unpinWorkerNote" : "pinWorkerNote",
+                          { note: note.text }
                         )}
-                        aria-hidden="true"
+                        note={note}
+                        pending={pendingNoteId === note.id}
+                        onToggle={handleTogglePinned}
                       />
                     </li>
                   ) : (
-                    <li key={note.id}>
+                    <li
+                      key={note.id}
+                      className={cn(
+                        NOTE_ROW_CLASS,
+                        "group/note transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 hover:bg-muted/60",
+                        note.pinned && "font-medium"
+                      )}
+                    >
                       <button
                         type="button"
-                        className={cn(
-                          NOTE_ROW_CLASS,
-                          "group/note transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
-                          note.pinned && "font-medium"
-                        )}
+                        className="flex min-w-0 flex-1 items-start gap-3 text-left outline-none"
                         aria-label={note.text}
-                        title={t("doubleClickToPinWorkerNote")}
-                        disabled={pendingNoteId === note.id}
-                        onPointerDown={() => setIsNoteActivationPending(true)}
-                        onPointerCancel={() =>
-                          setIsNoteActivationPending(false)
-                        }
-                        onClick={(event) => handleNoteClick(event, note)}
-                        onDoubleClick={(event) =>
-                          handleNoteDoubleClick(event, note)
-                        }
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          activateNote(note)
+                        }}
                       >
                         <span
                           className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
@@ -642,20 +643,20 @@ export function WorkerNotes() {
                         <span className="min-w-0 flex-1 wrap-break-word whitespace-pre-wrap">
                           {note.text}
                         </span>
-                        <Pin
-                          className={cn(
-                            "mt-1 size-4 shrink-0 transition-opacity",
-                            note.pinned
-                              ? "fill-primary text-primary opacity-100"
-                              : "text-muted-foreground opacity-0 group-hover/note:opacity-50 group-focus-visible/note:opacity-50"
-                          )}
-                          aria-hidden="true"
-                        />
                       </button>
+                      <NotePinButton
+                        label={t(
+                          note.pinned ? "unpinWorkerNote" : "pinWorkerNote",
+                          { note: note.text }
+                        )}
+                        note={note}
+                        pending={pendingNoteId === note.id}
+                        onToggle={handleTogglePinned}
+                      />
                     </li>
                   )
                 )}
-                {editingNoteId || isNoteActivationPending ? null : isWriting ? (
+                {editingNoteId ? null : isWriting ? (
                   <li className={NOTE_ROW_CLASS}>
                     <span
                       className={cn(ENTRY_BULLET_CLASS, "bg-foreground")}
@@ -676,7 +677,7 @@ export function WorkerNotes() {
                       />
                     </form>
                   </li>
-                ) : (
+                ) : isAtLimit ? null : (
                   <li>
                     <button
                       type="button"

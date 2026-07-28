@@ -280,7 +280,7 @@ export default function TodayPage() {
             <Fragment key={section.key}>{renderSection(section.key)}</Fragment>
           ))}
       </div>
-      <WorkerNotes />
+      <WorkerNotes key={hub?.id ?? "no-workplace"} />
     </>
   )
 }
