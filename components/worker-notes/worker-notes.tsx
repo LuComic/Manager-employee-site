@@ -3,6 +3,7 @@
 import {
   type FormEvent,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   useEffect,
   useRef,
@@ -28,6 +29,7 @@ const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)"
 const WINDOW_EDGE_GAP = 16
 const WINDOW_WIDTH = 448
 const WINDOW_MAX_HEIGHT = 544
+const NOTE_CLICK_DELAY_MS = 200
 const NOTE_ROW_CLASS =
   "flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6"
 const ENTRY_BULLET_CLASS = "mt-2 size-1.5 shrink-0 rounded-full"
@@ -140,7 +142,9 @@ export function WorkerNotes() {
   const closeAfterCreateRef = useRef(false)
   const editInputRef = useRef<HTMLInputElement>(null)
   const editSaveRef = useRef(false)
+  const editDestinationRef = useRef<WorkerNote | "new" | null>(null)
   const cancelEditRef = useRef(false)
+  const noteClickTimerRef = useRef<number | null>(null)
   const noteAreaWasActiveRef = useRef(false)
   const dragRef = useRef<DragState | null>(null)
   const activeHubId = hub?.id
@@ -173,6 +177,15 @@ export function WorkerNotes() {
     const interval = window.setInterval(() => setNow(Date.now()), 60_000)
     return () => window.clearInterval(interval)
   }, [])
+
+  useEffect(
+    () => () => {
+      if (noteClickTimerRef.current !== null) {
+        window.clearTimeout(noteClickTimerRef.current)
+      }
+    },
+    []
+  )
 
   useEffect(() => {
     if (!activeHubId) return
@@ -302,6 +315,7 @@ export function WorkerNotes() {
 
   function beginEditing(note: WorkerNote) {
     cancelEditRef.current = false
+    editDestinationRef.current = null
     setIsWriting(false)
     setEditingNoteId(note.id)
     setEditingText(note.text)
@@ -309,16 +323,24 @@ export function WorkerNotes() {
 
   async function finishEditing(openNewLine: boolean) {
     if (!editingNoteId || editSaveRef.current) return
+    if (openNewLine) editDestinationRef.current = "new"
     const noteId = editingNoteId
     const text = editingText
     editSaveRef.current = true
     setIsSavingEdit(true)
     try {
       await updateNoteText({ hubId, noteId, text })
-      setEditingNoteId(null)
-      setEditingText("")
-      if (openNewLine) setIsWriting(true)
+      const destination = editDestinationRef.current
+      editDestinationRef.current = null
+      if (destination && destination !== "new") {
+        beginEditing(destination)
+      } else {
+        setEditingNoteId(null)
+        setEditingText("")
+        setIsWriting(destination === "new")
+      }
     } catch (error) {
+      editDestinationRef.current = null
       toast.error(translateError(error))
     } finally {
       editSaveRef.current = false
@@ -358,7 +380,9 @@ export function WorkerNotes() {
       setIsWriting(false)
       return
     }
-    if (event.key !== "Backspace" || noteText) return
+    if ((event.key !== "Backspace" && event.key !== "ArrowUp") || noteText) {
+      return
+    }
     const previousNote = notes ? notes[notes.length - 1] : undefined
     if (!previousNote) return
     event.preventDefault()
@@ -371,6 +395,7 @@ export function WorkerNotes() {
   ) {
     if (event.key === "Escape") {
       cancelEditRef.current = true
+      editDestinationRef.current = null
       setEditingNoteId(null)
       setEditingText("")
       setIsWriting(true)
@@ -379,6 +404,22 @@ export function WorkerNotes() {
     if (event.key === "Enter") {
       event.preventDefault()
       void finishEditing(true)
+      return
+    }
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      const noteIndex = notes?.findIndex((item) => item.id === note.id) ?? -1
+      const destination =
+        event.key === "ArrowUp"
+          ? noteIndex > 0 && notes
+            ? notes[noteIndex - 1]
+            : null
+          : notes && noteIndex >= 0 && noteIndex < notes.length - 1
+            ? notes[noteIndex + 1]
+            : "new"
+      if (!destination) return
+      event.preventDefault()
+      editDestinationRef.current = destination
+      void finishEditing(false)
       return
     }
     if (event.key !== "Backspace" || editingText) return
@@ -398,12 +439,44 @@ export function WorkerNotes() {
     }
   }
 
-  function handleNoteKeyDown(
-    event: KeyboardEvent<HTMLButtonElement>,
+  function activateNote(note: WorkerNote) {
+    if (editInputRef.current) {
+      editDestinationRef.current = note
+      void finishEditing(false)
+      return
+    }
+    beginEditing(note)
+  }
+
+  function clearNoteClickTimer() {
+    if (noteClickTimerRef.current === null) return
+    window.clearTimeout(noteClickTimerRef.current)
+    noteClickTimerRef.current = null
+  }
+
+  function handleNoteClick(
+    event: MouseEvent<HTMLButtonElement>,
     note: WorkerNote
   ) {
-    if (event.key !== "Enter" && event.key !== " ") return
-    event.preventDefault()
+    event.stopPropagation()
+    clearNoteClickTimer()
+    if (event.detail > 1) return
+    if (event.detail === 0) {
+      activateNote(note)
+      return
+    }
+    noteClickTimerRef.current = window.setTimeout(() => {
+      noteClickTimerRef.current = null
+      activateNote(note)
+    }, NOTE_CLICK_DELAY_MS)
+  }
+
+  function handleNoteDoubleClick(
+    event: MouseEvent<HTMLButtonElement>,
+    note: WorkerNote
+  ) {
+    event.stopPropagation()
+    clearNoteClickTimer()
     void handleTogglePinned(note)
   }
 
@@ -545,14 +618,13 @@ export function WorkerNotes() {
                           "group/note transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
                           note.pinned && "font-medium"
                         )}
-                        aria-label={t(
-                          note.pinned ? "unpinWorkerNote" : "pinWorkerNote",
-                          { note: note.text }
-                        )}
+                        aria-label={note.text}
                         title={t("doubleClickToPinWorkerNote")}
                         disabled={pendingNoteId === note.id}
-                        onDoubleClick={() => void handleTogglePinned(note)}
-                        onKeyDown={(event) => handleNoteKeyDown(event, note)}
+                        onClick={(event) => handleNoteClick(event, note)}
+                        onDoubleClick={(event) =>
+                          handleNoteDoubleClick(event, note)
+                        }
                       >
                         <span
                           className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
