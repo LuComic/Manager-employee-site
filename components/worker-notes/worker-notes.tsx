@@ -282,13 +282,13 @@ export function WorkerNotes() {
       <Button
         type="button"
         variant={isOpen ? "selected" : "outline"}
-        className="fixed right-0 bottom-12 z-40 h-auto flex-col gap-2 border-r-0 bg-background px-3 py-4 shadow-md"
+        className="fixed right-4 bottom-4 z-40 h-auto w-28 flex-col gap-2 bg-background px-3 py-4 whitespace-normal shadow-md"
         aria-expanded={isOpen}
         aria-controls="worker-notes-window"
         onClick={() => setIsOpen((open) => !open)}
       >
         <StickyNote className="size-5" />
-        <span className="max-w-16 text-center leading-4">
+        <span className="w-full text-center leading-4 break-words whitespace-normal">
           {t("workersNotes")}
         </span>
       </Button>
@@ -337,19 +337,22 @@ export function WorkerNotes() {
             </Button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+          <div
+            className="min-h-0 flex-1 cursor-text overflow-y-auto px-6 py-6"
+            onClick={() => setIsWriting(true)}
+          >
             {notes === undefined ? (
               <p className="text-sm text-muted-foreground" role="status">
                 {t("loadingWorkersNotes")}
               </p>
             ) : (
-              <ul className="space-y-1">
+              <ul>
                 {notes.map((note) => (
                   <li key={note.id}>
                     <button
                       type="button"
                       className={cn(
-                        "group/note flex w-full items-start gap-3 border border-transparent px-2 py-2 text-left text-sm leading-6 transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
+                        "group/note flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6 transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
                         note.pinned && "font-medium"
                       )}
                       aria-label={t(
