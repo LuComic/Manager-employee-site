@@ -386,7 +386,7 @@ export function WorkerNotes() {
                 {isWriting ? (
                   <li className="flex items-start gap-3 px-2 py-2">
                     <span
-                      className="mt-3 size-1.5 shrink-0 rounded-full bg-foreground"
+                      className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
                       aria-hidden="true"
                     />
                     <form className="min-w-0 flex-1" onSubmit={submitNote}>
