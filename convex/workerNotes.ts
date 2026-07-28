@@ -1,7 +1,7 @@
 import { v } from "convex/values"
 
 import { internal } from "./_generated/api"
-import type { Doc, Id } from "./_generated/dataModel"
+import type { Id } from "./_generated/dataModel"
 import {
   internalMutation,
   mutation,
@@ -13,7 +13,6 @@ import { requireHubPermission } from "./lib/access"
 
 const TEMPORARY_NOTES_LIFETIME_MS = 24 * 60 * 60 * 1000
 const MAX_NOTES_LENGTH = 10_000
-const MAX_LEGACY_NOTES = 101
 
 const saveResultValidator = v.union(
   v.object({ status: v.literal("saved") }),
@@ -38,45 +37,21 @@ async function getHubNotes(ctx: QueryCtx | MutationCtx, hubId: Id<"hubs">) {
   return await ctx.db
     .query("workerNotes")
     .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
-    .take(MAX_LEGACY_NOTES)
+    .unique()
 }
 
-function isLegacyNote(note: Doc<"workerNotes">) {
-  return note.pinned !== undefined || note.expiresAt !== undefined
-}
-
-function legacyNoteText(note: Doc<"workerNotes">) {
-  if (!note.pinned) return note.text
-  return note.text
-    .split("\n")
-    .map((line) => (line.startsWith("!") ? line : `! ${line}`))
-    .join("\n")
-}
-
-function visibleText(notes: Doc<"workerNotes">[], now: number) {
-  const currentNote = notes.findLast((note) => !isLegacyNote(note))
-  if (currentNote) {
-    if (
-      currentNote.temporaryExpiresAt !== undefined &&
-      currentNote.temporaryExpiresAt <= now
-    ) {
-      return persistentLines(currentNote.text)
-    }
-    return currentNote.text
+function visibleText(
+  notes: Awaited<ReturnType<typeof getHubNotes>>,
+  now: number
+) {
+  if (!notes) return ""
+  if (
+    notes.temporaryExpiresAt !== undefined &&
+    notes.temporaryExpiresAt <= now
+  ) {
+    return persistentLines(notes.text)
   }
-
-  return notes
-    .filter(
-      (note) =>
-        note.pinned === true ||
-        (note.expiresAt !== undefined && note.expiresAt > now)
-    )
-    .sort(
-      (a, b) =>
-        Number(b.pinned) - Number(a.pinned) || a._creationTime - b._creationTime
-    )
-    .map(legacyNoteText)
-    .join("\n")
+  return notes.text
 }
 
 export const get = query({
@@ -111,15 +86,8 @@ export const save = mutation({
       return { status: "conflict", currentText } as const
     }
 
-    const currentNote = notes.findLast((note) => !isLegacyNote(note))
-    const primaryNote = currentNote ?? notes[0]
-    const extraNotes = notes.filter((note) => note._id !== primaryNote?._id)
-    for (const note of extraNotes) {
-      await ctx.db.delete("workerNotes", note._id)
-    }
-
     if (!args.text.trim()) {
-      if (primaryNote) await ctx.db.delete("workerNotes", primaryNote._id)
+      if (notes) await ctx.db.delete("workerNotes", notes._id)
       return { status: "saved" } as const
     }
 
@@ -132,9 +100,9 @@ export const save = mutation({
       ...(temporaryExpiresAt === null ? {} : { temporaryExpiresAt }),
     }
     let noteId: Id<"workerNotes">
-    if (primaryNote) {
-      await ctx.db.replace("workerNotes", primaryNote._id, value)
-      noteId = primaryNote._id
+    if (notes) {
+      await ctx.db.replace("workerNotes", notes._id, value)
+      noteId = notes._id
     } else {
       noteId = await ctx.db.insert("workerNotes", value)
     }
@@ -174,25 +142,6 @@ export const clearTemporaryLines = internalMutation({
         hubId: notes.hubId,
         text,
       })
-    }
-    return null
-  },
-})
-
-// Keep the legacy scheduled callback until pre-textarea jobs have drained.
-export const deleteIfExpired = internalMutation({
-  args: {
-    noteId: v.id("workerNotes"),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const note = await ctx.db.get("workerNotes", args.noteId)
-    if (
-      note?.pinned === false &&
-      note.expiresAt !== undefined &&
-      note.expiresAt <= Date.now()
-    ) {
-      await ctx.db.delete("workerNotes", note._id)
     }
     return null
   },
