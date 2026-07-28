@@ -28,8 +28,8 @@ const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)"
 const WINDOW_EDGE_GAP = 16
 const WINDOW_WIDTH = 448
 const WINDOW_MAX_HEIGHT = 544
-const ENTRY_ROW_CLASS =
-  "flex w-full items-start gap-3 border border-transparent px-2 py-2 text-left text-sm leading-6"
+const NOTE_ROW_CLASS =
+  "flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6"
 const ENTRY_BULLET_CLASS = "mt-2 size-1.5 shrink-0 rounded-full"
 
 type WorkerNote = {
@@ -461,7 +461,7 @@ export function WorkerNotes() {
                   editingNoteId === note.id ? (
                     <li
                       key={note.id}
-                      className="group/note flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6"
+                      className={cn(NOTE_ROW_CLASS, "group/note")}
                       title={t("doubleClickToPinWorkerNote")}
                       onDoubleClick={() => void handleTogglePinned(note)}
                     >
@@ -512,7 +512,8 @@ export function WorkerNotes() {
                       <button
                         type="button"
                         className={cn(
-                          "group/note flex w-full items-start gap-3 border border-transparent px-2 py-1 text-left text-sm leading-6 transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
+                          NOTE_ROW_CLASS,
+                          "group/note transition-colors outline-none hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
                           note.pinned && "font-medium"
                         )}
                         aria-label={t(
@@ -545,7 +546,7 @@ export function WorkerNotes() {
                   )
                 )}
                 {editingNoteId ? null : isWriting ? (
-                  <li className={ENTRY_ROW_CLASS}>
+                  <li className={NOTE_ROW_CLASS}>
                     <span
                       className={cn(ENTRY_BULLET_CLASS, "bg-foreground")}
                       aria-hidden="true"
@@ -572,7 +573,7 @@ export function WorkerNotes() {
                     <button
                       type="button"
                       className={cn(
-                        ENTRY_ROW_CLASS,
+                        NOTE_ROW_CLASS,
                         "text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
                       )}
                       onClick={() => setIsWriting(true)}
