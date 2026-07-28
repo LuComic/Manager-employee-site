@@ -141,6 +141,7 @@ export function WorkerNotes() {
   const editInputRef = useRef<HTMLInputElement>(null)
   const editSaveRef = useRef(false)
   const cancelEditRef = useRef(false)
+  const noteAreaWasActiveRef = useRef(false)
   const dragRef = useRef<DragState | null>(null)
   const activeHubId = hub?.id
   const isMemberView =
@@ -468,8 +469,15 @@ export function WorkerNotes() {
 
           <div
             className="min-h-0 flex-1 cursor-text overflow-y-auto px-6 py-6"
-            onPointerDown={() => {
-              if (!editingNoteId && !isWriting) setIsWriting(true)
+            onPointerDownCapture={() => {
+              noteAreaWasActiveRef.current = isWriting || editingNoteId !== null
+            }}
+            onClick={() => {
+              const wasActive = noteAreaWasActiveRef.current
+              noteAreaWasActiveRef.current = false
+              if (!wasActive && !editingNoteId && !isWriting) {
+                setIsWriting(true)
+              }
             }}
           >
             {notes === undefined ? (
