@@ -31,7 +31,6 @@ function useAutosavedWorkerNotes({
   const translateError = useAppErrorTranslation()
   const saveWorkerNotes = useMutation(api.workerNotes.save)
   const [draft, setDraft] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
   const activeHubRef = useRef(hubId)
   const loadedHubRef = useRef<Id<"hubs"> | undefined>(undefined)
   const draftRef = useRef("")
@@ -49,7 +48,6 @@ function useAutosavedWorkerNotes({
     if (loadedHubRef.current !== hubId) {
       loadedHubRef.current = hubId
       dirtyRef.current = false
-      setIsSaving(false)
     }
     if (dirtyRef.current) return
 
@@ -67,7 +65,6 @@ function useAutosavedWorkerNotes({
     if (!hubId || savingHubRef.current === hubId) return
 
     savingHubRef.current = hubId
-    setIsSaving(true)
     try {
       while (
         activeHubRef.current === hubId &&
@@ -85,7 +82,6 @@ function useAutosavedWorkerNotes({
       dirtyRef.current = draftRef.current !== savedTextRef.current
     } finally {
       if (savingHubRef.current === hubId) savingHubRef.current = undefined
-      if (activeHubRef.current === hubId) setIsSaving(false)
     }
   }, [hubId, saveWorkerNotes, translateError])
 
@@ -101,7 +97,7 @@ function useAutosavedWorkerNotes({
     }
   }
 
-  return { draft, isSaving, changeDraft, saveNow }
+  return { draft, changeDraft, saveNow }
 }
 
 export function WorkerNotes() {
@@ -133,7 +129,7 @@ export function WorkerNotes() {
     api.workerNotes.get,
     isMemberView && isOpen && hub ? { hubId: hub.id, now } : "skip"
   )
-  const { draft, isSaving, changeDraft, saveNow } = useAutosavedWorkerNotes({
+  const { draft, changeDraft, saveNow } = useAutosavedWorkerNotes({
     hubId: activeHubId,
     remoteText,
   })
@@ -218,21 +214,15 @@ export function WorkerNotes() {
               maxLength={MAX_NOTES_LENGTH}
               disabled={remoteText === undefined}
               aria-label={t("workerNotePlaceholder")}
-              aria-busy={isSaving}
               placeholder={
                 remoteText === undefined
                   ? t("loadingWorkersNotes")
                   : t("workerNotePlaceholder")
               }
-              className="h-full min-h-0 flex-1 resize-none rounded-md border border-input bg-background px-3 py-3 leading-6 focus-visible:border-ring"
+              className="h-full min-h-0 flex-1 resize-none border-0! p-0! leading-6 focus-visible:border-0!"
               onChange={(event) => changeDraft(event.target.value)}
               onBlur={saveNow}
             />
-            {isSaving && (
-              <p className="mt-2 text-xs text-muted-foreground" role="status">
-                {t("saving")}
-              </p>
-            )}
           </div>
         </div>
       )}
