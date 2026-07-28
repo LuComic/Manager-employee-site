@@ -54,7 +54,7 @@ function NotePinButton({
       variant="ghost"
       size="icon-sm"
       className={cn(
-        "absolute top-1 right-1 z-10 size-6 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100 hover:bg-transparent!",
+        "absolute top-1 right-1 z-10 size-6 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100 hover:border-none! hover:bg-transparent!",
         note.pinned && "opacity-100"
       )}
       aria-label={label}
@@ -605,7 +605,7 @@ export function WorkerNotes() {
                           aria-label={note.text}
                           readOnly={isSavingEdit}
                           aria-busy={isSavingEdit}
-                          className="h-6 border-0 py-0 text-sm leading-6 focus-visible:border-0"
+                          className="h-6 border-0! py-0 text-sm leading-6 focus-visible:border-0!"
                           onChange={(event) =>
                             setEditingText(event.target.value)
                           }
@@ -634,7 +634,7 @@ export function WorkerNotes() {
                       key={note.id}
                       className={cn(
                         NOTE_ROW_CLASS,
-                        "group/note relative pr-9 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 hover:bg-muted/60",
+                        "group/note relative pr-9 transition-colors hover:bg-muted/60",
                         note.pinned && "font-medium"
                       )}
                     >
@@ -681,7 +681,7 @@ export function WorkerNotes() {
                         aria-label={t("workerNotePlaceholder")}
                         readOnly={isSubmitting}
                         aria-busy={isSubmitting}
-                        className="h-6 border-0 py-0 text-sm leading-6 focus-visible:border-0"
+                        className="h-6 border-0! py-0 text-sm leading-6 focus-visible:border-0!"
                         onChange={(event) => setNoteText(event.target.value)}
                         onKeyDown={handleNewNoteKeyDown}
                         onBlur={() => void saveNewNote(true)}
