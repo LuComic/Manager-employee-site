@@ -20,6 +20,7 @@ import type * as lib_notifications from "../lib/notifications.js";
 import type * as lib_snapshot from "../lib/snapshot.js";
 import type * as notifications from "../notifications.js";
 import type * as search from "../search.js";
+import type * as workerNotes from "../workerNotes.js";
 
 import type {
   ApiFromModules,
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   "lib/snapshot": typeof lib_snapshot;
   notifications: typeof notifications;
   search: typeof search;
+  workerNotes: typeof workerNotes;
 }>;
 
 /**
