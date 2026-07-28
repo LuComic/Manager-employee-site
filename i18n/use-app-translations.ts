@@ -12,7 +12,7 @@ export function useAppTranslations() {
 
   return useCallback(
     (key: AppMessageKey, values?: TranslationValues) =>
-      translations(key, values),
+      translations.has(key) ? translations(key, values) : key,
     [translations]
   )
 }

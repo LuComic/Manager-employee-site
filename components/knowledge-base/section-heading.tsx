@@ -8,10 +8,12 @@ import type { AppMessageKey } from "@/i18n/messages"
 export function SectionHeading({
   title,
   description,
+  descriptionText,
   action,
 }: {
   title: AppMessageKey
-  description?: string
+  description?: AppMessageKey
+  descriptionText?: React.ReactNode
   action?: { label: AppMessageKey; href: string }
 }) {
   return (
@@ -20,9 +22,9 @@ export function SectionHeading({
         <h2 className="text-xl font-semibold tracking-tight">
           <T>{title}</T>
         </h2>
-        {description && (
+        {(description || descriptionText) && (
           <p className="mt-2 text-sm text-muted-foreground">
-            <T>{description}</T>
+            {description ? <T>{description}</T> : descriptionText}
           </p>
         )}
       </div>

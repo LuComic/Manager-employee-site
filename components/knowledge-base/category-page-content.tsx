@@ -23,7 +23,10 @@ export function CategoryPageContent({ categoryId }: { categoryId: string }) {
   )
   return (
     <div>
-      <PageHeading title={category.label} description={category.description} />
+      <PageHeading
+        titleText={category.label}
+        descriptionText={category.description}
+      />
       {categoryGuides.length ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {categoryGuides.map((guide) => (

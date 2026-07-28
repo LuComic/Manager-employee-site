@@ -64,7 +64,7 @@ export function SearchResults({ query }: { query: string }) {
     <div aria-busy={results === undefined}>
       <PageHeading
         title="searchResults"
-        description={
+        descriptionText={
           results === undefined
             ? t("searchingForQuery", { query: normalizedQuery })
             : t(
