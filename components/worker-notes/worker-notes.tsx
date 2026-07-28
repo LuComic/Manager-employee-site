@@ -54,7 +54,7 @@ function NotePinButton({
       variant="ghost"
       size="icon-sm"
       className={cn(
-        "absolute top-1 right-1 z-10 size-6 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100",
+        "absolute top-1 right-1 z-10 size-6 opacity-0 transition-opacity group-focus-within/note:opacity-100 group-hover/note:opacity-100 hover:bg-transparent!",
         note.pinned && "opacity-100"
       )}
       aria-label={label}
