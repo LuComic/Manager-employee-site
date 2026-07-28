@@ -31,10 +31,12 @@ function useAutosavedWorkerNotes({
   const translateError = useAppErrorTranslation()
   const saveWorkerNotes = useMutation(api.workerNotes.save)
   const [draft, setDraft] = useState("")
+  const [conflictText, setConflictText] = useState<string | null>(null)
   const activeHubRef = useRef(hubId)
   const loadedHubRef = useRef<Id<"hubs"> | undefined>(undefined)
   const draftRef = useRef("")
   const savedTextRef = useRef("")
+  const conflictTextRef = useRef<string | null>(null)
   const dirtyRef = useRef(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const savingHubRef = useRef<Id<"hubs"> | undefined>(undefined)
@@ -48,8 +50,19 @@ function useAutosavedWorkerNotes({
     if (loadedHubRef.current !== hubId) {
       loadedHubRef.current = hubId
       dirtyRef.current = false
+      conflictTextRef.current = null
+      setConflictText(null)
     }
-    if (dirtyRef.current) return
+    if (dirtyRef.current) {
+      if (
+        conflictTextRef.current !== null &&
+        conflictTextRef.current !== remoteText
+      ) {
+        conflictTextRef.current = remoteText
+        setConflictText(remoteText)
+      }
+      return
+    }
 
     draftRef.current = remoteText
     savedTextRef.current = remoteText
@@ -62,7 +75,13 @@ function useAutosavedWorkerNotes({
 
   const saveNow = useCallback(async () => {
     clearTimeout(timeoutRef.current)
-    if (!hubId || savingHubRef.current === hubId) return
+    if (
+      !hubId ||
+      savingHubRef.current === hubId ||
+      conflictTextRef.current !== null
+    ) {
+      return
+    }
 
     savingHubRef.current = hubId
     try {
@@ -71,13 +90,21 @@ function useAutosavedWorkerNotes({
         draftRef.current !== savedTextRef.current
       ) {
         const text = draftRef.current
+        const expectedText = savedTextRef.current
         try {
-          await saveWorkerNotes({ hubId, text })
+          const result = await saveWorkerNotes({ hubId, text, expectedText })
+          if (result.status === "conflict") {
+            conflictTextRef.current = result.currentText
+            setConflictText(result.currentText)
+            break
+          }
         } catch (error) {
           toast.error(translateError(error))
           break
         }
         savedTextRef.current = text
+        conflictTextRef.current = null
+        setConflictText(null)
       }
       dirtyRef.current = draftRef.current !== savedTextRef.current
     } finally {
@@ -93,11 +120,44 @@ function useAutosavedWorkerNotes({
     setDraft(text)
 
     if (dirtyRef.current) {
-      timeoutRef.current = setTimeout(() => void saveNow(), AUTOSAVE_DELAY_MS)
+      if (conflictTextRef.current === null) {
+        timeoutRef.current = setTimeout(() => void saveNow(), AUTOSAVE_DELAY_MS)
+      }
     }
   }
 
-  return { draft, changeDraft, saveNow }
+  function loadLatest() {
+    const latestText = conflictTextRef.current
+    if (latestText === null) return
+
+    clearTimeout(timeoutRef.current)
+    draftRef.current = latestText
+    savedTextRef.current = latestText
+    conflictTextRef.current = null
+    dirtyRef.current = false
+    setDraft(latestText)
+    setConflictText(null)
+  }
+
+  function overwriteWithDraft() {
+    const latestText = conflictTextRef.current
+    if (latestText === null) return
+
+    savedTextRef.current = latestText
+    conflictTextRef.current = null
+    dirtyRef.current = draftRef.current !== latestText
+    setConflictText(null)
+    if (dirtyRef.current) void saveNow()
+  }
+
+  return {
+    draft,
+    conflictText,
+    changeDraft,
+    saveNow,
+    loadLatest,
+    overwriteWithDraft,
+  }
 }
 
 export function WorkerNotes() {
@@ -129,7 +189,14 @@ export function WorkerNotes() {
     api.workerNotes.get,
     isMemberView && isOpen && hub ? { hubId: hub.id, now } : "skip"
   )
-  const { draft, changeDraft, saveNow } = useAutosavedWorkerNotes({
+  const {
+    draft,
+    conflictText,
+    changeDraft,
+    saveNow,
+    loadLatest,
+    overwriteWithDraft,
+  } = useAutosavedWorkerNotes({
     hubId: activeHubId,
     remoteText,
   })
@@ -209,6 +276,33 @@ export function WorkerNotes() {
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col px-6 py-6">
+            {conflictText !== null && (
+              <div
+                className="mb-4 border border-destructive/40 bg-destructive/5 p-3 text-sm"
+                role="alert"
+              >
+                <p>{t("workerNotesChanged")}</p>
+                <p className="mt-3 font-medium">
+                  {t("workerNotesLatestVersion")}
+                </p>
+                <pre className="mt-1 max-h-24 overflow-auto bg-background p-2 font-sans text-xs whitespace-pre-wrap">
+                  {conflictText}
+                </pre>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" size="sm" onClick={loadLatest}>
+                    {t("loadLatestWorkerNotes")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={overwriteWithDraft}
+                  >
+                    {t("overwriteWorkerNotes")}
+                  </Button>
+                </div>
+              </div>
+            )}
             <Textarea
               value={draft}
               maxLength={MAX_NOTES_LENGTH}

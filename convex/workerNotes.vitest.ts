@@ -78,7 +78,11 @@ describe("worker notes", () => {
       "more more temp",
     ].join("\n")
 
-    await member.mutation(api.workerNotes.save, { hubId, text })
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text,
+      expectedText: "",
+    })
     await expect(
       member.query(api.workerNotes.get, { hubId, now: Date.now() })
     ).resolves.toBe(text)
@@ -107,6 +111,7 @@ describe("worker notes", () => {
     await member.mutation(api.workerNotes.save, {
       hubId,
       text: "! Permanent one\n\n! Permanent two",
+      expectedText: "",
     })
 
     const storedNotes = await t.run(async (ctx) => {
@@ -128,6 +133,7 @@ describe("worker notes", () => {
     await member.mutation(api.workerNotes.save, {
       hubId,
       text: "Temporary",
+      expectedText: "",
     })
     const firstVersion = await t.run(async (ctx) => {
       return await ctx.db
@@ -141,6 +147,7 @@ describe("worker notes", () => {
     await member.mutation(api.workerNotes.save, {
       hubId,
       text: "Temporary, edited",
+      expectedText: "Temporary",
     })
     await t.mutation(internal.workerNotes.clearTemporaryLines, {
       noteId: firstVersion!._id,
@@ -161,8 +168,113 @@ describe("worker notes", () => {
       outsider.query(api.workerNotes.get, { hubId, now: Date.now() })
     ).rejects.toThrow("unauthorized")
     await expect(
-      outsider.mutation(api.workerNotes.save, { hubId, text: "Not allowed" })
+      outsider.mutation(api.workerNotes.save, {
+        hubId,
+        text: "Not allowed",
+        expectedText: "",
+      })
     ).rejects.toThrow("unauthorized")
+  })
+
+  test("rejects a stale save instead of overwriting another worker", async () => {
+    const t = convexTest(schema, modules)
+    const hubId = await createHubWithActiveMember(t)
+    const member = t.withIdentity(memberIdentity)
+    const owner = t.withIdentity(ownerIdentity)
+
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text: "Member update",
+      expectedText: "",
+    })
+    await expect(
+      owner.mutation(api.workerNotes.save, {
+        hubId,
+        text: "Stale owner update",
+        expectedText: "",
+      })
+    ).resolves.toEqual({
+      status: "conflict",
+      currentText: "Member update",
+    })
+    await expect(
+      owner.query(api.workerNotes.get, { hubId, now: Date.now() })
+    ).resolves.toBe("Member update")
+
+    await expect(
+      owner.mutation(api.workerNotes.save, {
+        hubId,
+        text: "Reviewed owner update",
+        expectedText: "Member update",
+      })
+    ).resolves.toEqual({ status: "saved" })
+  })
+
+  test("reads and lazily consolidates legacy notes", async () => {
+    const t = convexTest(schema, modules)
+    const hubId = await createHubWithActiveMember(t)
+    const member = t.withIdentity(memberIdentity)
+    const now = Date.now()
+    await t.run(async (ctx) => {
+      await ctx.db.insert("workerNotes", {
+        hubId,
+        text: "Keep this",
+        pinned: true,
+        expiresAt: now - 1,
+      })
+      await ctx.db.insert("workerNotes", {
+        hubId,
+        text: "Temporary",
+        pinned: false,
+        expiresAt: now + DAY_MS,
+      })
+      await ctx.db.insert("workerNotes", {
+        hubId,
+        text: "Expired",
+        pinned: false,
+        expiresAt: now - 1,
+      })
+    })
+
+    const legacyText = "! Keep this\nTemporary"
+    await expect(
+      member.query(api.workerNotes.get, { hubId, now })
+    ).resolves.toBe(legacyText)
+    await expect(
+      member.mutation(api.workerNotes.save, {
+        hubId,
+        text: legacyText,
+        expectedText: legacyText,
+      })
+    ).resolves.toEqual({ status: "saved" })
+
+    const storedNotes = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("workerNotes")
+        .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+        .take(10)
+    })
+    expect(storedNotes).toHaveLength(1)
+    expect(storedNotes[0]).not.toHaveProperty("pinned")
+    expect(storedNotes[0]).not.toHaveProperty("expiresAt")
+  })
+
+  test("keeps the legacy scheduled cleanup callback compatible", async () => {
+    const t = convexTest(schema, modules)
+    const hubId = await createHubWithActiveMember(t)
+    const noteId = await t.run(async (ctx) => {
+      return await ctx.db.insert("workerNotes", {
+        hubId,
+        text: "Expired",
+        pinned: false,
+        expiresAt: Date.now() - 1,
+      })
+    })
+
+    await t.mutation(internal.workerNotes.deleteIfExpired, { noteId })
+    await expect(
+      t.run(async (ctx) => await ctx.db.get("workerNotes", noteId))
+    ).resolves.toBeNull()
   })
 
   test("clears blank notes and rejects oversized text", async () => {
@@ -170,8 +282,16 @@ describe("worker notes", () => {
     const hubId = await createHubWithActiveMember(t)
     const member = t.withIdentity(memberIdentity)
 
-    await member.mutation(api.workerNotes.save, { hubId, text: "Temporary" })
-    await member.mutation(api.workerNotes.save, { hubId, text: "   " })
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text: "Temporary",
+      expectedText: "",
+    })
+    await member.mutation(api.workerNotes.save, {
+      hubId,
+      text: "   ",
+      expectedText: "Temporary",
+    })
     await expect(
       member.query(api.workerNotes.get, { hubId, now: Date.now() })
     ).resolves.toBe("")
@@ -179,6 +299,7 @@ describe("worker notes", () => {
       member.mutation(api.workerNotes.save, {
         hubId,
         text: "x".repeat(10_001),
+        expectedText: "",
       })
     ).rejects.toThrow("workerNoteTooLong")
   })

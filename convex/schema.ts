@@ -298,6 +298,9 @@ export default defineSchema({
     hubId: v.id("hubs"),
     text: v.string(),
     temporaryExpiresAt: v.optional(v.number()),
+    // Legacy note fields remain optional for a safe dual-read rollout.
+    pinned: v.optional(v.boolean()),
+    expiresAt: v.optional(v.number()),
   }).index("by_hubId", ["hubId"]),
 
   notifications: defineTable({
