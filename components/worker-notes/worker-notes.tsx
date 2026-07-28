@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import { StickyNote, X } from "lucide-react"
@@ -19,6 +19,7 @@ import {
 import { useWorkerNotesWindow } from "./use-worker-notes-window"
 
 const AUTOSAVE_DELAY_MS = 700
+const AUTOSAVE_RETRY_DELAY_MS = 3_000
 const MAX_NOTES_LENGTH = 10_000
 
 function useAutosavedWorkerNotes({
@@ -37,7 +38,9 @@ function useAutosavedWorkerNotes({
   const draftRef = useRef("")
   const savedTextRef = useRef("")
   const conflictTextRef = useRef<string | null>(null)
+  const pendingRemoteTextRef = useRef<string | null>(null)
   const dirtyRef = useRef(false)
+  const saveErrorShownRef = useRef(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const savingHubRef = useRef<Id<"hubs"> | undefined>(undefined)
 
@@ -51,9 +54,13 @@ function useAutosavedWorkerNotes({
       loadedHubRef.current = hubId
       dirtyRef.current = false
       conflictTextRef.current = null
+      pendingRemoteTextRef.current = null
+      saveErrorShownRef.current = false
       setConflictText(null)
     }
     if (dirtyRef.current) {
+      pendingRemoteTextRef.current =
+        remoteText === savedTextRef.current ? null : remoteText
       if (
         conflictTextRef.current !== null &&
         conflictTextRef.current !== remoteText
@@ -64,6 +71,7 @@ function useAutosavedWorkerNotes({
       return
     }
 
+    pendingRemoteTextRef.current = null
     draftRef.current = remoteText
     savedTextRef.current = remoteText
     setDraft(remoteText)
@@ -73,10 +81,11 @@ function useAutosavedWorkerNotes({
     return () => clearTimeout(timeoutRef.current)
   }, [hubId])
 
-  const saveNow = useCallback(async () => {
+  async function saveNow() {
     clearTimeout(timeoutRef.current)
     if (
       !hubId ||
+      activeHubRef.current !== hubId ||
       savingHubRef.current === hubId ||
       conflictTextRef.current !== null
     ) {
@@ -95,22 +104,54 @@ function useAutosavedWorkerNotes({
           const result = await saveWorkerNotes({ hubId, text, expectedText })
           if (result.status === "conflict") {
             conflictTextRef.current = result.currentText
+            pendingRemoteTextRef.current = null
+            saveErrorShownRef.current = false
             setConflictText(result.currentText)
             break
           }
         } catch (error) {
-          toast.error(translateError(error))
+          if (!saveErrorShownRef.current) {
+            saveErrorShownRef.current = true
+            toast.error(translateError(error))
+          }
+          if (
+            activeHubRef.current === hubId &&
+            conflictTextRef.current === null &&
+            draftRef.current !== savedTextRef.current
+          ) {
+            timeoutRef.current = setTimeout(
+              () => void saveNow(),
+              AUTOSAVE_RETRY_DELAY_MS
+            )
+          }
           break
         }
         savedTextRef.current = text
+        if (pendingRemoteTextRef.current === text) {
+          pendingRemoteTextRef.current = null
+        }
         conflictTextRef.current = null
+        saveErrorShownRef.current = false
         setConflictText(null)
       }
       dirtyRef.current = draftRef.current !== savedTextRef.current
+      const pendingRemoteText = pendingRemoteTextRef.current
+      if (
+        activeHubRef.current === hubId &&
+        !dirtyRef.current &&
+        conflictTextRef.current === null &&
+        pendingRemoteText !== null &&
+        pendingRemoteText !== savedTextRef.current
+      ) {
+        draftRef.current = pendingRemoteText
+        savedTextRef.current = pendingRemoteText
+        setDraft(pendingRemoteText)
+      }
+      pendingRemoteTextRef.current = null
     } finally {
       if (savingHubRef.current === hubId) savingHubRef.current = undefined
     }
-  }, [hubId, saveWorkerNotes, translateError])
+  }
 
   function changeDraft(text: string) {
     clearTimeout(timeoutRef.current)
@@ -134,7 +175,9 @@ function useAutosavedWorkerNotes({
     draftRef.current = latestText
     savedTextRef.current = latestText
     conflictTextRef.current = null
+    pendingRemoteTextRef.current = null
     dirtyRef.current = false
+    saveErrorShownRef.current = false
     setDraft(latestText)
     setConflictText(null)
   }
@@ -145,7 +188,9 @@ function useAutosavedWorkerNotes({
 
     savedTextRef.current = latestText
     conflictTextRef.current = null
+    pendingRemoteTextRef.current = null
     dirtyRef.current = draftRef.current !== latestText
+    saveErrorShownRef.current = false
     setConflictText(null)
     if (dirtyRef.current) void saveNow()
   }
