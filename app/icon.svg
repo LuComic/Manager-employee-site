@@ -25,16 +25,13 @@
        L 537 445
        Z"
     fill="#000000"
-    stroke="#ffffff"
+    stroke="#000000"
     stroke-width="11"
     stroke-linejoin="miter"
     stroke-miterlimit="10"
     stroke-linecap="square"
   />
 
-  <path d="M 669 675 L 751 675 L 710 831 Z" fill="#ffffff" />
-  <path d="M 684 689 L 736 689 L 710 790 Z" fill="#10978f" />
-
-  <path d="M 896 675 L 978 675 L 937 831 Z" fill="#ffffff" />
-  <path d="M 911 689 L 963 689 L 937 790 Z" fill="#10978f" />
+  <path d="M 669 675 L 751 675 L 710 831 Z" fill="#10978f" />
+  <path d="M 896 675 L 978 675 L 937 831 Z" fill="#10978f" />
 </svg>
