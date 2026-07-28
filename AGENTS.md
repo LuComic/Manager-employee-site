@@ -14,6 +14,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - use 'bun' and 'bunx' for packages and commands
 
+## Styling
+
+- use 'wrap-break-word' instead of 'break-words'
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.

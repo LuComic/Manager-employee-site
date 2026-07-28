@@ -529,7 +529,7 @@ export function WorkerNotes() {
                           className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground"
                           aria-hidden="true"
                         />
-                        <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
+                        <span className="min-w-0 flex-1 wrap-break-word whitespace-pre-wrap">
                           {note.text}
                         </span>
                         <Pin
