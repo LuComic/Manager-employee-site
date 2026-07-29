@@ -4,15 +4,20 @@
   height="96"
   viewBox="327 50 1000 1000"
 >
-  <path
-    d="M 537 678 L 827 240 L 1116 678"
-    fill="none"
-    stroke="#000000"
-    stroke-width="123"
-    stroke-linecap="butt"
-    stroke-linejoin="miter"
-    stroke-miterlimit="10"
-  />
+  <defs>
+    <mask
+      id="triangle-cutouts"
+      x="327"
+      y="50"
+      width="1000"
+      height="1000"
+      maskUnits="userSpaceOnUse"
+    >
+      <rect x="327" y="50" width="1000" height="1000" fill="#ffffff" />
+      <path d="M 669 675 L 751 675 L 710 831 Z" fill="#000000" />
+      <path d="M 896 675 L 978 675 L 937 831 Z" fill="#000000" />
+    </mask>
+  </defs>
 
   <path
     d="M 425 445
@@ -34,14 +39,12 @@
        L 537 567
        L 537 445
        Z"
-    fill="#000000"
-    stroke="#000000"
+    fill="#10978f"
+    stroke="#10978f"
     stroke-width="11"
     stroke-linejoin="miter"
     stroke-miterlimit="10"
     stroke-linecap="square"
+    mask="url(#triangle-cutouts)"
   />
-
-  <path d="M 669 675 L 751 675 L 710 831 Z" fill="#10978f" />
-  <path d="M 896 675 L 978 675 L 937 831 Z" fill="#10978f" />
 </svg>
