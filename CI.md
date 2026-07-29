@@ -3,15 +3,19 @@
 Follow this workflow for every feature, bug fix, refactor, or other code
 change.
 
-The implementation agent's deliverable is a pushed task branch and a pull
-request. The agent must not merge the pull request or modify `main`.
+The first implementation for a task initializes a task branch and draft pull
+request. Follow-up implementation prompts on that pull request accumulate as
+staged local changes. They are not committed or pushed until the user
+explicitly asks to commit and/or push them.
+
+The agent must not merge the pull request or modify `main`.
 
 ## 1. Isolate the task
 
-Start each implementation task in Codex **Worktree** mode, based on `main`.
-Codex creates and manages the isolated worktree. If the task is already running
-in a Codex-managed worktree, use it; do not create another nested worktree with
-`git worktree add`.
+Start each new implementation task in Codex **Worktree** mode, based on
+`main`. Codex creates and manages the isolated worktree. If the task is already
+running in a Codex-managed worktree, use it; do not create another nested
+worktree with `git worktree add`.
 
 Never run concurrent implementation agents in the shared **Local** checkout.
 Local mode is acceptable for one sequential task only, and that task must
@@ -26,11 +30,6 @@ test -z "$(git status --porcelain)"
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
 ```
 
-Exception: when addressing feedback on or adding to an existing pull request,
-continue on that pull request's existing task branch. Fetch the remote state
-and require a clean worktree, but do not require `HEAD` to equal `origin/main`.
-Confirm the branch belongs to the intended pull request before editing.
-
 For the Local-mode fallback, create the task branch directly from
 `origin/main`:
 
@@ -43,10 +42,27 @@ git switch -c codex/<short-task-name> origin/main
 If either check fails, stop and report the problem. Do not reset, discard, or
 overwrite existing work.
 
-## 2. Implement and verify
+If the user explicitly asks to move existing uncommitted work from `main` to a
+task branch, first inspect `git status` and the complete diff. If all changes
+belong to the requested task and `HEAD` equals `origin/main`, preserve them by
+creating and switching to the task branch:
 
-Make only the requested changes. Use `bun` and `bunx` for project commands.
-Run the relevant tests, lint checks, type checks, or build before committing.
+```sh
+git fetch origin
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+git status --short
+git diff
+git switch -c codex/<short-task-name>
+```
+
+This is the only exception to the clean-worktree requirement. Stop if the
+checkout contains unrelated or ambiguous changes.
+
+## 2. Initialize the pull request
+
+For the first implementation on a new task branch, make only the requested
+changes. Use `bun` and `bunx` for project commands. Run the relevant tests,
+lint checks, type checks, or build before committing.
 
 When work in a Codex-managed worktree is ready, use **Create branch here** and
 name the branch `codex/<short-task-name>`. The shell equivalent for a detached
@@ -81,8 +97,6 @@ git status --short
 The log and diff must contain only this task's commits and files, and the
 working tree must be clean.
 
-## 3. Push and create the pull request
-
 Every implementation branch must use the `codex/<short-task-name>` naming
 pattern. Push only the task branch; the checks below refuse `main`, branches
 outside the `codex/` namespace, and an empty name after the prefix:
@@ -114,7 +128,7 @@ gh pr view "$TASK_BRANCH" \
   --json url,state,isDraft,baseRefName,headRefName
 ```
 
-The task is not complete until the agent reports:
+The initial task is not complete until the agent reports:
 
 - the branch name;
 - the commit SHA;
@@ -124,10 +138,87 @@ The task is not complete until the agent reports:
 If pushing or pull-request creation fails, report the failure and stop. Do not
 claim completion merely because the branch was pushed.
 
-## 4. Stop before review or merge
+## 3. Accumulate follow-up changes
 
-After creating the pull request, stop. Pull-request review and merging are
-separate tasks controlled by the user.
+When implementing follow-up requests for an existing pull request, continue on
+that pull request's task branch. Fetch the remote state and confirm that the
+branch belongs to the intended open pull request:
+
+```sh
+git fetch origin
+TASK_BRANCH="$(git branch --show-current)"
+gh pr view "$TASK_BRANCH" \
+  --json url,state,isDraft,baseRefName,headRefName
+```
+
+Before editing, inspect both staged and unstaged changes so accumulated work is
+preserved:
+
+```sh
+git status --short
+git diff
+git diff --cached
+```
+
+Make and verify the requested change, then stage only its task files:
+
+```sh
+git add <task-files>
+git diff --cached
+git status --short
+```
+
+Do not commit or push follow-up changes merely because an implementation
+prompt is complete. Leave the accumulated task changes staged and report:
+
+- the branch and pull request;
+- which files are staged;
+- verification commands and results; and
+- that no commit or push was performed.
+
+## 4. Publish accumulated changes only on explicit request
+
+Commit and/or push follow-up changes only when the user explicitly asks for
+those actions. Do not infer that permission from a general request to
+implement, fix, revise, or update something.
+
+Before committing, inspect the complete staged scope and confirm no requested
+changes remain unstaged:
+
+```sh
+git diff --cached
+git diff
+git status --short
+```
+
+Run any relevant verification that has not been run against the complete
+staged state. Then perform exactly the requested Git actions. To commit and
+push an accumulated update:
+
+```sh
+git commit -m "<concise description>"
+TASK_BRANCH="$(git branch --show-current)"
+test -n "$TASK_BRANCH"
+test "$TASK_BRANCH" != "main"
+test "${TASK_BRANCH#codex/}" != "$TASK_BRANCH"
+test -n "${TASK_BRANCH#codex/}"
+git push origin "$TASK_BRANCH"
+```
+
+Verify that the existing pull request now points at the new commit:
+
+```sh
+gh pr view "$TASK_BRANCH" \
+  --json url,state,isDraft,baseRefName,headRefName,commits
+```
+
+Report the commit SHA, verification results, and pull request URL. Do not
+create another pull request for the same task branch.
+
+## 5. Stop before review or merge
+
+After creating or updating the pull request, stop. Pull-request review and
+merging are separate tasks controlled by the user.
 
 The implementation agent must not:
 
