@@ -5,7 +5,7 @@ export function BrandMark({ className }: { className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        "inline-block shrink-0 [background-size:contain] bg-center bg-no-repeat",
+        "inline-block shrink-0 bg-contain bg-center bg-no-repeat shadow-sm",
         className
       )}
       style={{ backgroundImage: 'url("/icon.svg")' }}

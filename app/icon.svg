@@ -2,16 +2,15 @@
   xmlns="http://www.w3.org/2000/svg"
   width="96"
   height="96"
-  viewBox="327 50 1000 1000"
+  viewBox="327 232 1000 1000"
 >
-  <path
-    d="M 537 678 L 827 240 L 1116 678"
-    fill="none"
-    stroke="#000000"
-    stroke-width="123"
-    stroke-linecap="butt"
-    stroke-linejoin="miter"
-    stroke-miterlimit="10"
+  <rect
+    x="327"
+    y="232"
+    width="1000"
+    height="1000"
+    rx="100"
+    fill="#ffffff"
   />
 
   <path
@@ -42,6 +41,6 @@
     stroke-linecap="square"
   />
 
-  <path d="M 669 675 L 751 675 L 710 831 Z" fill="#10978f" />
-  <path d="M 896 675 L 978 675 L 937 831 Z" fill="#10978f" />
+  <path d="M 669 675 L 751 675 L 710 831 Z" fill="#ffffff" />
+  <path d="M 896 675 L 978 675 L 937 831 Z" fill="#ffffff" />
 </svg>

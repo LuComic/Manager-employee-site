@@ -1,6 +1,13 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useSearchParams } from "next/navigation"
 import { useAuth, useSession } from "@clerk/nextjs"
 import { ConvexHttpClient } from "convex/browser"
@@ -17,6 +24,7 @@ import {
 } from "@/i18n/use-app-translations"
 import type { AppMessageKey } from "@/i18n/messages"
 import type { Locale } from "@/i18n/routing"
+import { workspaceDocumentTitle } from "@/lib/branding"
 import {
   isBannerImageContentType,
   MAX_BANNER_IMAGE_SIZE_BYTES,
@@ -190,6 +198,36 @@ function parseStored<T>(value: string | null): T | null {
   } catch {
     return null
   }
+}
+
+function WorkspaceDocumentTitle({ workspaceName }: { workspaceName?: string }) {
+  const previousWorkspaceName = useRef<string | null>(null)
+
+  useEffect(() => {
+    const activeWorkspaceName = workspaceName?.trim() || null
+    const previousName = previousWorkspaceName.current
+    const syncTitle = () => {
+      const nextTitle = workspaceDocumentTitle(
+        document.title,
+        activeWorkspaceName,
+        previousName
+      )
+      if (nextTitle !== document.title) document.title = nextTitle
+    }
+
+    syncTitle()
+    const observer = new MutationObserver(syncTitle)
+    observer.observe(document.head, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    })
+    previousWorkspaceName.current = activeWorkspaceName
+
+    return () => observer.disconnect()
+  }, [workspaceName])
+
+  return null
 }
 
 export function OperationsProvider({
@@ -879,6 +917,7 @@ export function OperationsProvider({
 
   return (
     <OperationsContext.Provider value={value}>
+      <WorkspaceDocumentTitle workspaceName={hub?.name} />
       {children}
     </OperationsContext.Provider>
   )
