@@ -16,7 +16,7 @@ import { ConvexClientProvider } from "@/components/providers/convex-client-provi
 import { OperationsProvider } from "@/components/providers/operations-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { getPathname } from "@/i18n/navigation"
-import { routing } from "@/i18n/routing"
+import { languageTags, routing } from "@/i18n/routing"
 import { SITE_NAME } from "@/lib/branding"
 import { clerkAppearance } from "@/lib/clerk-appearance"
 import { clerkLocalizationByLocale } from "@/lib/clerk-localization"
@@ -29,6 +29,21 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+function getMetadataBase() {
+  const configuredUrl =
+    process.env.SITE_URL ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_URL
+
+  if (!configuredUrl) return new URL("http://localhost:3000")
+
+  return new URL(
+    configuredUrl.startsWith("http")
+      ? configuredUrl
+      : `https://${configuredUrl}`
+  )
+}
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
 }
@@ -39,14 +54,42 @@ export async function generateMetadata({
   const { locale } = await params
   if (!hasLocale(routing.locales, locale)) return {}
   const t = await getTranslations({ locale, namespace: "App" })
+  const description = t("todaySInformationPracticalGuidesSmoothShifts")
+  const metadataBase = getMetadataBase()
+  const previewImage = {
+    url: new URL("/workhal-preview.png", metadataBase),
+    width: 1200,
+    height: 630,
+    alt: `${SITE_NAME}: ${description}`,
+  }
+  const openGraphLocale = languageTags[locale].replace("-", "_")
+  const alternateOpenGraphLocales = routing.locales
+    .filter((supportedLocale) => supportedLocale !== locale)
+    .map((supportedLocale) => languageTags[supportedLocale].replace("-", "_"))
 
   return {
+    metadataBase,
     title: {
       default: SITE_NAME,
       template: `%s | ${SITE_NAME}`,
     },
     applicationName: SITE_NAME,
-    description: t("todaySInformationPracticalGuidesSmoothShifts"),
+    description,
+    openGraph: {
+      type: "website",
+      title: SITE_NAME,
+      description,
+      siteName: SITE_NAME,
+      locale: openGraphLocale,
+      alternateLocale: alternateOpenGraphLocales,
+      images: [previewImage],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: SITE_NAME,
+      description,
+      images: [previewImage],
+    },
   }
 }
 

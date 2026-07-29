@@ -24,6 +24,11 @@ The project expects these environment variable names in `.env.local`:
 - `NEXT_PUBLIC_CONVEX_URL`
 - `CLERK_FRONTEND_API_URL`
 
+Production deployments should also set `SITE_URL` to the public application
+origin (for example, `https://workhal.example`) so social preview image URLs
+use the canonical host. Vercel deployments fall back to Vercel's automatically
+provided production or deployment URL.
+
 The Convex deployment also expects:
 
 - `CLERK_FRONTEND_API_URL` (the Clerk issuer already used by `convex/auth.config.ts`)
