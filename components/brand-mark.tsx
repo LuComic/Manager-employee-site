@@ -8,7 +8,7 @@ export function BrandMark({ className }: { className?: string }) {
         "inline-block shrink-0 bg-contain bg-center bg-no-repeat shadow-sm",
         className
       )}
-      style={{ backgroundImage: 'url("/icon.svg")' }}
+      style={{ backgroundImage: 'url("/workhal-square.svg")' }}
     />
   )
 }
