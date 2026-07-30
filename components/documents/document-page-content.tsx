@@ -8,6 +8,7 @@ import { ArrowLeft, ExternalLink, Files, Users } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { EmptyState } from "@/components/operations/empty-state"
+import { RelatedInformation } from "@/components/operations/related-information"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -21,7 +22,7 @@ import { cn } from "@/lib/utils"
 
 export function DocumentPageContent({ documentId }: { documentId: string }) {
   const t = useAppTranslations()
-  const { documents } = useOperations()
+  const { documents, guides } = useOperations()
   const document = documents.find(
     (item) => item.id === documentId && item.published
   )
@@ -41,6 +42,10 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
   if (!resource) {
     throw new Error("Published document is missing a resource")
   }
+  const relatedGuides = guides.filter(
+    (guide) =>
+      guide.published && (document.relatedGuideIds ?? []).includes(guide.id)
+  )
 
   return (
     <article className="space-y-6">
@@ -135,6 +140,8 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             />
           </a>
         )}
+
+      <RelatedInformation guides={relatedGuides} className="max-w-4xl" />
     </article>
   )
 }

@@ -6,6 +6,7 @@ import { useState } from "react"
 import { ArrowLeft, Eye, Megaphone, Pencil } from "lucide-react"
 
 import { AnnouncementArticle } from "@/components/announcements/announcement-detail"
+import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { RichTextEditor } from "@/components/rich-text/rich-text-editor"
@@ -241,6 +242,16 @@ export function AnnouncementEditor({
 
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.published}
+                  onChange={(event) =>
+                    change({ published: event.target.checked })
+                  }
+                />
+                <T>publishNow</T>
+              </label>
               <Field label="publishDate" id="announcement-start">
                 <Input
                   id="announcement-start"
@@ -291,37 +302,13 @@ export function AnnouncementEditor({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="relatedGuide" id="announcement-guide">
-                <Select
-                  value={draft.guideId ?? "none"}
-                  onValueChange={(value) =>
-                    change({
-                      guideId: !value || value === "none" ? undefined : value,
-                    })
-                  }
-                >
-                  <SelectTrigger
-                    id="announcement-guide"
-                    className="w-full border border-input bg-background px-3"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">
-                      <T>noRelatedGuide</T>
-                    </SelectItem>
-                    {guideReferences
-                      .filter(
-                        (guide) => guide.published || guide.id === draft.guideId
-                      )
-                      .map((guide) => (
-                        <SelectItem key={guide.id} value={guide.id}>
-                          {guide.title}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <RelatedGuidesPicker
+                guides={guideReferences}
+                selectedIds={draft.guideId ? [draft.guideId] : []}
+                onChange={(guideIds) => change({ guideId: guideIds[0] })}
+                selectionMode="single"
+                title="relatedGuide"
+              />
               <Field label="relatedEvent" id="announcement-event">
                 <Select
                   value={draft.eventId ?? "none"}
@@ -353,16 +340,6 @@ export function AnnouncementEditor({
                   </SelectContent>
                 </Select>
               </Field>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    change({ published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

@@ -7,6 +7,7 @@ import { useState } from "react"
 import { ArrowLeft, Eye, Pencil, X } from "lucide-react"
 
 import { GuideDetail } from "@/components/knowledge-base/guide-detail"
+import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { RichTextEditor } from "@/components/rich-text/rich-text-editor"
@@ -44,6 +45,7 @@ type GuideDraft = {
   category: string
   duration: string
   keywords: string[]
+  relatedGuideIds: string[]
   content: RichTextDocument
   published: boolean
   featured: boolean
@@ -72,6 +74,7 @@ function toDraft(guide: Guide): GuideDraft {
     category: guide.category,
     duration: guide.duration,
     keywords: uniqueKeywords(guide.keywords ?? []),
+    relatedGuideIds: guide.relatedGuideIds ?? [],
     content: cloneContent(guide.content),
     published: Boolean(guide.published),
     featured: Boolean(guide.featured),
@@ -81,7 +84,8 @@ function toDraft(guide: Guide): GuideDraft {
 
 export function GuideEditor({ guideId }: { guideId?: string }) {
   const t = useAppTranslations()
-  const { categories, guides, saveGuide, showFeedback } = useOperations()
+  const { categories, guides, guideReferences, saveGuide, showFeedback } =
+    useOperations()
   const existingGuide = guideId
     ? guides.find((guide) => guide.id === guideId)
     : undefined
@@ -96,6 +100,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
       category: category.id,
       duration: "5 min",
       keywords: [],
+      relatedGuideIds: [],
       content: cloneContent(emptyRichTextDocument),
       published: false,
       featured: false,
@@ -180,6 +185,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         duration,
         updated: "Updated just now",
         keywords: uniqueKeywords(draft.keywords),
+        relatedGuideIds: draft.relatedGuideIds,
         content: draft.content,
         published: draft.published,
         featured: draft.featured,
@@ -223,6 +229,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
     duration: normalizeReadingTime(draft.duration) || t("readingTime"),
     updated: draft.id ? t("updatedJustNow") : t("newGuide"),
     keywords: uniqueKeywords(draft.keywords),
+    relatedGuideIds: draft.relatedGuideIds,
     content: draft.content,
     published: draft.published,
     featured: draft.featured,
@@ -266,6 +273,12 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
             guide={previewGuide}
             category={categories.find(
               (category) => category.id === draft.category
+            )}
+            relatedGuides={guides.filter(
+              (guide) =>
+                guide.published &&
+                guide.id !== draft.id &&
+                draft.relatedGuideIds.includes(guide.id)
             )}
             preview
           />
@@ -312,6 +325,16 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
 
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.published}
+                  onChange={(event) =>
+                    change({ published: event.target.checked })
+                  }
+                />
+                <T>publishNow</T>
+              </label>
               <Field label="category" id="guide-category">
                 <Select
                   value={draft.category}
@@ -404,16 +427,12 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                   </div>
                 ) : null}
               </Field>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    change({ published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
+              <RelatedGuidesPicker
+                guides={guideReferences}
+                selectedIds={draft.relatedGuideIds}
+                onChange={(relatedGuideIds) => change({ relatedGuideIds })}
+                excludeGuideId={draft.id || undefined}
+              />
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

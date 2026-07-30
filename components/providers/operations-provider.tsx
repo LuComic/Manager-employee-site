@@ -781,6 +781,7 @@ export function OperationsProvider({
           featured: Boolean(guide.featured),
           published: Boolean(guide.published),
           keywords: guide.keywords ?? [],
+          relatedGuideSlugs: guide.relatedGuideIds ?? [],
           content: guide.content,
         })
       )
@@ -944,6 +945,7 @@ export function OperationsProvider({
             employeeProfileIds: document.employees.flatMap((employee) =>
               employee.id ? [employee.id as Id<"employeeProfiles">] : []
             ),
+            relatedGuideSlugs: document.relatedGuideIds ?? [],
             published: document.published,
           })
         } catch (error) {

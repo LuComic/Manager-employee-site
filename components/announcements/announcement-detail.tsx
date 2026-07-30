@@ -8,8 +8,7 @@ import { ArrowLeft, CalendarDays, Megaphone, Pin } from "lucide-react"
 
 import { EmptyState } from "@/components/operations/empty-state"
 import { RichTextContent } from "@/components/rich-text/rich-text-content"
-import { GuideCard } from "@/components/knowledge-base/guide-card"
-import { EventCard } from "@/components/operations/event-card"
+import { RelatedInformation } from "@/components/operations/related-information"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -132,19 +131,11 @@ export function AnnouncementArticle({
           </div>
         </CardContent>
       </Card>
-      {(event || guide) && (
-        <section>
-          <h2 className="mb-4 text-xl font-semibold">
-            <T>relatedInformation</T>
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {event && (
-              <EventCard event={event} timeZone={hub?.timeZone} compact />
-            )}
-            {guide && <GuideCard guide={guide} />}
-          </div>
-        </section>
-      )}
+      <RelatedInformation
+        guides={guide ? [guide] : []}
+        events={event ? [event] : []}
+        timeZone={hub?.timeZone}
+      />
       {!preview && !event && announcement.eventId && (
         <EmptyState
           icon={CalendarDays}

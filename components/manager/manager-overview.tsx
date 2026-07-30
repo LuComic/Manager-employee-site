@@ -154,25 +154,32 @@ export function ManagerOverview() {
       {drafts > 0 && (
         <Link
           href="/manager/drafts"
-          className="group flex items-start gap-3 border bg-background p-4 transition-colors outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30"
+          className="group block outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
         >
-          <span className="flex size-9 shrink-0 items-center justify-center bg-muted text-muted-foreground">
-            <FilePenLine className="size-4" />
-          </span>
-          <div>
-            <p className="font-semibold">
-              {t(
-                drafts === 1
-                  ? "draftReviewCountSingular"
-                  : "draftReviewCountPlural",
-                { count: drafts }
-              )}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <T>draftItemsNotVisibleEmployeesUntilTheyMessage</T>
-            </p>
-          </div>
-          <ArrowRight className="mt-2 ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+          <Card
+            size="sm"
+            className="shadow-none transition-colors group-hover:bg-muted/40"
+          >
+            <CardContent className="flex items-center gap-4">
+              <span className="flex size-9 shrink-0 items-center justify-center bg-muted text-muted-foreground">
+                <FilePenLine className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold">
+                  {t(
+                    drafts === 1
+                      ? "draftReviewCountSingular"
+                      : "draftReviewCountPlural",
+                    { count: drafts }
+                  )}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  <T>draftItemsNotVisibleEmployeesUntilTheyMessage</T>
+                </p>
+              </div>
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+            </CardContent>
+          </Card>
         </Link>
       )}
       {sections.map((section) => (

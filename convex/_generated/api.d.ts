@@ -16,6 +16,7 @@ import type * as http from "../http.js";
 import type * as hubs from "../hubs.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_credentialEncryption from "../lib/credentialEncryption.js";
+import type * as lib_guideLinks from "../lib/guideLinks.js";
 import type * as lib_hubStorage from "../lib/hubStorage.js";
 import type * as lib_notifications from "../lib/notifications.js";
 import type * as lib_snapshot from "../lib/snapshot.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   hubs: typeof hubs;
   "lib/access": typeof lib_access;
   "lib/credentialEncryption": typeof lib_credentialEncryption;
+  "lib/guideLinks": typeof lib_guideLinks;
   "lib/hubStorage": typeof lib_hubStorage;
   "lib/notifications": typeof lib_notifications;
   "lib/snapshot": typeof lib_snapshot;

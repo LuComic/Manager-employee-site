@@ -151,6 +151,15 @@ export default defineSchema({
       filterFields: ["hubId", "published"],
     }),
 
+  guideRelations: defineTable({
+    hubId: v.id("hubs"),
+    guideId: v.id("guides"),
+    relatedGuideId: v.id("guides"),
+  })
+    .index("by_guideId", ["guideId"])
+    .index("by_relatedGuideId", ["relatedGuideId"])
+    .index("by_hubId", ["hubId"]),
+
   events: defineTable({
     hubId: v.id("hubs"),
     slug: v.string(),
@@ -255,6 +264,15 @@ export default defineSchema({
       searchField: "title",
       filterFields: ["hubId", "published"],
     }),
+
+  documentGuides: defineTable({
+    hubId: v.id("hubs"),
+    documentId: v.id("documents"),
+    guideId: v.id("guides"),
+  })
+    .index("by_documentId", ["documentId"])
+    .index("by_guideId", ["guideId"])
+    .index("by_hubId", ["hubId"]),
 
   documentEmployees: defineTable({
     hubId: v.id("hubs"),

@@ -14,6 +14,13 @@ import {
   requireIdentity,
 } from "./lib/access"
 import {
+  assertGuideLinkReplacementFits,
+  assertGuideLinksPerItem,
+  MAX_GUIDE_LINKS_PER_HUB,
+  MAX_GUIDE_LINKS_PER_ITEM,
+  resolvePublishedGuides,
+} from "./lib/guideLinks"
+import {
   bindHubStorage,
   deleteReferencedHubStorage,
   requireBoundHubStorage,
@@ -110,6 +117,7 @@ export const save = mutation({
     resource: v.optional(documentResourceInput),
     bannerStorageId: v.optional(v.union(v.id("_storage"), v.null())),
     employeeProfileIds: v.array(v.id("employeeProfiles")),
+    relatedGuideSlugs: v.optional(v.array(v.string())),
     published: v.boolean(),
   },
   returns: v.string(),
@@ -253,6 +261,39 @@ export const save = mutation({
       }
     }
 
+    if (args.relatedGuideSlugs !== undefined) {
+      const [oldGuideRelations, hubGuideRelations, relatedGuides] =
+        await Promise.all([
+          ctx.db
+            .query("documentGuides")
+            .withIndex("by_documentId", (q) => q.eq("documentId", documentId))
+            .take(MAX_GUIDE_LINKS_PER_ITEM + 1),
+          ctx.db
+            .query("documentGuides")
+            .withIndex("by_hubId", (q) => q.eq("hubId", args.hubId))
+            .take(MAX_GUIDE_LINKS_PER_HUB + 1),
+          resolvePublishedGuides(ctx, {
+            hubId: args.hubId,
+            slugs: args.relatedGuideSlugs,
+          }),
+        ])
+      assertGuideLinkReplacementFits({
+        hubCount: hubGuideRelations.length,
+        previousCount: oldGuideRelations.length,
+        nextCount: relatedGuides.length,
+      })
+      for (const relation of oldGuideRelations) {
+        await ctx.db.delete("documentGuides", relation._id)
+      }
+      for (const guide of relatedGuides) {
+        await ctx.db.insert("documentGuides", {
+          hubId: args.hubId,
+          documentId,
+          guideId: guide._id,
+        })
+      }
+    }
+
     if (
       existing?.resource.kind === "file" &&
       (resource.kind !== "file" ||
@@ -309,14 +350,24 @@ export const remove = mutation({
       )
       .unique()
     if (document) {
-      const relations = await ctx.db
-        .query("documentEmployees")
-        .withIndex("by_documentId_and_employeeProfileId", (q) =>
-          q.eq("documentId", document._id)
-        )
-        .take(200)
-      for (const relation of relations) {
+      const [employeeRelations, guideRelations] = await Promise.all([
+        ctx.db
+          .query("documentEmployees")
+          .withIndex("by_documentId_and_employeeProfileId", (q) =>
+            q.eq("documentId", document._id)
+          )
+          .take(200),
+        ctx.db
+          .query("documentGuides")
+          .withIndex("by_documentId", (q) => q.eq("documentId", document._id))
+          .take(MAX_GUIDE_LINKS_PER_ITEM + 1),
+      ])
+      assertGuideLinksPerItem(guideRelations.length)
+      for (const relation of employeeRelations) {
         await ctx.db.delete("documentEmployees", relation._id)
+      }
+      for (const relation of guideRelations) {
+        await ctx.db.delete("documentGuides", relation._id)
       }
       if (document.resource.kind === "file") {
         await deleteReferencedHubStorage(ctx, {
