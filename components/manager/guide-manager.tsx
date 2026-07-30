@@ -10,6 +10,7 @@ import { BookOpen, FilePenLine, Plus, Search, Trash2 } from "lucide-react"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
+import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +34,7 @@ export function GuideManager() {
     categories,
     guides,
     canCreateContent,
+    canCreateInSection,
     saveGuide,
     deleteGuide,
     showFeedback,
@@ -41,6 +43,7 @@ export function GuideManager() {
   const [status, setStatus] = useState<Status>("All")
   const [categoryId, setCategoryId] = useState("All")
   const [deleteTarget, setDeleteTarget] = useState<Guide | null>(null)
+  const canCreateGuides = canCreateInSection("guides")
   const visible = useMemo(
     () =>
       guides.filter((guide) => {
@@ -63,19 +66,23 @@ export function GuideManager() {
         title="manageGuides"
         description="createEditPublishRemovePracticalInstructions"
         action={
-          canCreateContent ? (
-            categories.length ? (
-              <Link href="/manager/guides/new" className={buttonVariants()}>
-                <Plus /> <T>createGuide</T>
-              </Link>
-            ) : (
-              <Link
-                href="/manager/categories"
-                className={buttonVariants({ variant: "outline" })}
-              >
-                <Plus /> <T>createACategoryFirst</T>
-              </Link>
-            )
+          canCreateContent || (canCreateGuides && categories.length > 0) ? (
+            <div className="flex flex-wrap gap-2">
+              <WorkersCanEditToggle section="guides" />
+              {canCreateGuides &&
+                (categories.length ? (
+                  <Link href="/manager/guides/new" className={buttonVariants()}>
+                    <Plus /> <T>createGuide</T>
+                  </Link>
+                ) : canCreateContent ? (
+                  <Link
+                    href="/manager/categories"
+                    className={buttonVariants({ variant: "outline" })}
+                  >
+                    <Plus /> <T>createACategoryFirst</T>
+                  </Link>
+                ) : null)}
+            </div>
           ) : undefined
         }
       />

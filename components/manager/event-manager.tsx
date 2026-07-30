@@ -19,6 +19,7 @@ import { CalendarImportIssues } from "@/components/manager/calendar-import-issue
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
+import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
@@ -74,6 +75,7 @@ export function EventManager() {
     events,
     hub,
     canCreateContent,
+    canCreateInSection,
     saveEvent,
     deleteEvent,
     showFeedback,
@@ -100,6 +102,7 @@ export function EventManager() {
     completed: number
     total: number
   } | null>(null)
+  const canCreateEvents = canCreateInSection("events")
   const importReadyCount =
     (importResult?.events.length ?? 0) +
     (importResult?.cancellations.length ?? 0)
@@ -279,22 +282,23 @@ export function EventManager() {
               timeZone={hub?.timeZone ?? "UTC"}
               uidNamespace={hub?.id ?? "unconfigured-workplace"}
             />
-            {canCreateContent && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload /> <T>importIcs</T>
-                </Button>
-                <Link
-                  href="/manager/calendar/new"
-                  className={buttonVariants({ size: "sm" })}
-                >
-                  <Plus /> <T>createEvent</T>
-                </Link>
-              </>
+            {canCreateEvents && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setImportOpen(true)}
+              >
+                <Upload /> <T>importIcs</T>
+              </Button>
+            )}
+            <WorkersCanEditToggle section="events" size="sm" />
+            {canCreateEvents && (
+              <Link
+                href="/manager/calendar/new"
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Plus /> <T>createEvent</T>
+              </Link>
             )}
           </div>
         }

@@ -1,11 +1,13 @@
 import { v } from "convex/values"
 
 import type { AppMessageKey } from "../i18n/messages"
+import { normalizeWorkersCanEdit } from "../lib/worker-editing"
 import type { Id } from "./_generated/dataModel"
 import { mutation, query } from "./_generated/server"
 import {
   canReadPublishedHub,
   requireIdentity,
+  requireHubEditingPermission,
   requireHubPermission,
 } from "./lib/access"
 import { deleteReferencedHubStorage } from "./lib/hubStorage"
@@ -173,7 +175,11 @@ export const saveGuide = mutation({
     content: richTextDocument,
   },
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "guides"
+    )
     const category = await ctx.db
       .query("categories")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -187,7 +193,11 @@ export const saveGuide = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).guides
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
@@ -293,7 +303,11 @@ export const saveEvent = mutation({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "events"
+    )
     const identity = await requireIdentity(ctx)
     const hasExactInstants = Boolean(args.startUtc && args.endUtc)
     if (Boolean(args.startUtc) !== Boolean(args.endUtc)) {
@@ -322,7 +336,11 @@ export const saveEvent = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).events
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
@@ -542,7 +560,11 @@ export const saveAnnouncement = mutation({
     eventSlug: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "announcements"
+    )
     if (args.expiresAt < args.publishedAt)
       throw new Error("expiryAfterPublishDate")
     const guide = args.guideSlug
@@ -567,7 +589,11 @@ export const saveAnnouncement = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).announcements
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {

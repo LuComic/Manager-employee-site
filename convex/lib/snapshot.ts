@@ -1,12 +1,17 @@
 import type { Doc } from "../_generated/dataModel"
 import type { QueryCtx } from "../_generated/server"
 import { normalizeTodaySections } from "../../lib/today-sections"
+import {
+  normalizeWorkersCanEdit,
+  type WorkersCanEdit,
+} from "../../lib/worker-editing"
 
 export async function buildSnapshot(
   ctx: QueryCtx,
   hub: Doc<"hubs">,
   options: {
     includeDrafts: boolean
+    draftSections?: WorkersCanEdit
     includeOrganizationMapping: boolean
     nowDate: string
   }
@@ -73,19 +78,27 @@ export async function buildSnapshot(
       .take(500),
   ])
 
-  const guides = options.includeDrafts
+  const includeGuideDrafts =
+    options.includeDrafts && (options.draftSections?.guides ?? true)
+  const includeEventDrafts =
+    options.includeDrafts && (options.draftSections?.events ?? true)
+  const includeAnnouncementDrafts =
+    options.includeDrafts && (options.draftSections?.announcements ?? true)
+  const includeDocumentDrafts =
+    options.includeDrafts && (options.draftSections?.documents ?? true)
+  const guides = includeGuideDrafts
     ? allGuides
     : allGuides.filter((guide) => guide.published)
-  const events = options.includeDrafts
+  const events = includeEventDrafts
     ? allEvents
     : allEvents.filter((event) => event.published)
-  const announcements = options.includeDrafts
+  const announcements = includeAnnouncementDrafts
     ? allAnnouncements
     : allAnnouncements.filter(
         (announcement) =>
           announcement.published && announcement.expiresAt >= options.nowDate
       )
-  const documents = options.includeDrafts
+  const documents = includeDocumentDrafts
     ? allDocuments
     : allDocuments.filter((document) => document.published)
 
@@ -171,6 +184,7 @@ export async function buildSnapshot(
       contactPhone: hub.contactPhone ?? "",
       bannerImageUrl: bannerImageUrl ?? undefined,
       todaySections: normalizeTodaySections(hub.todaySections),
+      workersCanEdit: normalizeWorkersCanEdit(hub.workersCanEdit),
       ...(options.includeOrganizationMapping
         ? { clerkOrganizationId: hub.clerkOrganizationId }
         : {}),
@@ -213,7 +227,7 @@ export async function buildSnapshot(
       ...(event.icalUid ? { icalUid: event.icalUid } : {}),
       location: event.location,
       employees: (employeesByEventId.get(event._id) ?? []).map((employee) =>
-        options.includeDrafts ? employee : { displayName: employee.displayName }
+        includeEventDrafts ? employee : { displayName: employee.displayName }
       ),
       notes: event.notes,
       published: event.published,
@@ -268,7 +282,7 @@ export async function buildSnapshot(
           resource,
           employees: (employeesByDocumentId.get(document._id) ?? []).map(
             (employee) =>
-              options.includeDrafts
+              includeDocumentDrafts
                 ? employee
                 : { displayName: employee.displayName }
           ),

@@ -10,6 +10,7 @@ import { FilePenLine, Files, Plus, Search, Trash2 } from "lucide-react"
 import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
@@ -37,6 +38,7 @@ export function DocumentManager() {
   const {
     documents,
     canCreateContent,
+    canCreateInSection,
     saveDocument,
     deleteDocument,
     showFeedback,
@@ -47,6 +49,7 @@ export function DocumentManager() {
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceDocument | null>(
     null
   )
+  const canCreateDocuments = canCreateInSection("documents")
   const visible = useMemo(
     () =>
       documents.filter((document) => {
@@ -71,10 +74,18 @@ export function DocumentManager() {
         title="manageDocuments"
         description="shareFilesExternalLinksRightEmployees"
         action={
-          canCreateContent ? (
-            <Link href="/manager/documents/new" className={buttonVariants()}>
-              <Plus /> <T>shareDocument</T>
-            </Link>
+          canCreateContent || canCreateDocuments ? (
+            <div className="flex flex-wrap gap-2">
+              <WorkersCanEditToggle section="documents" />
+              {canCreateDocuments && (
+                <Link
+                  href="/manager/documents/new"
+                  className={buttonVariants()}
+                >
+                  <Plus /> <T>shareDocument</T>
+                </Link>
+              )}
+            </div>
           ) : undefined
         }
       />

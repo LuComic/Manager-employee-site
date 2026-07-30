@@ -4,6 +4,7 @@ import { BookOpen } from "lucide-react"
 
 import { CategoryCard } from "@/components/knowledge-base/category-card"
 import { GuideCard } from "@/components/knowledge-base/guide-card"
+import { ManageSectionButton } from "@/components/knowledge-base/manage-section-button"
 import { SectionHeading } from "@/components/knowledge-base/section-heading"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -20,6 +21,13 @@ export default function GuidesPage() {
       <PageHeading
         title="guides"
         description="clearStepStepInstructionsTasksComeUpMessage"
+        action={
+          <ManageSectionButton
+            section="guides"
+            href="/manager/guides"
+            label="manageGuides"
+          />
+        }
       />
       <section>
         <SectionHeading

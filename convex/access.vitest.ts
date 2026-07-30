@@ -916,6 +916,246 @@ describe("Organization employees, invitations, and event links", () => {
     ).toBe("editor")
   })
 
+  test("lets workers manage only the content sections enabled by a manager", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const owner = t.withIdentity(orgAdminIdentity)
+    const workerProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Worker",
+      accessLevel: "viewer",
+    })
+    const managerProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Content Manager",
+      accessLevel: "manager",
+    })
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", workerProfileId, {
+        clerkUserId: orgMemberIdentity.subject,
+        status: "active",
+      })
+      await ctx.db.patch("employeeProfiles", managerProfileId, {
+        clerkUserId: appManagerIdentity.subject,
+        status: "active",
+      })
+    })
+    await owner.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "operations",
+      label: "Operations",
+      iconKey: "general",
+      description: "Operational guides",
+    })
+    await owner.mutation(api.content.saveGuide, {
+      hubId,
+      slug: "draft-guide",
+      title: "Draft guide",
+      description: "Visible to workers only when guide editing is enabled",
+      categorySlug: "operations",
+      duration: "5 min",
+      featured: false,
+      published: false,
+      keywords: [],
+      content: { type: "doc" },
+    })
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "draft-event",
+      title: "Draft event",
+      description: "Must stay outside a guide-only worker snapshot",
+      category: "Training",
+      start: "2026-08-01T10:00",
+      end: "2026-08-01T11:00",
+      location: "Office",
+      notes: "",
+      published: false,
+      guideSlugs: [],
+      employeeProfileIds: [],
+    })
+    await owner.mutation(api.content.saveAnnouncement, {
+      hubId,
+      slug: "draft-announcement",
+      title: "Draft announcement",
+      content: { type: "doc" },
+      publishedAt: "2026-07-30",
+      expiresAt: "2026-08-30",
+      priority: "Normal",
+      pinned: false,
+      published: false,
+    })
+    await owner.mutation(api.documents.save, {
+      hubId,
+      slug: "draft-document",
+      title: "Draft document",
+      description: "Must stay outside a guide-only worker snapshot",
+      resource: { kind: "link", url: "https://example.test/draft" },
+      employeeProfileIds: [],
+      published: false,
+    })
+
+    const worker = t.withIdentity(orgMemberIdentity)
+    const manager = t.withIdentity(appManagerIdentity)
+    expect(
+      await worker.query(api.hubs.getManagerSnapshot, {
+        nowDate: "2026-07-30",
+      })
+    ).toMatchObject({ kind: "forbidden" })
+
+    await manager.mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "guides",
+      enabled: true,
+    })
+    const guideSnapshot = await worker.query(api.hubs.getManagerSnapshot, {
+      nowDate: "2026-07-30",
+    })
+    expect(guideSnapshot).toMatchObject({
+      kind: "ready",
+      managerAccess: "viewer",
+      hub: {
+        workersCanEdit: {
+          guides: true,
+          events: false,
+          announcements: false,
+          documents: false,
+        },
+      },
+    })
+    if (guideSnapshot.kind !== "ready") throw new Error("Snapshot not ready")
+    expect(guideSnapshot.guides.map((guide) => guide.id)).toContain(
+      "draft-guide"
+    )
+    expect(guideSnapshot.events).toHaveLength(0)
+    expect(guideSnapshot.announcements).toHaveLength(0)
+    expect(guideSnapshot.documents).toHaveLength(0)
+    expect(
+      await worker.query(api.hubs.getManagerAccess, {
+        organizationHint: "org-a",
+      })
+    ).toBe("viewer")
+
+    await worker.mutation(api.content.saveGuide, {
+      hubId,
+      slug: "worker-guide",
+      title: "Worker guide",
+      description: "Created from the worker-facing Manage Guides entry point",
+      categorySlug: "operations",
+      duration: "4 min",
+      featured: false,
+      published: true,
+      keywords: [],
+      content: { type: "doc" },
+    })
+    await expect(
+      worker.mutation(api.content.saveEvent, {
+        hubId,
+        slug: "blocked-worker-event",
+        title: "Blocked worker event",
+        description: "Events have not been enabled",
+        category: "Training",
+        start: "2026-08-02T10:00",
+        end: "2026-08-02T11:00",
+        location: "Office",
+        notes: "",
+        published: true,
+        guideSlugs: [],
+        employeeProfileIds: [],
+      })
+    ).rejects.toThrow("editingAccessRequired")
+    await expect(
+      worker.mutation(api.files.generateUploadUrl, {
+        hubId,
+        section: "documents",
+        sha256: "a".repeat(64),
+        size: 1,
+      })
+    ).rejects.toThrow("editingAccessRequired")
+    await expect(
+      worker.mutation(api.hubs.setWorkersCanEdit, {
+        hubId,
+        section: "events",
+        enabled: true,
+      })
+    ).rejects.toThrow("fullContentAccessRequired")
+
+    for (const section of ["events", "announcements", "documents"] as const) {
+      await manager.mutation(api.hubs.setWorkersCanEdit, {
+        hubId,
+        section,
+        enabled: true,
+      })
+    }
+    await expect(
+      worker.mutation(api.files.generateUploadUrl, {
+        hubId,
+        section: "documents",
+        sha256: "b".repeat(64),
+        size: 1,
+      })
+    ).resolves.toMatchObject({ uploadUrl: expect.any(String) })
+    await worker.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "worker-event",
+      title: "Worker event",
+      description: "Created by a worker",
+      category: "Training",
+      start: "2026-08-03T10:00",
+      end: "2026-08-03T11:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+      employeeProfileIds: [],
+    })
+    await worker.mutation(api.content.saveAnnouncement, {
+      hubId,
+      slug: "worker-announcement",
+      title: "Worker announcement",
+      content: { type: "doc" },
+      publishedAt: "2026-07-30",
+      expiresAt: "2026-08-30",
+      priority: "Normal",
+      pinned: false,
+      published: true,
+    })
+    await worker.mutation(api.documents.save, {
+      hubId,
+      slug: "worker-document",
+      title: "Worker document",
+      description: "Created by a worker",
+      resource: { kind: "link", url: "https://example.test/worker" },
+      employeeProfileIds: [],
+      published: true,
+    })
+    await expect(
+      worker.mutation(api.content.deleteGuide, {
+        hubId,
+        slug: "worker-guide",
+      })
+    ).rejects.toThrow("fullContentAccessRequired")
+
+    await manager.mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "guides",
+      enabled: false,
+    })
+    await expect(
+      worker.mutation(api.content.saveGuide, {
+        hubId,
+        slug: "worker-guide",
+        title: "Blocked guide update",
+        description: "Guide access was disabled",
+        categorySlug: "operations",
+        duration: "4 min",
+        featured: false,
+        published: true,
+        keywords: [],
+        content: { type: "doc" },
+      })
+    ).rejects.toThrow("editingAccessRequired")
+  })
+
   test("permanently removes only the employee's workplace data", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)

@@ -27,8 +27,18 @@ import { cn } from "@/lib/utils"
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
   const t = useAppTranslations()
-  const { categories, documents, managerAccess } = useOperations()
+  const { categories, documents, hub, managerAccess } = useOperations()
   const publishedDocuments = documents.filter((document) => document.published)
+  const managerHref =
+    managerAccess === "viewer"
+      ? hub?.workersCanEdit.guides
+        ? "/manager/guides"
+        : hub?.workersCanEdit.events
+          ? "/manager/calendar"
+          : hub?.workersCanEdit.announcements
+            ? "/manager/announcements"
+            : "/manager/documents"
+      : "/manager"
 
   return (
     <nav
@@ -123,7 +133,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           <CircleHelp />
         </NavLink>
         {managerAccess && (
-          <NavLink href="/manager" label={t("managerArea")} active={false}>
+          <NavLink href={managerHref} label={t("managerArea")} active={false}>
             <Settings />
           </NavLink>
         )}

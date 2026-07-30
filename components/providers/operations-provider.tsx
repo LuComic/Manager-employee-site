@@ -37,6 +37,10 @@ import type {
   WorkspaceDocument,
 } from "@/lib/documents"
 import type { TodaySectionKey, TodaySectionSetting } from "@/lib/today-sections"
+import type {
+  WorkerEditableSection,
+  WorkersCanEdit,
+} from "@/lib/worker-editing"
 import {
   normalizeEventCategory,
   toDateKey,
@@ -49,7 +53,7 @@ import {
 } from "@/lib/operations"
 
 export type HubAccessMode = "public" | "restricted"
-export type ManagerAccess = "editor" | "manager" | "owner"
+export type ManagerAccess = "viewer" | "editor" | "manager" | "owner"
 
 export type HubInfo = {
   id: Id<"hubs">
@@ -66,6 +70,7 @@ export type HubInfo = {
   bannerImageUrl?: string
   clerkOrganizationId?: string
   todaySections: TodaySectionSetting[]
+  workersCanEdit: WorkersCanEdit
 }
 
 export type HubSettings = Pick<
@@ -95,6 +100,7 @@ type OperationsContextValue = OperationsState & {
   isManagerRoute: boolean
   managerAccess: ManagerAccess | null
   canCreateContent: boolean
+  canCreateInSection: (section: WorkerEditableSection) => boolean
   employees: EmployeeProfile[]
   createHub: (name: string, slug: string) => Promise<void>
   createEmployee: (profile: {
@@ -123,6 +129,10 @@ type OperationsContextValue = OperationsState & {
   setTodaySectionVisibility: (
     key: TodaySectionKey,
     visible: boolean
+  ) => Promise<void>
+  setWorkersCanEdit: (
+    section: WorkerEditableSection,
+    enabled: boolean
   ) => Promise<void>
   grantAnonymousAccess: (credential: string) => void
   leaveHub: () => void
@@ -295,6 +305,7 @@ export function OperationsProvider({
   const setTodaySectionVisibilityMutation = useMutation(
     api.hubs.setTodaySectionVisibility
   )
+  const setWorkersCanEditMutation = useMutation(api.hubs.setWorkersCanEdit)
   const saveCategoryMutation = useMutation(api.content.saveCategory)
   const moveCategoryMutation = useMutation(api.content.moveCategory)
   const deleteCategoryMutation = useMutation(api.content.deleteCategory)
@@ -471,13 +482,23 @@ export function OperationsProvider({
     hubId: Id<"hubs">,
     file: File,
     failureMessage: AppMessageKey,
-    attach: (storageId: Id<"_storage">) => Promise<unknown>
+    attach: (storageId: Id<"_storage">) => Promise<unknown>,
+    section?: "events" | "documents"
   ) {
-    const storageId = await uploadStoredFile(hubId, file, failureMessage)
+    const storageId = await uploadStoredFile(
+      hubId,
+      file,
+      failureMessage,
+      section
+    )
     try {
       await attach(storageId)
     } catch (error) {
-      await discardUpload({ hubId, storageId }).catch(() => undefined)
+      await discardUpload({
+        hubId,
+        storageId,
+        ...(section ? { section } : {}),
+      }).catch(() => undefined)
       throw error
     }
   }
@@ -485,7 +506,8 @@ export function OperationsProvider({
   async function uploadStoredFile(
     hubId: Id<"hubs">,
     file: File,
-    failureMessage: AppMessageKey
+    failureMessage: AppMessageKey,
+    section?: "events" | "documents"
   ) {
     const contentType = file.type || "application/octet-stream"
     const digest = await crypto.subtle.digest(
@@ -499,6 +521,7 @@ export function OperationsProvider({
       hubId,
       sha256,
       size: file.size,
+      ...(section ? { section } : {}),
     })
     let storageId: Id<"_storage"> | undefined
     try {
@@ -513,13 +536,26 @@ export function OperationsProvider({
       const result = (await response.json()) as { storageId?: unknown }
       if (typeof result.storageId !== "string") throw new Error(failureMessage)
       storageId = result.storageId as Id<"_storage">
-      await registerUpload({ hubId, uploadIntentId, storageId })
+      await registerUpload({
+        hubId,
+        uploadIntentId,
+        storageId,
+        ...(section ? { section } : {}),
+      })
       return storageId
     } catch (error) {
       if (storageId) {
-        await discardUpload({ hubId, storageId }).catch(() => undefined)
+        await discardUpload({
+          hubId,
+          storageId,
+          ...(section ? { section } : {}),
+        }).catch(() => undefined)
       }
-      await cancelUploadIntent({ hubId, uploadIntentId }).catch(() => undefined)
+      await cancelUploadIntent({
+        hubId,
+        uploadIntentId,
+        ...(section ? { section } : {}),
+      }).catch(() => undefined)
       throw error
     }
   }
@@ -555,6 +591,10 @@ export function OperationsProvider({
     isManagerRoute,
     managerAccess,
     canCreateContent: managerAccess === "manager" || managerAccess === "owner",
+    canCreateInSection: (section) =>
+      managerAccess === "manager" ||
+      managerAccess === "owner" ||
+      Boolean(managerAccess && hub?.workersCanEdit[section]),
     employees: managedEmployeeProfiles
       ? (managedEmployeeProfiles as EmployeeProfile[])
       : ((assignableEmployeeProfiles ?? []).map((profile) => ({
@@ -656,6 +696,15 @@ export function OperationsProvider({
         })
       )
     },
+    setWorkersCanEdit: async (section, enabled) => {
+      await run(() =>
+        setWorkersCanEditMutation({
+          hubId: managerHubId(),
+          section,
+          enabled,
+        })
+      )
+    },
     grantAnonymousAccess: (value) => setCredential(value.trim()),
     leaveHub: () => {
       localStorage.removeItem(employeeCredentialKey(hubSlug))
@@ -729,14 +778,19 @@ export function OperationsProvider({
     uploadAttachment: async (eventSlug, file) => {
       const hubId = managerHubId()
       await run(() =>
-        uploadAndAttach(hubId, file, "fileUploadFailed", (storageId) =>
-          attachToEvent({
-            hubId,
-            eventSlug,
-            storageId,
-            name: file.name,
-            contentType: file.type || "application/octet-stream",
-          })
+        uploadAndAttach(
+          hubId,
+          file,
+          "fileUploadFailed",
+          (storageId) =>
+            attachToEvent({
+              hubId,
+              eventSlug,
+              storageId,
+              name: file.name,
+              contentType: file.type || "application/octet-stream",
+            }),
+          "events"
         )
       )
     },
@@ -797,7 +851,8 @@ export function OperationsProvider({
             ? await uploadStoredFile(
                 hubId,
                 uploads.resourceFile,
-                "fileUploadFailed"
+                "fileUploadFailed",
+                "documents"
               )
             : undefined
           if (resourceStorageId) uploadedStorageIds.push(resourceStorageId)
@@ -818,7 +873,8 @@ export function OperationsProvider({
             ? await uploadStoredFile(
                 hubId,
                 uploads.bannerFile,
-                "bannerUploadFailed"
+                "bannerUploadFailed",
+                "documents"
               )
             : undefined
           if (bannerStorageId) uploadedStorageIds.push(bannerStorageId)
@@ -853,7 +909,11 @@ export function OperationsProvider({
         } catch (error) {
           await Promise.all(
             uploadedStorageIds.map((storageId) =>
-              discardUpload({ hubId, storageId }).catch(() => undefined)
+              discardUpload({
+                hubId,
+                storageId,
+                section: "documents",
+              }).catch(() => undefined)
             )
           )
           throw error

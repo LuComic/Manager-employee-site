@@ -35,6 +35,12 @@ const todaySection = v.object({
   key: todaySectionKey,
   visible: v.boolean(),
 })
+const workersCanEdit = v.object({
+  guides: v.boolean(),
+  events: v.boolean(),
+  announcements: v.boolean(),
+  documents: v.boolean(),
+})
 const richTextDocument = v.object({
   type: v.literal("doc"),
   content: v.optional(v.array(v.any())),
@@ -65,6 +71,7 @@ export default defineSchema({
     contactPhone: v.optional(v.string()),
     bannerStorageId: v.optional(v.id("_storage")),
     todaySections: v.optional(v.array(todaySection)),
+    workersCanEdit: v.optional(workersCanEdit),
     clerkOrganizationId: v.string(),
     accessMode,
     joinCodeHash: v.string(),

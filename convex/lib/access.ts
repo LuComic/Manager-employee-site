@@ -1,6 +1,10 @@
 import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex } from "@noble/hashes/utils.js"
 
+import {
+  normalizeWorkersCanEdit,
+  type WorkerEditableSection,
+} from "../../lib/worker-editing"
 import type { Doc, Id } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
 
@@ -109,6 +113,21 @@ export async function requireHubPermission(
     )
   }
   return { hub, permission }
+}
+
+export async function requireHubEditingPermission(
+  ctx: ReadCtx,
+  hubId: Id<"hubs">,
+  section: WorkerEditableSection
+) {
+  const access = await requireHubPermission(ctx, hubId, "viewer")
+  if (
+    access.permission === "viewer" &&
+    !normalizeWorkersCanEdit(access.hub.workersCanEdit)[section]
+  ) {
+    throw new Error("editingAccessRequired")
+  }
+  return access
 }
 
 export async function getManagedHub(ctx: ReadCtx) {

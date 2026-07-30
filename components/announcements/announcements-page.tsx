@@ -5,6 +5,7 @@ import { Megaphone } from "lucide-react"
 
 import { T } from "@/components/translated-text"
 import { AnnouncementCard } from "@/components/operations/announcement-card"
+import { ManageSectionButton } from "@/components/knowledge-base/manage-section-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -44,6 +45,13 @@ export function AnnouncementsPage() {
       <PageHeading
         title="announcements"
         description="temporaryOperationalUpdatesChangesNoticesWholeEstablishment"
+        action={
+          <ManageSectionButton
+            section="announcements"
+            href="/manager/announcements"
+            label="manageAnnouncements"
+          />
+        }
       />
       <div className="border-b pb-4">
         <SegmentedControl aria-label={t("announcementStatus")}>

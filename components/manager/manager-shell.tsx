@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { AppMessageKey } from "@/i18n/messages"
 import { cn } from "@/lib/utils"
+import type { WorkerEditableSection } from "@/lib/worker-editing"
 
 type NavigationLink = {
   href: string
@@ -110,16 +111,47 @@ function isActiveLink(pathname: string, href: string) {
   return href === "/manager" ? pathname === href : pathname.startsWith(href)
 }
 
+function sectionForManagerPath(pathname: string): WorkerEditableSection | null {
+  if (pathname.startsWith("/manager/guides")) return "guides"
+  if (pathname.startsWith("/manager/calendar")) return "events"
+  if (pathname.startsWith("/manager/announcements")) return "announcements"
+  if (pathname.startsWith("/manager/documents")) return "documents"
+  return null
+}
+
 export function ManagerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const href = useLocalizedHref()
   const t = useAppTranslations()
   const { hub, hubState, managerAccess } = useOperations()
   const focusedEditor = pathname.endsWith("/new") || pathname.endsWith("/edit")
+  const workerSection = sectionForManagerPath(pathname)
+  const workerRouteAllowed = Boolean(
+    workerSection && hub?.workersCanEdit[workerSection]
+  )
+  const visiblePrimaryNavigationItems =
+    managerAccess === "viewer" ? [] : primaryNavigationItems
+  const visibleGuideNavigationItems =
+    managerAccess === "viewer"
+      ? hub?.workersCanEdit.guides
+        ? guideNavigationItems.filter((item) => item.href === "/manager/guides")
+        : []
+      : guideNavigationItems
   const visibleMoreNavigationGroups =
-    managerAccess === "owner"
+    managerAccess === "viewer"
       ? moreNavigationGroups
-      : moreNavigationGroups.filter((group) => group.label === "content")
+          .filter((group) => group.label === "content")
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => {
+              const section = sectionForManagerPath(item.href)
+              return Boolean(section && hub?.workersCanEdit[section])
+            }),
+          }))
+          .filter((group) => group.items.length)
+      : managerAccess === "owner"
+        ? moreNavigationGroups
+        : moreNavigationGroups.filter((group) => group.label === "content")
   const contentRoute =
     pathname === "/manager" ||
     pathname.startsWith("/manager/today") ||
@@ -132,8 +164,11 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/manager/drafts")
   const routeAllowed =
     managerAccess === "owner" ||
-    (contentRoute &&
-      (managerAccess === "manager" || !pathname.endsWith("/new")))
+    (managerAccess === "manager" && contentRoute) ||
+    (managerAccess === "editor" &&
+      contentRoute &&
+      (!pathname.endsWith("/new") || workerRouteAllowed)) ||
+    (managerAccess === "viewer" && workerRouteAllowed)
   return (
     <div className="min-h-svh bg-muted/40">
       <header className="border-b bg-background">
@@ -171,7 +206,9 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                   ? "managerArea"
                   : managerAccess === "manager"
                     ? "contentManagerArea"
-                    : "contentEditorArea"
+                    : managerAccess === "editor"
+                      ? "contentEditorArea"
+                      : "workerContentArea"
               )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -185,7 +222,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
               aria-label={t("managerNavigation")}
             >
-              {primaryNavigationItems.map((item) => {
+              {visiblePrimaryNavigationItems.map((item) => {
                 const { href, label, icon: Icon } = item
                 const active = isActiveLink(pathname, href)
                 return (
@@ -204,84 +241,88 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 )
               })}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className={cn(
-                    buttonVariants({
-                      variant: guideNavigationItems.some(({ href }) =>
-                        isActiveLink(pathname, href)
-                      )
-                        ? "secondary"
-                        : "ghost",
-                      size: "default",
-                    }),
-                    "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
-                  )}
-                >
-                  <BookOpen /> <T>guides</T> <ChevronDown />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {guideNavigationItems.map((link) => {
-                    const Icon = link.icon
-                    const active = isActiveLink(pathname, link.href)
-                    return (
-                      <DropdownMenuItem
-                        key={link.href}
-                        render={<Link href={link.href} />}
-                        className={cn(
-                          active && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        <Icon /> <T>{link.label}</T>
-                      </DropdownMenuItem>
-                    )
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className={cn(
-                    buttonVariants({
-                      variant: visibleMoreNavigationGroups.some((group) =>
-                        group.items.some(({ href }) =>
+              {visibleGuideNavigationItems.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className={cn(
+                      buttonVariants({
+                        variant: visibleGuideNavigationItems.some(({ href }) =>
                           isActiveLink(pathname, href)
                         )
+                          ? "secondary"
+                          : "ghost",
+                        size: "default",
+                      }),
+                      "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                    )}
+                  >
+                    <BookOpen /> <T>guides</T> <ChevronDown />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {visibleGuideNavigationItems.map((link) => {
+                      const Icon = link.icon
+                      const active = isActiveLink(pathname, link.href)
+                      return (
+                        <DropdownMenuItem
+                          key={link.href}
+                          render={<Link href={link.href} />}
+                          className={cn(
+                            active && "bg-accent text-accent-foreground"
+                          )}
+                        >
+                          <Icon /> <T>{link.label}</T>
+                        </DropdownMenuItem>
                       )
-                        ? "secondary"
-                        : "ghost",
-                      size: "default",
-                    }),
-                    "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
-                  )}
-                >
-                  <Menu /> <T>moreTools</T> <ChevronDown />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64">
-                  {visibleMoreNavigationGroups.map((group, groupIndex) => (
-                    <DropdownMenuGroup key={group.label}>
-                      {groupIndex > 0 && <DropdownMenuSeparator />}
-                      <DropdownMenuLabel>
-                        <T>{group.label}</T>
-                      </DropdownMenuLabel>
-                      {group.items.map((link) => {
-                        const Icon = link.icon
-                        const active = isActiveLink(pathname, link.href)
-                        return (
-                          <DropdownMenuItem
-                            key={link.href}
-                            render={<Link href={link.href} />}
-                            className={cn(
-                              active && "bg-accent text-accent-foreground"
-                            )}
-                          >
-                            <Icon /> <T>{link.label}</T>
-                          </DropdownMenuItem>
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {visibleMoreNavigationGroups.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className={cn(
+                      buttonVariants({
+                        variant: visibleMoreNavigationGroups.some((group) =>
+                          group.items.some(({ href }) =>
+                            isActiveLink(pathname, href)
+                          )
                         )
-                      })}
-                    </DropdownMenuGroup>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                          ? "secondary"
+                          : "ghost",
+                        size: "default",
+                      }),
+                      "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                    )}
+                  >
+                    <Menu /> <T>moreTools</T> <ChevronDown />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-64">
+                    {visibleMoreNavigationGroups.map((group, groupIndex) => (
+                      <DropdownMenuGroup key={group.label}>
+                        {groupIndex > 0 && <DropdownMenuSeparator />}
+                        <DropdownMenuLabel>
+                          <T>{group.label}</T>
+                        </DropdownMenuLabel>
+                        {group.items.map((link) => {
+                          const Icon = link.icon
+                          const active = isActiveLink(pathname, link.href)
+                          return (
+                            <DropdownMenuItem
+                              key={link.href}
+                              render={<Link href={link.href} />}
+                              className={cn(
+                                active && "bg-accent text-accent-foreground"
+                              )}
+                            >
+                              <Icon /> <T>{link.label}</T>
+                            </DropdownMenuItem>
+                          )
+                        })}
+                      </DropdownMenuGroup>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </nav>
           )}
         </div>

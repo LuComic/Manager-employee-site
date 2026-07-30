@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { ManageSectionButton } from "@/components/knowledge-base/manage-section-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { EventCard } from "@/components/operations/event-card"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -114,14 +115,21 @@ export function CalendarPage() {
         title="calendar"
         description="sharedDatesReservationsTrainingDeliveriesVisitsOtherMessage"
         action={
-          <CalendarExportButton
-            events={allPublished}
-            calendarName={t("namedCalendar", {
-              name: hub?.name ?? t("workplace"),
-            })}
-            timeZone={hub?.timeZone ?? "UTC"}
-            uidNamespace={hub?.id ?? "unconfigured-workplace"}
-          />
+          <div className="flex flex-wrap gap-2">
+            <CalendarExportButton
+              events={allPublished}
+              calendarName={t("namedCalendar", {
+                name: hub?.name ?? t("workplace"),
+              })}
+              timeZone={hub?.timeZone ?? "UTC"}
+              uidNamespace={hub?.id ?? "unconfigured-workplace"}
+            />
+            <ManageSectionButton
+              section="events"
+              href="/manager/calendar"
+              label="manageEvents"
+            />
+          </div>
         }
       />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
