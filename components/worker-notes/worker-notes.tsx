@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import { StickyNote, X } from "lucide-react"
 import { toast } from "sonner"
@@ -207,7 +206,6 @@ function useAutosavedWorkerNotes({
 
 export function WorkerNotes() {
   const t = useAppTranslations()
-  const searchParams = useSearchParams()
   const { hub } = useOperations()
   const { isAuthenticated } = useConvexAuth()
   const activeHubId = hub?.id
@@ -223,12 +221,16 @@ export function WorkerNotes() {
     stopDragging,
   } = useWorkerNotesWindow(activeHubId)
   const [now, setNow] = useState(() => Date.now())
+  const canAccessWorkerNotes = useQuery(
+    api.workerNotes.canAccess,
+    isDesktop && isAuthenticated && hub ? { hubId: hub.id } : "skip"
+  )
   const isMemberView =
     isDesktop &&
     isAuthenticated &&
-    !searchParams.get("hub") &&
     Boolean(activeHubId) &&
-    restored
+    restored &&
+    canAccessWorkerNotes === true
 
   const remoteText = useQuery(
     api.workerNotes.get,

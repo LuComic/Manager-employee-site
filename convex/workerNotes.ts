@@ -9,7 +9,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server"
-import { requireHubPermission } from "./lib/access"
+import { hasHubAccess, requireHubPermission } from "./lib/access"
 
 const TEMPORARY_NOTES_LIFETIME_MS = 24 * 60 * 60 * 1000
 const MAX_NOTES_LENGTH = 10_000
@@ -39,6 +39,17 @@ async function getHubNotes(ctx: QueryCtx | MutationCtx, hubId: Id<"hubs">) {
     .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
     .unique()
 }
+
+export const canAccess = query({
+  args: {
+    hubId: v.id("hubs"),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const hub = await ctx.db.get("hubs", args.hubId)
+    return hub !== null && (await hasHubAccess(ctx, hub))
+  },
+})
 
 function visibleText(
   notes: Awaited<ReturnType<typeof getHubNotes>>,
