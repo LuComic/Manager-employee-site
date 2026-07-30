@@ -4,6 +4,10 @@ import {
   defaultTodaySections,
   normalizeTodaySections,
 } from "../lib/today-sections"
+import {
+  normalizeWorkersCanEdit,
+  workerEditableSections,
+} from "../lib/worker-editing"
 import type { Id } from "./_generated/dataModel"
 import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
@@ -29,9 +33,17 @@ const accessModeValidator = v.union(
   v.literal("restricted")
 )
 const managerAccessValidator = v.union(
+  v.literal("viewer"),
   v.literal("editor"),
   v.literal("manager"),
   v.literal("owner")
+)
+const workerEditableSectionValidator = v.union(
+  v.literal("guides"),
+  v.literal("events"),
+  v.literal("announcements"),
+  v.literal("documents"),
+  v.literal("faqs")
 )
 const hubCredentialsValidator = v.object({
   joinCode: v.string(),
@@ -296,6 +308,32 @@ export const setTodaySectionVisibility = mutation({
   },
 })
 
+export const setWorkersCanEdit = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    section: workerEditableSectionValidator,
+    enabled: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { hub } = await requireHubPermission(ctx, args.hubId, "manager")
+    await ctx.db.patch("hubs", hub._id, {
+      workersCanEdit: {
+        ...normalizeWorkersCanEdit(hub.workersCanEdit),
+        [args.section]: args.enabled,
+      },
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
+function hasWorkerEditableSection(
+  workersCanEdit: ReturnType<typeof normalizeWorkersCanEdit>
+) {
+  return workerEditableSections.some((section) => workersCanEdit[section])
+}
+
 export const getManagerSnapshot = query({
   args: {
     nowDate: v.string(),
@@ -313,23 +351,24 @@ export const getManagerSnapshot = query({
     }
     const managed = await getManagedHub(ctx)
     if (!managed) return { kind: "none" as const }
+    if (!managed.permission) {
+      return { kind: "forbidden" as const }
+    }
+    const workersCanEdit = normalizeWorkersCanEdit(managed.hub.workersCanEdit)
     if (
-      managed.permission !== "editor" &&
-      managed.permission !== "manager" &&
-      managed.permission !== "owner"
+      managed.permission === "viewer" &&
+      !hasWorkerEditableSection(workersCanEdit)
     ) {
       return { kind: "forbidden" as const }
     }
     return {
       kind: "ready" as const,
-      managerAccess:
-        managed.permission === "editor"
-          ? ("editor" as const)
-          : managed.permission === "manager"
-            ? ("manager" as const)
-            : ("owner" as const),
+      managerAccess: managed.permission,
       ...(await buildSnapshot(ctx, managed.hub, {
         includeDrafts: true,
+        ...(managed.permission === "viewer"
+          ? { workerSections: workersCanEdit }
+          : {}),
         includeOrganizationMapping: true,
         nowDate: args.nowDate,
       })),
@@ -349,11 +388,15 @@ export const getManagerAccess = query({
     ) {
       return null
     }
-    return managed.permission === "editor" ||
-      managed.permission === "manager" ||
-      managed.permission === "owner"
-      ? managed.permission
-      : null
+    if (!managed.permission) return null
+    const workersCanEdit = normalizeWorkersCanEdit(managed.hub.workersCanEdit)
+    if (
+      managed.permission === "viewer" &&
+      !hasWorkerEditableSection(workersCanEdit)
+    ) {
+      return null
+    }
+    return managed.permission
   },
 })
 

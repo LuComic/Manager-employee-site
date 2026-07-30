@@ -23,12 +23,17 @@ import { getPathname, Link, usePathname } from "@/i18n/navigation"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
+import { firstWorkerManagerPath } from "@/lib/worker-editing"
 
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
   const t = useAppTranslations()
-  const { categories, documents, managerAccess } = useOperations()
+  const { categories, documents, hub, managerAccess } = useOperations()
   const publishedDocuments = documents.filter((document) => document.published)
+  const managerHref =
+    managerAccess === "viewer"
+      ? (firstWorkerManagerPath(hub?.workersCanEdit) ?? "/manager")
+      : "/manager"
 
   return (
     <nav
@@ -123,7 +128,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           <CircleHelp />
         </NavLink>
         {managerAccess && (
-          <NavLink href="/manager" label={t("managerArea")} active={false}>
+          <NavLink href={managerHref} label={t("managerArea")} active={false}>
             <Settings />
           </NavLink>
         )}

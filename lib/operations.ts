@@ -74,6 +74,12 @@ export type EmployeeProfile = {
 
 export type AnnouncementPriority = "Normal" | "Important" | "Urgent"
 
+export type ContentReference = {
+  id: string
+  title: string
+  published: boolean
+}
+
 export const announcementPriorityMessageKeys = {
   Normal: "normal",
   Important: "important",

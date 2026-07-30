@@ -11,7 +11,11 @@ import {
   mutation,
   type MutationCtx,
 } from "./_generated/server"
-import { requireHubPermission, requireIdentity } from "./lib/access"
+import {
+  requireHubEditingPermission,
+  requireHubPermission,
+  requireIdentity,
+} from "./lib/access"
 import {
   bindHubStorage,
   deleteReferencedHubStorage,
@@ -23,6 +27,21 @@ import { createNotification } from "./lib/notifications"
 
 const UPLOAD_INTENT_LIFETIME_MS = 15 * 60 * 1_000
 const PENDING_UPLOAD_LIFETIME_MS = 60 * 60 * 1_000
+const uploadSection = v.optional(
+  v.union(v.literal("events"), v.literal("documents"))
+)
+
+async function requireUploadPermission(
+  ctx: MutationCtx,
+  hubId: Id<"hubs">,
+  section: "events" | "documents" | undefined
+) {
+  if (section) {
+    await requireHubEditingPermission(ctx, hubId, section)
+  } else {
+    await requireHubPermission(ctx, hubId, "editor")
+  }
+}
 
 function validateUploadMetadata(args: { sha256: string; size: number }) {
   const sha256 = args.sha256.trim().toLowerCase()
@@ -71,13 +90,14 @@ export const generateUploadUrl = mutation({
     hubId: v.id("hubs"),
     sha256: v.string(),
     size: v.number(),
+    section: uploadSection,
   },
   returns: v.object({
     uploadUrl: v.string(),
     uploadIntentId: v.id("uploadIntents"),
   }),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireUploadPermission(ctx, args.hubId, args.section)
     const identity = await requireIdentity(ctx)
     const metadata = validateUploadMetadata(args)
     const uploadIntentId = await ctx.db.insert("uploadIntents", {
@@ -103,10 +123,11 @@ export const registerUpload = mutation({
     hubId: v.id("hubs"),
     uploadIntentId: v.id("uploadIntents"),
     storageId: v.id("_storage"),
+    section: uploadSection,
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireUploadPermission(ctx, args.hubId, args.section)
     const identity = await requireIdentity(ctx)
     const intent = await requireOwnedUploadIntent(ctx, {
       hubId: args.hubId,
@@ -141,10 +162,11 @@ export const cancelUploadIntent = mutation({
   args: {
     hubId: v.id("hubs"),
     uploadIntentId: v.id("uploadIntents"),
+    section: uploadSection,
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireUploadPermission(ctx, args.hubId, args.section)
     const identity = await requireIdentity(ctx)
     const intent = await ctx.db.get("uploadIntents", args.uploadIntentId)
     if (
@@ -191,7 +213,7 @@ export const attachToEvent = mutation({
   },
   returns: v.id("attachments"),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireHubEditingPermission(ctx, args.hubId, "events")
     const event = await ctx.db
       .query("events")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -238,7 +260,7 @@ export const remove = mutation({
   args: { hubId: v.id("hubs"), attachmentId: v.id("attachments") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireHubEditingPermission(ctx, args.hubId, "events")
     const attachment = await ctx.db.get("attachments", args.attachmentId)
     if (!attachment || attachment.hubId !== args.hubId) {
       throw new Error("attachmentNotFound")
@@ -270,10 +292,14 @@ export const remove = mutation({
 })
 
 export const discardUpload = mutation({
-  args: { hubId: v.id("hubs"), storageId: v.id("_storage") },
+  args: {
+    hubId: v.id("hubs"),
+    storageId: v.id("_storage"),
+    section: uploadSection,
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireUploadPermission(ctx, args.hubId, args.section)
     const identity = await requireIdentity(ctx)
     await discardPendingHubStorage(ctx, {
       hubId: args.hubId,

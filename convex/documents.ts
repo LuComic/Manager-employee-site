@@ -5,9 +5,14 @@ import {
   MAX_BANNER_IMAGE_SIZE_BYTES,
 } from "../lib/banner-image"
 import type { AppMessageKey } from "../i18n/messages"
+import { normalizeWorkersCanEdit } from "../lib/worker-editing"
 import type { Doc, Id } from "./_generated/dataModel"
 import { mutation, type MutationCtx } from "./_generated/server"
-import { requireHubPermission, requireIdentity } from "./lib/access"
+import {
+  requireHubEditingPermission,
+  requireHubPermission,
+  requireIdentity,
+} from "./lib/access"
 import {
   bindHubStorage,
   deleteReferencedHubStorage,
@@ -109,7 +114,11 @@ export const save = mutation({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "documents"
+    )
     const identity = await requireIdentity(ctx)
     const existing = await ctx.db
       .query("documents")
@@ -117,7 +126,11 @@ export const save = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).documents
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
 

@@ -82,7 +82,7 @@ export function AnnouncementArticle({
             "tracking-normal normal-case"
           )}
         >
-          <ArrowLeft /> <T>backToAnnouncements</T>
+          <ArrowLeft data-icon="inline-start" /> <T>backToAnnouncements</T>
         </Link>
       )}
       <Card className="shadow-none">

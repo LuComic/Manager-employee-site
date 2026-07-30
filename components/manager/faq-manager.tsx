@@ -16,6 +16,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
+import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Button } from "@/components/ui/button"
@@ -33,12 +34,20 @@ import { slugify, type Faq } from "@/lib/operations"
 
 export function FaqManager() {
   const t = useAppTranslations()
-  const { faqs, canCreateContent, saveFaq, moveFaq, deleteFaq, showFeedback } =
-    useOperations()
+  const {
+    faqs,
+    canCreateContent,
+    canCreateInSection,
+    saveFaq,
+    moveFaq,
+    deleteFaq,
+    showFeedback,
+  } = useOperations()
   const [editing, setEditing] = useState<Faq | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Faq | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState("")
+  const canCreateFaqs = canCreateInSection("faqs")
 
   async function submit() {
     if (!editing) return
@@ -76,20 +85,25 @@ export function FaqManager() {
         title="commonQuestions"
         description="manageQuickAnswersEmployeesSeeQuestionsPageMessage"
         action={
-          canCreateContent ? (
-            <Button
-              onClick={() => {
-                setEditing({
-                  id: "",
-                  question: "",
-                  answer: "",
-                  order: faqs.length,
-                })
-                setError("")
-              }}
-            >
-              <Plus /> <T>createQuestion</T>
-            </Button>
+          canCreateContent || canCreateFaqs ? (
+            <div className="flex flex-wrap gap-2">
+              <WorkersCanEditToggle section="faqs" />
+              {canCreateFaqs && (
+                <Button
+                  onClick={() => {
+                    setEditing({
+                      id: "",
+                      question: "",
+                      answer: "",
+                      order: faqs.length,
+                    })
+                    setError("")
+                  }}
+                >
+                  <Plus /> <T>createQuestion</T>
+                </Button>
+              )}
+            </div>
           ) : undefined
         }
       />
