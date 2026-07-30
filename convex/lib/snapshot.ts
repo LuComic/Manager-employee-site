@@ -5,6 +5,7 @@ import {
   normalizeWorkersCanEdit,
   type WorkersCanEdit,
 } from "../../lib/worker-editing"
+import { assertGuideLinksPerHub, MAX_GUIDE_LINKS_PER_HUB } from "./guideLinks"
 
 export async function buildSnapshot(
   ctx: QueryCtx,
@@ -44,7 +45,7 @@ export async function buildSnapshot(
     ctx.db
       .query("guideRelations")
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
-      .take(1000),
+      .take(MAX_GUIDE_LINKS_PER_HUB + 1),
     ctx.db
       .query("events")
       .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
@@ -56,7 +57,7 @@ export async function buildSnapshot(
     ctx.db
       .query("eventGuides")
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
-      .take(1000),
+      .take(MAX_GUIDE_LINKS_PER_HUB + 1),
     ctx.db
       .query("attachments")
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
@@ -73,7 +74,7 @@ export async function buildSnapshot(
     ctx.db
       .query("documentGuides")
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
-      .take(1000),
+      .take(MAX_GUIDE_LINKS_PER_HUB + 1),
     ctx.db
       .query("eventEmployees")
       .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
@@ -87,6 +88,9 @@ export async function buildSnapshot(
       .withIndex("by_hubId_and_displayName", (q) => q.eq("hubId", hub._id))
       .take(500),
   ])
+  assertGuideLinksPerHub(guideRelations.length)
+  assertGuideLinksPerHub(eventGuides.length)
+  assertGuideLinksPerHub(documentGuides.length)
 
   const includeGuideDrafts =
     options.includeDrafts && (options.workerSections?.guides ?? true)
@@ -116,56 +120,28 @@ export async function buildSnapshot(
     categories.map((category) => [category._id, category.slug])
   )
   const guideSlugById = new Map(guides.map((guide) => [guide._id, guide.slug]))
-  const eventSlugById = new Map(events.map((event) => [event._id, event.slug]))
-  const allGuideSlugById = new Map(
-    allGuides.map((guide) => [guide._id, guide.slug])
+  const publishedGuideSlugById = new Map(
+    allGuides
+      .filter((guide) => guide.published)
+      .map((guide) => [guide._id, guide.slug])
   )
+  const eventSlugById = new Map(events.map((event) => [event._id, event.slug]))
   const allEventSlugById = new Map(
     allEvents.map((event) => [event._id, event.slug])
   )
-  const guideRelationSlugById = options.workerSections?.guides
-    ? allGuideSlugById
-    : guideSlugById
-  const eventGuideSlugById = options.workerSections?.events
-    ? allGuideSlugById
-    : guideSlugById
-  const documentGuideSlugById = options.workerSections?.documents
-    ? allGuideSlugById
-    : guideSlugById
-  const announcementGuideSlugById = options.workerSections?.announcements
-    ? allGuideSlugById
-    : guideSlugById
   const announcementEventSlugById = options.workerSections?.announcements
     ? allEventSlugById
     : eventSlugById
-  const guideReferenceIds = new Set(guides.map((guide) => guide._id))
   const eventReferenceIds = new Set(events.map((event) => event._id))
-  const editableEventIds = new Set(events.map((event) => event._id))
-  const editableDocumentIds = new Set(documents.map((document) => document._id))
-  if (options.workerSections?.events) {
-    for (const relation of eventGuides) {
-      if (editableEventIds.has(relation.eventId)) {
-        guideReferenceIds.add(relation.guideId)
-      }
-    }
-  }
   if (options.workerSections?.announcements) {
     for (const announcement of announcements) {
-      if (announcement.guideId) guideReferenceIds.add(announcement.guideId)
       if (announcement.eventId) eventReferenceIds.add(announcement.eventId)
-    }
-  }
-  if (options.workerSections?.documents) {
-    for (const relation of documentGuides) {
-      if (editableDocumentIds.has(relation.documentId)) {
-        guideReferenceIds.add(relation.guideId)
-      }
     }
   }
   const relatedGuideIdsByGuideId = new Map<string, string[]>()
   for (const relation of guideRelations) {
     if (!guideSlugById.has(relation.guideId)) continue
-    const relatedGuideSlug = guideRelationSlugById.get(relation.relatedGuideId)
+    const relatedGuideSlug = publishedGuideSlugById.get(relation.relatedGuideId)
     if (!relatedGuideSlug) continue
     const current = relatedGuideIdsByGuideId.get(relation.guideId) ?? []
     current.push(relatedGuideSlug)
@@ -173,7 +149,7 @@ export async function buildSnapshot(
   }
   const guideIdsByEventId = new Map<string, string[]>()
   for (const relation of eventGuides) {
-    const guideSlug = eventGuideSlugById.get(relation.guideId)
+    const guideSlug = publishedGuideSlugById.get(relation.guideId)
     if (!guideSlug) continue
     const current = guideIdsByEventId.get(relation.eventId) ?? []
     current.push(guideSlug)
@@ -232,7 +208,7 @@ export async function buildSnapshot(
   }
   const guideIdsByDocumentId = new Map<string, string[]>()
   for (const relation of documentGuides) {
-    const guideSlug = documentGuideSlugById.get(relation.guideId)
+    const guideSlug = publishedGuideSlugById.get(relation.guideId)
     if (!guideSlug) continue
     const current = guideIdsByDocumentId.get(relation.documentId) ?? []
     current.push(guideSlug)
@@ -264,7 +240,7 @@ export async function buildSnapshot(
     ...(options.workerSections
       ? {
           guideReferences: allGuides
-            .filter((guide) => guideReferenceIds.has(guide._id))
+            .filter((guide) => guide.published)
             .map((guide) => ({
               id: guide.slug,
               title: guide.title,
@@ -335,7 +311,7 @@ export async function buildSnapshot(
       pinned: announcement.pinned,
       published: announcement.published,
       guideId: announcement.guideId
-        ? announcementGuideSlugById.get(announcement.guideId)
+        ? publishedGuideSlugById.get(announcement.guideId)
         : undefined,
       eventId: announcement.eventId
         ? announcementEventSlugById.get(announcement.eventId)

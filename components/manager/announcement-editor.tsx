@@ -242,6 +242,16 @@ export function AnnouncementEditor({
 
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.published}
+                  onChange={(event) =>
+                    change({ published: event.target.checked })
+                  }
+                />
+                <T>publishNow</T>
+              </label>
               <Field label="publishDate" id="announcement-start">
                 <Input
                   id="announcement-start"
@@ -330,16 +340,6 @@ export function AnnouncementEditor({
                   </SelectContent>
                 </Select>
               </Field>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    change({ published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

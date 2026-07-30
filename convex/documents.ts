@@ -14,6 +14,13 @@ import {
   requireIdentity,
 } from "./lib/access"
 import {
+  assertGuideLinkReplacementFits,
+  assertGuideLinksPerItem,
+  MAX_GUIDE_LINKS_PER_HUB,
+  MAX_GUIDE_LINKS_PER_ITEM,
+  resolvePublishedGuides,
+} from "./lib/guideLinks"
+import {
   bindHubStorage,
   deleteReferencedHubStorage,
   requireBoundHubStorage,
@@ -74,39 +81,6 @@ function sharedLink(value: string) {
     throw new Error("sharedLinksUsehttphttps")
   }
   return url.toString()
-}
-
-async function resolveGuideReference(
-  ctx: MutationCtx,
-  args: {
-    hubId: Id<"hubs">
-    slug: string
-    canAccessDrafts: boolean
-    allowedDraftIds: ReadonlySet<Id<"guides">>
-  }
-) {
-  const slug = args.slug.trim()
-  const guide = slug
-    ? await ctx.db
-        .query("guides")
-        .withIndex("by_hubId_and_slug", (q) =>
-          q.eq("hubId", args.hubId).eq("slug", slug)
-        )
-        .unique()
-    : null
-  if (!guide) {
-    throw new Error(
-      args.canAccessDrafts ? "guideNotFound" : "editingAccessRequired"
-    )
-  }
-  if (
-    !guide.published &&
-    !args.canAccessDrafts &&
-    !args.allowedDraftIds.has(guide._id)
-  ) {
-    throw new Error("editingAccessRequired")
-  }
-  return guide
 }
 
 async function validateResource(
@@ -288,28 +262,26 @@ export const save = mutation({
     }
 
     if (args.relatedGuideSlugs !== undefined) {
-      const oldGuideRelations = await ctx.db
-        .query("documentGuides")
-        .withIndex("by_documentId", (q) => q.eq("documentId", documentId))
-        .take(200)
-      const allowedDraftIds = new Set(
-        oldGuideRelations.map((relation) => relation.guideId)
-      )
-      const canAccessGuideDrafts =
-        permission !== "viewer" ||
-        normalizeWorkersCanEdit(hub.workersCanEdit).guides
-      const relatedGuides = await Promise.all(
-        [...new Set(args.relatedGuideSlugs)]
-          .slice(0, 100)
-          .map((guideSlug) =>
-            resolveGuideReference(ctx, {
-              hubId: args.hubId,
-              slug: guideSlug,
-              canAccessDrafts: canAccessGuideDrafts,
-              allowedDraftIds,
-            })
-          )
-      )
+      const [oldGuideRelations, hubGuideRelations, relatedGuides] =
+        await Promise.all([
+          ctx.db
+            .query("documentGuides")
+            .withIndex("by_documentId", (q) => q.eq("documentId", documentId))
+            .take(MAX_GUIDE_LINKS_PER_ITEM + 1),
+          ctx.db
+            .query("documentGuides")
+            .withIndex("by_hubId", (q) => q.eq("hubId", args.hubId))
+            .take(MAX_GUIDE_LINKS_PER_HUB + 1),
+          resolvePublishedGuides(ctx, {
+            hubId: args.hubId,
+            slugs: args.relatedGuideSlugs,
+          }),
+        ])
+      assertGuideLinkReplacementFits({
+        hubCount: hubGuideRelations.length,
+        previousCount: oldGuideRelations.length,
+        nextCount: relatedGuides.length,
+      })
       for (const relation of oldGuideRelations) {
         await ctx.db.delete("documentGuides", relation._id)
       }
@@ -388,8 +360,9 @@ export const remove = mutation({
         ctx.db
           .query("documentGuides")
           .withIndex("by_documentId", (q) => q.eq("documentId", document._id))
-          .take(200),
+          .take(MAX_GUIDE_LINKS_PER_ITEM + 1),
       ])
+      assertGuideLinksPerItem(guideRelations.length)
       for (const relation of employeeRelations) {
         await ctx.db.delete("documentEmployees", relation._id)
       }

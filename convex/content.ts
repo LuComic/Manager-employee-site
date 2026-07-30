@@ -10,6 +10,14 @@ import {
   requireHubEditingPermission,
   requireHubPermission,
 } from "./lib/access"
+import {
+  assertGuideLinkReplacementFits,
+  assertGuideLinksPerHub,
+  assertGuideLinksPerItem,
+  MAX_GUIDE_LINKS_PER_HUB,
+  MAX_GUIDE_LINKS_PER_ITEM,
+  resolvePublishedGuides,
+} from "./lib/guideLinks"
 import { deleteReferencedHubStorage } from "./lib/hubStorage"
 import {
   createNotification,
@@ -69,39 +77,6 @@ function required(
   if (!clean) throw new Error(requiredKey)
   if (clean.length > max) throw new Error(tooLongKey)
   return clean
-}
-
-async function resolveGuideReference(
-  ctx: MutationCtx,
-  args: {
-    hubId: Id<"hubs">
-    slug: string
-    canAccessDrafts: boolean
-    allowedDraftIds?: ReadonlySet<Id<"guides">>
-  }
-) {
-  const slug = args.slug.trim()
-  const guide = slug
-    ? await ctx.db
-        .query("guides")
-        .withIndex("by_hubId_and_slug", (q) =>
-          q.eq("hubId", args.hubId).eq("slug", slug)
-        )
-        .unique()
-    : null
-  if (!guide) {
-    throw new Error(
-      args.canAccessDrafts ? "guideNotFound" : "editingAccessRequired"
-    )
-  }
-  if (
-    !guide.published &&
-    !args.canAccessDrafts &&
-    !args.allowedDraftIds?.has(guide._id)
-  ) {
-    throw new Error("editingAccessRequired")
-  }
-  return guide
 }
 
 async function resolveEventReference(
@@ -241,6 +216,7 @@ export const saveGuide = mutation({
     relatedGuideSlugs: v.optional(v.array(v.string())),
     content: richTextDocument,
   },
+  returns: v.string(),
   handler: async (ctx, args) => {
     const { hub, permission } = await requireHubEditingPermission(
       ctx,
@@ -290,32 +266,37 @@ export const saveGuide = mutation({
         })
 
     if (args.relatedGuideSlugs !== undefined) {
-      const oldRelations = await ctx.db
-        .query("guideRelations")
-        .withIndex("by_guideId", (q) => q.eq("guideId", guideId))
-        .take(200)
-      const relatedGuides = await Promise.all(
-        [...new Set(args.relatedGuideSlugs)]
-          .slice(0, 100)
-          .map((relatedSlug) =>
-            resolveGuideReference(ctx, {
-              hubId: args.hubId,
-              slug: relatedSlug,
-              canAccessDrafts: true,
-            })
-          )
+      const [oldRelations, hubRelations, resolvedGuides] = await Promise.all([
+        ctx.db
+          .query("guideRelations")
+          .withIndex("by_guideId", (q) => q.eq("guideId", guideId))
+          .take(MAX_GUIDE_LINKS_PER_ITEM + 1),
+        ctx.db
+          .query("guideRelations")
+          .withIndex("by_hubId", (q) => q.eq("hubId", args.hubId))
+          .take(MAX_GUIDE_LINKS_PER_HUB + 1),
+        resolvePublishedGuides(ctx, {
+          hubId: args.hubId,
+          slugs: args.relatedGuideSlugs,
+        }),
+      ])
+      const relatedGuides = resolvedGuides.filter(
+        (relatedGuide) => relatedGuide._id !== guideId
       )
+      assertGuideLinkReplacementFits({
+        hubCount: hubRelations.length,
+        previousCount: oldRelations.length,
+        nextCount: relatedGuides.length,
+      })
       for (const relation of oldRelations) {
         await ctx.db.delete("guideRelations", relation._id)
       }
       for (const relatedGuide of relatedGuides) {
-        if (relatedGuide && relatedGuide._id !== guideId) {
-          await ctx.db.insert("guideRelations", {
-            hubId: args.hubId,
-            guideId,
-            relatedGuideId: relatedGuide._id,
-          })
-        }
+        await ctx.db.insert("guideRelations", {
+          hubId: args.hubId,
+          guideId,
+          relatedGuideId: relatedGuide._id,
+        })
       }
     }
     await notifyPublicationChange(ctx, {
@@ -336,6 +317,7 @@ export const saveGuide = mutation({
 
 export const deleteGuide = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "manager")
     const guide = await ctx.db
@@ -355,7 +337,7 @@ export const deleteGuide = mutation({
       ctx.db
         .query("eventGuides")
         .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
-        .take(1000),
+        .take(MAX_GUIDE_LINKS_PER_HUB + 1),
       ctx.db
         .query("announcements")
         .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
@@ -363,18 +345,22 @@ export const deleteGuide = mutation({
       ctx.db
         .query("guideRelations")
         .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
-        .take(1000),
+        .take(MAX_GUIDE_LINKS_PER_ITEM + 1),
       ctx.db
         .query("guideRelations")
         .withIndex("by_relatedGuideId", (q) =>
           q.eq("relatedGuideId", guide._id)
         )
-        .take(1000),
+        .take(MAX_GUIDE_LINKS_PER_HUB + 1),
       ctx.db
         .query("documentGuides")
         .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
-        .take(1000),
+        .take(MAX_GUIDE_LINKS_PER_HUB + 1),
     ])
+    assertGuideLinksPerHub(eventRelations.length)
+    assertGuideLinksPerItem(outgoingGuideRelations.length)
+    assertGuideLinksPerHub(incomingGuideRelations.length)
+    assertGuideLinksPerHub(documentRelations.length)
     for (const relation of eventRelations)
       await ctx.db.delete("eventGuides", relation._id)
     for (const relation of outgoingGuideRelations)
@@ -462,7 +448,7 @@ export const saveEvent = mutation({
       ? await ctx.db
           .query("eventGuides")
           .withIndex("by_eventId", (q) => q.eq("eventId", existing._id))
-          .take(1000)
+          .take(MAX_GUIDE_LINKS_PER_ITEM + 1)
       : []
     if (
       !existing &&
@@ -471,24 +457,21 @@ export const saveEvent = mutation({
     ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
-    const workersCanEdit = normalizeWorkersCanEdit(hub.workersCanEdit)
-    const canAccessDraftGuides =
-      permission !== "viewer" || workersCanEdit.guides
-    const previouslyLinkedGuideIds = new Set(
-      oldGuideRelations.map((relation) => relation.guideId)
-    )
-    const selectedGuides = await Promise.all(
-      [...new Set(args.guideSlugs.map((slug) => slug.trim()))]
-        .slice(0, 100)
-        .map((slug) =>
-          resolveGuideReference(ctx, {
-            hubId: args.hubId,
-            slug,
-            canAccessDrafts: canAccessDraftGuides,
-            allowedDraftIds: previouslyLinkedGuideIds,
-          })
-        )
-    )
+    const [selectedGuides, hubGuideRelations] = await Promise.all([
+      resolvePublishedGuides(ctx, {
+        hubId: args.hubId,
+        slugs: args.guideSlugs,
+      }),
+      ctx.db
+        .query("eventGuides")
+        .withIndex("by_hubId", (q) => q.eq("hubId", args.hubId))
+        .take(MAX_GUIDE_LINKS_PER_HUB + 1),
+    ])
+    assertGuideLinkReplacementFits({
+      hubCount: hubGuideRelations.length,
+      previousCount: oldGuideRelations.length,
+      nextCount: selectedGuides.length,
+    })
     const value = {
       title: required(args.title, "eventTitle", 140),
       description: required(args.description, "eventDescription", 500),
@@ -623,7 +606,7 @@ export const deleteEvent = mutation({
         ctx.db
           .query("eventGuides")
           .withIndex("by_eventId", (q) => q.eq("eventId", event._id))
-          .take(1000),
+          .take(MAX_GUIDE_LINKS_PER_ITEM + 1),
         ctx.db
           .query("eventEmployees")
           .withIndex("by_eventId_and_employeeProfileId", (q) =>
@@ -639,6 +622,7 @@ export const deleteEvent = mutation({
           .withIndex("by_eventId", (q) => q.eq("eventId", event._id))
           .take(500),
       ])
+    assertGuideLinksPerItem(relations.length)
     for (const relation of relations)
       await ctx.db.delete("eventGuides", relation._id)
     for (const relation of employeeRelations)
@@ -694,6 +678,7 @@ export const saveAnnouncement = mutation({
     guideSlug: v.optional(v.string()),
     eventSlug: v.optional(v.string()),
   },
+  returns: v.string(),
   handler: async (ctx, args) => {
     const { hub, permission } = await requireHubEditingPermission(
       ctx,
@@ -709,20 +694,16 @@ export const saveAnnouncement = mutation({
       )
       .unique()
     const workersCanEdit = normalizeWorkersCanEdit(hub.workersCanEdit)
-    const canAccessDraftGuides =
-      permission !== "viewer" || workersCanEdit.guides
     const canAccessDraftEvents =
       permission !== "viewer" || workersCanEdit.events
     const guide =
       args.guideSlug !== undefined
-        ? await resolveGuideReference(ctx, {
-            hubId: args.hubId,
-            slug: args.guideSlug,
-            canAccessDrafts: canAccessDraftGuides,
-            ...(existing?.guideId
-              ? { allowedDraftIds: new Set([existing.guideId]) }
-              : {}),
-          })
+        ? (
+            await resolvePublishedGuides(ctx, {
+              hubId: args.hubId,
+              slugs: [args.guideSlug],
+            })
+          )[0]
         : null
     const event =
       args.eventSlug !== undefined

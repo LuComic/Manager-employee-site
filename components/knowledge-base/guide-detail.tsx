@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation"
 import { ArrowLeft, Clock3 } from "lucide-react"
 
 import { PrintButton } from "@/components/knowledge-base/print-button"
+import { RelatedInformation } from "@/components/operations/related-information"
 import { RichTextContent } from "@/components/rich-text/rich-text-content"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,22 +14,24 @@ import { cn } from "@/lib/utils"
 export function GuideDetail({
   guide,
   category,
+  relatedGuides = [],
   preview = false,
 }: {
   guide: Guide
   category?: Category
+  relatedGuides?: Guide[]
   preview?: boolean
 }) {
   const Icon = guide.icon
 
   return (
-    <article className="mx-auto max-w-4xl">
+    <article className="mx-auto max-w-4xl space-y-6">
       {!preview && (
         <Link
           href={category ? `/categories/${category.id}` : "/guides"}
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
-            "mb-6 tracking-normal normal-case"
+            "tracking-normal normal-case"
           )}
         >
           <ArrowLeft data-icon="inline-start" /> <T>backTo</T>{" "}
@@ -65,6 +68,7 @@ export function GuideDetail({
           {!preview && <PrintButton />}
         </div>
       </Card>
+      <RelatedInformation guides={relatedGuides} />
     </article>
   )
 }

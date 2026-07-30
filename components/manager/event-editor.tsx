@@ -437,13 +437,18 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         </div>
 
         <Card className="h-fit shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">
-              <T>eventSettings</T>
-            </CardTitle>
-          </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.published}
+                  onChange={(event) =>
+                    change({ ...draft, published: event.target.checked })
+                  }
+                />
+                <T>publishNow</T>
+              </label>
               <Field label="eventType" id="event-type">
                 <Select
                   value={draft.category}
@@ -466,30 +471,16 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   </SelectContent>
                 </Select>
               </Field>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    change({ ...draft, published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
             </div>
 
             <RelatedGuidesPicker
               guides={guideReferences}
               selectedIds={draft.guideIds}
               onChange={(guideIds) => change({ ...draft, guideIds })}
-              className="border-t pt-6"
             />
 
-            <section className="space-y-4 border-t pt-6">
-              <h2 className="font-heading text-base font-semibold">
-                <T>managerNotes</T>
-              </h2>
-              <Field label="notes" id="event-notes">
+            <section className="space-y-4">
+              <Field label="managerNotes" id="event-notes">
                 <Textarea
                   id="event-notes"
                   value={draft.notes}

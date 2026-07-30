@@ -391,13 +391,27 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
         </div>
 
         <Card className="h-fit shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">
-              <T>banner</T>
-            </CardTitle>
-          </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-3">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.published}
+                  onChange={(event) =>
+                    changeBase({ published: event.target.checked })
+                  }
+                />
+                <T>publishNow</T>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                <T>publishedResourcesAppearEmployeeDocumentLibrary</T>
+              </p>
+            </div>
+
+            <section className="space-y-3">
+              <h2 className="text-xs font-semibold">
+                <T>banner</T>
+              </h2>
               <div
                 className={cn(
                   "flex aspect-[16/7] items-center justify-center overflow-hidden border bg-muted/40 bg-cover bg-center",
@@ -453,7 +467,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                   <X /> <T>removeBanner</T>
                 </Button>
               )}
-            </div>
+            </section>
 
             <RelatedGuidesPicker
               guides={guideReferences}
@@ -462,24 +476,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                 setDraft({ ...draft, relatedGuideIds })
                 markChanged()
               }}
-              className="border-t pt-6"
             />
-
-            <div className="space-y-4 border-t pt-6">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    changeBase({ published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
-              <p className="text-xs text-muted-foreground">
-                <T>publishedResourcesAppearEmployeeDocumentLibrary</T>
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

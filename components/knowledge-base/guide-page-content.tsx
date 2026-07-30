@@ -17,10 +17,17 @@ export function GuidePageContent({ guideId }: { guideId: string }) {
         description="guideUnpublishedRemovedBrowseCurrentGuidesFind"
       />
     )
+  const relatedGuides = guides.filter(
+    (item) =>
+      item.published &&
+      item.id !== guide.id &&
+      (guide.relatedGuideIds ?? []).includes(item.id)
+  )
   return (
     <GuideDetail
       guide={guide}
       category={categories.find((item) => item.id === guide.category)}
+      relatedGuides={relatedGuides}
     />
   )
 }

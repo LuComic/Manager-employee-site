@@ -398,6 +398,35 @@ describe("hub authorization and anonymous access", () => {
       relatedGuideSlugs: ["published-guide"],
       content,
     })
+    await expect(
+      owner.mutation(api.content.saveGuide, {
+        hubId,
+        slug: "invalid-related-guide",
+        title: "Invalid related guide",
+        description: "Draft guides cannot be linked",
+        categorySlug: "ops",
+        duration: "3 min",
+        featured: false,
+        published: true,
+        keywords: [],
+        relatedGuideSlugs: ["draft-guide"],
+        content,
+      })
+    ).rejects.toThrow("relatedGuidesMustBePublished")
+    await expect(
+      owner.mutation(api.content.saveAnnouncement, {
+        hubId,
+        slug: "invalid-related-announcement",
+        title: "Invalid related announcement",
+        content,
+        publishedAt: "2026-07-18",
+        expiresAt: "2026-07-20",
+        priority: "Normal",
+        pinned: false,
+        published: true,
+        guideSlug: "draft-guide",
+      })
+    ).rejects.toThrow("relatedGuidesMustBePublished")
     await owner.mutation(api.content.saveEvent, {
       hubId,
       slug: "event",
@@ -1018,6 +1047,18 @@ describe("Organization employees, invitations, and event links", () => {
       keywords: [],
       content: { type: "doc" },
     })
+    await owner.mutation(api.content.saveGuide, {
+      hubId,
+      slug: "published-guide",
+      title: "Published guide",
+      description: "Available for related-content links",
+      categorySlug: "operations",
+      duration: "4 min",
+      featured: false,
+      published: true,
+      keywords: [],
+      content: { type: "doc" },
+    })
     await owner.mutation(api.content.saveEvent, {
       hubId,
       slug: "draft-event",
@@ -1029,7 +1070,7 @@ describe("Organization employees, invitations, and event links", () => {
       location: "Office",
       notes: "",
       published: false,
-      guideSlugs: ["draft-guide"],
+      guideSlugs: ["published-guide"],
       employeeProfileIds: [],
     })
     await owner.mutation(api.content.saveEvent, {
@@ -1056,7 +1097,7 @@ describe("Organization employees, invitations, and event links", () => {
       priority: "Normal",
       pinned: false,
       published: false,
-      guideSlug: "draft-guide",
+      guideSlug: "published-guide",
       eventSlug: "draft-event",
     })
     await owner.mutation(api.documents.save, {
@@ -1066,7 +1107,7 @@ describe("Organization employees, invitations, and event links", () => {
       description: "Must stay outside a guide-only worker snapshot",
       resource: { kind: "link", url: "https://example.test/draft" },
       employeeProfileIds: [],
-      relatedGuideSlugs: ["draft-guide"],
+      relatedGuideSlugs: ["published-guide"],
       published: false,
     })
 
@@ -1307,7 +1348,7 @@ describe("Organization employees, invitations, and event links", () => {
         guideSlugs: ["unlinked-draft-guide"],
         employeeProfileIds: [],
       })
-    ).rejects.toThrow("editingAccessRequired")
+    ).rejects.toThrow("relatedGuidesMustBePublished")
     const hiddenRelationshipSnapshot = await worker.query(
       api.hubs.getManagerSnapshot,
       { nowDate: "2026-07-30" }
@@ -1318,34 +1359,34 @@ describe("Organization employees, invitations, and event links", () => {
     expect(
       hiddenRelationshipSnapshot.guides.map((guide) => guide.id)
     ).not.toContain("draft-guide")
-    expect(hiddenRelationshipSnapshot.guideReferences ?? []).toContainEqual({
-      id: "draft-guide",
-      title: "Draft guide",
-      published: false,
-    })
     expect(
       (hiddenRelationshipSnapshot.guideReferences ?? []).map(
         (guide) => guide.id
       )
-    ).not.toContain("unlinked-draft-guide")
+    ).toEqual(expect.arrayContaining(["published-guide", "worker-guide"]))
+    expect(
+      (hiddenRelationshipSnapshot.guideReferences ?? []).some(
+        (guide) => !guide.published
+      )
+    ).toBe(false)
     expect(
       hiddenRelationshipSnapshot.events.find(
         (event) => event.id === "draft-event"
       )?.guideIds
-    ).toEqual(["draft-guide"])
+    ).toEqual(["published-guide"])
     expect(
       hiddenRelationshipSnapshot.announcements.find(
         (announcement) => announcement.id === "draft-announcement"
       )
     ).toMatchObject({
-      guideId: "draft-guide",
+      guideId: "published-guide",
       eventId: "draft-event",
     })
     expect(
       hiddenRelationshipSnapshot.documents.find(
         (document) => document.id === "draft-document"
       )?.relatedGuideIds
-    ).toEqual(["draft-guide"])
+    ).toEqual(["published-guide"])
     expect(
       hiddenRelationshipSnapshot.events.find(
         (event) => event.id === "worker-event"
@@ -1365,14 +1406,14 @@ describe("Organization employees, invitations, and event links", () => {
         relatedGuideSlugs: ["unlinked-draft-guide"],
         published: false,
       })
-    ).rejects.toThrow("editingAccessRequired")
+    ).rejects.toThrow("relatedGuidesMustBePublished")
     await worker.mutation(api.documents.save, {
       hubId,
       slug: "draft-document",
       title: "Draft document updated by worker",
-      description: "Must keep its restricted guide relationship",
+      description: "Keeps its published guide relationship",
       employeeProfileIds: [],
-      relatedGuideSlugs: ["draft-guide"],
+      relatedGuideSlugs: ["published-guide"],
       published: false,
     })
 
@@ -1387,7 +1428,7 @@ describe("Organization employees, invitations, and event links", () => {
       location: "Office",
       notes: "",
       published: false,
-      guideSlugs: ["draft-guide"],
+      guideSlugs: ["published-guide"],
       employeeProfileIds: [workerProfileId],
     })
     await manager.mutation(api.hubs.setWorkersCanEdit, {
@@ -1406,7 +1447,7 @@ describe("Organization employees, invitations, and event links", () => {
         priority: "Normal",
         pinned: false,
         published: false,
-        guideSlug: "draft-guide",
+        guideSlug: "published-guide",
         eventSlug: "unlinked-draft-event",
       })
     ).rejects.toThrow("editingAccessRequired")
@@ -1420,7 +1461,7 @@ describe("Organization employees, invitations, and event links", () => {
       priority: "Normal",
       pinned: false,
       published: false,
-      guideSlug: "draft-guide",
+      guideSlug: "published-guide",
       eventSlug: "draft-event",
     })
     const announcementSnapshot = await worker.query(
@@ -1448,13 +1489,13 @@ describe("Organization employees, invitations, and event links", () => {
     expect(
       managerSnapshot.events.find((event) => event.id === "draft-event")
         ?.guideIds
-    ).toEqual(["draft-guide"])
+    ).toEqual(["published-guide"])
     expect(
       managerSnapshot.announcements.find(
         (announcement) => announcement.id === "draft-announcement"
       )
     ).toMatchObject({
-      guideId: "draft-guide",
+      guideId: "published-guide",
       eventId: "draft-event",
     })
     await expect(

@@ -15,7 +15,7 @@ import {
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
 import { EmptyState } from "@/components/operations/empty-state"
-import { GuideCard } from "@/components/knowledge-base/guide-card"
+import { RelatedInformation } from "@/components/operations/related-information"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -181,18 +181,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
           </div>
         </CardContent>
       </Card>
-      {relatedGuides.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-xl font-semibold">
-            <T>relatedGuides</T>
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {relatedGuides.map((guide) => (
-              <GuideCard key={guide.id} guide={guide} />
-            ))}
-          </div>
-        </section>
-      )}
+      <RelatedInformation guides={relatedGuides} timeZone={hub?.timeZone} />
     </article>
   )
 }

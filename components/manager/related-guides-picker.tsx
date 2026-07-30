@@ -33,22 +33,24 @@ export function RelatedGuidesPicker({
 }) {
   const t = useAppTranslations()
   const availableGuides = guides.filter(
-    (guide) =>
-      guide.id !== excludeGuideId &&
-      (guide.published || selectedIds.includes(guide.id))
+    (guide) => guide.id !== excludeGuideId && guide.published
+  )
+  const availableGuideIds = new Set(availableGuides.map((guide) => guide.id))
+  const selectedPublishedIds = selectedIds.filter((id) =>
+    availableGuideIds.has(id)
   )
 
   return (
     <section className={cn("space-y-3", className)}>
-      <h2 className="flex items-center gap-2 font-heading text-base font-semibold">
+      <h2 className="flex items-center gap-2 text-xs font-semibold">
         <Link2 className="size-4" /> <T>{title}</T>
       </h2>
       <div
-        className="flex flex-wrap gap-2"
+        className="flex max-h-40 flex-wrap gap-2 overflow-y-auto overscroll-contain pr-1"
         aria-label={t("selectRelatedGuides")}
       >
         {availableGuides.map((guide) => {
-          const selected = selectedIds.includes(guide.id)
+          const selected = selectedPublishedIds.includes(guide.id)
           return (
             <Button
               key={guide.id}
@@ -60,10 +62,10 @@ export function RelatedGuidesPicker({
               onClick={() =>
                 onChange(
                   selected
-                    ? selectedIds.filter((id) => id !== guide.id)
+                    ? selectedPublishedIds.filter((id) => id !== guide.id)
                     : selectionMode === "single"
                       ? [guide.id]
-                      : [...selectedIds, guide.id]
+                      : [...selectedPublishedIds, guide.id]
                 )
               }
             >

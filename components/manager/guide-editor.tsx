@@ -274,6 +274,12 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
             category={categories.find(
               (category) => category.id === draft.category
             )}
+            relatedGuides={guides.filter(
+              (guide) =>
+                guide.published &&
+                guide.id !== draft.id &&
+                draft.relatedGuideIds.includes(guide.id)
+            )}
             preview
           />
         </div>
@@ -319,6 +325,16 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
 
           <Card className="h-fit shadow-none">
             <CardContent className="space-y-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.published}
+                  onChange={(event) =>
+                    change({ published: event.target.checked })
+                  }
+                />
+                <T>publishNow</T>
+              </label>
               <Field label="category" id="guide-category">
                 <Select
                   value={draft.category}
@@ -416,18 +432,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                 selectedIds={draft.relatedGuideIds}
                 onChange={(relatedGuideIds) => change({ relatedGuideIds })}
                 excludeGuideId={draft.id || undefined}
-                className="border-t pt-4"
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    change({ published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
