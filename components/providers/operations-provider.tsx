@@ -820,7 +820,6 @@ export function OperationsProvider({
           slug: faq.id,
           question: faq.question,
           answer: faq.answer,
-          published: faq.published,
         })
       )
     },

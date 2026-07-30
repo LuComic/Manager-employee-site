@@ -9,11 +9,11 @@ import { BookOpen, FilePenLine, Plus, Search, Trash2 } from "lucide-react"
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -137,33 +137,25 @@ export function GuideManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((guide) => (
-            <Card key={guide.id} size="sm" className="shadow-none">
-              <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                  <BookOpen className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold">{guide.title}</h3>
-                    <span aria-hidden="true" className="text-border">
-                      |
-                    </span>
-                    <Badge variant={guide.published ? "secondary" : "outline"}>
-                      <T>{guide.published ? "published" : "draft"}</T>
-                    </Badge>
-                    <span aria-hidden="true" className="text-border">
-                      |
-                    </span>
-                    <Badge variant="outline">
-                      {categories.find((item) => item.id === guide.category)
-                        ?.label ?? "Unknown work area"}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {guide.description}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
+            <ManagerListItem
+              key={guide.id}
+              icon={<BookOpen className="size-5" />}
+              title={guide.title}
+              metadata={[
+                <Badge
+                  key="status"
+                  variant={guide.published ? "secondary" : "outline"}
+                >
+                  <T>{guide.published ? "published" : "draft"}</T>
+                </Badge>,
+                <Badge key="category" variant="outline">
+                  {categories.find((item) => item.id === guide.category)
+                    ?.label ?? t("unknownWorkArea")}
+                </Badge>,
+              ]}
+              description={guide.description}
+              actions={
+                <>
                   <Button
                     variant="outline"
                     size="sm"
@@ -198,9 +190,9 @@ export function GuideManager() {
                       <Trash2 />
                     </Button>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </>
+              }
+            />
           ))}
         </div>
       ) : (

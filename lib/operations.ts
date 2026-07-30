@@ -105,7 +105,6 @@ export type Faq = {
   question: string
   answer: string
   order: number
-  published: boolean
 }
 
 export type OperationsState = {

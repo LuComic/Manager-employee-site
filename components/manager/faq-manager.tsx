@@ -15,11 +15,10 @@ import {
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -85,7 +84,6 @@ export function FaqManager() {
                   question: "",
                   answer: "",
                   order: faqs.length,
-                  published: true,
                 })
                 setError("")
               }}
@@ -99,31 +97,16 @@ export function FaqManager() {
       {faqs.length ? (
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <Card
-              id={`question-${faq.id}`}
+            <ManagerListItem
               key={faq.id}
-              size="sm"
-              className="scroll-mt-6 shadow-none target:ring-2 target:ring-ring/30"
-            >
-              <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                  <CircleHelp className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold">{faq.question}</h2>
-                    <span aria-hidden="true" className="text-border">
-                      |
-                    </span>
-                    <Badge variant={faq.published ? "secondary" : "outline"}>
-                      <T>{faq.published ? "published" : "draft"}</T>
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {faq.answer}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
+              icon={<CircleHelp className="size-5" />}
+              title={faq.question}
+              titleAs="h2"
+              align="start"
+              description={faq.answer}
+              descriptionClassName="mt-2"
+              actions={
+                <>
                   <Button
                     variant="outline"
                     size="icon-sm"
@@ -145,20 +128,6 @@ export function FaqManager() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={async () => {
-                      await saveFaq({ ...faq, published: !faq.published })
-                      showFeedback(
-                        faq.published
-                          ? "questionUnpublished"
-                          : "questionPublished"
-                      )
-                    }}
-                  >
-                    <T>{faq.published ? "unpublish" : "publish"}</T>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
                     onClick={() => {
                       setEditing({ ...faq })
                       setError("")
@@ -176,9 +145,9 @@ export function FaqManager() {
                       <Trash2 />
                     </Button>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </>
+              }
+            />
           ))}
         </div>
       ) : (
@@ -211,7 +180,7 @@ export function FaqManager() {
                   <T>{editing.id ? "editQuestion" : "createQuestion"}</T>
                 </DialogTitle>
                 <DialogDescription>
-                  <T>publishedAnswersAppearImmediatelyEmployeeSite</T>
+                  <T>savedAnswersAppearImmediatelyEmployeeSite</T>
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">

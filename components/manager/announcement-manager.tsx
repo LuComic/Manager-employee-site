@@ -17,11 +17,11 @@ import {
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select"
 import {
   announcementPriorityMessageKeys,
+  announcementStateMessageKeys,
   getAnnouncementState,
   type Announcement,
 } from "@/lib/operations"
@@ -138,52 +139,37 @@ export function AnnouncementManager() {
               hub?.timeZone
             )
             return (
-              <Card key={announcement.id} size="sm" className="shadow-none">
-                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                    <Megaphone className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold">{announcement.title}</h3>
-                      <span aria-hidden="true" className="text-border">
-                        |
-                      </span>
-                      <Badge
-                        variant={state === "Draft" ? "outline" : "secondary"}
-                      >
-                        {state}
-                      </Badge>
-                      <span aria-hidden="true" className="text-border">
-                        |
-                      </span>
-                      <Badge
-                        variant={
-                          announcement.priority === "Urgent"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                      >
-                        {t(
-                          announcementPriorityMessageKeys[announcement.priority]
-                        )}
-                      </Badge>
-                      {announcement.pinned && (
-                        <>
-                          <span aria-hidden="true" className="text-border">
-                            |
-                          </span>
-                          <Badge variant="secondary">
-                            <Pin /> <T>pinned</T>
-                          </Badge>
-                        </>
-                      )}
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                      {richTextToPlainText(announcement.content)}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
+              <ManagerListItem
+                key={announcement.id}
+                icon={<Megaphone className="size-5" />}
+                title={announcement.title}
+                metadata={[
+                  <Badge
+                    key="status"
+                    variant={state === "Draft" ? "outline" : "secondary"}
+                  >
+                    {t(announcementStateMessageKeys[state])}
+                  </Badge>,
+                  <Badge
+                    key="priority"
+                    variant={
+                      announcement.priority === "Urgent"
+                        ? "destructive"
+                        : "secondary"
+                    }
+                  >
+                    {t(announcementPriorityMessageKeys[announcement.priority])}
+                  </Badge>,
+                  announcement.pinned ? (
+                    <Badge key="pinned" variant="secondary">
+                      <Pin /> <T>pinned</T>
+                    </Badge>
+                  ) : null,
+                ]}
+                description={richTextToPlainText(announcement.content)}
+                descriptionClassName="line-clamp-2"
+                actions={
+                  <>
                     <Button
                       variant="outline"
                       size="sm"
@@ -246,9 +232,9 @@ export function AnnouncementManager() {
                         <Trash2 />
                       </Button>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </>
+                }
+              />
             )
           })}
         </div>

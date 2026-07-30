@@ -225,7 +225,7 @@ describe("hub authorization and anonymous access", () => {
     ).rejects.toThrow("unauthorized")
   })
 
-  test("publishes managed FAQs and keeps help requests owner-only", async () => {
+  test("always publishes managed FAQs and keeps help requests owner-only", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t)
     const owner = t.withIdentity(ownerIdentity)
@@ -235,8 +235,16 @@ describe("hub authorization and anonymous access", () => {
       slug: "where-are-keys",
       question: "Where are the keys?",
       answer: "Ask the opening manager.",
-      published: true,
     })
+    const faq = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("faqs")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "where-are-keys")
+        )
+        .unique()
+    })
+    expect(faq?.published).toBe(true)
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "test-hub",
       credential: "ABCD-EFGH",
@@ -245,6 +253,7 @@ describe("hub authorization and anonymous access", () => {
     expect(snapshot.kind).toBe("ready")
     if (snapshot.kind === "ready") {
       expect(snapshot.faqs).toHaveLength(1)
+      expect(snapshot.faqs[0]).not.toHaveProperty("published")
     }
 
     await t.mutation(api.content.submitHelpRequest, {

@@ -18,11 +18,11 @@ import { CalendarExportButton } from "@/components/calendar/calendar-export-butt
 import { CalendarImportIssues } from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -357,45 +357,41 @@ export function EventManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((event) => (
-            <Card key={event.id} size="sm" className="shadow-none">
-              <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                  <CalendarDays className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold">{event.title}</h3>
-                    <span aria-hidden="true" className="text-border">
-                      |
-                    </span>
-                    <Badge variant={event.published ? "secondary" : "outline"}>
-                      <T>{event.published ? "published" : "draft"}</T>
-                    </Badge>
-                    <span aria-hidden="true" className="text-border">
-                      |
-                    </span>
-                    <Badge variant="secondary">
-                      {t(eventCategoryMessageKeys[event.category])}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {formatEventDate(
-                      event,
-                      undefined,
-                      hub?.timeZone,
-                      languageTag
-                    )}
-                    ,{" "}
-                    {formatEventTime(
-                      event,
-                      hub?.timeZone,
-                      languageTag,
-                      t("allDay")
-                    )}{" "}
-                    · {event.location}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
+            <ManagerListItem
+              key={event.id}
+              icon={<CalendarDays className="size-5" />}
+              title={event.title}
+              metadata={[
+                <Badge
+                  key="status"
+                  variant={event.published ? "secondary" : "outline"}
+                >
+                  <T>{event.published ? "published" : "draft"}</T>
+                </Badge>,
+                <Badge key="category" variant="secondary">
+                  {t(eventCategoryMessageKeys[event.category])}
+                </Badge>,
+              ]}
+              description={
+                <>
+                  {formatEventDate(
+                    event,
+                    undefined,
+                    hub?.timeZone,
+                    languageTag
+                  )}
+                  ,{" "}
+                  {formatEventTime(
+                    event,
+                    hub?.timeZone,
+                    languageTag,
+                    t("allDay")
+                  )}{" "}
+                  · {event.location}
+                </>
+              }
+              actions={
+                <>
                   <Button
                     variant="outline"
                     size="sm"
@@ -426,9 +422,9 @@ export function EventManager() {
                       <Trash2 />
                     </Button>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </>
+              }
+            />
           ))}
         </div>
       ) : (

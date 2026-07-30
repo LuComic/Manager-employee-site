@@ -25,7 +25,6 @@ import {
 
 export default function QuestionsPage() {
   const { faqs } = useOperations()
-  const publishedFaqs = faqs.filter((faq) => faq.published)
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -34,11 +33,11 @@ export default function QuestionsPage() {
         description="quickAnswersMomentsNotQuiteSureWhat"
       />
 
-      {publishedFaqs.length ? (
+      {faqs.length ? (
         <Card size="sm" className="mt-6 shadow-none">
           <CardContent>
             <Accordion>
-              {publishedFaqs.map((item) => (
+              {faqs.map((item) => (
                 <AccordionItem
                   id={item.id}
                   key={item.id}
@@ -61,7 +60,7 @@ export default function QuestionsPage() {
           <EmptyState
             icon={Headphones}
             title="noCommonQuestionsYet"
-            description="publishedAnswersAppearHereStillAskHelpMessage"
+            description="answersAppearHereOnceAddedStillAskHelpMessage"
           />
         </div>
       )}

@@ -85,9 +85,6 @@ export async function buildSnapshot(
         (announcement) =>
           announcement.published && announcement.expiresAt >= options.nowDate
       )
-  const faqs = options.includeDrafts
-    ? allFaqs
-    : allFaqs.filter((faq) => faq.published)
   const documents = options.includeDrafts
     ? allDocuments
     : allDocuments.filter((document) => document.published)
@@ -239,12 +236,11 @@ export async function buildSnapshot(
         ? eventSlugById.get(announcement.eventId)
         : undefined,
     })),
-    faqs: faqs.map((faq) => ({
+    faqs: allFaqs.map((faq) => ({
       id: faq.slug,
       question: faq.question,
       answer: faq.answer,
       order: faq.order,
-      published: faq.published,
     })),
     documents: await Promise.all(
       documents.map(async (document) => {

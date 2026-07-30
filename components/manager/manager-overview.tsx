@@ -131,9 +131,7 @@ export function ManagerOverview() {
             href: "/manager/questions",
             title: "commonQuestions",
             value: faqs.length,
-            detail: t("publishedCount", {
-              count: faqs.filter((item) => item.published).length,
-            }),
+            detail: t("availableToEmployees"),
             icon: CircleHelp,
           },
         ],
@@ -146,7 +144,6 @@ export function ManagerOverview() {
     guides.filter((item) => !item.published).length +
     events.filter((item) => !item.published).length +
     announcements.filter((item) => !item.published).length +
-    faqs.filter((item) => !item.published).length +
     documents.filter((item) => !item.published).length
   return (
     <div className="space-y-6">

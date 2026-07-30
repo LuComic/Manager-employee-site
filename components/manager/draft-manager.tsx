@@ -1,11 +1,10 @@
 "use client"
 
-import { useMemo, useState, type ComponentType } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { Link } from "@/i18n/navigation"
 import {
   BookOpen,
   CalendarDays,
-  CircleHelp,
   FilePenLine,
   FileText,
   Files,
@@ -15,12 +14,12 @@ import {
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { T } from "@/components/translated-text"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -35,26 +34,20 @@ import {
   formatEventTime,
   type Announcement,
   type CalendarEvent,
-  type Faq,
 } from "@/lib/operations"
 import type { Guide } from "@/lib/knowledge-base"
 import type { WorkspaceDocument } from "@/lib/documents"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
 
-type DraftType =
-  | "guides"
-  | "calendarEvents"
-  | "announcements"
-  | "documents"
-  | "commonQuestions"
+type DraftType = "guides" | "calendarEvents" | "announcements" | "documents"
 
 type DraftItem = {
   key: string
   title: string
   description: string
   type: DraftType
-  icon: ComponentType<{ className?: string }>
+  icon: ReactNode
   editHref: string
   publish: () => Promise<void>
 }
@@ -64,7 +57,6 @@ const draftTypeOptions = [
   "calendarEvents",
   "announcements",
   "documents",
-  "commonQuestions",
 ] as const satisfies readonly DraftType[]
 
 export function DraftManager() {
@@ -76,12 +68,10 @@ export function DraftManager() {
     events,
     announcements,
     documents,
-    faqs,
     saveGuide,
     saveEvent,
     saveAnnouncement,
     saveDocument,
-    saveFaq,
     showFeedback,
   } = useOperations()
   const [query, setQuery] = useState("")
@@ -96,7 +86,7 @@ export function DraftManager() {
           title: guide.title,
           description: guide.description,
           type: "guides" as const,
-          icon: BookOpen,
+          icon: <BookOpen className="size-5" />,
           editHref: `/manager/guides/${guide.id}/edit`,
           publish: async () => {
             await saveGuide({
@@ -124,7 +114,7 @@ export function DraftManager() {
             t("allDay")
           )} · ${event.location}`,
           type: "calendarEvents" as const,
-          icon: CalendarDays,
+          icon: <CalendarDays className="size-5" />,
           editHref: `/manager/calendar/${event.id}/edit`,
           publish: async () => {
             await saveEvent({ ...event, published: true })
@@ -138,7 +128,7 @@ export function DraftManager() {
           title: announcement.title,
           description: richTextToPlainText(announcement.content),
           type: "announcements" as const,
-          icon: Megaphone,
+          icon: <Megaphone className="size-5" />,
           editHref: `/manager/announcements/${announcement.id}/edit`,
           publish: async () => {
             await saveAnnouncement({ ...announcement, published: true })
@@ -152,7 +142,7 @@ export function DraftManager() {
           title: document.title,
           description: document.description,
           type: "documents" as const,
-          icon: () => <DocumentResourceIcon resource={document.resource} />,
+          icon: <DocumentResourceIcon resource={document.resource} />,
           editHref: `/manager/documents/${document.id}/edit`,
           publish: async () => {
             await saveDocument({
@@ -163,33 +153,17 @@ export function DraftManager() {
             showFeedback("documentPublished")
           },
         })),
-      ...faqs
-        .filter((faq) => !faq.published)
-        .map((faq: Faq) => ({
-          key: `question-${faq.id}`,
-          title: faq.question,
-          description: faq.answer,
-          type: "commonQuestions" as const,
-          icon: CircleHelp,
-          editHref: `/manager/questions#question-${encodeURIComponent(faq.id)}`,
-          publish: async () => {
-            await saveFaq({ ...faq, published: true })
-            showFeedback("questionPublished")
-          },
-        })),
     ],
     [
       announcements,
       documents,
       events,
-      faqs,
       guides,
       hub?.timeZone,
       languageTag,
       saveAnnouncement,
       saveDocument,
       saveEvent,
-      saveFaq,
       saveGuide,
       showFeedback,
       t,
@@ -248,59 +222,46 @@ export function DraftManager() {
       </div>
       {visible.length ? (
         <div className="space-y-4">
-          {visible.map((draft) => {
-            const Icon = draft.icon
-            return (
-              <Card key={draft.key} size="sm" className="shadow-none">
-                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                    <Icon className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold">{draft.title}</h3>
-                      <span aria-hidden="true" className="text-border">
-                        |
-                      </span>
-                      <Badge variant="outline">
-                        <T>draft</T>
-                      </Badge>
-                      <span aria-hidden="true" className="text-border">
-                        |
-                      </span>
-                      <Badge variant="secondary">
-                        <T>{draft.type}</T>
-                      </Badge>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                      {draft.description}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        void draft.publish().catch(() => {
-                          // The shared operation runner already shows the error.
-                        })
-                      }}
-                    >
-                      <T>publish</T>
-                    </Button>
-                    <Link
-                      href={draft.editHref}
-                      className={cn(
-                        buttonVariants({ variant: "outline", size: "sm" })
-                      )}
-                    >
-                      <FilePenLine /> <T>edit</T>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          {visible.map((draft) => (
+            <ManagerListItem
+              key={draft.key}
+              icon={draft.icon}
+              title={draft.title}
+              metadata={[
+                <Badge key="status" variant="outline">
+                  <T>draft</T>
+                </Badge>,
+                <Badge key="type" variant="secondary">
+                  <T>{draft.type}</T>
+                </Badge>,
+              ]}
+              description={draft.description}
+              descriptionClassName="line-clamp-2"
+              actions={
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void draft.publish().catch(() => {
+                        // The shared operation runner already shows the error.
+                      })
+                    }}
+                  >
+                    <T>publish</T>
+                  </Button>
+                  <Link
+                    href={draft.editHref}
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" })
+                    )}
+                  >
+                    <FilePenLine /> <T>edit</T>
+                  </Link>
+                </>
+              }
+            />
+          ))}
         </div>
       ) : (
         <EmptyState
