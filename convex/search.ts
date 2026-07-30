@@ -170,10 +170,7 @@ export const published = query({
           type: "Announcement" as const,
         })),
       ...faqs
-        .filter(
-          (faq) =>
-            faq.published && includes(cleanQuery, faq.question, faq.answer)
-        )
+        .filter((faq) => includes(cleanQuery, faq.question, faq.answer))
         .map((faq) => ({
           id: faq.slug,
           href: `/questions#${faq.slug}`,

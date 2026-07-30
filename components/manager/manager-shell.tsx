@@ -14,6 +14,7 @@ import {
   CalendarDays,
   ChevronDown,
   CircleHelp,
+  FilePenLine,
   Files,
   Headphones,
   Home,
@@ -83,6 +84,7 @@ const moreNavigationGroups: {
         label: "commonQuestions",
         icon: CircleHelp,
       },
+      { href: "/manager/drafts", label: "drafts", icon: FilePenLine },
     ],
   },
   {
@@ -126,7 +128,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/manager/calendar") ||
     pathname.startsWith("/manager/announcements") ||
     pathname.startsWith("/manager/documents") ||
-    pathname.startsWith("/manager/questions")
+    pathname.startsWith("/manager/questions") ||
+    pathname.startsWith("/manager/drafts")
   const routeAllowed =
     managerAccess === "owner" ||
     (contentRoute &&

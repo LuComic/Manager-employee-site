@@ -637,8 +637,8 @@ export const saveFaq = mutation({
     slug: v.string(),
     question: v.string(),
     answer: v.string(),
-    published: v.boolean(),
   },
+  returns: v.string(),
   handler: async (ctx, args) => {
     const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
     const existing = await ctx.db
@@ -653,7 +653,7 @@ export const saveFaq = mutation({
     const value = {
       question: required(args.question, "question", 300),
       answer: required(args.answer, "answer", 4000),
-      published: args.published,
+      published: true,
     }
     if (existing) await ctx.db.patch("faqs", existing._id, value)
     else {
@@ -668,17 +668,15 @@ export const saveFaq = mutation({
         ...value,
       })
     }
-    await notifyPublicationChange(ctx, {
+    await createNotification(ctx, {
       hubId: args.hubId,
+      audience: "employees",
       kind: "question",
-      wasPublished: existing?.published ?? false,
-      isPublished: args.published,
-      contentTitle: value.question,
-      detailHref: `/questions#${args.slug}`,
-      listHref: "/questions",
-      publishedTitleKey: "notificationNewCommonAnswer",
-      updatedTitleKey: "notificationCommonAnswerUpdated",
-      unpublishedTitleKey: "notificationCommonAnswerUnpublished",
+      titleKey: existing
+        ? "notificationCommonAnswerUpdated"
+        : "notificationNewCommonAnswer",
+      message: value.question,
+      href: `/questions#${args.slug}`,
     })
     return args.slug
   },
@@ -690,6 +688,7 @@ export const moveFaq = mutation({
     slug: v.string(),
     direction: v.union(v.literal(-1), v.literal(1)),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "editor")
     const faqs = await ctx.db
@@ -707,6 +706,7 @@ export const moveFaq = mutation({
 
 export const deleteFaq = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "manager")
     const faq = await ctx.db
@@ -717,16 +717,14 @@ export const deleteFaq = mutation({
       .unique()
     if (faq) {
       await ctx.db.delete("faqs", faq._id)
-      if (faq.published) {
-        await createNotification(ctx, {
-          hubId: args.hubId,
-          audience: "employees",
-          kind: "question",
-          titleKey: "notificationCommonAnswerRemoved",
-          message: faq.question,
-          href: "/questions",
-        })
-      }
+      await createNotification(ctx, {
+        hubId: args.hubId,
+        audience: "employees",
+        kind: "question",
+        titleKey: "notificationCommonAnswerRemoved",
+        message: faq.question,
+        href: "/questions",
+      })
     }
     return null
   },
