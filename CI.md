@@ -17,9 +17,21 @@ Start each new implementation task in Codex **Worktree** mode, based on
 running in a Codex-managed worktree, use it; do not create another nested
 worktree with `git worktree add`.
 
+Isolation is per worktree, not per branch. Every concurrent implementation
+agent must have its own worktree; two agents must never edit the same checkout,
+even when they intend to use different branches. A managed worktree may
+initially be detached, so `git branch` alone is not a reliable concurrency
+audit. Use `git worktree list --porcelain` and inspect `git status` in each
+listed worktree.
+
 Never run concurrent implementation agents in the shared **Local** checkout.
 Local mode is acceptable for one sequential task only, and that task must
 create and switch to its own branch before editing.
+
+Do not switch, rename, or detach the branch in a checkout being used by another
+task. Uncommitted changes belong to the worktree, not to its branch name. If
+another agent is already using the current checkout, stop and start this task
+in its own clean worktree before making any change.
 
 Before editing in a managed worktree, fetch the remote state and verify that
 the task starts cleanly from the current remote `main`:
@@ -219,6 +231,11 @@ create another pull request for the same task branch.
 
 After creating or updating the pull request, stop. Pull-request review and
 merging are separate tasks controlled by the user.
+
+When the task is fully published and its worktree is clean, close or release
+your own Codex-managed worktree so the user can check out the task branch
+elsewhere. Never close a worktree that contains staged or unstaged changes, and
+never close another agent's worktree.
 
 The implementation agent must not:
 
