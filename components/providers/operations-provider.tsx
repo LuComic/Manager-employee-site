@@ -156,7 +156,11 @@ type OperationsContextValue = OperationsState & {
   ) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
   submitHelpRequest: (topic: string, message: string) => Promise<void>
-  showFeedback: (key: AppMessageKey, values?: TranslationValues) => void
+  showFeedback: (
+    key: AppMessageKey,
+    values?: TranslationValues,
+    tone?: "success" | "error"
+  ) => void
 }
 
 const OperationsContext = createContext<OperationsContextValue | null>(null)
@@ -928,7 +932,10 @@ export function OperationsProvider({
         submitHelpMutation({ hubSlug, credential, topic, message })
       )
     },
-    showFeedback: (key, values) => toast.success(t(key, values)),
+    showFeedback: (key, values, tone = "success") =>
+      tone === "error"
+        ? toast.error(t(key, values))
+        : toast.success(t(key, values)),
   }
 
   return (

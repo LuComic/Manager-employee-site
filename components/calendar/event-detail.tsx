@@ -60,7 +60,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
           "tracking-normal normal-case"
         )}
       >
-        <ArrowLeft /> <T>backToCalendar</T>
+        <ArrowLeft data-icon="inline-start" /> <T>backToCalendar</T>
       </Link>
       <Card className="shadow-none">
         <CardHeader className="border-b">

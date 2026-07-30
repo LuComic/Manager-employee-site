@@ -40,6 +40,7 @@ const workersCanEdit = v.object({
   events: v.boolean(),
   announcements: v.boolean(),
   documents: v.boolean(),
+  faqs: v.optional(v.boolean()),
 })
 const richTextDocument = v.object({
   type: v.literal("doc"),

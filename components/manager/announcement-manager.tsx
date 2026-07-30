@@ -91,7 +91,7 @@ export function AnnouncementManager() {
                   href="/manager/announcements/new"
                   className={buttonVariants()}
                 >
-                  <Plus /> <T>createAnnouncement</T>
+                  <Plus data-icon="inline-start" /> <T>createAnnouncement</T>
                 </Link>
               )}
             </div>
@@ -226,7 +226,7 @@ export function AnnouncementManager() {
                         buttonVariants({ variant: "outline", size: "sm" })
                       )}
                     >
-                      <FilePenLine /> <T>edit</T>
+                      <FilePenLine data-icon="inline-start" /> <T>edit</T>
                     </Link>
                     {canCreateContent && (
                       <Button

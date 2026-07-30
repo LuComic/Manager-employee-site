@@ -82,7 +82,7 @@ export function DocumentManager() {
                   href="/manager/documents/new"
                   className={buttonVariants()}
                 >
-                  <Plus /> <T>shareDocument</T>
+                  <Plus data-icon="inline-start" /> <T>shareDocument</T>
                 </Link>
               )}
             </div>
@@ -206,7 +206,7 @@ export function DocumentManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> <T>edit</T>
+                    <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button

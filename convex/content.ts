@@ -666,14 +666,22 @@ export const saveFaq = mutation({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "faqs"
+    )
     const existing = await ctx.db
       .query("faqs")
       .withIndex("by_hubId_and_slug", (q) =>
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).faqs
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
@@ -716,7 +724,7 @@ export const moveFaq = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireHubEditingPermission(ctx, args.hubId, "faqs")
     const faqs = await ctx.db
       .query("faqs")
       .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))

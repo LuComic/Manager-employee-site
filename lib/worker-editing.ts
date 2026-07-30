@@ -3,6 +3,7 @@ export const workerEditableSections = [
   "events",
   "announcements",
   "documents",
+  "faqs",
 ] as const
 
 export type WorkerEditableSection = (typeof workerEditableSections)[number]
@@ -14,6 +15,7 @@ export const defaultWorkersCanEdit: WorkersCanEdit = {
   events: false,
   announcements: false,
   documents: false,
+  faqs: false,
 }
 
 export function normalizeWorkersCanEdit(
@@ -24,5 +26,6 @@ export function normalizeWorkersCanEdit(
     events: value?.events ?? false,
     announcements: value?.announcements ?? false,
     documents: value?.documents ?? false,
+    faqs: value?.faqs ?? false,
   }
 }

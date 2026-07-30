@@ -42,7 +42,8 @@ const workerEditableSectionValidator = v.union(
   v.literal("guides"),
   v.literal("events"),
   v.literal("announcements"),
-  v.literal("documents")
+  v.literal("documents"),
+  v.literal("faqs")
 )
 const hubCredentialsValidator = v.object({
   joinCode: v.string(),

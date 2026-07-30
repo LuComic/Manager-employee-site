@@ -1019,6 +1019,7 @@ describe("Organization employees, invitations, and event links", () => {
           events: false,
           announcements: false,
           documents: false,
+          faqs: false,
         },
       },
     })
@@ -1072,6 +1073,14 @@ describe("Organization employees, invitations, and event links", () => {
       })
     ).rejects.toThrow("editingAccessRequired")
     await expect(
+      worker.mutation(api.content.saveFaq, {
+        hubId,
+        slug: "blocked-worker-question",
+        question: "Can a worker add this yet?",
+        answer: "Not until Common questions editing is enabled.",
+      })
+    ).rejects.toThrow("editingAccessRequired")
+    await expect(
       worker.mutation(api.hubs.setWorkersCanEdit, {
         hubId,
         section: "events",
@@ -1079,7 +1088,12 @@ describe("Organization employees, invitations, and event links", () => {
       })
     ).rejects.toThrow("fullContentAccessRequired")
 
-    for (const section of ["events", "announcements", "documents"] as const) {
+    for (const section of [
+      "events",
+      "announcements",
+      "documents",
+      "faqs",
+    ] as const) {
       await manager.mutation(api.hubs.setWorkersCanEdit, {
         hubId,
         section,
@@ -1128,10 +1142,22 @@ describe("Organization employees, invitations, and event links", () => {
       employeeProfileIds: [],
       published: true,
     })
+    await worker.mutation(api.content.saveFaq, {
+      hubId,
+      slug: "worker-question",
+      question: "Can a worker add this answer?",
+      answer: "Yes, when Common questions editing is enabled.",
+    })
     await expect(
       worker.mutation(api.content.deleteGuide, {
         hubId,
         slug: "worker-guide",
+      })
+    ).rejects.toThrow("fullContentAccessRequired")
+    await expect(
+      worker.mutation(api.content.deleteFaq, {
+        hubId,
+        slug: "worker-question",
       })
     ).rejects.toThrow("fullContentAccessRequired")
 

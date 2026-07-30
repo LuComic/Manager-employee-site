@@ -37,7 +37,9 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           ? "/manager/calendar"
           : hub?.workersCanEdit.announcements
             ? "/manager/announcements"
-            : "/manager/documents"
+            : hub?.workersCanEdit.documents
+              ? "/manager/documents"
+              : "/manager/questions"
       : "/manager"
 
   return (

@@ -52,7 +52,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             "-ml-3"
           )}
         >
-          <ArrowLeft /> <T>backToDocuments</T>
+          <ArrowLeft data-icon="inline-start" /> <T>backToDocuments</T>
         </Link>
       </div>
 
@@ -112,7 +112,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             className={buttonVariants()}
           >
             <T>{resource.kind === "file" ? "openFile" : "openLink"}</T>
-            <ExternalLink />
+            <ExternalLink data-icon="inline-end" />
           </a>
         </CardContent>
       </Card>

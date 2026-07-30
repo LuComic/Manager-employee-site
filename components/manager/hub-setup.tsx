@@ -76,7 +76,8 @@ export function HubSetup() {
                 className: "w-full",
               })}
             >
-              <KeyRound /> <T>joinAnExistingWorkplace</T>
+              <KeyRound data-icon="inline-start" />{" "}
+              <T>joinAnExistingWorkplace</T>
             </Link>
           </div>
         </CardContent>

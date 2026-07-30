@@ -115,21 +115,14 @@ export function CalendarPage() {
         title="calendar"
         description="sharedDatesReservationsTrainingDeliveriesVisitsOtherMessage"
         action={
-          <div className="flex flex-wrap gap-2">
-            <CalendarExportButton
-              events={allPublished}
-              calendarName={t("namedCalendar", {
-                name: hub?.name ?? t("workplace"),
-              })}
-              timeZone={hub?.timeZone ?? "UTC"}
-              uidNamespace={hub?.id ?? "unconfigured-workplace"}
-            />
-            <ManageSectionButton
-              section="events"
-              href="/manager/calendar"
-              label="manageEvents"
-            />
-          </div>
+          <CalendarExportButton
+            events={allPublished}
+            calendarName={t("namedCalendar", {
+              name: hub?.name ?? t("workplace"),
+            })}
+            timeZone={hub?.timeZone ?? "UTC"}
+            uidNamespace={hub?.id ?? "unconfigured-workplace"}
+          />
         }
       />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -192,10 +185,11 @@ export function CalendarPage() {
               ))}
             </SelectContent>
           </Select>
-          <SegmentedControl aria-label={t("calendarView")}>
+          <SegmentedControl className="h-9" aria-label={t("calendarView")}>
             <SegmentedControlItem
               selected={view === "month"}
               size="sm"
+              className="h-full"
               onClick={() => setView("month")}
             >
               <CalendarDays /> <T>month</T>
@@ -203,11 +197,17 @@ export function CalendarPage() {
             <SegmentedControlItem
               selected={view === "list"}
               size="sm"
+              className="h-full"
               onClick={() => setView("list")}
             >
               <List /> <T>list</T>
             </SegmentedControlItem>
           </SegmentedControl>
+          <ManageSectionButton
+            section="events"
+            href="/manager/calendar"
+            size="sm"
+          />
         </div>
       </div>
 

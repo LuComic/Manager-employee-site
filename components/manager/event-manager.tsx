@@ -7,7 +7,9 @@ import { useMemo, useState } from "react"
 import { Link } from "@/i18n/navigation"
 import {
   CalendarDays,
+  ChevronDown,
   FilePenLine,
+  Menu,
   Plus,
   Search,
   Trash2,
@@ -32,6 +34,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -274,30 +282,36 @@ export function EventManager() {
         description="maintainSharedOperationalDatesImportEventsOtherMessage"
         action={
           <div className="flex flex-wrap gap-2">
-            <CalendarExportButton
-              events={events.filter((event) => event.published)}
-              calendarName={t("namedCalendar", {
-                name: hub?.name ?? t("workplace"),
-              })}
-              timeZone={hub?.timeZone ?? "UTC"}
-              uidNamespace={hub?.id ?? "unconfigured-workplace"}
-            />
-            {canCreateEvents && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setImportOpen(true)}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="outline" size="sm" />}
               >
-                <Upload /> <T>importIcs</T>
-              </Button>
-            )}
-            <WorkersCanEditToggle section="events" size="sm" />
+                <Menu /> <T>moreLowercase</T> <ChevronDown />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <CalendarExportButton
+                  events={events.filter((event) => event.published)}
+                  calendarName={t("namedCalendar", {
+                    name: hub?.name ?? t("workplace"),
+                  })}
+                  timeZone={hub?.timeZone ?? "UTC"}
+                  uidNamespace={hub?.id ?? "unconfigured-workplace"}
+                  appearance="menu-item"
+                />
+                {canCreateEvents && (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload /> <T>importIcs</T>
+                  </DropdownMenuItem>
+                )}
+                <WorkersCanEditToggle section="events" appearance="menu-item" />
+              </DropdownMenuContent>
+            </DropdownMenu>
             {canCreateEvents && (
               <Link
                 href="/manager/calendar/new"
                 className={buttonVariants({ size: "sm" })}
               >
-                <Plus /> <T>createEvent</T>
+                <Plus data-icon="inline-start" /> <T>add</T>
               </Link>
             )}
           </div>
@@ -414,7 +428,7 @@ export function EventManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> <T>edit</T>
+                    <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button

@@ -256,7 +256,7 @@ export function DraftManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> <T>edit</T>
+                    <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
                 </>
               }

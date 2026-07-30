@@ -72,14 +72,15 @@ export function GuideManager() {
               {canCreateGuides &&
                 (categories.length ? (
                   <Link href="/manager/guides/new" className={buttonVariants()}>
-                    <Plus /> <T>createGuide</T>
+                    <Plus data-icon="inline-start" /> <T>createGuide</T>
                   </Link>
                 ) : canCreateContent ? (
                   <Link
                     href="/manager/categories"
                     className={buttonVariants({ variant: "outline" })}
                   >
-                    <Plus /> <T>createACategoryFirst</T>
+                    <Plus data-icon="inline-start" />{" "}
+                    <T>createACategoryFirst</T>
                   </Link>
                 ) : null)}
             </div>
@@ -185,7 +186,7 @@ export function GuideManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> <T>edit</T>
+                    <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button

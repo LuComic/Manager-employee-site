@@ -3,7 +3,6 @@
 import { Files } from "lucide-react"
 
 import { DocumentCard } from "@/components/documents/document-card"
-import { ManageSectionButton } from "@/components/knowledge-base/manage-section-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -14,17 +13,7 @@ export function DocumentsPageContent() {
 
   return (
     <div>
-      <PageHeading
-        title="documents"
-        description="filesSharedLinksTeamNeeds"
-        action={
-          <ManageSectionButton
-            section="documents"
-            href="/manager/documents"
-            label="manageDocuments"
-          />
-        }
-      />
+      <PageHeading title="documents" description="filesSharedLinksTeamNeeds" />
       {publishedDocuments.length ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {publishedDocuments.map((document) => (

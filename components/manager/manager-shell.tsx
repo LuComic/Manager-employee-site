@@ -116,6 +116,7 @@ function sectionForManagerPath(pathname: string): WorkerEditableSection | null {
   if (pathname.startsWith("/manager/calendar")) return "events"
   if (pathname.startsWith("/manager/announcements")) return "announcements"
   if (pathname.startsWith("/manager/documents")) return "documents"
+  if (pathname.startsWith("/manager/questions")) return "faqs"
   return null
 }
 
@@ -190,7 +191,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                     "tracking-normal normal-case"
                   )}
                 >
-                  <ArrowLeft /> <T>employeeSite</T>
+                  <ArrowLeft data-icon="inline-start" /> <T>employeeSite</T>
                 </Link>
               )}
               <UserButton />
@@ -234,7 +235,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                         variant: active ? "secondary" : "ghost",
                         size: "default",
                       }),
-                      "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                      "w-full justify-start pr-4 pl-3 text-sm tracking-normal normal-case sm:w-auto"
                     )}
                   >
                     <Icon /> <T>{label}</T>
