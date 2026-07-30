@@ -395,6 +395,7 @@ describe("hub authorization and anonymous access", () => {
       featured: false,
       published: false,
       keywords: [],
+      relatedGuideSlugs: ["published-guide"],
       content,
     })
     await owner.mutation(api.content.saveEvent, {
@@ -435,6 +436,15 @@ describe("hub authorization and anonymous access", () => {
     expect(publicBefore.guides.map((guide) => guide.id)).toEqual([
       "published-guide",
     ])
+    const managerBefore = await owner.query(api.hubs.getManagerSnapshot, {
+      nowDate: "2026-07-18",
+    })
+    if (managerBefore.kind !== "ready")
+      throw new Error("Expected manager snapshot")
+    expect(
+      managerBefore.guides.find((guide) => guide.id === "draft-guide")
+        ?.relatedGuideIds
+    ).toEqual(["published-guide"])
 
     await owner.mutation(api.content.deleteGuide, {
       hubId,
@@ -447,12 +457,32 @@ describe("hub authorization and anonymous access", () => {
       throw new Error("Expected manager snapshot")
     expect(managerAfter.events[0].guideIds).toEqual([])
     expect(managerAfter.announcements[0].guideId).toBeUndefined()
+    expect(managerAfter.guides[0]?.relatedGuideIds).toEqual([])
   })
 
   test("documents enforce ownership, draft visibility, search, and deletion", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t)
     const owner = t.withIdentity(ownerIdentity)
+    await owner.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "safety",
+      label: "Safety",
+      iconKey: "general",
+      description: "Safety guides",
+    })
+    await owner.mutation(api.content.saveGuide, {
+      hubId,
+      slug: "emergency-guide",
+      title: "Related guide",
+      description: "General instructions",
+      categorySlug: "safety",
+      duration: "5 min",
+      featured: false,
+      published: true,
+      keywords: [],
+      content: { type: "doc", content: [] },
+    })
     const employeeProfileId = await owner.mutation(api.employees.create, {
       hubId,
       displayName: "Safety Lead",
@@ -474,6 +504,7 @@ describe("hub authorization and anonymous access", () => {
       },
       bannerStorageId: null,
       employeeProfileIds: [employeeProfileId],
+      relatedGuideSlugs: ["emergency-guide"],
       published: true,
     })
     await owner.mutation(api.documents.save, {
@@ -530,6 +561,11 @@ describe("hub authorization and anonymous access", () => {
         (document) => document.id === "safety-notes"
       )?.employees
     ).toEqual([{ id: employeeProfileId, displayName: "Safety Lead" }])
+    expect(
+      managerSnapshot.documents.find(
+        (document) => document.id === "safety-notes"
+      )?.relatedGuideIds
+    ).toEqual(["emergency-guide"])
 
     const searchResults = await t.query(api.search.published, {
       hubSlug: "test-hub",
@@ -569,6 +605,9 @@ describe("hub authorization and anonymous access", () => {
     expect(afterDelete.documents.map((document) => document.id)).toEqual([
       "private-rota",
     ])
+    expect(
+      await t.run((ctx) => ctx.db.query("documentGuides").take(10))
+    ).toHaveLength(0)
   })
 
   test("binds uploads to one workplace and protects attached files", async () => {

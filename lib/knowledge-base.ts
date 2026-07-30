@@ -23,5 +23,6 @@ export type Guide = {
   featured?: boolean
   published?: boolean
   keywords?: string[]
+  relatedGuideIds?: string[]
   content: RichTextDocument
 }

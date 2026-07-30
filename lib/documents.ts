@@ -24,6 +24,7 @@ export type WorkspaceDocument = {
   description: string
   resource: DocumentResource
   employees: DocumentEmployee[]
+  relatedGuideIds?: string[]
   bannerImageUrl?: string
   published: boolean
   updatedAt: number

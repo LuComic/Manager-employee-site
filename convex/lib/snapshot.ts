@@ -15,12 +15,14 @@ export async function buildSnapshot(
     bannerImageUrl,
     categories,
     allGuides,
+    guideRelations,
     allEvents,
     allAnnouncements,
     eventGuides,
     attachments,
     allFaqs,
     allDocuments,
+    documentGuides,
     eventEmployees,
     documentEmployees,
     employeeProfiles,
@@ -34,6 +36,10 @@ export async function buildSnapshot(
       .query("guides")
       .withIndex("by_hubId_and_published", (q) => q.eq("hubId", hub._id))
       .take(500),
+    ctx.db
+      .query("guideRelations")
+      .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
+      .take(1000),
     ctx.db
       .query("events")
       .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
@@ -59,6 +65,10 @@ export async function buildSnapshot(
       .withIndex("by_hubId_and_updatedAt", (q) => q.eq("hubId", hub._id))
       .order("desc")
       .take(500),
+    ctx.db
+      .query("documentGuides")
+      .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
+      .take(1000),
     ctx.db
       .query("eventEmployees")
       .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hub._id))
@@ -94,6 +104,15 @@ export async function buildSnapshot(
   )
   const guideSlugById = new Map(guides.map((guide) => [guide._id, guide.slug]))
   const eventSlugById = new Map(events.map((event) => [event._id, event.slug]))
+  const relatedGuideIdsByGuideId = new Map<string, string[]>()
+  for (const relation of guideRelations) {
+    const guideSlug = guideSlugById.get(relation.guideId)
+    const relatedGuideSlug = guideSlugById.get(relation.relatedGuideId)
+    if (!guideSlug || !relatedGuideSlug) continue
+    const current = relatedGuideIdsByGuideId.get(relation.guideId) ?? []
+    current.push(relatedGuideSlug)
+    relatedGuideIdsByGuideId.set(relation.guideId, current)
+  }
   const guideIdsByEventId = new Map<string, string[]>()
   for (const relation of eventGuides) {
     const guideSlug = guideSlugById.get(relation.guideId)
@@ -153,6 +172,14 @@ export async function buildSnapshot(
     current.push({ id: profile._id, displayName: profile.displayName })
     employeesByDocumentId.set(relation.documentId, current)
   }
+  const guideIdsByDocumentId = new Map<string, string[]>()
+  for (const relation of documentGuides) {
+    const guideSlug = guideSlugById.get(relation.guideId)
+    if (!guideSlug) continue
+    const current = guideIdsByDocumentId.get(relation.documentId) ?? []
+    current.push(guideSlug)
+    guideIdsByDocumentId.set(relation.documentId, current)
+  }
 
   return {
     hub: {
@@ -196,6 +223,7 @@ export async function buildSnapshot(
           featured: guide.featured,
           published: guide.published,
           keywords: guide.keywords,
+          relatedGuideIds: relatedGuideIdsByGuideId.get(guide._id) ?? [],
           content: guide.content,
         },
       ]
@@ -272,6 +300,7 @@ export async function buildSnapshot(
                 ? employee
                 : { displayName: employee.displayName }
           ),
+          relatedGuideIds: guideIdsByDocumentId.get(document._id) ?? [],
           bannerImageUrl: bannerImageUrl ?? undefined,
           published: document.published,
           updatedAt: document.updatedAt,

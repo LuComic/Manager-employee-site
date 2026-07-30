@@ -170,6 +170,7 @@ export const saveGuide = mutation({
     featured: v.boolean(),
     published: v.boolean(),
     keywords: v.array(v.string()),
+    relatedGuideSlugs: v.optional(v.array(v.string())),
     content: richTextDocument,
   },
   handler: async (ctx, args) => {
@@ -204,13 +205,40 @@ export const saveGuide = mutation({
         .slice(0, 40),
       content: args.content,
     }
-    if (existing) await ctx.db.patch("guides", existing._id, value)
-    else {
-      await ctx.db.insert("guides", {
-        hubId: args.hubId,
-        slug: required(args.slug, "guideSlug", 100),
-        ...value,
-      })
+    const guideId = existing
+      ? (await ctx.db.patch("guides", existing._id, value), existing._id)
+      : await ctx.db.insert("guides", {
+          hubId: args.hubId,
+          slug: required(args.slug, "guideSlug", 100),
+          ...value,
+        })
+
+    if (args.relatedGuideSlugs !== undefined) {
+      const oldRelations = await ctx.db
+        .query("guideRelations")
+        .withIndex("by_guideId", (q) => q.eq("guideId", guideId))
+        .take(200)
+      for (const relation of oldRelations) {
+        await ctx.db.delete("guideRelations", relation._id)
+      }
+      for (const relatedSlug of [...new Set(args.relatedGuideSlugs)].slice(
+        0,
+        100
+      )) {
+        const relatedGuide = await ctx.db
+          .query("guides")
+          .withIndex("by_hubId_and_slug", (q) =>
+            q.eq("hubId", args.hubId).eq("slug", relatedSlug)
+          )
+          .unique()
+        if (relatedGuide && relatedGuide._id !== guideId) {
+          await ctx.db.insert("guideRelations", {
+            hubId: args.hubId,
+            guideId,
+            relatedGuideId: relatedGuide._id,
+          })
+        }
+      }
     }
     await notifyPublicationChange(ctx, {
       hubId: args.hubId,
@@ -239,7 +267,13 @@ export const deleteGuide = mutation({
       )
       .unique()
     if (!guide) return null
-    const [relations, announcements] = await Promise.all([
+    const [
+      eventRelations,
+      announcements,
+      outgoingGuideRelations,
+      incomingGuideRelations,
+      documentRelations,
+    ] = await Promise.all([
       ctx.db
         .query("eventGuides")
         .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
@@ -248,9 +282,29 @@ export const deleteGuide = mutation({
         .query("announcements")
         .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
         .take(500),
+      ctx.db
+        .query("guideRelations")
+        .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
+        .take(1000),
+      ctx.db
+        .query("guideRelations")
+        .withIndex("by_relatedGuideId", (q) =>
+          q.eq("relatedGuideId", guide._id)
+        )
+        .take(1000),
+      ctx.db
+        .query("documentGuides")
+        .withIndex("by_guideId", (q) => q.eq("guideId", guide._id))
+        .take(1000),
     ])
-    for (const relation of relations)
+    for (const relation of eventRelations)
       await ctx.db.delete("eventGuides", relation._id)
+    for (const relation of outgoingGuideRelations)
+      await ctx.db.delete("guideRelations", relation._id)
+    for (const relation of incomingGuideRelations)
+      await ctx.db.delete("guideRelations", relation._id)
+    for (const relation of documentRelations)
+      await ctx.db.delete("documentGuides", relation._id)
     for (const announcement of announcements) {
       await ctx.db.patch("announcements", announcement._id, {
         guideId: undefined,

@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react"
 
+import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { useUnsavedChanges } from "@/components/manager/use-unsaved-changes"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -42,6 +43,7 @@ function newDocument(): EditableDocument {
     title: "",
     description: "",
     employees: [],
+    relatedGuideIds: [],
     published: false,
     updatedAt: Date.now(),
   }
@@ -49,7 +51,8 @@ function newDocument(): EditableDocument {
 
 export function DocumentEditor({ documentId }: { documentId?: string }) {
   const t = useAppTranslations()
-  const { documents, employees, saveDocument, showFeedback } = useOperations()
+  const { documents, employees, guides, saveDocument, showFeedback } =
+    useOperations()
   const existing = documentId
     ? documents.find((document) => document.id === documentId)
     : undefined
@@ -387,14 +390,14 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">
-                <T>banner</T>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+        <Card className="h-fit shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base">
+              <T>banner</T>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
               <div
                 className={cn(
                   "flex aspect-[16/7] items-center justify-center overflow-hidden border bg-muted/40 bg-cover bg-center",
@@ -450,11 +453,19 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
                   <X /> <T>removeBanner</T>
                 </Button>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="shadow-none">
-            <CardContent className="space-y-4">
+            <RelatedGuidesPicker
+              guides={guides}
+              selectedIds={draft.relatedGuideIds ?? []}
+              onChange={(relatedGuideIds) => {
+                setDraft({ ...draft, relatedGuideIds })
+                markChanged()
+              }}
+              className="border-t pt-6"
+            />
+
+            <div className="space-y-4 border-t pt-6">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -468,9 +479,9 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
               <p className="text-xs text-muted-foreground">
                 <T>publishedResourcesAppearEmployeeDocumentLibrary</T>
               </p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="sticky bottom-0 z-10 flex flex-col gap-3 border bg-background/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">

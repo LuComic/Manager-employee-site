@@ -105,6 +105,7 @@ export const save = mutation({
     resource: v.optional(documentResourceInput),
     bannerStorageId: v.optional(v.union(v.id("_storage"), v.null())),
     employeeProfileIds: v.array(v.id("employeeProfiles")),
+    relatedGuideSlugs: v.optional(v.array(v.string())),
     published: v.boolean(),
   },
   returns: v.string(),
@@ -240,6 +241,34 @@ export const save = mutation({
       }
     }
 
+    if (args.relatedGuideSlugs !== undefined) {
+      const oldGuideRelations = await ctx.db
+        .query("documentGuides")
+        .withIndex("by_documentId", (q) => q.eq("documentId", documentId))
+        .take(200)
+      for (const relation of oldGuideRelations) {
+        await ctx.db.delete("documentGuides", relation._id)
+      }
+      for (const guideSlug of [...new Set(args.relatedGuideSlugs)].slice(
+        0,
+        100
+      )) {
+        const guide = await ctx.db
+          .query("guides")
+          .withIndex("by_hubId_and_slug", (q) =>
+            q.eq("hubId", args.hubId).eq("slug", guideSlug)
+          )
+          .unique()
+        if (guide) {
+          await ctx.db.insert("documentGuides", {
+            hubId: args.hubId,
+            documentId,
+            guideId: guide._id,
+          })
+        }
+      }
+    }
+
     if (
       existing?.resource.kind === "file" &&
       (resource.kind !== "file" ||
@@ -296,14 +325,23 @@ export const remove = mutation({
       )
       .unique()
     if (document) {
-      const relations = await ctx.db
-        .query("documentEmployees")
-        .withIndex("by_documentId_and_employeeProfileId", (q) =>
-          q.eq("documentId", document._id)
-        )
-        .take(200)
-      for (const relation of relations) {
+      const [employeeRelations, guideRelations] = await Promise.all([
+        ctx.db
+          .query("documentEmployees")
+          .withIndex("by_documentId_and_employeeProfileId", (q) =>
+            q.eq("documentId", document._id)
+          )
+          .take(200),
+        ctx.db
+          .query("documentGuides")
+          .withIndex("by_documentId", (q) => q.eq("documentId", document._id))
+          .take(200),
+      ])
+      for (const relation of employeeRelations) {
         await ctx.db.delete("documentEmployees", relation._id)
+      }
+      for (const relation of guideRelations) {
+        await ctx.db.delete("documentGuides", relation._id)
       }
       if (document.resource.kind === "file") {
         await deleteReferencedHubStorage(ctx, {

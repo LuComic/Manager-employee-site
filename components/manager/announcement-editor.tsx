@@ -6,6 +6,7 @@ import { useState } from "react"
 import { ArrowLeft, Eye, Megaphone, Pencil } from "lucide-react"
 
 import { AnnouncementArticle } from "@/components/announcements/announcement-detail"
+import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { RichTextEditor } from "@/components/rich-text/rich-text-editor"
@@ -283,33 +284,13 @@ export function AnnouncementEditor({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="relatedGuide" id="announcement-guide">
-                <Select
-                  value={draft.guideId ?? "none"}
-                  onValueChange={(value) =>
-                    change({
-                      guideId: !value || value === "none" ? undefined : value,
-                    })
-                  }
-                >
-                  <SelectTrigger
-                    id="announcement-guide"
-                    className="w-full border border-input bg-background px-3"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">
-                      <T>noRelatedGuide</T>
-                    </SelectItem>
-                    {guides.map((guide) => (
-                      <SelectItem key={guide.id} value={guide.id}>
-                        {guide.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              <RelatedGuidesPicker
+                guides={guides}
+                selectedIds={draft.guideId ? [draft.guideId] : []}
+                onChange={(guideIds) => change({ guideId: guideIds[0] })}
+                selectionMode="single"
+                title="relatedGuide"
+              />
               <Field label="relatedEvent" id="announcement-event">
                 <Select
                   value={draft.eventId ?? "none"}

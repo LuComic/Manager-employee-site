@@ -7,6 +7,7 @@ import { useState } from "react"
 import { ArrowLeft, Eye, Pencil, X } from "lucide-react"
 
 import { GuideDetail } from "@/components/knowledge-base/guide-detail"
+import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { RichTextEditor } from "@/components/rich-text/rich-text-editor"
@@ -44,6 +45,7 @@ type GuideDraft = {
   category: string
   duration: string
   keywords: string[]
+  relatedGuideIds: string[]
   content: RichTextDocument
   published: boolean
   featured: boolean
@@ -72,6 +74,7 @@ function toDraft(guide: Guide): GuideDraft {
     category: guide.category,
     duration: guide.duration,
     keywords: uniqueKeywords(guide.keywords ?? []),
+    relatedGuideIds: guide.relatedGuideIds ?? [],
     content: cloneContent(guide.content),
     published: Boolean(guide.published),
     featured: Boolean(guide.featured),
@@ -96,6 +99,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
       category: category.id,
       duration: "5 min",
       keywords: [],
+      relatedGuideIds: [],
       content: cloneContent(emptyRichTextDocument),
       published: false,
       featured: false,
@@ -180,6 +184,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         duration,
         updated: "Updated just now",
         keywords: uniqueKeywords(draft.keywords),
+        relatedGuideIds: draft.relatedGuideIds,
         content: draft.content,
         published: draft.published,
         featured: draft.featured,
@@ -223,6 +228,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
     duration: normalizeReadingTime(draft.duration) || t("readingTime"),
     updated: draft.id ? t("updatedJustNow") : t("newGuide"),
     keywords: uniqueKeywords(draft.keywords),
+    relatedGuideIds: draft.relatedGuideIds,
     content: draft.content,
     published: draft.published,
     featured: draft.featured,
@@ -404,6 +410,13 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                   </div>
                 ) : null}
               </Field>
+              <RelatedGuidesPicker
+                guides={guides}
+                selectedIds={draft.relatedGuideIds}
+                onChange={(relatedGuideIds) => change({ relatedGuideIds })}
+                excludeGuideId={draft.id || undefined}
+                className="border-t pt-4"
+              />
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

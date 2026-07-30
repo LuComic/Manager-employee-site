@@ -4,15 +4,9 @@ import { T } from "@/components/translated-text"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
-import {
-  ArrowLeft,
-  CalendarDays,
-  Link2,
-  Paperclip,
-  Trash2,
-  Users,
-} from "lucide-react"
+import { ArrowLeft, CalendarDays, Paperclip, Trash2, Users } from "lucide-react"
 
+import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { useUnsavedChanges } from "@/components/manager/use-unsaved-changes"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -442,14 +436,14 @@ export function EventEditor({ eventId }: { eventId?: string }) {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="h-fit shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">
-                <T>eventSettings</T>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <Card className="h-fit shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base">
+              <T>eventSettings</T>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
               <Field label="eventType" id="event-type">
                 <Select
                   value={draft.category}
@@ -482,67 +476,19 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                 />
                 <T>publishNow</T>
               </label>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="h-fit shadow-none">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Link2 className="size-4" /> <T>relatedGuides</T>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div
-                className="flex flex-wrap gap-2"
-                aria-label={t("selectRelatedGuides")}
-              >
-                {guides
-                  .filter(
-                    (guide) =>
-                      guide.published || draft.guideIds.includes(guide.id)
-                  )
-                  .map((guide) => {
-                    const selected = draft.guideIds.includes(guide.id)
-                    return (
-                      <Button
-                        key={guide.id}
-                        type="button"
-                        size="xs"
-                        variant={selected ? "default" : "outline"}
-                        className={selected ? undefined : "bg-background"}
-                        aria-pressed={selected}
-                        onClick={() =>
-                          change({
-                            ...draft,
-                            guideIds: selected
-                              ? draft.guideIds.filter((id) => id !== guide.id)
-                              : [...draft.guideIds, guide.id],
-                          })
-                        }
-                      >
-                        {guide.title}
-                      </Button>
-                    )
-                  })}
-                {!guides.some(
-                  (guide) =>
-                    guide.published || draft.guideIds.includes(guide.id)
-                ) && (
-                  <p className="text-sm text-muted-foreground">
-                    <T>publishedGuidesLinkedEvent</T>
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+            <RelatedGuidesPicker
+              guides={guides}
+              selectedIds={draft.guideIds}
+              onChange={(guideIds) => change({ ...draft, guideIds })}
+              className="border-t pt-6"
+            />
 
-          <Card className="h-fit shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">
+            <section className="space-y-4 border-t pt-6">
+              <h2 className="font-heading text-base font-semibold">
                 <T>managerNotes</T>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h2>
               <Field label="notes" id="event-notes">
                 <Textarea
                   id="event-notes"
@@ -553,9 +499,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   className="min-h-32 border border-input px-3"
                 />
               </Field>
-            </CardContent>
-          </Card>
-        </div>
+            </section>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="sticky bottom-0 z-10 flex flex-col gap-3 border bg-background/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
