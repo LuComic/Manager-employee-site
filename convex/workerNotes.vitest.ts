@@ -162,8 +162,22 @@ describe("worker notes", () => {
   test("keeps notes scoped to their workplace", async () => {
     const t = convexTest(schema, modules)
     const hubId = await createHubWithActiveMember(t)
+    const member = t.withIdentity(memberIdentity)
+    const owner = t.withIdentity(ownerIdentity)
     const outsider = t.withIdentity(outsiderIdentity)
 
+    await expect(
+      member.query(api.workerNotes.canAccess, { hubId })
+    ).resolves.toBe(true)
+    await expect(
+      owner.query(api.workerNotes.canAccess, { hubId })
+    ).resolves.toBe(true)
+    await expect(
+      outsider.query(api.workerNotes.canAccess, { hubId })
+    ).resolves.toBe(false)
+    await expect(t.query(api.workerNotes.canAccess, { hubId })).resolves.toBe(
+      false
+    )
     await expect(
       outsider.query(api.workerNotes.get, { hubId, now: Date.now() })
     ).rejects.toThrow("unauthorized")
