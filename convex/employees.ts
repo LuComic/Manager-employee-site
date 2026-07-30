@@ -10,6 +10,7 @@ import {
 import {
   hashCredential,
   requireIdentity,
+  requireHubEditingPermission,
   requireHubPermission,
   requireOrganizationHub,
 } from "./lib/access"
@@ -135,7 +136,12 @@ export const list = query({
 })
 
 export const listAssignable = query({
-  args: { hubId: v.id("hubs") },
+  args: {
+    hubId: v.id("hubs"),
+    workerSection: v.optional(
+      v.union(v.literal("events"), v.literal("documents"))
+    ),
+  },
   returns: v.array(
     v.object({
       id: v.id("employeeProfiles"),
@@ -149,7 +155,11 @@ export const listAssignable = query({
     })
   ),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    if (args.workerSection) {
+      await requireHubEditingPermission(ctx, args.hubId, args.workerSection)
+    } else {
+      await requireHubPermission(ctx, args.hubId, "editor")
+    }
     const profiles = await ctx.db
       .query("employeeProfiles")
       .withIndex("by_hubId_and_displayName", (q) => q.eq("hubId", args.hubId))

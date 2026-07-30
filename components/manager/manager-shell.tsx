@@ -44,7 +44,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { AppMessageKey } from "@/i18n/messages"
 import { cn } from "@/lib/utils"
-import type { WorkerEditableSection } from "@/lib/worker-editing"
+import {
+  firstWorkerManagerPath,
+  type WorkerEditableSection,
+} from "@/lib/worker-editing"
 
 type NavigationLink = {
   href: string
@@ -127,6 +130,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
   const { hub, hubState, managerAccess } = useOperations()
   const focusedEditor = pathname.endsWith("/new") || pathname.endsWith("/edit")
   const workerSection = sectionForManagerPath(pathname)
+  const workerLandingPath = firstWorkerManagerPath(hub?.workersCanEdit)
   const workerRouteAllowed = Boolean(
     workerSection && hub?.workersCanEdit[workerSection]
   )
@@ -371,7 +375,11 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               <T>contentRoleNotIncludeEmployeeAdministrationWorkplaceMessage</T>
             </p>
             <Link
-              href="/manager"
+              href={
+                managerAccess === "viewer"
+                  ? (workerLandingPath ?? "/")
+                  : "/manager"
+              }
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
                 "mt-4 tracking-normal normal-case"

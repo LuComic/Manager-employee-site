@@ -367,7 +367,7 @@ export const getManagerSnapshot = query({
       ...(await buildSnapshot(ctx, managed.hub, {
         includeDrafts: true,
         ...(managed.permission === "viewer"
-          ? { draftSections: workersCanEdit }
+          ? { workerSections: workersCanEdit }
           : {}),
         includeOrganizationMapping: true,
         nowDate: args.nowDate,

@@ -930,6 +930,11 @@ describe("Organization employees, invitations, and event links", () => {
       displayName: "Content Manager",
       accessLevel: "manager",
     })
+    const otherWorkerProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Other Worker",
+      accessLevel: "viewer",
+    })
     await t.run(async (ctx) => {
       await ctx.db.patch("employeeProfiles", workerProfileId, {
         clerkUserId: orgMemberIdentity.subject,
@@ -937,6 +942,9 @@ describe("Organization employees, invitations, and event links", () => {
       })
       await ctx.db.patch("employeeProfiles", managerProfileId, {
         clerkUserId: appManagerIdentity.subject,
+        status: "active",
+      })
+      await ctx.db.patch("employeeProfiles", otherWorkerProfileId, {
         status: "active",
       })
     })
@@ -959,6 +967,18 @@ describe("Organization employees, invitations, and event links", () => {
       keywords: [],
       content: { type: "doc" },
     })
+    await owner.mutation(api.content.saveGuide, {
+      hubId,
+      slug: "unlinked-draft-guide",
+      title: "Unlinked draft guide",
+      description: "Must remain hidden when guide editing is disabled",
+      categorySlug: "operations",
+      duration: "3 min",
+      featured: false,
+      published: false,
+      keywords: [],
+      content: { type: "doc" },
+    })
     await owner.mutation(api.content.saveEvent, {
       hubId,
       slug: "draft-event",
@@ -967,6 +987,20 @@ describe("Organization employees, invitations, and event links", () => {
       category: "Training",
       start: "2026-08-01T10:00",
       end: "2026-08-01T11:00",
+      location: "Office",
+      notes: "",
+      published: false,
+      guideSlugs: ["draft-guide"],
+      employeeProfileIds: [],
+    })
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "unlinked-draft-event",
+      title: "Unlinked draft event",
+      description: "Must remain hidden when event editing is disabled",
+      category: "Training",
+      start: "2026-08-02T10:00",
+      end: "2026-08-02T11:00",
       location: "Office",
       notes: "",
       published: false,
@@ -983,6 +1017,8 @@ describe("Organization employees, invitations, and event links", () => {
       priority: "Normal",
       pinned: false,
       published: false,
+      guideSlug: "draft-guide",
+      eventSlug: "draft-event",
     })
     await owner.mutation(api.documents.save, {
       hubId,
@@ -1087,6 +1123,12 @@ describe("Organization employees, invitations, and event links", () => {
         enabled: true,
       })
     ).rejects.toThrow("fullContentAccessRequired")
+    await expect(
+      worker.query(api.employees.listAssignable, {
+        hubId,
+        workerSection: "events",
+      })
+    ).rejects.toThrow("editingAccessRequired")
 
     for (const section of [
       "events",
@@ -1100,6 +1142,20 @@ describe("Organization employees, invitations, and event links", () => {
         enabled: true,
       })
     }
+    const assignableProfiles = await worker.query(
+      api.employees.listAssignable,
+      {
+        hubId,
+        workerSection: "events",
+      }
+    )
+    expect(assignableProfiles.map((profile) => profile.id)).toEqual(
+      expect.arrayContaining([
+        workerProfileId,
+        otherWorkerProfileId,
+        managerProfileId,
+      ])
+    )
     await expect(
       worker.mutation(api.files.generateUploadUrl, {
         hubId,
@@ -1120,7 +1176,7 @@ describe("Organization employees, invitations, and event links", () => {
       notes: "",
       published: true,
       guideSlugs: [],
-      employeeProfileIds: [],
+      employeeProfileIds: [otherWorkerProfileId],
     })
     await worker.mutation(api.content.saveAnnouncement, {
       hubId,
@@ -1149,6 +1205,36 @@ describe("Organization employees, invitations, and event links", () => {
       answer: "Yes, when Common questions editing is enabled.",
     })
     await expect(
+      worker.mutation(api.content.saveEvent, {
+        hubId,
+        slug: "invalid-reference-event",
+        title: "Invalid reference event",
+        description: "Must reject an unknown guide instead of dropping it",
+        category: "Training",
+        start: "2026-08-04T10:00",
+        end: "2026-08-04T11:00",
+        location: "Office",
+        notes: "",
+        published: false,
+        guideSlugs: ["missing-guide"],
+        employeeProfileIds: [],
+      })
+    ).rejects.toThrow("guideNotFound")
+    await expect(
+      worker.mutation(api.content.saveAnnouncement, {
+        hubId,
+        slug: "invalid-reference-announcement",
+        title: "Invalid reference announcement",
+        content: { type: "doc" },
+        publishedAt: "2026-07-30",
+        expiresAt: "2026-08-30",
+        priority: "Normal",
+        pinned: false,
+        published: false,
+        eventSlug: "missing-event",
+      })
+    ).rejects.toThrow("eventNotFound")
+    await expect(
       worker.mutation(api.content.deleteGuide, {
         hubId,
         slug: "worker-guide",
@@ -1165,6 +1251,145 @@ describe("Organization employees, invitations, and event links", () => {
       hubId,
       section: "guides",
       enabled: false,
+    })
+    await expect(
+      worker.mutation(api.content.saveEvent, {
+        hubId,
+        slug: "draft-event",
+        title: "Blocked draft relationship update",
+        description: "Must not add a new relationship to a hidden draft guide",
+        category: "Training",
+        start: "2026-08-01T10:00",
+        end: "2026-08-01T11:00",
+        location: "Office",
+        notes: "",
+        published: false,
+        guideSlugs: ["unlinked-draft-guide"],
+        employeeProfileIds: [],
+      })
+    ).rejects.toThrow("editingAccessRequired")
+    const hiddenRelationshipSnapshot = await worker.query(
+      api.hubs.getManagerSnapshot,
+      { nowDate: "2026-07-30" }
+    )
+    if (hiddenRelationshipSnapshot.kind !== "ready") {
+      throw new Error("Snapshot not ready")
+    }
+    expect(
+      hiddenRelationshipSnapshot.guides.map((guide) => guide.id)
+    ).not.toContain("draft-guide")
+    expect(hiddenRelationshipSnapshot.guideReferences ?? []).toContainEqual({
+      id: "draft-guide",
+      title: "Draft guide",
+      published: false,
+    })
+    expect(
+      (hiddenRelationshipSnapshot.guideReferences ?? []).map(
+        (guide) => guide.id
+      )
+    ).not.toContain("unlinked-draft-guide")
+    expect(
+      hiddenRelationshipSnapshot.events.find(
+        (event) => event.id === "draft-event"
+      )?.guideIds
+    ).toEqual(["draft-guide"])
+    expect(
+      hiddenRelationshipSnapshot.announcements.find(
+        (announcement) => announcement.id === "draft-announcement"
+      )
+    ).toMatchObject({
+      guideId: "draft-guide",
+      eventId: "draft-event",
+    })
+    expect(
+      hiddenRelationshipSnapshot.events.find(
+        (event) => event.id === "worker-event"
+      )?.employees
+    ).toContainEqual({
+      id: otherWorkerProfileId,
+      displayName: "Other Worker",
+    })
+
+    await worker.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "draft-event",
+      title: "Draft event updated by worker",
+      description: "Must keep its restricted guide relationship",
+      category: "Training",
+      start: "2026-08-01T10:00",
+      end: "2026-08-01T11:00",
+      location: "Office",
+      notes: "",
+      published: false,
+      guideSlugs: ["draft-guide"],
+      employeeProfileIds: [workerProfileId],
+    })
+    await manager.mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "events",
+      enabled: false,
+    })
+    await expect(
+      worker.mutation(api.content.saveAnnouncement, {
+        hubId,
+        slug: "draft-announcement",
+        title: "Blocked draft event relationship update",
+        content: { type: "doc" },
+        publishedAt: "2026-07-30",
+        expiresAt: "2026-08-30",
+        priority: "Normal",
+        pinned: false,
+        published: false,
+        guideSlug: "draft-guide",
+        eventSlug: "unlinked-draft-event",
+      })
+    ).rejects.toThrow("editingAccessRequired")
+    await worker.mutation(api.content.saveAnnouncement, {
+      hubId,
+      slug: "draft-announcement",
+      title: "Draft announcement updated by worker",
+      content: { type: "doc" },
+      publishedAt: "2026-07-30",
+      expiresAt: "2026-08-30",
+      priority: "Normal",
+      pinned: false,
+      published: false,
+      guideSlug: "draft-guide",
+      eventSlug: "draft-event",
+    })
+    const announcementSnapshot = await worker.query(
+      api.hubs.getManagerSnapshot,
+      { nowDate: "2026-07-30" }
+    )
+    if (announcementSnapshot.kind !== "ready") {
+      throw new Error("Snapshot not ready")
+    }
+    expect(announcementSnapshot.events.map((event) => event.id)).not.toContain(
+      "draft-event"
+    )
+    expect(announcementSnapshot.eventReferences ?? []).toContainEqual({
+      id: "draft-event",
+      title: "Draft event updated by worker",
+      published: false,
+    })
+    expect(
+      (announcementSnapshot.eventReferences ?? []).map((event) => event.id)
+    ).not.toContain("unlinked-draft-event")
+    const managerSnapshot = await manager.query(api.hubs.getManagerSnapshot, {
+      nowDate: "2026-07-30",
+    })
+    if (managerSnapshot.kind !== "ready") throw new Error("Snapshot not ready")
+    expect(
+      managerSnapshot.events.find((event) => event.id === "draft-event")
+        ?.guideIds
+    ).toEqual(["draft-guide"])
+    expect(
+      managerSnapshot.announcements.find(
+        (announcement) => announcement.id === "draft-announcement"
+      )
+    ).toMatchObject({
+      guideId: "draft-guide",
+      eventId: "draft-event",
     })
     await expect(
       worker.mutation(api.content.saveGuide, {

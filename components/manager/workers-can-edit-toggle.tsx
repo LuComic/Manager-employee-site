@@ -45,7 +45,7 @@ export function WorkersCanEditToggle({
       showFeedback(
         nextEnabled ? "workersCanEditEnabled" : "workersCanEditDisabled",
         { section: sectionLabel },
-        nextEnabled ? "success" : "error"
+        "neutral"
       )
     } finally {
       setPending(false)
@@ -59,9 +59,7 @@ export function WorkersCanEditToggle({
         disabled={pending}
         onCheckedChange={changeEnabled}
         className={
-          enabled
-            ? "bg-primary text-primary-foreground focus:bg-primary/80 focus:text-primary-foreground focus:**:text-primary-foreground"
-            : undefined
+          enabled ? "bg-muted text-foreground focus:bg-muted" : undefined
         }
       >
         <UserRoundPen /> <T>workersCanEdit</T>
@@ -75,7 +73,7 @@ export function WorkersCanEditToggle({
       role="switch"
       aria-checked={enabled}
       aria-label={t("workersCanEditSection", { section: sectionLabel })}
-      variant={enabled ? "default" : "outline"}
+      variant={enabled ? "secondary" : "outline"}
       size={size}
       disabled={pending}
       onClick={() => changeEnabled(!enabled)}

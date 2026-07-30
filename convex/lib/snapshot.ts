@@ -11,7 +11,7 @@ export async function buildSnapshot(
   hub: Doc<"hubs">,
   options: {
     includeDrafts: boolean
-    draftSections?: WorkersCanEdit
+    workerSections?: WorkersCanEdit
     includeOrganizationMapping: boolean
     nowDate: string
   }
@@ -79,13 +79,13 @@ export async function buildSnapshot(
   ])
 
   const includeGuideDrafts =
-    options.includeDrafts && (options.draftSections?.guides ?? true)
+    options.includeDrafts && (options.workerSections?.guides ?? true)
   const includeEventDrafts =
-    options.includeDrafts && (options.draftSections?.events ?? true)
+    options.includeDrafts && (options.workerSections?.events ?? true)
   const includeAnnouncementDrafts =
-    options.includeDrafts && (options.draftSections?.announcements ?? true)
+    options.includeDrafts && (options.workerSections?.announcements ?? true)
   const includeDocumentDrafts =
-    options.includeDrafts && (options.draftSections?.documents ?? true)
+    options.includeDrafts && (options.workerSections?.documents ?? true)
   const guides = includeGuideDrafts
     ? allGuides
     : allGuides.filter((guide) => guide.published)
@@ -107,9 +107,40 @@ export async function buildSnapshot(
   )
   const guideSlugById = new Map(guides.map((guide) => [guide._id, guide.slug]))
   const eventSlugById = new Map(events.map((event) => [event._id, event.slug]))
+  const allGuideSlugById = new Map(
+    allGuides.map((guide) => [guide._id, guide.slug])
+  )
+  const allEventSlugById = new Map(
+    allEvents.map((event) => [event._id, event.slug])
+  )
+  const relatedGuideSlugById = options.workerSections?.events
+    ? allGuideSlugById
+    : guideSlugById
+  const announcementGuideSlugById = options.workerSections?.announcements
+    ? allGuideSlugById
+    : guideSlugById
+  const announcementEventSlugById = options.workerSections?.announcements
+    ? allEventSlugById
+    : eventSlugById
+  const guideReferenceIds = new Set(guides.map((guide) => guide._id))
+  const eventReferenceIds = new Set(events.map((event) => event._id))
+  const editableEventIds = new Set(events.map((event) => event._id))
+  if (options.workerSections?.events) {
+    for (const relation of eventGuides) {
+      if (editableEventIds.has(relation.eventId)) {
+        guideReferenceIds.add(relation.guideId)
+      }
+    }
+  }
+  if (options.workerSections?.announcements) {
+    for (const announcement of announcements) {
+      if (announcement.guideId) guideReferenceIds.add(announcement.guideId)
+      if (announcement.eventId) eventReferenceIds.add(announcement.eventId)
+    }
+  }
   const guideIdsByEventId = new Map<string, string[]>()
   for (const relation of eventGuides) {
-    const guideSlug = guideSlugById.get(relation.guideId)
+    const guideSlug = relatedGuideSlugById.get(relation.guideId)
     if (!guideSlug) continue
     const current = guideIdsByEventId.get(relation.eventId) ?? []
     current.push(guideSlug)
@@ -189,6 +220,24 @@ export async function buildSnapshot(
         ? { clerkOrganizationId: hub.clerkOrganizationId }
         : {}),
     },
+    ...(options.workerSections
+      ? {
+          guideReferences: allGuides
+            .filter((guide) => guideReferenceIds.has(guide._id))
+            .map((guide) => ({
+              id: guide.slug,
+              title: guide.title,
+              published: guide.published,
+            })),
+          eventReferences: allEvents
+            .filter((event) => eventReferenceIds.has(event._id))
+            .map((event) => ({
+              id: event.slug,
+              title: event.title,
+              published: event.published,
+            })),
+        }
+      : {}),
     categories: categories.map((category) => ({
       id: category.slug,
       label: category.label,
@@ -244,10 +293,10 @@ export async function buildSnapshot(
       pinned: announcement.pinned,
       published: announcement.published,
       guideId: announcement.guideId
-        ? guideSlugById.get(announcement.guideId)
+        ? announcementGuideSlugById.get(announcement.guideId)
         : undefined,
       eventId: announcement.eventId
-        ? eventSlugById.get(announcement.eventId)
+        ? announcementEventSlugById.get(announcement.eventId)
         : undefined,
     })),
     faqs: allFaqs.map((faq) => ({

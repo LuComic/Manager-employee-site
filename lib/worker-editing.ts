@@ -10,6 +10,14 @@ export type WorkerEditableSection = (typeof workerEditableSections)[number]
 
 export type WorkersCanEdit = Record<WorkerEditableSection, boolean>
 
+export const workerManagerPaths = {
+  guides: "/manager/guides",
+  events: "/manager/calendar",
+  announcements: "/manager/announcements",
+  documents: "/manager/documents",
+  faqs: "/manager/questions",
+} satisfies Record<WorkerEditableSection, string>
+
 export const defaultWorkersCanEdit: WorkersCanEdit = {
   guides: false,
   events: false,
@@ -28,4 +36,12 @@ export function normalizeWorkersCanEdit(
     documents: value?.documents ?? false,
     faqs: value?.faqs ?? false,
   }
+}
+
+export function firstWorkerManagerPath(value?: Partial<WorkersCanEdit>) {
+  const workersCanEdit = normalizeWorkersCanEdit(value)
+  const section = workerEditableSections.find(
+    (candidate) => workersCanEdit[candidate]
+  )
+  return section ? workerManagerPaths[section] : null
 }

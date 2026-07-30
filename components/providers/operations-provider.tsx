@@ -47,6 +47,7 @@ import {
   type Announcement,
   type Attachment,
   type CalendarEvent,
+  type ContentReference,
   type EmployeeProfile,
   type Faq,
   type OperationsState,
@@ -101,6 +102,8 @@ type OperationsContextValue = OperationsState & {
   managerAccess: ManagerAccess | null
   canCreateContent: boolean
   canCreateInSection: (section: WorkerEditableSection) => boolean
+  guideReferences: ContentReference[]
+  eventReferences: ContentReference[]
   employees: EmployeeProfile[]
   createHub: (name: string, slug: string) => Promise<void>
   createEmployee: (profile: {
@@ -159,7 +162,7 @@ type OperationsContextValue = OperationsState & {
   showFeedback: (
     key: AppMessageKey,
     values?: TranslationValues,
-    tone?: "success" | "error"
+    tone?: "success" | "neutral"
   ) => void
 }
 
@@ -342,14 +345,29 @@ export function OperationsProvider({
       ? { hubId: managerSnapshot.hub.id }
       : "skip"
   )
+  const workerAssignmentSection: "events" | "documents" | null =
+    managerSnapshot?.kind === "ready" &&
+    managerSnapshot.managerAccess === "viewer"
+      ? managerSnapshot.hub.workersCanEdit.events
+        ? "events"
+        : managerSnapshot.hub.workersCanEdit.documents
+          ? "documents"
+          : null
+      : null
   const assignableEmployeeProfiles = useQuery(
     api.employees.listAssignable,
     isManagerRoute &&
       isAuthenticated &&
       managerSnapshot?.kind === "ready" &&
       (managerSnapshot.managerAccess === "editor" ||
-        managerSnapshot.managerAccess === "manager")
-      ? { hubId: managerSnapshot.hub.id }
+        managerSnapshot.managerAccess === "manager" ||
+        workerAssignmentSection)
+      ? {
+          hubId: managerSnapshot.hub.id,
+          ...(workerAssignmentSection
+            ? { workerSection: workerAssignmentSection }
+            : {}),
+        }
       : "skip"
   )
   const createEmployeeMutation = useMutation(api.employees.create)
@@ -465,6 +483,22 @@ export function OperationsProvider({
       documents: activeSnapshot.documents as WorkspaceDocument[],
     }
   }, [activeSnapshot])
+  const guideReferences =
+    activeSnapshot && "guideReferences" in activeSnapshot
+      ? (activeSnapshot.guideReferences as ContentReference[])
+      : state.guides.map(({ id, title, published }) => ({
+          id,
+          title,
+          published: Boolean(published),
+        }))
+  const eventReferences =
+    activeSnapshot && "eventReferences" in activeSnapshot
+      ? (activeSnapshot.eventReferences as ContentReference[])
+      : state.events.map(({ id, title, published }) => ({
+          id,
+          title,
+          published,
+        }))
 
   function managerHubId() {
     if (!isManagerRoute || !hub) {
@@ -599,6 +633,8 @@ export function OperationsProvider({
       managerAccess === "manager" ||
       managerAccess === "owner" ||
       Boolean(managerAccess && hub?.workersCanEdit[section]),
+    guideReferences,
+    eventReferences,
     employees: managedEmployeeProfiles
       ? (managedEmployeeProfiles as EmployeeProfile[])
       : ((assignableEmployeeProfiles ?? []).map((profile) => ({
@@ -933,8 +969,8 @@ export function OperationsProvider({
       )
     },
     showFeedback: (key, values, tone = "success") =>
-      tone === "error"
-        ? toast.error(t(key, values))
+      tone === "neutral"
+        ? toast(t(key, values))
         : toast.success(t(key, values)),
   }
 

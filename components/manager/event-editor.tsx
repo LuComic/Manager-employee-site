@@ -76,7 +76,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const {
     events,
     employees,
-    guides,
+    guideReferences,
     hub,
     saveEvent,
     uploadAttachment,
@@ -496,7 +496,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                 className="flex flex-wrap gap-2"
                 aria-label={t("selectRelatedGuides")}
               >
-                {guides
+                {guideReferences
                   .filter(
                     (guide) =>
                       guide.published || draft.guideIds.includes(guide.id)
@@ -524,7 +524,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                       </Button>
                     )
                   })}
-                {!guides.some(
+                {!guideReferences.some(
                   (guide) =>
                     guide.published || draft.guideIds.includes(guide.id)
                 ) && (

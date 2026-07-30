@@ -23,6 +23,7 @@ import { getPathname, Link, usePathname } from "@/i18n/navigation"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
+import { firstWorkerManagerPath } from "@/lib/worker-editing"
 
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
@@ -31,15 +32,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const publishedDocuments = documents.filter((document) => document.published)
   const managerHref =
     managerAccess === "viewer"
-      ? hub?.workersCanEdit.guides
-        ? "/manager/guides"
-        : hub?.workersCanEdit.events
-          ? "/manager/calendar"
-          : hub?.workersCanEdit.announcements
-            ? "/manager/announcements"
-            : hub?.workersCanEdit.documents
-              ? "/manager/documents"
-              : "/manager/questions"
+      ? (firstWorkerManagerPath(hub?.workersCanEdit) ?? "/manager")
       : "/manager"
 
   return (
