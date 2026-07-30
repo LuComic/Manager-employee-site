@@ -155,9 +155,9 @@ export function ManagerOverview() {
         description="seeWhatAvailableEmployeesChooseAreaManage"
       />
       {drafts > 0 && (
-        <div
-          className="flex items-start gap-3 border bg-background p-4"
-          role="status"
+        <Link
+          href="/manager/drafts"
+          className="group flex items-start gap-3 border bg-background p-4 transition-colors outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30"
         >
           <span className="flex size-9 shrink-0 items-center justify-center bg-muted text-muted-foreground">
             <FilePenLine className="size-4" />
@@ -175,7 +175,8 @@ export function ManagerOverview() {
               <T>draftItemsNotVisibleEmployeesUntilTheyMessage</T>
             </p>
           </div>
-        </div>
+          <ArrowRight className="mt-2 ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+        </Link>
       )}
       {sections.map((section) => (
         <section key={section.title} className="space-y-3">

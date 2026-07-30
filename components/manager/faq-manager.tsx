@@ -99,7 +99,12 @@ export function FaqManager() {
       {faqs.length ? (
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <Card key={faq.id} size="sm" className="shadow-none">
+            <Card
+              id={`question-${faq.id}`}
+              key={faq.id}
+              size="sm"
+              className="scroll-mt-6 shadow-none target:ring-2 target:ring-ring/30"
+            >
               <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
                 <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
                   <CircleHelp className="size-5" />
