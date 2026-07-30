@@ -232,6 +232,11 @@ create another pull request for the same task branch.
 After creating or updating the pull request, stop. Pull-request review and
 merging are separate tasks controlled by the user.
 
+When the task is fully published and its worktree is clean, close or release
+your own Codex-managed worktree so the user can check out the task branch
+elsewhere. Never close a worktree that contains staged or unstaged changes, and
+never close another agent's worktree.
+
 The implementation agent must not:
 
 - commit or push directly to `main`;
