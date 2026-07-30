@@ -41,14 +41,16 @@ export function ManagerListItem({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Title className="font-semibold">{title}</Title>
-            {Children.map(metadata, (item) => (
-              <Fragment>
-                <span aria-hidden="true" className="text-border">
-                  |
-                </span>
-                {item}
-              </Fragment>
-            ))}
+            {Children.map(metadata, (item) =>
+              item === null ? null : (
+                <Fragment>
+                  <span aria-hidden="true" className="text-border">
+                    |
+                  </span>
+                  {item}
+                </Fragment>
+              )
+            )}
           </div>
           {description !== undefined && (
             <p
