@@ -103,7 +103,7 @@ Employee-facing pages do not require Clerk accounts. A workplace is selected wit
 - A signed-in active `org:member` can open the same published workplace content for the active Organization without entering the shared code.
 - The workplace switcher supports users who belong to multiple Organizations. Personal Account remains available because Organization membership is optional.
 
-Only credential hashes are stored in Convex. The readable code and private link remain in the owner's current browser, so rotating from a different browser creates new credentials there. Draft and expired content are filtered in Convex rather than only hidden by the UI.
+Convex stores credential hashes for anonymous access checks and keeps the readable code and private link in a separate owner-only workplace record. A signed-in Clerk Organization owner can retrieve the current values from any browser; members and guests never receive them. Workplaces created before account-linked credential storage require one rotation before readable values are available. Draft and expired content are filtered in Convex rather than only hidden by the UI.
 
 Guests never receive employee profile records, email addresses, statuses, invitation data, or membership records. Published events include only linked employee display names.
 

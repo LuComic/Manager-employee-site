@@ -4,6 +4,7 @@ import {
   defaultTodaySections,
   normalizeTodaySections,
 } from "../lib/today-sections"
+import type { Id } from "./_generated/dataModel"
 import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
   canReadPublishedHub,
@@ -28,6 +29,11 @@ const managerAccessValidator = v.union(
   v.literal("manager"),
   v.literal("owner")
 )
+const hubCredentialsValidator = v.object({
+  joinCode: v.string(),
+  privateToken: v.string(),
+  credentialVersion: v.number(),
+})
 const todaySectionKeyValidator = v.union(
   v.literal("welcome"),
   v.literal("quick-links"),
@@ -74,6 +80,34 @@ async function availableSlug(ctx: MutationCtx, requested: string) {
   return candidate
 }
 
+async function storeHubCredentials(
+  ctx: MutationCtx,
+  args: {
+    hubId: Id<"hubs">
+    joinCode: string
+    privateToken: string
+    credentialVersion: number
+    updatedAt: number
+  }
+) {
+  const stored = await ctx.db
+    .query("hubCredentials")
+    .withIndex("by_hubId", (q) => q.eq("hubId", args.hubId))
+    .unique()
+  const credentials = {
+    hubId: args.hubId,
+    joinCode: args.joinCode,
+    privateToken: args.privateToken,
+    credentialVersion: args.credentialVersion,
+    updatedAt: args.updatedAt,
+  }
+  if (stored) {
+    await ctx.db.replace("hubCredentials", stored._id, credentials)
+  } else {
+    await ctx.db.insert("hubCredentials", credentials)
+  }
+}
+
 export const create = mutation({
   args: {
     name: v.string(),
@@ -84,6 +118,11 @@ export const create = mutation({
     timeZone: v.string(),
     locale: v.optional(v.union(v.literal("et"), v.literal("en"))),
   },
+  returns: v.object({
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    created: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx)
     const activeOrganization = getActiveOrganizationFromIdentity(identity)
@@ -133,6 +172,13 @@ export const create = mutation({
       privateTokenHash: hashCredential(args.privateToken),
       credentialVersion: 1,
       createdAt: now,
+      updatedAt: now,
+    })
+    await storeHubCredentials(ctx, {
+      hubId,
+      joinCode: args.joinCode,
+      privateToken: args.privateToken,
+      credentialVersion: 1,
       updatedAt: now,
     })
     return { hubId, slug, created: true }
@@ -342,6 +388,29 @@ export const getOwnerAuthorization = query({
   },
 })
 
+export const getOwnerCredentials = query({
+  args: { hubId: v.id("hubs") },
+  returns: v.union(v.null(), hubCredentialsValidator),
+  handler: async (ctx, args) => {
+    const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
+    const credentials = await ctx.db
+      .query("hubCredentials")
+      .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
+      .unique()
+    if (
+      !credentials ||
+      credentials.credentialVersion !== hub.credentialVersion
+    ) {
+      return null
+    }
+    return {
+      joinCode: credentials.joinCode,
+      privateToken: credentials.privateToken,
+      credentialVersion: credentials.credentialVersion,
+    }
+  },
+})
+
 export const getPublicSnapshot = query({
   args: {
     slug: v.string(),
@@ -417,6 +486,7 @@ export const rotateCredentials = mutation({
     joinCode: v.string(),
     privateToken: v.string(),
   },
+  returns: hubCredentialsValidator,
   handler: async (ctx, args) => {
     const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     if (normalizeJoinCode(args.joinCode).length < 8) {
@@ -426,13 +496,25 @@ export const rotateCredentials = mutation({
       throw new Error("privateLinkCredentialIsTooShort")
     }
     const credentialVersion = hub.credentialVersion + 1
+    const updatedAt = Date.now()
     await ctx.db.patch("hubs", hub._id, {
       joinCodeHash: hashCredential(normalizeJoinCode(args.joinCode)),
       privateTokenHash: hashCredential(args.privateToken),
       credentialVersion,
-      updatedAt: Date.now(),
+      updatedAt,
     })
-    return { credentialVersion }
+    await storeHubCredentials(ctx, {
+      hubId: hub._id,
+      joinCode: args.joinCode,
+      privateToken: args.privateToken,
+      credentialVersion,
+      updatedAt,
+    })
+    return {
+      joinCode: args.joinCode,
+      privateToken: args.privateToken,
+      credentialVersion,
+    }
   },
 })
 

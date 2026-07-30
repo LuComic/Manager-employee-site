@@ -183,10 +183,6 @@ function createCredentials(credentialVersion = 1): HubCredentials {
   }
 }
 
-function ownerCredentialKey(hubId: string) {
-  return `workhal:owner-credentials:${hubId}`
-}
-
 function employeeCredentialKey(slug: string) {
   return `workhal:employee-access:${slug}`
 }
@@ -250,8 +246,6 @@ export function OperationsProvider({
   const [rememberedHubSlug, setRememberedHubSlug] = useState("")
   const hubSlug = requestedHubSlug || rememberedHubSlug
   const [credential, setCredential] = useState<string | undefined>()
-  const [ownerCredentials, setOwnerCredentials] =
-    useState<HubCredentials | null>(null)
   const [hubTimeZone, setHubTimeZone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
   )
@@ -373,6 +367,16 @@ export function OperationsProvider({
     isManagerRoute && managerSnapshot?.kind === "ready"
       ? (managerSnapshot.managerAccess as ManagerAccess)
       : ((navigationManagerAccess ?? null) as ManagerAccess | null)
+  const persistedOwnerCredentials = useQuery(
+    api.hubs.getOwnerCredentials,
+    isManagerRoute &&
+      isAuthenticated &&
+      managerSnapshot?.kind === "ready" &&
+      managerSnapshot.managerAccess === "owner"
+      ? { hubId: managerSnapshot.hub.id }
+      : "skip"
+  )
+  const ownerCredentials = persistedOwnerCredentials ?? null
 
   useEffect(() => {
     if (!activeSnapshot?.hub.timeZone) return
@@ -428,21 +432,6 @@ export function OperationsProvider({
       localStorage.removeItem(employeeCredentialKey(hubSlug))
     }
   }, [credential, hubSlug, publicSnapshot])
-
-  useEffect(() => {
-    if (!isManagerRoute || !hub) return
-    const stored = parseStored<HubCredentials>(
-      localStorage.getItem(ownerCredentialKey(hub.id))
-    )
-    const timeout = window.setTimeout(
-      () =>
-        setOwnerCredentials(
-          stored?.credentialVersion === hub.credentialVersion ? stored : null
-        ),
-      0
-    )
-    return () => window.clearTimeout(timeout)
-  }, [hub, isManagerRoute])
 
   const state = useMemo<OperationsState>(() => {
     if (!activeSnapshot)
@@ -615,7 +604,7 @@ export function OperationsProvider({
         if (!token) throw new Error("couldNotCreateAWorkplaceSession")
         const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
         convex.setAuth(token)
-        const created = await convex.mutation(api.hubs.create, {
+        await convex.mutation(api.hubs.create, {
           name,
           slug,
           accessMode: "restricted",
@@ -626,11 +615,6 @@ export function OperationsProvider({
             "Europe/Tallinn",
           locale,
         })
-        localStorage.setItem(
-          ownerCredentialKey(created.hubId),
-          JSON.stringify(credentials)
-        )
-        setOwnerCredentials(credentials)
       })
     },
     createEmployee: async (profile) =>
@@ -650,13 +634,7 @@ export function OperationsProvider({
           privateToken: credentials.privateToken,
         })
       )
-      const saved = {
-        ...credentials,
-        credentialVersion: result.credentialVersion,
-      }
-      localStorage.setItem(ownerCredentialKey(hubId), JSON.stringify(saved))
-      setOwnerCredentials(saved)
-      return saved
+      return result
     },
     setAccessMode: async (accessMode) => {
       await run(() =>

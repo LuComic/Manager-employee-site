@@ -199,7 +199,7 @@ function CredentialCard({
               "••••••••••••"
             )
           ) : (
-            <T>notStoredInThisBrowser</T>
+            <T>credentialsNotSavedToManagerAccount</T>
           )}
         </code>
         <div className="mt-3 flex flex-wrap gap-2">
