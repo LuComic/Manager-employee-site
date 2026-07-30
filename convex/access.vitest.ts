@@ -130,6 +130,76 @@ describe("hub authorization and anonymous access", () => {
     ).toBe("restricted")
   })
 
+  test("encrypts access credentials and makes them available only to the workplace owner", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t, { restricted: true })
+
+    const stored = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("hubCredentials")
+        .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+        .unique()
+    })
+    expect(stored).toMatchObject({
+      hubId,
+      credentialVersion: 1,
+    })
+    expect(stored).not.toHaveProperty("joinCode")
+    expect(stored).not.toHaveProperty("privateToken")
+    expect(stored?.ciphertext).not.toContain("ABCD-EFGH")
+    expect(stored?.ciphertext).not.toContain("private-token")
+    expect(stored?.initializationVector).toMatch(/^[\da-f]{24}$/)
+
+    await expect(
+      t.withIdentity(ownerIdentity).query(api.hubs.getOwnerCredentials, {
+        hubId,
+      })
+    ).resolves.toEqual({
+      joinCode: "ABCD-EFGH",
+      privateToken: "private-token-that-is-at-least-thirty-two-characters",
+      credentialVersion: 1,
+    })
+    await expect(
+      t.withIdentity(otherIdentity).query(api.hubs.getOwnerCredentials, {
+        hubId,
+      })
+    ).rejects.toThrow("unauthorized")
+    await expect(
+      t.query(api.hubs.getOwnerCredentials, { hubId })
+    ).rejects.toThrow("notAuthenticated")
+  })
+
+  test("rejects missing or tampered owner credentials as an invariant failure", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t, { restricted: true })
+    const owner = t.withIdentity(ownerIdentity)
+
+    await t.run(async (ctx) => {
+      const stored = await ctx.db
+        .query("hubCredentials")
+        .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+        .unique()
+      if (!stored) throw new Error("Expected credentials")
+      await ctx.db.patch("hubCredentials", stored._id, {
+        ciphertext: `${stored.ciphertext[0] === "0" ? "1" : "0"}${stored.ciphertext.slice(1)}`,
+      })
+    })
+    await expect(
+      owner.query(api.hubs.getOwnerCredentials, { hubId })
+    ).rejects.toThrow("hubCredentialsUnavailable")
+
+    await t.run(async (ctx) => {
+      const stored = await ctx.db
+        .query("hubCredentials")
+        .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+        .unique()
+      if (stored) await ctx.db.delete("hubCredentials", stored._id)
+    })
+    await expect(
+      owner.query(api.hubs.getOwnerCredentials, { hubId })
+    ).rejects.toThrow("hubCredentialsUnavailable")
+  })
+
   test("switches public and restricted accountless access", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t)
@@ -183,11 +253,13 @@ describe("hub authorization and anonymous access", () => {
   test("credential rotation revokes old codes and links", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t, { restricted: true })
-    await t.withIdentity(ownerIdentity).mutation(api.hubs.rotateCredentials, {
-      hubId,
-      joinCode: "JKLM-NPQR",
-      privateToken: "replacement-private-token-that-is-long-enough-123",
-    })
+    await expect(
+      t.withIdentity(ownerIdentity).mutation(api.hubs.rotateCredentials, {
+        hubId,
+        joinCode: "JKLM-NPQR",
+        privateToken: "replacement-private-token-that-is-long-enough-123",
+      })
+    ).resolves.toBeNull()
 
     expect(
       (
@@ -207,6 +279,15 @@ describe("hub authorization and anonymous access", () => {
         })
       ).kind
     ).toBe("ready")
+    await expect(
+      t.withIdentity(ownerIdentity).query(api.hubs.getOwnerCredentials, {
+        hubId,
+      })
+    ).resolves.toEqual({
+      joinCode: "JKLM-NPQR",
+      privateToken: "replacement-private-token-that-is-long-enough-123",
+      credentialVersion: 2,
+    })
   })
 
   test("rejects a manager mutating another owner's hub", async () => {

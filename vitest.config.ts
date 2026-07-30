@@ -8,5 +8,9 @@ export default defineConfig({
   test: {
     environment: "edge-runtime",
     include: ["convex/**/*.vitest.ts"],
+    env: {
+      HUB_CREDENTIALS_ENCRYPTION_KEY:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    },
   },
 })

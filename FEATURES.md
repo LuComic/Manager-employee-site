@@ -101,7 +101,9 @@ Only the workplace owner can manage employees, invitations, establishment settin
 - Restricted hubs accept a cryptographically generated join code or private-link credential.
 - Anonymous access is remembered for 30 days and can be forgotten with “Leave hub”.
 - Owners can switch modes, copy credentials, and rotate or revoke them.
-- Convex stores only credential hashes and enforces access for reads, search, files, and mutations.
+- Convex stores credential hashes for access checks plus an AES-256-GCM encrypted owner-only credential record, allowing the active workplace owner to retrieve the code and link from any browser.
+- The encryption key is stored outside the database in the Convex deployment environment.
+- Convex enforces access for reads, search, files, and mutations.
 - Employees are never redirected to Clerk or required to create accounts.
 
 ## How the features connect

@@ -79,12 +79,6 @@ export type HubSettings = Pick<
   | "contactPhone"
 >
 
-export type HubCredentials = {
-  joinCode: string
-  privateToken: string
-  credentialVersion: number
-}
-
 type OperationsContextValue = OperationsState & {
   hub: HubInfo | null
   hubSlug: string
@@ -101,7 +95,6 @@ type OperationsContextValue = OperationsState & {
   isManagerRoute: boolean
   managerAccess: ManagerAccess | null
   canCreateContent: boolean
-  ownerCredentials: HubCredentials | null
   employees: EmployeeProfile[]
   createHub: (name: string, slug: string) => Promise<void>
   createEmployee: (profile: {
@@ -121,7 +114,7 @@ type OperationsContextValue = OperationsState & {
       accessLevel: EmployeeProfile["accessLevel"]
     }
   ) => Promise<void>
-  rotateCredentials: () => Promise<HubCredentials>
+  rotateCredentials: () => Promise<void>
   setAccessMode: (accessMode: HubAccessMode) => Promise<void>
   saveHubSettings: (settings: HubSettings) => Promise<void>
   uploadHubBanner: (file: File) => Promise<void>
@@ -168,7 +161,7 @@ function randomString(length: number, alphabet: string) {
   )
 }
 
-function createCredentials(credentialVersion = 1): HubCredentials {
+function createCredentials() {
   const code = randomString(8, JOIN_ALPHABET)
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
@@ -179,12 +172,7 @@ function createCredentials(credentialVersion = 1): HubCredentials {
   return {
     joinCode: `${code.slice(0, 4)}-${code.slice(4)}`,
     privateToken,
-    credentialVersion,
   }
-}
-
-function ownerCredentialKey(hubId: string) {
-  return `workhal:owner-credentials:${hubId}`
 }
 
 function employeeCredentialKey(slug: string) {
@@ -250,8 +238,6 @@ export function OperationsProvider({
   const [rememberedHubSlug, setRememberedHubSlug] = useState("")
   const hubSlug = requestedHubSlug || rememberedHubSlug
   const [credential, setCredential] = useState<string | undefined>()
-  const [ownerCredentials, setOwnerCredentials] =
-    useState<HubCredentials | null>(null)
   const [hubTimeZone, setHubTimeZone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
   )
@@ -373,7 +359,6 @@ export function OperationsProvider({
     isManagerRoute && managerSnapshot?.kind === "ready"
       ? (managerSnapshot.managerAccess as ManagerAccess)
       : ((navigationManagerAccess ?? null) as ManagerAccess | null)
-
   useEffect(() => {
     if (!activeSnapshot?.hub.timeZone) return
     const timeout = window.setTimeout(
@@ -428,21 +413,6 @@ export function OperationsProvider({
       localStorage.removeItem(employeeCredentialKey(hubSlug))
     }
   }, [credential, hubSlug, publicSnapshot])
-
-  useEffect(() => {
-    if (!isManagerRoute || !hub) return
-    const stored = parseStored<HubCredentials>(
-      localStorage.getItem(ownerCredentialKey(hub.id))
-    )
-    const timeout = window.setTimeout(
-      () =>
-        setOwnerCredentials(
-          stored?.credentialVersion === hub.credentialVersion ? stored : null
-        ),
-      0
-    )
-    return () => window.clearTimeout(timeout)
-  }, [hub, isManagerRoute])
 
   const state = useMemo<OperationsState>(() => {
     if (!activeSnapshot)
@@ -585,7 +555,6 @@ export function OperationsProvider({
     isManagerRoute,
     managerAccess,
     canCreateContent: managerAccess === "manager" || managerAccess === "owner",
-    ownerCredentials,
     employees: managedEmployeeProfiles
       ? (managedEmployeeProfiles as EmployeeProfile[])
       : ((assignableEmployeeProfiles ?? []).map((profile) => ({
@@ -615,7 +584,7 @@ export function OperationsProvider({
         if (!token) throw new Error("couldNotCreateAWorkplaceSession")
         const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
         convex.setAuth(token)
-        const created = await convex.mutation(api.hubs.create, {
+        await convex.mutation(api.hubs.create, {
           name,
           slug,
           accessMode: "restricted",
@@ -626,11 +595,6 @@ export function OperationsProvider({
             "Europe/Tallinn",
           locale,
         })
-        localStorage.setItem(
-          ownerCredentialKey(created.hubId),
-          JSON.stringify(credentials)
-        )
-        setOwnerCredentials(credentials)
       })
     },
     createEmployee: async (profile) =>
@@ -642,21 +606,14 @@ export function OperationsProvider({
     },
     rotateCredentials: async () => {
       const hubId = managerHubId()
-      const credentials = createCredentials((hub?.credentialVersion ?? 0) + 1)
-      const result = await run(() =>
+      const credentials = createCredentials()
+      await run(() =>
         rotateCredentialsMutation({
           hubId,
           joinCode: credentials.joinCode,
           privateToken: credentials.privateToken,
         })
       )
-      const saved = {
-        ...credentials,
-        credentialVersion: result.credentialVersion,
-      }
-      localStorage.setItem(ownerCredentialKey(hubId), JSON.stringify(saved))
-      setOwnerCredentials(saved)
-      return saved
     },
     setAccessMode: async (accessMode) => {
       await run(() =>

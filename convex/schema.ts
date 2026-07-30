@@ -76,6 +76,13 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_clerkOrganizationId", ["clerkOrganizationId"]),
 
+  hubCredentials: defineTable({
+    hubId: v.id("hubs"),
+    ciphertext: v.string(),
+    initializationVector: v.string(),
+    credentialVersion: v.number(),
+  }).index("by_hubId", ["hubId"]),
+
   employeeProfiles: defineTable({
     hubId: v.id("hubs"),
     clerkUserId: v.optional(v.string()),
