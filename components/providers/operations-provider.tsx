@@ -85,6 +85,9 @@ export type HubCredentials = {
   credentialVersion: number
 }
 
+type OwnerCredentialsState =
+  { kind: "loading" } | { kind: "ready"; credentials: HubCredentials }
+
 type OperationsContextValue = OperationsState & {
   hub: HubInfo | null
   hubSlug: string
@@ -101,7 +104,7 @@ type OperationsContextValue = OperationsState & {
   isManagerRoute: boolean
   managerAccess: ManagerAccess | null
   canCreateContent: boolean
-  ownerCredentials: HubCredentials | null
+  ownerCredentialsState: OwnerCredentialsState
   employees: EmployeeProfile[]
   createHub: (name: string, slug: string) => Promise<void>
   createEmployee: (profile: {
@@ -376,7 +379,10 @@ export function OperationsProvider({
       ? { hubId: managerSnapshot.hub.id }
       : "skip"
   )
-  const ownerCredentials = persistedOwnerCredentials ?? null
+  const ownerCredentialsState: OwnerCredentialsState =
+    persistedOwnerCredentials === undefined
+      ? { kind: "loading" }
+      : { kind: "ready", credentials: persistedOwnerCredentials }
 
   useEffect(() => {
     if (!activeSnapshot?.hub.timeZone) return
@@ -574,7 +580,7 @@ export function OperationsProvider({
     isManagerRoute,
     managerAccess,
     canCreateContent: managerAccess === "manager" || managerAccess === "owner",
-    ownerCredentials,
+    ownerCredentialsState,
     employees: managedEmployeeProfiles
       ? (managedEmployeeProfiles as EmployeeProfile[])
       : ((assignableEmployeeProfiles ?? []).map((profile) => ({

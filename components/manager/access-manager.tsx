@@ -29,7 +29,7 @@ import type { AppMessageKey } from "@/i18n/messages"
 export function AccessManager() {
   const {
     hub,
-    ownerCredentials,
+    ownerCredentialsState,
     rotateCredentials,
     setAccessMode,
     showFeedback,
@@ -39,12 +39,17 @@ export function AccessManager() {
   const [copied, setCopied] = useState("")
   if (!hub) return null
 
+  const credentials =
+    ownerCredentialsState.kind === "ready"
+      ? ownerCredentialsState.credentials
+      : undefined
+  const credentialsLoading = ownerCredentialsState.kind === "loading"
   const employeeUrl =
     typeof window === "undefined"
       ? ""
       : `${window.location.origin}/?hub=${encodeURIComponent(hub.slug)}`
-  const privateUrl = ownerCredentials
-    ? `${employeeUrl}#access=${encodeURIComponent(ownerCredentials.privateToken)}`
+  const privateUrl = credentials
+    ? `${employeeUrl}#access=${encodeURIComponent(credentials.privateToken)}`
     : ""
 
   async function copy(label: string, value: string) {
@@ -110,17 +115,19 @@ export function AccessManager() {
         <CredentialCard
           icon={KeyRound}
           title="employeeJoinCode"
-          value={ownerCredentials?.joinCode ?? ""}
-          disabled={!ownerCredentials}
+          value={credentials?.joinCode ?? ""}
+          loading={credentialsLoading}
+          disabled={credentialsLoading}
           copied={copied === "code"}
-          onCopy={() => copy("code", ownerCredentials?.joinCode ?? "")}
+          onCopy={() => copy("code", credentials?.joinCode ?? "")}
           description="shareShortCodeVerballyStaffOnlyChannel"
         />
         <CredentialCard
           icon={Link2}
           title="privateJoinLink"
           value={privateUrl}
-          disabled={!ownerCredentials}
+          loading={credentialsLoading}
+          disabled={credentialsLoading}
           copied={copied === "link"}
           onCopy={() => copy("link", privateUrl)}
           description="openingLinkGrantsAccessWithoutTypingCode"
@@ -139,7 +146,7 @@ export function AccessManager() {
         <CardContent>
           <Button
             variant="destructive"
-            disabled={pending}
+            disabled={pending || credentialsLoading}
             onClick={async () => {
               setPending(true)
               try {
@@ -163,6 +170,7 @@ function CredentialCard({
   title,
   value,
   description,
+  loading,
   disabled,
   copied,
   onCopy,
@@ -171,6 +179,7 @@ function CredentialCard({
   title: AppMessageKey
   value: string
   description: AppMessageKey
+  loading: boolean
   disabled: boolean
   copied: boolean
   onCopy: () => void
@@ -192,15 +201,15 @@ function CredentialCard({
       </CardHeader>
       <CardContent>
         <code className="block overflow-x-auto border bg-muted/40 p-3 text-xs">
-          {value ? (
+          {loading ? (
+            <T>loadingAccessCredentials</T>
+          ) : value ? (
             revealed ? (
               value
             ) : (
               "••••••••••••"
             )
-          ) : (
-            <T>credentialsNotSavedToManagerAccount</T>
-          )}
+          ) : null}
         </code>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button

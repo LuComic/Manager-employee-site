@@ -17,6 +17,10 @@ import {
   requireIdentity,
   requireHubPermission,
 } from "./lib/access"
+import {
+  decryptHubCredentials,
+  encryptHubCredentials,
+} from "./lib/credentialEncryption"
 import { buildSnapshot } from "./lib/snapshot"
 import { createNotification } from "./lib/notifications"
 
@@ -87,7 +91,6 @@ async function storeHubCredentials(
     joinCode: string
     privateToken: string
     credentialVersion: number
-    updatedAt: number
   }
 ) {
   const stored = await ctx.db
@@ -96,10 +99,15 @@ async function storeHubCredentials(
     .unique()
   const credentials = {
     hubId: args.hubId,
-    joinCode: args.joinCode,
-    privateToken: args.privateToken,
+    ...(await encryptHubCredentials({
+      hubId: args.hubId,
+      credentialVersion: args.credentialVersion,
+      credentials: {
+        joinCode: args.joinCode,
+        privateToken: args.privateToken,
+      },
+    })),
     credentialVersion: args.credentialVersion,
-    updatedAt: args.updatedAt,
   }
   if (stored) {
     await ctx.db.replace("hubCredentials", stored._id, credentials)
@@ -179,7 +187,6 @@ export const create = mutation({
       joinCode: args.joinCode,
       privateToken: args.privateToken,
       credentialVersion: 1,
-      updatedAt: now,
     })
     return { hubId, slug, created: true }
   },
@@ -390,7 +397,7 @@ export const getOwnerAuthorization = query({
 
 export const getOwnerCredentials = query({
   args: { hubId: v.id("hubs") },
-  returns: v.union(v.null(), hubCredentialsValidator),
+  returns: hubCredentialsValidator,
   handler: async (ctx, args) => {
     const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     const credentials = await ctx.db
@@ -401,11 +408,11 @@ export const getOwnerCredentials = query({
       !credentials ||
       credentials.credentialVersion !== hub.credentialVersion
     ) {
-      return null
+      throw new Error("hubCredentialsUnavailable")
     }
+    const decrypted = await decryptHubCredentials(credentials)
     return {
-      joinCode: credentials.joinCode,
-      privateToken: credentials.privateToken,
+      ...decrypted,
       credentialVersion: credentials.credentialVersion,
     }
   },
@@ -508,7 +515,6 @@ export const rotateCredentials = mutation({
       joinCode: args.joinCode,
       privateToken: args.privateToken,
       credentialVersion,
-      updatedAt,
     })
     return {
       joinCode: args.joinCode,

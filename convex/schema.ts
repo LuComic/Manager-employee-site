@@ -78,10 +78,9 @@ export default defineSchema({
 
   hubCredentials: defineTable({
     hubId: v.id("hubs"),
-    joinCode: v.string(),
-    privateToken: v.string(),
+    ciphertext: v.string(),
+    initializationVector: v.string(),
     credentialVersion: v.number(),
-    updatedAt: v.number(),
   }).index("by_hubId", ["hubId"]),
 
   employeeProfiles: defineTable({
