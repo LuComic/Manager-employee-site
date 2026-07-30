@@ -1,11 +1,13 @@
 import { v } from "convex/values"
 
 import type { AppMessageKey } from "../i18n/messages"
+import { normalizeWorkersCanEdit } from "../lib/worker-editing"
 import type { Id } from "./_generated/dataModel"
-import { mutation, query } from "./_generated/server"
+import { mutation, query, type MutationCtx } from "./_generated/server"
 import {
   canReadPublishedHub,
   requireIdentity,
+  requireHubEditingPermission,
   requireHubPermission,
 } from "./lib/access"
 import { deleteReferencedHubStorage } from "./lib/hubStorage"
@@ -67,6 +69,72 @@ function required(
   if (!clean) throw new Error(requiredKey)
   if (clean.length > max) throw new Error(tooLongKey)
   return clean
+}
+
+async function resolveGuideReference(
+  ctx: MutationCtx,
+  args: {
+    hubId: Id<"hubs">
+    slug: string
+    canAccessDrafts: boolean
+    allowedDraftIds?: ReadonlySet<Id<"guides">>
+  }
+) {
+  const slug = args.slug.trim()
+  const guide = slug
+    ? await ctx.db
+        .query("guides")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", args.hubId).eq("slug", slug)
+        )
+        .unique()
+    : null
+  if (!guide) {
+    throw new Error(
+      args.canAccessDrafts ? "guideNotFound" : "editingAccessRequired"
+    )
+  }
+  if (
+    !guide.published &&
+    !args.canAccessDrafts &&
+    !args.allowedDraftIds?.has(guide._id)
+  ) {
+    throw new Error("editingAccessRequired")
+  }
+  return guide
+}
+
+async function resolveEventReference(
+  ctx: MutationCtx,
+  args: {
+    hubId: Id<"hubs">
+    slug: string
+    canAccessDrafts: boolean
+    allowedDraftIds?: ReadonlySet<Id<"events">>
+  }
+) {
+  const slug = args.slug.trim()
+  const event = slug
+    ? await ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", args.hubId).eq("slug", slug)
+        )
+        .unique()
+    : null
+  if (!event) {
+    throw new Error(
+      args.canAccessDrafts ? "eventNotFound" : "editingAccessRequired"
+    )
+  }
+  if (
+    !event.published &&
+    !args.canAccessDrafts &&
+    !args.allowedDraftIds?.has(event._id)
+  ) {
+    throw new Error("editingAccessRequired")
+  }
+  return event
 }
 
 export const saveCategory = mutation({
@@ -174,7 +242,11 @@ export const saveGuide = mutation({
     content: richTextDocument,
   },
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "guides"
+    )
     const category = await ctx.db
       .query("categories")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -188,7 +260,11 @@ export const saveGuide = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).guides
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
@@ -218,19 +294,21 @@ export const saveGuide = mutation({
         .query("guideRelations")
         .withIndex("by_guideId", (q) => q.eq("guideId", guideId))
         .take(200)
+      const relatedGuides = await Promise.all(
+        [...new Set(args.relatedGuideSlugs)]
+          .slice(0, 100)
+          .map((relatedSlug) =>
+            resolveGuideReference(ctx, {
+              hubId: args.hubId,
+              slug: relatedSlug,
+              canAccessDrafts: true,
+            })
+          )
+      )
       for (const relation of oldRelations) {
         await ctx.db.delete("guideRelations", relation._id)
       }
-      for (const relatedSlug of [...new Set(args.relatedGuideSlugs)].slice(
-        0,
-        100
-      )) {
-        const relatedGuide = await ctx.db
-          .query("guides")
-          .withIndex("by_hubId_and_slug", (q) =>
-            q.eq("hubId", args.hubId).eq("slug", relatedSlug)
-          )
-          .unique()
+      for (const relatedGuide of relatedGuides) {
         if (relatedGuide && relatedGuide._id !== guideId) {
           await ctx.db.insert("guideRelations", {
             hubId: args.hubId,
@@ -347,7 +425,11 @@ export const saveEvent = mutation({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "events"
+    )
     const identity = await requireIdentity(ctx)
     const hasExactInstants = Boolean(args.startUtc && args.endUtc)
     if (Boolean(args.startUtc) !== Boolean(args.endUtc)) {
@@ -376,9 +458,37 @@ export const saveEvent = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    const oldGuideRelations = existing
+      ? await ctx.db
+          .query("eventGuides")
+          .withIndex("by_eventId", (q) => q.eq("eventId", existing._id))
+          .take(1000)
+      : []
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).events
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
+    const workersCanEdit = normalizeWorkersCanEdit(hub.workersCanEdit)
+    const canAccessDraftGuides =
+      permission !== "viewer" || workersCanEdit.guides
+    const previouslyLinkedGuideIds = new Set(
+      oldGuideRelations.map((relation) => relation.guideId)
+    )
+    const selectedGuides = await Promise.all(
+      [...new Set(args.guideSlugs.map((slug) => slug.trim()))]
+        .slice(0, 100)
+        .map((slug) =>
+          resolveGuideReference(ctx, {
+            hubId: args.hubId,
+            slug,
+            canAccessDrafts: canAccessDraftGuides,
+            allowedDraftIds: previouslyLinkedGuideIds,
+          })
+        )
+    )
     const value = {
       title: required(args.title, "eventTitle", 140),
       description: required(args.description, "eventDescription", 500),
@@ -448,25 +558,14 @@ export const saveEvent = mutation({
       }
     }
 
-    const oldRelations = await ctx.db
-      .query("eventGuides")
-      .withIndex("by_eventId", (q) => q.eq("eventId", eventId))
-      .take(1000)
-    for (const relation of oldRelations)
+    for (const relation of oldGuideRelations)
       await ctx.db.delete("eventGuides", relation._id)
-    for (const guideSlug of [...new Set(args.guideSlugs)].slice(0, 100)) {
-      const guide = await ctx.db
-        .query("guides")
-        .withIndex("by_hubId_and_slug", (q) =>
-          q.eq("hubId", args.hubId).eq("slug", guideSlug)
-        )
-        .unique()
-      if (guide)
-        await ctx.db.insert("eventGuides", {
-          hubId: args.hubId,
-          eventId,
-          guideId: guide._id,
-        })
+    for (const guide of selectedGuides) {
+      await ctx.db.insert("eventGuides", {
+        hubId: args.hubId,
+        eventId,
+        guideId: guide._id,
+      })
     }
     await notifyPublicationChange(ctx, {
       hubId: args.hubId,
@@ -596,32 +695,51 @@ export const saveAnnouncement = mutation({
     eventSlug: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "announcements"
+    )
     if (args.expiresAt < args.publishedAt)
       throw new Error("expiryAfterPublishDate")
-    const guide = args.guideSlug
-      ? await ctx.db
-          .query("guides")
-          .withIndex("by_hubId_and_slug", (q) =>
-            q.eq("hubId", args.hubId).eq("slug", args.guideSlug!)
-          )
-          .unique()
-      : null
-    const event = args.eventSlug
-      ? await ctx.db
-          .query("events")
-          .withIndex("by_hubId_and_slug", (q) =>
-            q.eq("hubId", args.hubId).eq("slug", args.eventSlug!)
-          )
-          .unique()
-      : null
     const existing = await ctx.db
       .query("announcements")
       .withIndex("by_hubId_and_slug", (q) =>
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    const workersCanEdit = normalizeWorkersCanEdit(hub.workersCanEdit)
+    const canAccessDraftGuides =
+      permission !== "viewer" || workersCanEdit.guides
+    const canAccessDraftEvents =
+      permission !== "viewer" || workersCanEdit.events
+    const guide =
+      args.guideSlug !== undefined
+        ? await resolveGuideReference(ctx, {
+            hubId: args.hubId,
+            slug: args.guideSlug,
+            canAccessDrafts: canAccessDraftGuides,
+            ...(existing?.guideId
+              ? { allowedDraftIds: new Set([existing.guideId]) }
+              : {}),
+          })
+        : null
+    const event =
+      args.eventSlug !== undefined
+        ? await resolveEventReference(ctx, {
+            hubId: args.hubId,
+            slug: args.eventSlug,
+            canAccessDrafts: canAccessDraftEvents,
+            ...(existing?.eventId
+              ? { allowedDraftIds: new Set([existing.eventId]) }
+              : {}),
+          })
+        : null
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).announcements
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
@@ -694,14 +812,22 @@ export const saveFaq = mutation({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, permission } = await requireHubEditingPermission(
+      ctx,
+      args.hubId,
+      "faqs"
+    )
     const existing = await ctx.db
       .query("faqs")
       .withIndex("by_hubId_and_slug", (q) =>
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
-    if (!existing && permission === "editor") {
+    if (
+      !existing &&
+      permission === "editor" &&
+      !normalizeWorkersCanEdit(hub.workersCanEdit).faqs
+    ) {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
@@ -744,7 +870,7 @@ export const moveFaq = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "editor")
+    await requireHubEditingPermission(ctx, args.hubId, "faqs")
     const faqs = await ctx.db
       .query("faqs")
       .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))

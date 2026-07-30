@@ -69,8 +69,16 @@ export function AnnouncementEditor({
   announcementId?: string
 }) {
   const t = useAppTranslations()
-  const { hub, announcements, guides, events, saveAnnouncement, showFeedback } =
-    useOperations()
+  const {
+    hub,
+    announcements,
+    guides,
+    events,
+    guideReferences,
+    eventReferences,
+    saveAnnouncement,
+    showFeedback,
+  } = useOperations()
   const existing = announcementId
     ? announcements.find((announcement) => announcement.id === announcementId)
     : undefined
@@ -285,7 +293,7 @@ export function AnnouncementEditor({
                 </Select>
               </Field>
               <RelatedGuidesPicker
-                guides={guides}
+                guides={guideReferences}
                 selectedIds={draft.guideId ? [draft.guideId] : []}
                 onChange={(guideIds) => change({ guideId: guideIds[0] })}
                 selectionMode="single"
@@ -310,11 +318,15 @@ export function AnnouncementEditor({
                     <SelectItem value="none">
                       <T>noRelatedEvent</T>
                     </SelectItem>
-                    {events.map((event) => (
-                      <SelectItem key={event.id} value={event.id}>
-                        {event.title}
-                      </SelectItem>
-                    ))}
+                    {eventReferences
+                      .filter(
+                        (event) => event.published || event.id === draft.eventId
+                      )
+                      .map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.title}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </Field>

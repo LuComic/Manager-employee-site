@@ -84,7 +84,8 @@ function toDraft(guide: Guide): GuideDraft {
 
 export function GuideEditor({ guideId }: { guideId?: string }) {
   const t = useAppTranslations()
-  const { categories, guides, saveGuide, showFeedback } = useOperations()
+  const { categories, guides, guideReferences, saveGuide, showFeedback } =
+    useOperations()
   const existingGuide = guideId
     ? guides.find((guide) => guide.id === guideId)
     : undefined
@@ -411,7 +412,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                 ) : null}
               </Field>
               <RelatedGuidesPicker
-                guides={guides}
+                guides={guideReferences}
                 selectedIds={draft.relatedGuideIds}
                 onChange={(relatedGuideIds) => change({ relatedGuideIds })}
                 excludeGuideId={draft.id || undefined}

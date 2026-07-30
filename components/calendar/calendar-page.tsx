@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { ManageSectionButton } from "@/components/knowledge-base/manage-section-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { EventCard } from "@/components/operations/event-card"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -184,10 +185,11 @@ export function CalendarPage() {
               ))}
             </SelectContent>
           </Select>
-          <SegmentedControl aria-label={t("calendarView")}>
+          <SegmentedControl className="h-9" aria-label={t("calendarView")}>
             <SegmentedControlItem
               selected={view === "month"}
               size="sm"
+              className="h-full"
               onClick={() => setView("month")}
             >
               <CalendarDays /> <T>month</T>
@@ -195,11 +197,17 @@ export function CalendarPage() {
             <SegmentedControlItem
               selected={view === "list"}
               size="sm"
+              className="h-full"
               onClick={() => setView("list")}
             >
               <List /> <T>list</T>
             </SegmentedControlItem>
           </SegmentedControl>
+          <ManageSectionButton
+            section="events"
+            href="/manager/calendar"
+            size="sm"
+          />
         </div>
       </div>
 

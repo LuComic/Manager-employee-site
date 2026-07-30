@@ -283,7 +283,7 @@ export function HubEntryScreen({
                           "h-10 transform-none transition-colors hover:transform-none active:transform-none",
                       })}
                     >
-                      <Building2 /> <T>managerArea</T>
+                      <Building2 data-icon="inline-start" /> <T>managerArea</T>
                     </Link>
                   </div>
                 </div>

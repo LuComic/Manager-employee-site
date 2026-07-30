@@ -7,7 +7,9 @@ import { useMemo, useState } from "react"
 import { Link } from "@/i18n/navigation"
 import {
   CalendarDays,
+  ChevronDown,
   FilePenLine,
+  Menu,
   Plus,
   Search,
   Trash2,
@@ -19,6 +21,7 @@ import { CalendarImportIssues } from "@/components/manager/calendar-import-issue
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
+import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +34,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -74,6 +83,7 @@ export function EventManager() {
     events,
     hub,
     canCreateContent,
+    canCreateInSection,
     saveEvent,
     deleteEvent,
     showFeedback,
@@ -100,6 +110,7 @@ export function EventManager() {
     completed: number
     total: number
   } | null>(null)
+  const canCreateEvents = canCreateInSection("events")
   const importReadyCount =
     (importResult?.events.length ?? 0) +
     (importResult?.cancellations.length ?? 0)
@@ -271,30 +282,37 @@ export function EventManager() {
         description="maintainSharedOperationalDatesImportEventsOtherMessage"
         action={
           <div className="flex flex-wrap gap-2">
-            <CalendarExportButton
-              events={events.filter((event) => event.published)}
-              calendarName={t("namedCalendar", {
-                name: hub?.name ?? t("workplace"),
-              })}
-              timeZone={hub?.timeZone ?? "UTC"}
-              uidNamespace={hub?.id ?? "unconfigured-workplace"}
-            />
-            {canCreateContent && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload /> <T>importIcs</T>
-                </Button>
-                <Link
-                  href="/manager/calendar/new"
-                  className={buttonVariants({ size: "sm" })}
-                >
-                  <Plus /> <T>createEvent</T>
-                </Link>
-              </>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="outline" size="sm" />}
+              >
+                <Menu /> <T>moreLowercase</T> <ChevronDown />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <CalendarExportButton
+                  events={events.filter((event) => event.published)}
+                  calendarName={t("namedCalendar", {
+                    name: hub?.name ?? t("workplace"),
+                  })}
+                  timeZone={hub?.timeZone ?? "UTC"}
+                  uidNamespace={hub?.id ?? "unconfigured-workplace"}
+                  appearance="menu-item"
+                />
+                {canCreateEvents && (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload /> <T>importIcs</T>
+                  </DropdownMenuItem>
+                )}
+                <WorkersCanEditToggle section="events" appearance="menu-item" />
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {canCreateEvents && (
+              <Link
+                href="/manager/calendar/new"
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Plus data-icon="inline-start" /> <T>add</T>
+              </Link>
             )}
           </div>
         }
@@ -410,7 +428,7 @@ export function EventManager() {
                       buttonVariants({ variant: "outline", size: "sm" })
                     )}
                   >
-                    <FilePenLine /> <T>edit</T>
+                    <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
                   {canCreateContent && (
                     <Button

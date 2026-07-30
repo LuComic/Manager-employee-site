@@ -6,8 +6,13 @@ import { T } from "@/components/translated-text"
 import { Button } from "@/components/ui/button"
 import type { AppMessageKey } from "@/i18n/messages"
 import { useAppTranslations } from "@/i18n/use-app-translations"
-import type { Guide } from "@/lib/knowledge-base"
 import { cn } from "@/lib/utils"
+
+type RelatedGuideOption = {
+  id: string
+  title: string
+  published?: boolean
+}
 
 export function RelatedGuidesPicker({
   guides,
@@ -18,7 +23,7 @@ export function RelatedGuidesPicker({
   title = "relatedGuides",
   className,
 }: {
-  guides: Guide[]
+  guides: RelatedGuideOption[]
   selectedIds: string[]
   onChange: (guideIds: string[]) => void
   excludeGuideId?: string

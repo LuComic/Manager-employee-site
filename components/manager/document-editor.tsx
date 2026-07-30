@@ -51,7 +51,7 @@ function newDocument(): EditableDocument {
 
 export function DocumentEditor({ documentId }: { documentId?: string }) {
   const t = useAppTranslations()
-  const { documents, employees, guides, saveDocument, showFeedback } =
+  const { documents, employees, guideReferences, saveDocument, showFeedback } =
     useOperations()
   const existing = documentId
     ? documents.find((document) => document.id === documentId)
@@ -456,7 +456,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
             </div>
 
             <RelatedGuidesPicker
-              guides={guides}
+              guides={guideReferences}
               selectedIds={draft.relatedGuideIds ?? []}
               onChange={(relatedGuideIds) => {
                 setDraft({ ...draft, relatedGuideIds })

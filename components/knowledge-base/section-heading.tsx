@@ -33,7 +33,7 @@ export function SectionHeading({
           href={action.href}
           className={buttonVariants({ variant: "ghost", size: "sm" })}
         >
-          <T>{action.label}</T> <ArrowRight />
+          <T>{action.label}</T> <ArrowRight data-icon="inline-end" />
         </Link>
       )}
     </div>

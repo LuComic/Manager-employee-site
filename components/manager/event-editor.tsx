@@ -70,7 +70,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const {
     events,
     employees,
-    guides,
+    guideReferences,
     hub,
     saveEvent,
     uploadAttachment,
@@ -479,7 +479,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
             </div>
 
             <RelatedGuidesPicker
-              guides={guides}
+              guides={guideReferences}
               selectedIds={draft.guideIds}
               onChange={(guideIds) => change({ ...draft, guideIds })}
               className="border-t pt-6"

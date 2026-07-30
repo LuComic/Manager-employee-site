@@ -352,7 +352,7 @@ export function CategoryManager() {
                 )}
               >
                 {guide.title}
-                <FilePenLine />
+                <FilePenLine data-icon="inline-end" />
               </Link>
             ))}
           </div>

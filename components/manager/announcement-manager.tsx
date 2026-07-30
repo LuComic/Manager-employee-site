@@ -18,6 +18,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
+import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
@@ -47,6 +48,7 @@ export function AnnouncementManager() {
     announcements,
     hub,
     canCreateContent,
+    canCreateInSection,
     saveAnnouncement,
     deleteAnnouncement,
     showFeedback,
@@ -54,6 +56,7 @@ export function AnnouncementManager() {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
+  const canCreateAnnouncements = canCreateInSection("announcements")
   const visible = useMemo(
     () =>
       announcements
@@ -80,13 +83,18 @@ export function AnnouncementManager() {
         title="manageAnnouncements"
         description="maintainTemporaryNoticesDatesPriorityPinnedState"
         action={
-          canCreateContent ? (
-            <Link
-              href="/manager/announcements/new"
-              className={buttonVariants()}
-            >
-              <Plus /> <T>createAnnouncement</T>
-            </Link>
+          canCreateContent || canCreateAnnouncements ? (
+            <div className="flex flex-wrap gap-2">
+              <WorkersCanEditToggle section="announcements" />
+              {canCreateAnnouncements && (
+                <Link
+                  href="/manager/announcements/new"
+                  className={buttonVariants()}
+                >
+                  <Plus data-icon="inline-start" /> <T>createAnnouncement</T>
+                </Link>
+              )}
+            </div>
           ) : undefined
         }
       />
@@ -218,7 +226,7 @@ export function AnnouncementManager() {
                         buttonVariants({ variant: "outline", size: "sm" })
                       )}
                     >
-                      <FilePenLine /> <T>edit</T>
+                      <FilePenLine data-icon="inline-start" /> <T>edit</T>
                     </Link>
                     {canCreateContent && (
                       <Button
