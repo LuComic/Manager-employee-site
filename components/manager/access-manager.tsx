@@ -3,6 +3,7 @@
 import { T } from "@/components/translated-text"
 
 import { useState } from "react"
+import { useQuery } from "convex/react"
 import {
   Check,
   Copy,
@@ -24,26 +25,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { api } from "@/convex/_generated/api"
 import type { AppMessageKey } from "@/i18n/messages"
 
 export function AccessManager() {
-  const {
-    hub,
-    ownerCredentialsState,
-    rotateCredentials,
-    setAccessMode,
-    showFeedback,
-  } = useOperations()
+  const { hub, managerAccess, rotateCredentials, setAccessMode, showFeedback } =
+    useOperations()
   const [pending, setPending] = useState(false)
   const [modePending, setModePending] = useState(false)
   const [copied, setCopied] = useState("")
+  const credentials = useQuery(
+    api.hubs.getOwnerCredentials,
+    hub && managerAccess === "owner" ? { hubId: hub.id } : "skip"
+  )
   if (!hub) return null
 
-  const credentials =
-    ownerCredentialsState.kind === "ready"
-      ? ownerCredentialsState.credentials
-      : undefined
-  const credentialsLoading = ownerCredentialsState.kind === "loading"
+  const credentialsLoading = credentials === undefined
   const employeeUrl =
     typeof window === "undefined"
       ? ""

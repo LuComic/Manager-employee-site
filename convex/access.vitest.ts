@@ -253,11 +253,13 @@ describe("hub authorization and anonymous access", () => {
   test("credential rotation revokes old codes and links", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t, { restricted: true })
-    await t.withIdentity(ownerIdentity).mutation(api.hubs.rotateCredentials, {
-      hubId,
-      joinCode: "JKLM-NPQR",
-      privateToken: "replacement-private-token-that-is-long-enough-123",
-    })
+    await expect(
+      t.withIdentity(ownerIdentity).mutation(api.hubs.rotateCredentials, {
+        hubId,
+        joinCode: "JKLM-NPQR",
+        privateToken: "replacement-private-token-that-is-long-enough-123",
+      })
+    ).resolves.toBeNull()
 
     expect(
       (

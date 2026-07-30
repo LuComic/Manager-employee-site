@@ -493,7 +493,7 @@ export const rotateCredentials = mutation({
     joinCode: v.string(),
     privateToken: v.string(),
   },
-  returns: hubCredentialsValidator,
+  returns: v.null(),
   handler: async (ctx, args) => {
     const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
     if (normalizeJoinCode(args.joinCode).length < 8) {
@@ -516,11 +516,7 @@ export const rotateCredentials = mutation({
       privateToken: args.privateToken,
       credentialVersion,
     })
-    return {
-      joinCode: args.joinCode,
-      privateToken: args.privateToken,
-      credentialVersion,
-    }
+    return null
   },
 })
 

@@ -79,15 +79,6 @@ export type HubSettings = Pick<
   | "contactPhone"
 >
 
-export type HubCredentials = {
-  joinCode: string
-  privateToken: string
-  credentialVersion: number
-}
-
-type OwnerCredentialsState =
-  { kind: "loading" } | { kind: "ready"; credentials: HubCredentials }
-
 type OperationsContextValue = OperationsState & {
   hub: HubInfo | null
   hubSlug: string
@@ -104,7 +95,6 @@ type OperationsContextValue = OperationsState & {
   isManagerRoute: boolean
   managerAccess: ManagerAccess | null
   canCreateContent: boolean
-  ownerCredentialsState: OwnerCredentialsState
   employees: EmployeeProfile[]
   createHub: (name: string, slug: string) => Promise<void>
   createEmployee: (profile: {
@@ -124,7 +114,7 @@ type OperationsContextValue = OperationsState & {
       accessLevel: EmployeeProfile["accessLevel"]
     }
   ) => Promise<void>
-  rotateCredentials: () => Promise<HubCredentials>
+  rotateCredentials: () => Promise<void>
   setAccessMode: (accessMode: HubAccessMode) => Promise<void>
   saveHubSettings: (settings: HubSettings) => Promise<void>
   uploadHubBanner: (file: File) => Promise<void>
@@ -171,7 +161,7 @@ function randomString(length: number, alphabet: string) {
   )
 }
 
-function createCredentials(credentialVersion = 1): HubCredentials {
+function createCredentials() {
   const code = randomString(8, JOIN_ALPHABET)
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
@@ -182,7 +172,6 @@ function createCredentials(credentialVersion = 1): HubCredentials {
   return {
     joinCode: `${code.slice(0, 4)}-${code.slice(4)}`,
     privateToken,
-    credentialVersion,
   }
 }
 
@@ -370,20 +359,6 @@ export function OperationsProvider({
     isManagerRoute && managerSnapshot?.kind === "ready"
       ? (managerSnapshot.managerAccess as ManagerAccess)
       : ((navigationManagerAccess ?? null) as ManagerAccess | null)
-  const persistedOwnerCredentials = useQuery(
-    api.hubs.getOwnerCredentials,
-    isManagerRoute &&
-      isAuthenticated &&
-      managerSnapshot?.kind === "ready" &&
-      managerSnapshot.managerAccess === "owner"
-      ? { hubId: managerSnapshot.hub.id }
-      : "skip"
-  )
-  const ownerCredentialsState: OwnerCredentialsState =
-    persistedOwnerCredentials === undefined
-      ? { kind: "loading" }
-      : { kind: "ready", credentials: persistedOwnerCredentials }
-
   useEffect(() => {
     if (!activeSnapshot?.hub.timeZone) return
     const timeout = window.setTimeout(
@@ -580,7 +555,6 @@ export function OperationsProvider({
     isManagerRoute,
     managerAccess,
     canCreateContent: managerAccess === "manager" || managerAccess === "owner",
-    ownerCredentialsState,
     employees: managedEmployeeProfiles
       ? (managedEmployeeProfiles as EmployeeProfile[])
       : ((assignableEmployeeProfiles ?? []).map((profile) => ({
@@ -632,15 +606,14 @@ export function OperationsProvider({
     },
     rotateCredentials: async () => {
       const hubId = managerHubId()
-      const credentials = createCredentials((hub?.credentialVersion ?? 0) + 1)
-      const result = await run(() =>
+      const credentials = createCredentials()
+      await run(() =>
         rotateCredentialsMutation({
           hubId,
           joinCode: credentials.joinCode,
           privateToken: credentials.privateToken,
         })
       )
-      return result
     },
     setAccessMode: async (accessMode) => {
       await run(() =>
