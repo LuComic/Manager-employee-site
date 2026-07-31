@@ -138,7 +138,9 @@ export const published = query({
             cleanQuery,
             event.title,
             event.description,
-            categoryById.get(event.categoryId),
+            event.categoryId
+              ? categoryById.get(event.categoryId)
+              : event.category,
             event.location,
             employeeNamesByEventId.get(event._id),
             event.notes
