@@ -6,6 +6,7 @@ import {
   type WorkersCanEdit,
 } from "../../lib/worker-editing"
 import { assertGuideLinksPerHub, MAX_GUIDE_LINKS_PER_HUB } from "./guideLinks"
+import { categoryKind } from "./categories"
 
 export async function buildSnapshot(
   ctx: QueryCtx,
@@ -261,6 +262,10 @@ export async function buildSnapshot(
       iconKey: category.iconKey,
       description: category.description,
       order: category.order,
+      kind: categoryKind(category),
+      ...(category.systemLabelKey
+        ? { systemLabelKey: category.systemLabelKey }
+        : {}),
     })),
     guides: guides.flatMap((guide) => {
       const category = categorySlugById.get(guide.categoryId)

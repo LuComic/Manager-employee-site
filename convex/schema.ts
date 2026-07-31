@@ -126,6 +126,17 @@ export default defineSchema({
     iconKey: v.string(),
     description: v.string(),
     order: v.number(),
+    // Categories created before category purposes were introduced are guides.
+    kind: v.optional(v.union(v.literal("guide"), v.literal("event"))),
+    systemLabelKey: v.optional(
+      v.union(
+        v.literal("reservation"),
+        v.literal("training"),
+        v.literal("maintenance"),
+        v.literal("inspection"),
+        v.literal("openingHours")
+      )
+    ),
   })
     .index("by_hubId_and_order", ["hubId", "order"])
     .index("by_hubId_and_slug", ["hubId", "slug"]),

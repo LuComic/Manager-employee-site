@@ -23,14 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { eventCategoryLabel } from "@/lib/categories"
 import {
   addCalendarDays,
-  eventCategoryMessageKeys,
-  eventCategories,
   slugify,
   toLocalDateTimeValue,
   type CalendarEvent,
-  type EventCategory,
 } from "@/lib/operations"
 
 function cloneEvent(event: CalendarEvent): CalendarEvent {
@@ -42,7 +40,10 @@ function cloneEvent(event: CalendarEvent): CalendarEvent {
   }
 }
 
-function newEvent(location = ""): CalendarEvent {
+function newEvent(
+  location = "",
+  category = "event-reservation"
+): CalendarEvent {
   const start = new Date()
   start.setDate(start.getDate() + 1)
   start.setHours(10, 0, 0, 0)
@@ -52,7 +53,7 @@ function newEvent(location = ""): CalendarEvent {
     id: "",
     title: "",
     description: "",
-    category: "Reservation",
+    category,
     start: toLocalDateTimeValue(start),
     end: toLocalDateTimeValue(end),
     allDay: false,
@@ -69,6 +70,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const t = useAppTranslations()
   const {
     events,
+    eventTypes,
     employees,
     guideReferences,
     hub,
@@ -85,7 +87,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
       ? existing
         ? cloneEvent(existing)
         : null
-      : newEvent(hub?.address ?? "")
+      : newEvent(hub?.address ?? "", eventTypes[0]?.id)
   )
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [removedAttachments, setRemovedAttachments] = useState<
@@ -452,20 +454,22 @@ export function EventEditor({ eventId }: { eventId?: string }) {
               <Field label="eventType" id="event-type">
                 <Select
                   value={draft.category}
-                  onValueChange={(value) =>
-                    change({ ...draft, category: value as EventCategory })
-                  }
+                  onValueChange={(value) => {
+                    if (value) change({ ...draft, category: value })
+                  }}
                 >
                   <SelectTrigger
                     id="event-type"
                     className="w-full border border-input bg-background px-3"
                   >
-                    <SelectValue />
+                    <SelectValue>
+                      {eventCategoryLabel(draft.category, eventTypes, t)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {eventCategories.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {t(eventCategoryMessageKeys[item])}
+                    {eventTypes.map((eventType) => (
+                      <SelectItem key={eventType.id} value={eventType.id}>
+                        {eventCategoryLabel(eventType.id, eventTypes, t)}
                       </SelectItem>
                     ))}
                   </SelectContent>

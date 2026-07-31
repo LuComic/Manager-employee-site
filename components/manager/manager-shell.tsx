@@ -62,7 +62,7 @@ const primaryNavigationItems: NavigationLink[] = [
 
 const guideNavigationItems: NavigationLink[] = [
   { href: "/manager/guides", label: "guides", icon: BookOpen },
-  { href: "/manager/categories", label: "guideCategories", icon: Tags },
+  { href: "/manager/categories", label: "categories", icon: Tags },
 ]
 
 const moreNavigationGroups: {

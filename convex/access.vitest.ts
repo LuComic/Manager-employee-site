@@ -89,6 +89,87 @@ describe("hub authorization and anonymous access", () => {
     ).toBe("none")
   })
 
+  test("backfills configurable event types when an older hub saves an event", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    await t.run(async (ctx) => {
+      const categories = await ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hubId))
+        .take(500)
+      for (const category of categories) {
+        if (category.kind === "event") {
+          await ctx.db.delete("categories", category._id)
+        }
+      }
+    })
+
+    await t.withIdentity(ownerIdentity).mutation(api.content.saveEvent, {
+      hubId,
+      slug: "legacy-event",
+      title: "Legacy event",
+      description: "Migrates the old event type value",
+      category: "Training",
+      start: "2026-08-01T10:00",
+      end: "2026-08-01T11:00",
+      location: "Office",
+      notes: "",
+      published: false,
+      guideSlugs: [],
+    })
+
+    const migrated = await t.run(async (ctx) => {
+      const categories = await ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hubId))
+        .take(500)
+      const event = await ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "legacy-event")
+        )
+        .unique()
+      return {
+        eventTypeIds: categories
+          .filter((category) => category.kind === "event")
+          .map((category) => category.slug),
+        eventCategory: event?.category,
+      }
+    })
+    expect(migrated.eventTypeIds).toHaveLength(5)
+    expect(migrated.eventCategory).toBe("event-training")
+
+    const owner = t.withIdentity(ownerIdentity)
+    await owner.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "event-inventory",
+      label: "Inventory count",
+      iconKey: "general",
+      description: "",
+      kind: "event",
+    })
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "inventory-count",
+      title: "Inventory count",
+      description: "Uses a manager-defined event type",
+      category: "event-inventory",
+      start: "2026-08-02T10:00",
+      end: "2026-08-02T11:00",
+      location: "Stockroom",
+      notes: "",
+      published: false,
+      guideSlugs: [],
+    })
+    await expect(
+      owner.mutation(api.content.deleteCategory, {
+        hubId,
+        slug: "event-inventory",
+        kind: "event",
+      })
+    ).rejects.toThrow("reassignEventsBeforeDeletingThisCategory")
+  })
+
   test("accepts current restricted credentials and rejects invalid ones", async () => {
     const t = convexTest(schema, modules)
     await createHub(t, { restricted: true })
@@ -2091,6 +2172,46 @@ describe("notification feeds", () => {
         guestDeviceId: firstDevice,
       })
     ).rejects.toThrow("hubAccessRequired")
+  })
+
+  test("treats attachments selected in the event editor as part of one notification", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "event-with-file",
+      title: "Event with file",
+      description: "Published together with an attachment",
+      category: "Reservation",
+      start: "2026-08-01T10:00",
+      end: "2026-08-01T11:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+    })
+    const storageId = await createRegisteredUpload(t, {
+      hubId,
+      identity: ownerIdentity,
+      blob: new Blob(["agenda"], { type: "text/plain" }),
+    })
+    await owner.mutation(api.files.attachToEvent, {
+      hubId,
+      eventSlug: "event-with-file",
+      storageId,
+      name: "agenda.txt",
+      contentType: "text/plain",
+      notifyEmployees: false,
+    })
+
+    const feed = await t.query(api.notifications.listEmployee, {
+      hubSlug: "test-hub",
+      guestDeviceId: "guest-device-event-with-file",
+    })
+    expect(feed.notifications.map((item) => item.titleKey)).toEqual([
+      "notificationNewEventAdded",
+    ])
   })
 
   test("adds personal assignment alerts only for the assigned employee", async () => {

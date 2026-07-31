@@ -12,6 +12,11 @@ import {
   toDateKey,
   type CalendarEvent,
 } from "@/lib/operations"
+import {
+  categoryLabel,
+  eventCategoryLabel,
+  virtualDefaultEventTypes,
+} from "@/lib/categories"
 
 describe("normalizeEventCategory", () => {
   test("preserves supported categories", () => {
@@ -22,6 +27,33 @@ describe("normalizeEventCategory", () => {
     expect(normalizeEventCategory("Promotion")).toBe("Reservation")
     expect(normalizeEventCategory("Delivery")).toBe("Reservation")
     expect(normalizeEventCategory("Anything else")).toBe("Reservation")
+  })
+
+  test("maps legacy values to configurable event type ids", () => {
+    expect(normalizeEventCategory("Training", virtualDefaultEventTypes)).toBe(
+      "event-training"
+    )
+  })
+
+  test("uses localized system labels and preserves custom labels", () => {
+    const translate = (key: string) =>
+      key === "reservation" ? "Broneering" : key
+    expect(categoryLabel(virtualDefaultEventTypes[0], translate)).toBe(
+      "Broneering"
+    )
+    expect(
+      eventCategoryLabel(
+        "custom-event",
+        [
+          {
+            id: "custom-event",
+            label: "Inventuur",
+            kind: "event",
+          },
+        ],
+        translate
+      )
+    ).toBe("Inventuur")
   })
 })
 

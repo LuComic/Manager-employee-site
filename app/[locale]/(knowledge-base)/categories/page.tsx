@@ -8,7 +8,7 @@ import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 
 export default function CategoriesPage() {
-  const { categories, guides } = useOperations()
+  const { guideCategories, guides } = useOperations()
   const publishedGuides = guides.filter((guide) => guide.published)
 
   return (
@@ -18,9 +18,9 @@ export default function CategoriesPage() {
         description="chooseWorkAreaSeeAllPublishedGuides"
       />
 
-      {categories.length ? (
+      {guideCategories.length ? (
         <div className="grid gap-px overflow-hidden border bg-border sm:grid-cols-2 xl:grid-cols-3">
-          {categories.map((category) => (
+          {guideCategories.map((category) => (
             <CategoryCard
               key={category.id}
               category={category}

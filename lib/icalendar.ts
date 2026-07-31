@@ -4,13 +4,9 @@ import ICAL from "ical.js"
 
 import type { AppMessageKey } from "@/i18n/messages"
 import { SITE_NAME } from "@/lib/branding"
-import {
-  addCalendarDays,
-  eventCategories,
-  slugify,
-  type CalendarEvent,
-  type EventCategory,
-} from "@/lib/operations"
+import { defaultEventTypeDefinitions } from "@/lib/categories"
+import type { Category } from "@/lib/knowledge-base"
+import { addCalendarDays, slugify, type CalendarEvent } from "@/lib/operations"
 
 export const MAX_IMPORTED_EVENTS = 25
 export const MAX_ICALENDAR_FILE_SIZE_BYTES = 1024 * 1024
@@ -38,6 +34,7 @@ type ImportOptions = {
   defaultDescription?: string
   defaultLocation?: string
   cancelledEventTitle?: string
+  eventTypes?: readonly Category[]
 }
 
 export type CalendarImportIssue = {
@@ -108,6 +105,7 @@ export function parseICalendar(
     defaultDescription = "Imported from an external calendar.",
     defaultLocation = "No location specified",
     cancelledEventTitle = "Cancelled event",
+    eventTypes,
   }: ImportOptions
 ): CalendarImportResult {
   const normalizedUidNamespace = normalizeUidNamespace(uidNamespace)
@@ -187,6 +185,7 @@ export function parseICalendar(
         defaultDescription,
         defaultLocation,
         normalizedUidNamespace,
+        eventTypes,
         (key, values) => eventWarnings.push({ key, values })
       )
       if (seenIds.has(event.id)) {
@@ -308,6 +307,7 @@ function parseEvent(
   defaultDescription: string,
   defaultLocation: string,
   uidNamespace: string,
+  eventTypes: readonly Category[] | undefined,
   warn: (key: AppMessageKey, values?: Record<string, string | number>) => void
 ): CalendarEvent {
   const summary = textValue(component, "summary").trim()
@@ -399,13 +399,13 @@ function parseEvent(
   }
 
   const rawCategories = textValue(component, "categories")
-  const category = matchCategory(rawCategories)
+  const category = matchCategory(rawCategories, eventTypes)
   if (!category.matched) {
     warn(
       rawCategories.trim()
         ? "calendarEventUnsupportedCategory"
         : "calendarEventNoCategory",
-      { category: category.value }
+      { category: category.warningLabel }
     )
   }
 
@@ -656,17 +656,36 @@ function fourDigits(value: number) {
   return String(value).padStart(4, "0")
 }
 
-function matchCategory(value: string): {
-  value: EventCategory
+function matchCategory(
+  value: string,
+  eventTypes?: readonly Category[]
+): {
+  value: string
   matched: boolean
+  warningLabel: string
 } {
   const candidates = value.split(",").map((item) => item.trim().toLowerCase())
-  const category = eventCategories.find((item) =>
-    candidates.includes(item.toLowerCase())
+  const definitions = defaultEventTypeDefinitions
+  if (eventTypes?.length) {
+    const category = eventTypes.find((eventType) => {
+      const definition = definitions.find((item) => item.id === eventType.id)
+      return [eventType.id, eventType.label, definition?.legacyValue]
+        .filter((item): item is string => Boolean(item))
+        .some((item) => candidates.includes(item.toLowerCase()))
+    })
+    return {
+      value: category?.id ?? eventTypes[0].id,
+      matched: Boolean(category),
+      warningLabel: category?.label ?? eventTypes[0].label,
+    }
+  }
+  const category = definitions.find((item) =>
+    candidates.includes(item.legacyValue.toLowerCase())
   )
   return {
-    value: category ?? "Reservation",
+    value: category?.legacyValue ?? definitions[0].legacyValue,
     matched: Boolean(category),
+    warningLabel: category?.label ?? definitions[0].label,
   }
 }
 

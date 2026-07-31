@@ -175,6 +175,35 @@ describe("iCalendar export", () => {
 })
 
 describe("iCalendar import", () => {
+  test("matches manager-defined event types", () => {
+    const result = parseICalendar(
+      calendar([
+        "UID:custom-category",
+        "DTSTART:20260801T100000Z",
+        "DTEND:20260801T110000Z",
+        "SUMMARY:Inventory",
+        "DESCRIPTION:Count stock",
+        "LOCATION:Stockroom",
+        "CATEGORIES:Inventuur",
+      ]),
+      {
+        timeZone: "Europe/Tallinn",
+        uidNamespace: "hub-a",
+        eventTypes: [
+          {
+            id: "event-inventory",
+            label: "Inventuur",
+            description: "",
+            iconKey: "general",
+            kind: "event",
+          },
+        ],
+      }
+    )
+
+    expect(result.events[0]?.category).toBe("event-inventory")
+  })
+
   test("imports UTC, zoned, and folded event values", () => {
     const result = parseICalendar(
       calendar([

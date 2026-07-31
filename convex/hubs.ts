@@ -27,6 +27,7 @@ import {
 } from "./lib/credentialEncryption"
 import { buildSnapshot } from "./lib/snapshot"
 import { createNotification } from "./lib/notifications"
+import { ensureDefaultEventTypes } from "./lib/categories"
 
 const accessModeValidator = v.union(
   v.literal("public"),
@@ -200,6 +201,7 @@ export const create = mutation({
       privateToken: args.privateToken,
       credentialVersion: 1,
     })
+    await ensureDefaultEventTypes(ctx, hubId)
     return { hubId, slug, created: true }
   },
 })

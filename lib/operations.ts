@@ -2,30 +2,7 @@ import type { Category, Guide } from "@/lib/knowledge-base"
 import type { RichTextDocument } from "@/lib/rich-text"
 import type { WorkspaceDocument } from "@/lib/documents"
 import type { AppMessageKey } from "@/i18n/messages"
-
-export const eventCategories = [
-  "Reservation",
-  "Training",
-  "Maintenance",
-  "Inspection",
-  "Opening hours",
-] as const
-
-export type EventCategory = (typeof eventCategories)[number]
-
-export function normalizeEventCategory(value: string): EventCategory {
-  return eventCategories.includes(value as EventCategory)
-    ? (value as EventCategory)
-    : "Reservation"
-}
-
-export const eventCategoryMessageKeys = {
-  Reservation: "reservation",
-  Training: "training",
-  Maintenance: "maintenance",
-  Inspection: "inspection",
-  "Opening hours": "openingHours",
-} satisfies Record<EventCategory, AppMessageKey>
+export { normalizeEventCategory } from "@/lib/categories"
 
 export type Attachment = {
   id: string
@@ -39,7 +16,7 @@ export type CalendarEvent = {
   id: string
   title: string
   description: string
-  category: EventCategory
+  category: string
   start: string
   end: string
   allDay: boolean

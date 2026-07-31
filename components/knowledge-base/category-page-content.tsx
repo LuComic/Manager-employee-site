@@ -8,8 +8,8 @@ import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
 
 export function CategoryPageContent({ categoryId }: { categoryId: string }) {
-  const { categories, guides } = useOperations()
-  const category = categories.find((item) => item.id === categoryId)
+  const { guideCategories, guides } = useOperations()
+  const category = guideCategories.find((item) => item.id === categoryId)
   if (!category)
     return (
       <EmptyState

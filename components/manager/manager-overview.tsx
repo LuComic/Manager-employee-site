@@ -55,9 +55,14 @@ export function ManagerOverview() {
         cards: [
           {
             href: "/manager/categories",
-            title: "guideCategories",
+            title: "categories",
             value: categories.length,
-            detail: t("shownInGuideNavigation"),
+            detail: t("guideCategoriesAndEventTypesCountMessage", {
+              guideCount: categories.filter((item) => item.kind === "guide")
+                .length,
+              eventTypeCount: categories.filter((item) => item.kind === "event")
+                .length,
+            }),
             icon: Tags,
           },
           {

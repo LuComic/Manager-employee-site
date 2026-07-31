@@ -27,17 +27,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  eventCategoryMessageKeys,
-  formatEventDate,
-  formatEventTime,
-} from "@/lib/operations"
+import { formatEventDate, formatEventTime } from "@/lib/operations"
+import { eventCategoryLabel } from "@/lib/categories"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
   const t = useAppTranslations()
   const languageTag = useLanguageTag()
-  const { events, guides, hub } = useOperations()
+  const { events, eventTypes, guides, hub } = useOperations()
   const event = events.find((item) => item.id === eventId && item.published)
   if (!event)
     return (
@@ -65,7 +62,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
       <Card className="shadow-none">
         <CardHeader className="border-b">
           <Badge variant="secondary">
-            {t(eventCategoryMessageKeys[event.category])}
+            {eventCategoryLabel(event.category, eventTypes, t)}
           </Badge>
           <CardTitle>
             <h1 className="text-2xl tracking-tight">{event.title}</h1>

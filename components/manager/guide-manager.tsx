@@ -31,7 +31,7 @@ type Status = "All" | "Published" | "Draft"
 export function GuideManager() {
   const t = useAppTranslations()
   const {
-    categories,
+    guideCategories,
     guides,
     canCreateContent,
     canCreateInSection,
@@ -66,11 +66,12 @@ export function GuideManager() {
         title="manageGuides"
         description="createEditPublishRemovePracticalInstructions"
         action={
-          canCreateContent || (canCreateGuides && categories.length > 0) ? (
+          canCreateContent ||
+          (canCreateGuides && guideCategories.length > 0) ? (
             <div className="flex flex-wrap gap-2">
               <WorkersCanEditToggle section="guides" />
               {canCreateGuides &&
-                (categories.length ? (
+                (guideCategories.length ? (
                   <Link href="/manager/guides/new" className={buttonVariants()}>
                     <Plus data-icon="inline-start" /> <T>createGuide</T>
                   </Link>
@@ -112,7 +113,7 @@ export function GuideManager() {
             <SelectItem value="All">
               <T>allWorkAreas</T>
             </SelectItem>
-            {categories.map((category) => (
+            {guideCategories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.label}
               </SelectItem>
@@ -157,7 +158,7 @@ export function GuideManager() {
                   <T>{guide.published ? "published" : "draft"}</T>
                 </Badge>,
                 <Badge key="category" variant="outline">
-                  {categories.find((item) => item.id === guide.category)
+                  {guideCategories.find((item) => item.id === guide.category)
                     ?.label ?? t("unknownWorkArea")}
                 </Badge>,
               ]}

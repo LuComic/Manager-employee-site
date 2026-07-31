@@ -210,6 +210,7 @@ export const attachToEvent = mutation({
     storageId: v.id("_storage"),
     name: v.string(),
     contentType: v.string(),
+    notifyEmployees: v.optional(v.boolean()),
   },
   returns: v.id("attachments"),
   handler: async (ctx, args) => {
@@ -241,7 +242,7 @@ export const attachToEvent = mutation({
       kind: "eventAttachment",
       attachmentId,
     })
-    if (event.published) {
+    if (event.published && args.notifyEmployees !== false) {
       await createNotification(ctx, {
         hubId: args.hubId,
         audience: "employees",
@@ -257,7 +258,11 @@ export const attachToEvent = mutation({
 })
 
 export const remove = mutation({
-  args: { hubId: v.id("hubs"), attachmentId: v.id("attachments") },
+  args: {
+    hubId: v.id("hubs"),
+    attachmentId: v.id("attachments"),
+    notifyEmployees: v.optional(v.boolean()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireHubEditingPermission(ctx, args.hubId, "events")
@@ -276,7 +281,7 @@ export const remove = mutation({
       allowUntracked: true,
     })
     await ctx.db.delete("attachments", attachment._id)
-    if (event?.published) {
+    if (event?.published && args.notifyEmployees !== false) {
       await createNotification(ctx, {
         hubId: args.hubId,
         audience: "employees",

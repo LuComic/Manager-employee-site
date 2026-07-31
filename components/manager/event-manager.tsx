@@ -59,13 +59,11 @@ import {
   type CalendarImportResult,
 } from "@/lib/icalendar"
 import {
-  eventCategoryMessageKeys,
-  eventCategories,
   formatEventDate,
   formatEventTime,
   type CalendarEvent,
-  type EventCategory,
 } from "@/lib/operations"
+import { eventCategoryLabel } from "@/lib/categories"
 import { cn } from "@/lib/utils"
 import type { AppMessageKey } from "@/i18n/messages"
 import type { TranslationValues } from "next-intl"
@@ -81,6 +79,7 @@ export function EventManager() {
   const languageTag = useLanguageTag()
   const {
     events,
+    eventTypes,
     hub,
     canCreateContent,
     canCreateInSection,
@@ -90,7 +89,7 @@ export function EventManager() {
   } = useOperations()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
-  const [category, setCategory] = useState<EventCategory | "All">("All")
+  const [category, setCategory] = useState<string>("All")
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importResult, setImportResult] = useState<CalendarImportResult | null>(
@@ -161,6 +160,10 @@ export function EventManager() {
         defaultDescription: t("calendarImportedExternalDescription"),
         defaultLocation: t("calendarNoLocationSpecified"),
         cancelledEventTitle: t("calendarCancelledEvent"),
+        eventTypes: eventTypes.map((eventType) => ({
+          ...eventType,
+          label: eventCategoryLabel(eventType.id, eventTypes, t),
+        })),
       })
       setImportFileName(file.name)
       setImportResult(result)
@@ -352,21 +355,27 @@ export function EventManager() {
         </Select>
         <Select
           value={category}
-          onValueChange={(value) => setCategory(value as EventCategory | "All")}
+          onValueChange={(value) => {
+            if (value) setCategory(value)
+          }}
         >
           <SelectTrigger
             className="w-full border border-input bg-background px-3"
             aria-label={t("filterEventsByType")}
           >
-            <SelectValue />
+            <SelectValue>
+              {category === "All"
+                ? t("all")
+                : eventCategoryLabel(category, eventTypes, t)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All">
               <T>all</T>
             </SelectItem>
-            {eventCategories.map((item) => (
-              <SelectItem key={item} value={item}>
-                {t(eventCategoryMessageKeys[item])}
+            {eventTypes.map((eventType) => (
+              <SelectItem key={eventType.id} value={eventType.id}>
+                {eventCategoryLabel(eventType.id, eventTypes, t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -387,7 +396,7 @@ export function EventManager() {
                   <T>{event.published ? "published" : "draft"}</T>
                 </Badge>,
                 <Badge key="category" variant="secondary">
-                  {t(eventCategoryMessageKeys[event.category])}
+                  {eventCategoryLabel(event.category, eventTypes, t)}
                 </Badge>,
               ]}
               description={
