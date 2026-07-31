@@ -84,14 +84,14 @@ function toDraft(guide: Guide): GuideDraft {
 
 export function GuideEditor({ guideId }: { guideId?: string }) {
   const t = useAppTranslations()
-  const { categories, guides, guideReferences, saveGuide, showFeedback } =
+  const { guideCategories, guides, guideReferences, saveGuide, showFeedback } =
     useOperations()
   const existingGuide = guideId
     ? guides.find((guide) => guide.id === guideId)
     : undefined
   const [draft, setDraft] = useState<GuideDraft | null>(() => {
     if (guideId) return existingGuide ? toDraft(existingGuide) : null
-    const category = categories[0]
+    const category = guideCategories[0]
     if (!category) return null
     return {
       id: "",
@@ -198,7 +198,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
     }
   }
 
-  if (!categories.length)
+  if (!guideCategories.length)
     return (
       <EmptyState
         icon={Pencil}
@@ -271,7 +271,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         <div className="border bg-muted/20 p-4 sm:p-6">
           <GuideDetail
             guide={previewGuide}
-            category={categories.find(
+            category={guideCategories.find(
               (category) => category.id === draft.category
             )}
             relatedGuides={guides.filter(
@@ -340,7 +340,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                   value={draft.category}
                   onValueChange={(value) => {
                     if (!value) return
-                    const category = categories.find(
+                    const category = guideCategories.find(
                       (item) => item.id === value
                     )
                     change({
@@ -358,7 +358,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {guideCategories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.label}
                       </SelectItem>

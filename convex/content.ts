@@ -24,18 +24,12 @@ import {
   notifyPublicationChange,
 } from "./lib/notifications"
 
+const categoryKindValidator = v.union(v.literal("guide"), v.literal("event"))
+
 const richTextDocument = v.object({
   type: v.literal("doc"),
   content: v.optional(v.array(v.any())),
 })
-
-const eventCategory = v.union(
-  v.literal("Reservation"),
-  v.literal("Training"),
-  v.literal("Maintenance"),
-  v.literal("Inspection"),
-  v.literal("Opening hours")
-)
 
 const requiredMessageKeys = {
   categoryName: ["categoryNameRequired", "categoryNameTooLong"],
@@ -119,38 +113,51 @@ export const saveCategory = mutation({
     label: v.string(),
     iconKey: v.string(),
     description: v.string(),
+    kind: categoryKindValidator,
   },
+  returns: v.string(),
   handler: async (ctx, args) => {
     const { permission } = await requireHubPermission(ctx, args.hubId, "editor")
+    const slug = required(args.slug, "categorySlug", 80)
     const existing = await ctx.db
       .query("categories")
       .withIndex("by_hubId_and_slug", (q) =>
-        q.eq("hubId", args.hubId).eq("slug", args.slug)
+        q.eq("hubId", args.hubId).eq("slug", slug)
       )
       .unique()
+    if (existing && existing.kind !== args.kind) {
+      throw new Error("categoryTypeCannotChange")
+    }
     if (!existing && permission === "editor") {
       throw new Error("fullContentAccessRequiredCreateContent")
     }
     const value = {
       label: required(args.label, "categoryName", 80),
       iconKey: required(args.iconKey, "categoryIcon", 40),
-      description: required(args.description, "categoryDescription", 300),
+      description:
+        args.kind === "guide"
+          ? required(args.description, "categoryDescription", 300)
+          : args.description.trim().slice(0, 300),
+      kind: args.kind,
     }
     if (existing) {
       await ctx.db.patch("categories", existing._id, value)
       return existing.slug
     }
-    const categories = await ctx.db
+    const lastCategory = await ctx.db
       .query("categories")
-      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
-      .take(500)
+      .withIndex("by_hubId_and_kind_and_order", (q) =>
+        q.eq("hubId", args.hubId).eq("kind", args.kind)
+      )
+      .order("desc")
+      .first()
     await ctx.db.insert("categories", {
       hubId: args.hubId,
-      slug: required(args.slug, "categorySlug", 80),
-      order: categories.length,
+      slug,
+      order: (lastCategory?.order ?? -1) + 1,
       ...value,
     })
-    return args.slug
+    return slug
   },
 })
 
@@ -158,31 +165,47 @@ export const moveCategory = mutation({
   args: {
     hubId: v.id("hubs"),
     slug: v.string(),
+    kind: categoryKindValidator,
     direction: v.union(v.literal(-1), v.literal(1)),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "editor")
-    const categories = await ctx.db
+    const category = await ctx.db
       .query("categories")
-      .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
-      .take(500)
-    const index = categories.findIndex(
-      (category) => category.slug === args.slug
-    )
-    const target = index + args.direction
-    if (index < 0 || target < 0 || target >= categories.length) return null
-    await ctx.db.patch("categories", categories[index]._id, {
-      order: categories[target].order,
+      .withIndex("by_hubId_and_slug", (q) =>
+        q.eq("hubId", args.hubId).eq("slug", args.slug)
+      )
+      .unique()
+    if (!category || category.kind !== args.kind) return null
+    const sibling = await ctx.db
+      .query("categories")
+      .withIndex("by_hubId_and_kind_and_order", (q) => {
+        const sameKind = q.eq("hubId", args.hubId).eq("kind", args.kind)
+        return args.direction === -1
+          ? sameKind.lt("order", category.order)
+          : sameKind.gt("order", category.order)
+      })
+      .order(args.direction === -1 ? "desc" : "asc")
+      .first()
+    if (!sibling) return null
+    await ctx.db.patch("categories", category._id, {
+      order: sibling.order,
     })
-    await ctx.db.patch("categories", categories[target]._id, {
-      order: categories[index].order,
+    await ctx.db.patch("categories", sibling._id, {
+      order: category.order,
     })
     return null
   },
 })
 
 export const deleteCategory = mutation({
-  args: { hubId: v.id("hubs"), slug: v.string() },
+  args: {
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    kind: categoryKindValidator,
+  },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "manager")
     const category = await ctx.db
@@ -192,11 +215,33 @@ export const deleteCategory = mutation({
       )
       .unique()
     if (!category) return null
-    const guide = await ctx.db
-      .query("guides")
-      .withIndex("by_categoryId", (q) => q.eq("categoryId", category._id))
-      .first()
-    if (guide) throw new Error("reassignGuidesBeforeDeletingThisCategory")
+    if (category.kind !== args.kind) {
+      throw new Error("categoryNotFound")
+    }
+    if (args.kind === "guide") {
+      const guide = await ctx.db
+        .query("guides")
+        .withIndex("by_categoryId", (q) => q.eq("categoryId", category._id))
+        .first()
+      if (guide) throw new Error("reassignGuidesBeforeDeletingThisCategory")
+    } else {
+      const eventTypes = await ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_kind_and_order", (q) =>
+          q.eq("hubId", args.hubId).eq("kind", "event")
+        )
+        .take(2)
+      if (eventTypes.length <= 1) throw new Error("atLeastOneEventTypeRequired")
+      const event = await ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_categoryId", (q) =>
+          q.eq("hubId", args.hubId).eq("categoryId", category._id)
+        )
+        .first()
+      if (event) {
+        throw new Error("reassignEventsBeforeDeletingThisCategory")
+      }
+    }
     await ctx.db.delete("categories", category._id)
     return null
   },
@@ -230,6 +275,9 @@ export const saveGuide = mutation({
       )
       .unique()
     if (!category) throw new Error("guideCategoryNotFound")
+    if (category.kind !== "guide") {
+      throw new Error("guideCategoryNotFound")
+    }
     const existing = await ctx.db
       .query("guides")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -396,7 +444,7 @@ export const saveEvent = mutation({
     slug: v.string(),
     title: v.string(),
     description: v.string(),
-    category: eventCategory,
+    category: v.string(),
     start: v.string(),
     end: v.string(),
     allDay: v.optional(v.boolean()),
@@ -417,6 +465,15 @@ export const saveEvent = mutation({
       "events"
     )
     const identity = await requireIdentity(ctx)
+    const category = await ctx.db
+      .query("categories")
+      .withIndex("by_hubId_and_slug", (q) =>
+        q.eq("hubId", args.hubId).eq("slug", args.category)
+      )
+      .unique()
+    if (!category || category.kind !== "event") {
+      throw new Error("eventCategoryNotFound")
+    }
     const hasExactInstants = Boolean(args.startUtc && args.endUtc)
     if (Boolean(args.startUtc) !== Boolean(args.endUtc)) {
       throw new Error("eventStartEndInstantsProvidedTogether")
@@ -475,7 +532,7 @@ export const saveEvent = mutation({
     const value = {
       title: required(args.title, "eventTitle", 140),
       description: required(args.description, "eventDescription", 500),
-      category: args.category,
+      categoryId: category._id,
       start: required(args.start, "eventStart", 40),
       end: required(args.end, "eventEnd", 40),
       allDay: args.allDay ?? false,

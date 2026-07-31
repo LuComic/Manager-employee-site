@@ -42,7 +42,6 @@ import type {
   WorkersCanEdit,
 } from "@/lib/worker-editing"
 import {
-  normalizeEventCategory,
   toDateKey,
   type Announcement,
   type Attachment,
@@ -86,6 +85,8 @@ export type HubSettings = Pick<
 >
 
 type OperationsContextValue = OperationsState & {
+  guideCategories: Category[]
+  eventTypes: Category[]
   hub: HubInfo | null
   hubSlug: string
   credential?: string
@@ -140,8 +141,8 @@ type OperationsContextValue = OperationsState & {
   grantAnonymousAccess: (credential: string) => void
   leaveHub: () => void
   saveCategory: (category: Category) => Promise<void>
-  moveCategory: (id: string, direction: -1 | 1) => Promise<void>
-  deleteCategory: (id: string) => Promise<void>
+  moveCategory: (category: Category, direction: -1 | 1) => Promise<void>
+  deleteCategory: (category: Category) => Promise<void>
   saveGuide: (guide: Guide) => Promise<void>
   deleteGuide: (id: string) => Promise<void>
   saveEvent: (event: CalendarEvent) => Promise<string>
@@ -457,32 +458,38 @@ export function OperationsProvider({
         faqs: [],
         documents: [],
       }
-    const categories = activeSnapshot.categories.map((category) => ({
+    const storedCategories = activeSnapshot.categories.map((category) => ({
       id: category.id,
       label: category.label,
       description: category.description,
       iconKey: category.iconKey as CategoryIconKey,
-    }))
+      kind: category.kind,
+    })) as Category[]
     const categoryById = new Map(
-      categories.map((category) => [category.id, category])
+      storedCategories
+        .filter((category) => category.kind === "guide")
+        .map((category) => [category.id, category])
     )
     return {
-      categories,
+      categories: storedCategories,
       guides: activeSnapshot.guides.map((guide) => ({
         ...guide,
         icon: getCategoryIcon(
           categoryById.get(guide.category)?.iconKey ?? "general"
         ),
       })) as Guide[],
-      events: activeSnapshot.events.map((event) => ({
-        ...event,
-        category: normalizeEventCategory(event.category),
-      })) as CalendarEvent[],
+      events: activeSnapshot.events as CalendarEvent[],
       announcements: activeSnapshot.announcements as Announcement[],
       faqs: activeSnapshot.faqs as Faq[],
       documents: activeSnapshot.documents as WorkspaceDocument[],
     }
   }, [activeSnapshot])
+  const guideCategories = state.categories.filter(
+    (category) => category.kind === "guide"
+  )
+  const eventTypes = state.categories.filter(
+    (category) => category.kind === "event"
+  )
   const guideReferences =
     activeSnapshot && "guideReferences" in activeSnapshot
       ? (activeSnapshot.guideReferences as ContentReference[])
@@ -622,6 +629,8 @@ export function OperationsProvider({
 
   const value: OperationsContextValue = {
     ...state,
+    guideCategories,
+    eventTypes,
     hub,
     hubSlug,
     credential,
@@ -758,16 +767,28 @@ export function OperationsProvider({
           label: category.label,
           iconKey: category.iconKey,
           description: category.description,
+          kind: category.kind,
         })
       )
     },
-    moveCategory: async (slug, direction) => {
+    moveCategory: async (category, direction) => {
       await run(() =>
-        moveCategoryMutation({ hubId: managerHubId(), slug, direction })
+        moveCategoryMutation({
+          hubId: managerHubId(),
+          slug: category.id,
+          kind: category.kind,
+          direction,
+        })
       )
     },
-    deleteCategory: async (slug) => {
-      await run(() => deleteCategoryMutation({ hubId: managerHubId(), slug }))
+    deleteCategory: async (category) => {
+      await run(() =>
+        deleteCategoryMutation({
+          hubId: managerHubId(),
+          slug: category.id,
+          kind: category.kind,
+        })
+      )
     },
     saveGuide: async (guide) => {
       await run(() =>
@@ -830,6 +851,7 @@ export function OperationsProvider({
               storageId,
               name: file.name,
               contentType: file.type || "application/octet-stream",
+              notifyEmployees: false,
             }),
           "events"
         )
@@ -840,6 +862,7 @@ export function OperationsProvider({
         removeAttachment({
           hubId: managerHubId(),
           attachmentId: attachment.id as Id<"attachments">,
+          notifyEmployees: false,
         })
       )
     },

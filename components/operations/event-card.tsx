@@ -11,11 +11,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  eventCategoryMessageKeys,
   formatEventDate,
   formatEventTime,
   type CalendarEvent,
 } from "@/lib/operations"
+import { eventCategoryLabel } from "@/lib/categories"
+import { useOperations } from "@/components/providers/operations-provider"
 
 export function EventCard({
   event,
@@ -28,6 +29,7 @@ export function EventCard({
 }) {
   const languageTag = useLanguageTag()
   const t = useAppTranslations()
+  const { eventTypes } = useOperations()
 
   return (
     <Link
@@ -40,7 +42,7 @@ export function EventCard({
       >
         <CardHeader>
           <Badge variant="secondary">
-            {t(eventCategoryMessageKeys[event.category])}
+            {eventCategoryLabel(event.category, eventTypes)}
           </Badge>
           <CardTitle className="text-base">{event.title}</CardTitle>
           <CardDescription className={compact ? "line-clamp-2" : undefined}>

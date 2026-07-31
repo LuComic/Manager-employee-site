@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 
 export function GuidePageContent({ guideId }: { guideId: string }) {
-  const { categories, guides } = useOperations()
+  const { guideCategories, guides } = useOperations()
   const guide = guides.find((item) => item.id === guideId && item.published)
   if (!guide)
     return (
@@ -26,7 +26,7 @@ export function GuidePageContent({ guideId }: { guideId: string }) {
   return (
     <GuideDetail
       guide={guide}
-      category={categories.find((item) => item.id === guide.category)}
+      category={guideCategories.find((item) => item.id === guide.category)}
       relatedGuides={relatedGuides}
     />
   )

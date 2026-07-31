@@ -8,7 +8,9 @@ import { CalendarPlus, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { calendarFileName, serializeICalendar } from "@/lib/icalendar"
+import { eventCategoryLabel } from "@/lib/categories"
 import type { CalendarEvent } from "@/lib/operations"
+import { useOperations } from "@/components/providers/operations-provider"
 
 export function CalendarExportButton({
   events,
@@ -26,10 +28,15 @@ export function CalendarExportButton({
   appearance?: "button" | "menu-item"
 }) {
   const t = useAppTranslations()
+  const { eventTypes } = useOperations()
   const isEvent = mode === "event"
 
   function exportCalendar() {
-    const contents = serializeICalendar(events, {
+    const localizedEvents = events.map((event) => ({
+      ...event,
+      category: eventCategoryLabel(event.category, eventTypes),
+    }))
+    const contents = serializeICalendar(localizedEvents, {
       calendarName,
       timeZone,
       uidNamespace,

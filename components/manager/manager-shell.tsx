@@ -60,10 +60,11 @@ const primaryNavigationItems: NavigationLink[] = [
   { href: "/manager/today", label: "today", icon: Home },
 ]
 
-const guideNavigationItems: NavigationLink[] = [
-  { href: "/manager/guides", label: "guides", icon: BookOpen },
-  { href: "/manager/categories", label: "guideCategories", icon: Tags },
-]
+const guideNavigationItem: NavigationLink = {
+  href: "/manager/guides",
+  label: "guides",
+  icon: BookOpen,
+}
 
 const moreNavigationGroups: {
   label: AppMessageKey
@@ -72,6 +73,7 @@ const moreNavigationGroups: {
   {
     label: "content",
     items: [
+      { href: "/manager/categories", label: "categories", icon: Tags },
       {
         href: "/manager/calendar",
         label: "calendarEvents",
@@ -136,12 +138,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
   )
   const visiblePrimaryNavigationItems =
     managerAccess === "viewer" ? [] : primaryNavigationItems
-  const visibleGuideNavigationItems =
-    managerAccess === "viewer"
-      ? hub?.workersCanEdit.guides
-        ? guideNavigationItems.filter((item) => item.href === "/manager/guides")
-        : []
-      : guideNavigationItems
+  const showGuideNavigation =
+    managerAccess !== "viewer" || Boolean(hub?.workersCanEdit.guides)
   const visibleMoreNavigationGroups =
     managerAccess === "viewer"
       ? moreNavigationGroups
@@ -246,41 +244,21 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 )
               })}
-              {visibleGuideNavigationItems.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    className={cn(
-                      buttonVariants({
-                        variant: visibleGuideNavigationItems.some(({ href }) =>
-                          isActiveLink(pathname, href)
-                        )
-                          ? "secondary"
-                          : "ghost",
-                        size: "default",
-                      }),
-                      "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
-                    )}
-                  >
-                    <BookOpen /> <T>guides</T> <ChevronDown />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {visibleGuideNavigationItems.map((link) => {
-                      const Icon = link.icon
-                      const active = isActiveLink(pathname, link.href)
-                      return (
-                        <DropdownMenuItem
-                          key={link.href}
-                          render={<Link href={link.href} />}
-                          className={cn(
-                            active && "bg-accent text-accent-foreground"
-                          )}
-                        >
-                          <Icon /> <T>{link.label}</T>
-                        </DropdownMenuItem>
-                      )
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {showGuideNavigation && (
+                <Link
+                  href={guideNavigationItem.href}
+                  className={cn(
+                    buttonVariants({
+                      variant: isActiveLink(pathname, guideNavigationItem.href)
+                        ? "secondary"
+                        : "ghost",
+                      size: "default",
+                    }),
+                    "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                  )}
+                >
+                  <BookOpen /> <T>{guideNavigationItem.label}</T>
+                </Link>
               )}
               {visibleMoreNavigationGroups.length > 0 && (
                 <DropdownMenu>

@@ -8,6 +8,7 @@ import { Link } from "@/i18n/navigation"
 import {
   ArrowDown,
   ArrowUp,
+  CalendarDays,
   FilePenLine,
   Plus,
   Tags,
@@ -31,6 +32,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { AppMessageKey } from "@/i18n/messages"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -39,6 +47,7 @@ import {
   type CategoryIconKey,
 } from "@/lib/category-icons"
 import type { Category } from "@/lib/knowledge-base"
+import type { CategoryKind } from "@/lib/categories"
 import { slugify } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
@@ -47,6 +56,7 @@ type CategoryDraft = {
   label: string
   description: string
   iconKey: CategoryIconKey
+  kind: CategoryKind
 }
 
 const blankCategory: CategoryDraft = {
@@ -54,6 +64,7 @@ const blankCategory: CategoryDraft = {
   label: "",
   description: "",
   iconKey: "general",
+  kind: "guide",
 }
 
 export function CategoryManager() {
@@ -61,6 +72,7 @@ export function CategoryManager() {
   const {
     categories,
     guides,
+    events,
     canCreateContent,
     saveCategory,
     moveCategory,
@@ -69,20 +81,38 @@ export function CategoryManager() {
   } = useOperations()
   const [editing, setEditing] = useState<CategoryDraft | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
+  const [pending, setPending] = useState(false)
   const [error, setError] = useState("")
   const affectedGuides = deleteTarget
     ? guides.filter((guide) => guide.category === deleteTarget.id)
     : []
+  const affectedEvents = deleteTarget
+    ? events.filter((event) => event.category === deleteTarget.id)
+    : []
+  const affectedItems =
+    deleteTarget?.kind === "event" ? affectedEvents : affectedGuides
+  const eventTypeCount = categories.filter(
+    (category) => category.kind === "event"
+  ).length
+  const orderedCategories = [
+    ...categories.filter((category) => category.kind === "guide"),
+    ...categories.filter((category) => category.kind === "event"),
+  ]
 
-  function submit() {
+  async function submit() {
     if (!editing) return
     const label = editing.label.trim()
     const description = editing.description.trim()
-    if (!label || !description) return setError("addANameAndDescription")
+    if (!label || (editing.kind === "guide" && !description)) {
+      return setError(
+        editing.kind === "guide" ? "addANameAndDescription" : "addAName"
+      )
+    }
     if (
       categories.some(
         (category) =>
           category.id !== editing.id &&
+          category.kind === editing.kind &&
           category.label.toLowerCase() === label.toLowerCase()
       )
     )
@@ -90,7 +120,8 @@ export function CategoryManager() {
 
     let id = editing.id
     if (!id) {
-      const base = slugify(label) || "category"
+      const slug = slugify(label) || "category"
+      const base = editing.kind === "event" ? `event-${slug}` : slug
       id = base
       let suffix = 2
       while (categories.some((category) => category.id === id)) {
@@ -98,17 +129,28 @@ export function CategoryManager() {
         suffix += 1
       }
     }
-    saveCategory({ id, label, description, iconKey: editing.iconKey })
-    showFeedback(editing.id ? "categorySaved" : "categoryCreated")
-    setEditing(null)
-    setError("")
+    setPending(true)
+    try {
+      await saveCategory({
+        id,
+        label,
+        description,
+        iconKey: editing.iconKey,
+        kind: editing.kind,
+      })
+      showFeedback(editing.id ? "categorySaved" : "categoryCreated")
+      setEditing(null)
+      setError("")
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
     <div className="space-y-6">
       <ManagerHeading
-        title="guideCategories"
-        description="manageWorkAreasShownEmployeeSidebarGuideMessage"
+        title="categories"
+        description="manageGuideCategoriesAndEventTypesMessage"
         action={
           canCreateContent ? (
             <Button
@@ -125,46 +167,70 @@ export function CategoryManager() {
 
       {categories.length ? (
         <div className="space-y-4">
-          {categories.map((category, index) => {
+          {orderedCategories.map((category) => {
+            const siblings = orderedCategories.filter(
+              (item) => item.kind === category.kind
+            )
+            const siblingIndex = siblings.findIndex(
+              (item) => item.id === category.id
+            )
             const guideCount = guides.filter(
               (guide) => guide.category === category.id
             ).length
+            const eventCount = events.filter(
+              (event) => event.category === category.id
+            ).length
+            const displayLabel = category.label
             return (
               <Card key={category.id} size="sm" className="shadow-none">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                    <CategoryIcon
-                      iconKey={category.iconKey}
-                      className="size-5"
-                    />
+                    {category.kind === "guide" ? (
+                      <CategoryIcon
+                        iconKey={category.iconKey}
+                        className="size-5"
+                      />
+                    ) : (
+                      <CalendarDays className="size-5" />
+                    )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">{category.label}</h2>
-                      <span aria-hidden="true" className="text-border">
-                        |
-                      </span>
+                      <h2 className="font-semibold">{displayLabel}</h2>
                       <Badge variant="secondary">
-                        {guideCount}{" "}
                         <T>
-                          {guideCount === 1
-                            ? "guideLowercase"
-                            : "guidesLowercase"}
+                          {category.kind === "guide"
+                            ? "guideCategory"
+                            : "eventType"}
+                        </T>
+                      </Badge>
+                      <Badge variant="outline">
+                        {category.kind === "guide" ? guideCount : eventCount}{" "}
+                        <T>
+                          {category.kind === "guide"
+                            ? guideCount === 1
+                              ? "guideLowercase"
+                              : "guidesLowercase"
+                            : eventCount === 1
+                              ? "eventLowercase"
+                              : "eventsLowercase"}
                         </T>
                       </Badge>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {category.description}
-                    </p>
+                    {category.description && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {category.description}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="icon-sm"
-                      disabled={index === 0}
-                      onClick={() => moveCategory(category.id, -1)}
+                      disabled={siblingIndex === 0}
+                      onClick={() => moveCategory(category, -1)}
                       aria-label={t("moveNameUp", {
-                        name: category.label,
+                        name: displayLabel,
                       })}
                     >
                       <ArrowUp />
@@ -172,10 +238,10 @@ export function CategoryManager() {
                     <Button
                       variant="outline"
                       size="icon-sm"
-                      disabled={index === categories.length - 1}
-                      onClick={() => moveCategory(category.id, 1)}
+                      disabled={siblingIndex === siblings.length - 1}
+                      onClick={() => moveCategory(category, 1)}
                       aria-label={t("moveNameDown", {
-                        name: category.label,
+                        name: displayLabel,
                       })}
                     >
                       <ArrowDown />
@@ -184,7 +250,7 @@ export function CategoryManager() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setEditing({ ...category })
+                        setEditing({ ...category, label: displayLabel })
                         setError("")
                       }}
                     >
@@ -194,9 +260,12 @@ export function CategoryManager() {
                       <Button
                         variant="destructive"
                         size="icon-sm"
+                        disabled={
+                          category.kind === "event" && eventTypeCount <= 1
+                        }
                         onClick={() => setDeleteTarget(category)}
                         aria-label={t("deleteName", {
-                          name: category.label,
+                          name: displayLabel,
                         })}
                       >
                         <Trash2 />
@@ -211,8 +280,8 @@ export function CategoryManager() {
       ) : (
         <EmptyState
           icon={Tags}
-          title="noGuideCategories"
-          description="createWorkAreaBeforeAddingGuide"
+          title="noCategories"
+          description="createGuideCategoryOrEventTypeMessage"
         />
       )}
 
@@ -242,6 +311,43 @@ export function CategoryManager() {
                 </DialogDescription>
               </DialogHeader>
               <div className="my-6 space-y-4">
+                {!editing.id && (
+                  <Field label="categoryType" id="category-type">
+                    <Select
+                      value={editing.kind}
+                      onValueChange={(value) => {
+                        if (!value) return
+                        setEditing({
+                          ...editing,
+                          kind: value as CategoryKind,
+                          description:
+                            value === "event" ? "" : editing.description,
+                        })
+                      }}
+                    >
+                      <SelectTrigger
+                        id="category-type"
+                        className="w-full border border-input bg-background px-3"
+                      >
+                        <SelectValue>
+                          <T>
+                            {editing.kind === "guide"
+                              ? "guideCategory"
+                              : "eventType"}
+                          </T>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="guide">
+                          <T>guideCategory</T>
+                        </SelectItem>
+                        <SelectItem value="event">
+                          <T>eventType</T>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
                 <Field label="name" id="category-name">
                   <Input
                     id="category-name"
@@ -252,50 +358,54 @@ export function CategoryManager() {
                     className="border border-input px-3"
                   />
                 </Field>
-                <Field label="description" id="category-description">
-                  <Textarea
-                    id="category-description"
-                    value={editing.description}
-                    onChange={(event) =>
-                      setEditing({
-                        ...editing,
-                        description: event.target.value,
-                      })
-                    }
-                    className="min-h-24 border border-input px-3"
-                  />
-                </Field>
-                <fieldset>
-                  <legend className="text-sm font-medium">
-                    <T>icon</T>
-                  </legend>
-                  <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {categoryIconOptions.map((option) => {
-                      const selected = editing.iconKey === option.key
-                      return (
-                        <button
-                          key={option.key}
-                          type="button"
-                          onClick={() =>
-                            setEditing({ ...editing, iconKey: option.key })
-                          }
-                          className={cn(
-                            "flex min-h-20 flex-col items-center justify-center gap-2 border p-2 text-xs",
-                            selected &&
-                              "border-primary bg-primary/5 text-primary"
-                          )}
-                          aria-pressed={selected}
-                        >
-                          <CategoryIcon
-                            iconKey={option.key}
-                            className="size-5"
-                          />
-                          <T>{option.label}</T>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </fieldset>
+                {editing.kind === "guide" && (
+                  <Field label="description" id="category-description">
+                    <Textarea
+                      id="category-description"
+                      value={editing.description}
+                      onChange={(event) =>
+                        setEditing({
+                          ...editing,
+                          description: event.target.value,
+                        })
+                      }
+                      className="min-h-24 border border-input px-3"
+                    />
+                  </Field>
+                )}
+                {editing.kind === "guide" && (
+                  <fieldset>
+                    <legend className="text-sm font-medium">
+                      <T>icon</T>
+                    </legend>
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {categoryIconOptions.map((option) => {
+                        const selected = editing.iconKey === option.key
+                        return (
+                          <button
+                            key={option.key}
+                            type="button"
+                            onClick={() =>
+                              setEditing({ ...editing, iconKey: option.key })
+                            }
+                            className={cn(
+                              "flex min-h-20 flex-col items-center justify-center gap-2 border p-2 text-xs",
+                              selected &&
+                                "border-primary bg-primary/5 text-primary"
+                            )}
+                            aria-pressed={selected}
+                          >
+                            <CategoryIcon
+                              iconKey={option.key}
+                              className="size-5"
+                            />
+                            <T>{option.label}</T>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </fieldset>
+                )}
                 {error && (
                   <p role="alert" className="text-sm text-destructive">
                     <T>{error}</T>
@@ -310,8 +420,8 @@ export function CategoryManager() {
                 >
                   <T>cancel</T>
                 </Button>
-                <Button type="submit">
-                  <T>saveCategory</T>
+                <Button type="submit" disabled={pending}>
+                  <T>{pending ? "saving" : "saveCategory"}</T>
                 </Button>
               </DialogFooter>
             </form>
@@ -320,7 +430,7 @@ export function CategoryManager() {
       </Dialog>
 
       <Dialog
-        open={Boolean(deleteTarget && affectedGuides.length)}
+        open={Boolean(deleteTarget && affectedItems.length)}
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
@@ -328,30 +438,46 @@ export function CategoryManager() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              <T>reassignGuidesBeforeDeleting</T>
+              <T>
+                {deleteTarget?.kind === "event"
+                  ? "reassignEventsBeforeDeleting"
+                  : "reassignGuidesBeforeDeleting"}
+              </T>
             </DialogTitle>
             <DialogDescription>
-              {deleteTarget?.label} <T>isStillUsedByLowercase</T>{" "}
-              {affectedGuides.length}{" "}
+              {deleteTarget?.label ?? ""} <T>isStillUsedByLowercase</T>{" "}
+              {affectedItems.length}{" "}
               <T>
-                {affectedGuides.length === 1
-                  ? "guideLowercase"
-                  : "guidesLowercase"}
+                {deleteTarget?.kind === "event"
+                  ? affectedItems.length === 1
+                    ? "eventLowercase"
+                    : "eventsLowercase"
+                  : affectedItems.length === 1
+                    ? "guideLowercase"
+                    : "guidesLowercase"}
               </T>
-              <T>moveGuidesBeforeDeleteHelp</T>
+              <T>
+                {deleteTarget?.kind === "event"
+                  ? "moveEventsBeforeDeleteHelp"
+                  : "moveGuidesBeforeDeleteHelp"}
+              </T>
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 space-y-2">
-            {affectedGuides.map((guide) => (
+            {affectedItems.map((item) => (
               <Link
-                key={guide.id}
-                href={`/manager/guides/${guide.id}/edit`}
+                key={item.id}
+                href={
+                  deleteTarget?.kind === "event"
+                    ? `/manager/calendar/${item.id}/edit`
+                    : `/manager/guides/${item.id}/edit`
+                }
                 className={cn(
                   buttonVariants({ variant: "outline" }),
                   "h-auto w-full justify-between py-3 tracking-normal normal-case"
                 )}
               >
-                {guide.title}
+                {item.title}
                 <FilePenLine data-icon="inline-end" />
               </Link>
             ))}
@@ -365,15 +491,16 @@ export function CategoryManager() {
       </Dialog>
 
       <ConfirmDeleteDialog
-        open={Boolean(deleteTarget && !affectedGuides.length)}
+        open={Boolean(deleteTarget && !affectedItems.length)}
         title={deleteTarget?.label ?? "category"}
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
         onConfirm={() => {
           if (deleteTarget) {
-            deleteCategory(deleteTarget.id)
-            showFeedback("categoryDeleted")
+            void deleteCategory(deleteTarget)
+              .then(() => showFeedback("categoryDeleted"))
+              .catch(() => undefined)
           }
         }}
       />

@@ -4,6 +4,7 @@ import {
   defaultTodaySections,
   normalizeTodaySections,
 } from "../lib/today-sections"
+import { RESERVATION_EVENT_TYPE_ID } from "../lib/categories"
 import {
   normalizeWorkersCanEdit,
   workerEditableSections,
@@ -64,11 +65,13 @@ const defaultHubCopy = {
     description:
       "Praegused uuendused, olulised kellaajad ja praktilised juhendid igaks vahetuseks.",
     contactName: "vahetusvanem",
+    reservationEventType: "Broneering",
   },
   en: {
     description:
       "Current updates, important times, and practical guides for each shift.",
     contactName: "shift lead",
+    reservationEventType: "Reservation",
   },
 } as const
 
@@ -199,6 +202,15 @@ export const create = mutation({
       joinCode: args.joinCode,
       privateToken: args.privateToken,
       credentialVersion: 1,
+    })
+    await ctx.db.insert("categories", {
+      hubId,
+      slug: RESERVATION_EVENT_TYPE_ID,
+      label: defaultCopy.reservationEventType,
+      iconKey: "general",
+      description: "",
+      order: 0,
+      kind: "event",
     })
     return { hubId, slug, created: true }
   },

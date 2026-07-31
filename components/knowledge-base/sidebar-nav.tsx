@@ -28,7 +28,7 @@ import { firstWorkerManagerPath } from "@/lib/worker-editing"
 export function SidebarNav({ onContact }: { onContact?: () => void }) {
   const pathname = usePathname()
   const t = useAppTranslations()
-  const { categories, documents, hub, managerAccess } = useOperations()
+  const { guideCategories, documents, hub, managerAccess } = useOperations()
   const publishedDocuments = documents.filter((document) => document.published)
   const managerHref =
     managerAccess === "viewer"
@@ -79,7 +79,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         href="/categories"
         active={pathname.startsWith("/categories")}
       >
-        {categories.map((category) => {
+        {guideCategories.map((category) => {
           const categoryHref = `/categories/${category.id}`
 
           return (

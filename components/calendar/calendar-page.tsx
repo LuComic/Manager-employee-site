@@ -33,16 +33,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  eventCategoryMessageKeys,
-  eventCategories,
   eventLastDateKey,
   eventOccursOnDate,
   formatEventDate,
   formatEventTime,
   formatTime,
-  type EventCategory,
   toDateKey,
 } from "@/lib/operations"
+import { eventCategoryLabel } from "@/lib/categories"
 import { cn } from "@/lib/utils"
 
 type View = "month" | "list"
@@ -66,13 +64,13 @@ function calendarKey(value: Date) {
 export function CalendarPage() {
   const t = useAppTranslations()
   const languageTag = useLanguageTag()
-  const { events, hub } = useOperations()
+  const { events, eventTypes, hub } = useOperations()
   const todayKey = toDateKey(new Date(), hub?.timeZone)
   const [view, setView] = useState<View>("month")
   const [visibleDate, setVisibleDate] = useState(() =>
     firstOfMonth(dateFromKey(todayKey))
   )
-  const [category, setCategory] = useState<EventCategory | "All">("All")
+  const [category, setCategory] = useState<string>("All")
   const published = events.filter(
     (event) =>
       event.published && (category === "All" || event.category === category)
@@ -163,24 +161,28 @@ export function CalendarPage() {
           </label>
           <Select
             value={category}
-            onValueChange={(value) =>
-              setCategory(value as EventCategory | "All")
-            }
+            onValueChange={(value) => {
+              if (value) setCategory(value)
+            }}
           >
             <SelectTrigger
               id="event-category"
               size="sm"
               className="border border-input bg-background px-3"
             >
-              <SelectValue />
+              <SelectValue>
+                {category === "All"
+                  ? t("allEventTypes")
+                  : eventCategoryLabel(category, eventTypes)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">
                 <T>allEventTypes</T>
               </SelectItem>
-              {eventCategories.map((item) => (
-                <SelectItem key={item} value={item}>
-                  {t(eventCategoryMessageKeys[item])}
+              {eventTypes.map((eventType) => (
+                <SelectItem key={eventType.id} value={eventType.id}>
+                  {eventCategoryLabel(eventType.id, eventTypes)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -309,7 +311,7 @@ export function CalendarPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold">{event.title}</h3>
                   <Badge variant="secondary">
-                    {t(eventCategoryMessageKeys[event.category])}
+                    {eventCategoryLabel(event.category, eventTypes)}
                   </Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">

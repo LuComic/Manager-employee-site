@@ -8,6 +8,7 @@ import { describe, expect, test } from "vitest"
 import { api, internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import schema from "./schema"
+import { RESERVATION_EVENT_TYPE_ID } from "../lib/categories"
 
 const modules = import.meta.glob("./**/*.ts")
 const ownerIdentity = {
@@ -87,6 +88,189 @@ describe("hub authorization and anonymous access", () => {
           .query(api.hubs.getManagerSnapshot, { nowDate: "2026-07-18" })
       ).kind
     ).toBe("none")
+  })
+
+  test("initializes only required records and one reservation example", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const initialized = await t.run(async (ctx) => {
+      const [
+        hub,
+        credentials,
+        categories,
+        guides,
+        events,
+        announcements,
+        faqs,
+        documents,
+        employees,
+        workerNotes,
+        notifications,
+      ] = await Promise.all([
+        ctx.db.get("hubs", hubId),
+        ctx.db
+          .query("hubCredentials")
+          .withIndex("by_hubId", (q) => q.eq("hubId", hubId))
+          .unique(),
+        ctx.db
+          .query("categories")
+          .withIndex("by_hubId_and_order", (q) => q.eq("hubId", hubId))
+          .take(2),
+        ctx.db.query("guides").take(1),
+        ctx.db.query("events").take(1),
+        ctx.db.query("announcements").take(1),
+        ctx.db.query("faqs").take(1),
+        ctx.db.query("documents").take(1),
+        ctx.db.query("employeeProfiles").take(1),
+        ctx.db.query("workerNotes").take(1),
+        ctx.db.query("notifications").take(1),
+      ])
+      return {
+        hub,
+        credentials,
+        categories,
+        emptyContentCounts: {
+          guides: guides.length,
+          events: events.length,
+          announcements: announcements.length,
+          faqs: faqs.length,
+          documents: documents.length,
+          employees: employees.length,
+          workerNotes: workerNotes.length,
+          notifications: notifications.length,
+        },
+      }
+    })
+
+    expect(initialized.credentials).not.toBeNull()
+    expect(initialized.categories).toHaveLength(1)
+    expect(initialized.categories[0]).toMatchObject({
+      slug: RESERVATION_EVENT_TYPE_ID,
+      label: "Broneering",
+      kind: "event",
+    })
+    expect(initialized.emptyContentCounts).toEqual({
+      guides: 0,
+      events: 0,
+      announcements: 0,
+      faqs: 0,
+      documents: 0,
+      employees: 0,
+      workerNotes: 0,
+      notifications: 0,
+    })
+    expect(initialized.hub?.todaySections).toHaveLength(6)
+    expect(
+      new Set(initialized.hub?.todaySections?.map((section) => section.key))
+        .size
+    ).toBe(initialized.hub?.todaySections?.length)
+
+    await expect(
+      t.withIdentity(ownerIdentity).mutation(api.content.saveCategory, {
+        hubId,
+        slug: ` ${RESERVATION_EVENT_TYPE_ID} `,
+        label: "Guide collision",
+        iconKey: "general",
+        description: "Cannot reuse an event type slug",
+        kind: "guide",
+      })
+    ).rejects.toThrow("categoryTypeCannotChange")
+  })
+
+  test("keeps used event types and deletes unused types regardless of event count", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+    await owner.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "event-inventory",
+      label: "Inventory count",
+      iconKey: "general",
+      description: "",
+      kind: "event",
+    })
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "inventory-count",
+      title: "Inventory count",
+      description: "Uses a manager-defined event type",
+      category: "event-inventory",
+      start: "2026-08-02T10:00",
+      end: "2026-08-02T11:00",
+      location: "Stockroom",
+      notes: "",
+      published: false,
+      guideSlugs: [],
+    })
+    const inventoryType = await t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("categories")
+          .withIndex("by_hubId_and_slug", (q) =>
+            q.eq("hubId", hubId).eq("slug", "event-inventory")
+          )
+          .unique()
+    )
+    expect(inventoryType).not.toBeNull()
+    const inventoryEvent = await t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("events")
+          .withIndex("by_hubId_and_slug", (q) =>
+            q.eq("hubId", hubId).eq("slug", "inventory-count")
+          )
+          .unique()
+    )
+    expect(inventoryEvent?.categoryId).toBe(inventoryType?._id)
+    await expect(
+      owner.mutation(api.content.deleteCategory, {
+        hubId,
+        slug: "event-inventory",
+        kind: "event",
+      })
+    ).rejects.toThrow("reassignEventsBeforeDeletingThisCategory")
+
+    await owner.mutation(api.content.saveCategory, {
+      hubId,
+      slug: "event-unused",
+      label: "Unused",
+      iconKey: "general",
+      description: "",
+      kind: "event",
+    })
+    const reservationType = await t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("categories")
+          .withIndex("by_hubId_and_slug", (q) =>
+            q.eq("hubId", hubId).eq("slug", RESERVATION_EVENT_TYPE_ID)
+          )
+          .unique()
+    )
+    expect(reservationType).not.toBeNull()
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 501; index += 1) {
+        await ctx.db.insert("events", {
+          hubId,
+          slug: `historical-${index}`,
+          title: `Historical event ${index}`,
+          description: "Historical event",
+          categoryId: reservationType!._id,
+          start: `2025-01-01T${String(index % 24).padStart(2, "0")}:00`,
+          end: `2025-01-01T${String((index + 1) % 24).padStart(2, "0")}:00`,
+          location: "Office",
+          notes: "",
+          published: false,
+        })
+      }
+    })
+    await expect(
+      owner.mutation(api.content.deleteCategory, {
+        hubId,
+        slug: "event-unused",
+        kind: "event",
+      })
+    ).resolves.toBeNull()
   })
 
   test("accepts current restricted credentials and rejects invalid ones", async () => {
@@ -302,6 +486,7 @@ describe("hub authorization and anonymous access", () => {
         label: "Stolen",
         iconKey: "general",
         description: "Must not be written",
+        kind: "guide",
       })
     ).rejects.toThrow("unauthorized")
   })
@@ -363,6 +548,7 @@ describe("hub authorization and anonymous access", () => {
       label: "Operations",
       iconKey: "general",
       description: "Operational guides",
+      kind: "guide",
     })
     const content = {
       type: "doc" as const,
@@ -432,7 +618,7 @@ describe("hub authorization and anonymous access", () => {
       slug: "event",
       title: "Event",
       description: "Visible event",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-07-19T10:00",
       end: "2026-07-19T11:00",
       location: "Office",
@@ -499,6 +685,7 @@ describe("hub authorization and anonymous access", () => {
       label: "Safety",
       iconKey: "general",
       description: "Safety guides",
+      kind: "guide",
     })
     await owner.mutation(api.content.saveGuide, {
       hubId,
@@ -793,6 +980,7 @@ describe("Organization employees, invitations, and event links", () => {
         label: "Forbidden",
         iconKey: "general",
         description: "Members cannot write this",
+        kind: "guide",
       })
     ).rejects.toThrow("unauthorized")
     await expect(
@@ -828,6 +1016,7 @@ describe("Organization employees, invitations, and event links", () => {
       label: "Service",
       iconKey: "general",
       description: "Existing category",
+      kind: "guide",
     })
     await t.run(async (ctx) => {
       await ctx.db.patch("employeeProfiles", viewerProfileId, {
@@ -867,6 +1056,7 @@ describe("Organization employees, invitations, and event links", () => {
         label: "Viewer edit",
         iconKey: "general",
         description: "Must not save",
+        kind: "guide",
       })
     ).rejects.toThrow("editingAccessRequired")
 
@@ -900,6 +1090,7 @@ describe("Organization employees, invitations, and event links", () => {
       label: "Updated Service",
       iconKey: "general",
       description: "Editors can update existing content",
+      kind: "guide",
     })
     await expect(
       editor.mutation(api.content.saveCategory, {
@@ -908,12 +1099,14 @@ describe("Organization employees, invitations, and event links", () => {
         label: "New category",
         iconKey: "general",
         description: "Editors cannot create content",
+        kind: "guide",
       })
     ).rejects.toThrow("fullContentAccessRequiredCreateContent")
     await expect(
       editor.mutation(api.content.deleteCategory, {
         hubId,
         slug: "service",
+        kind: "guide",
       })
     ).rejects.toThrow("fullContentAccessRequired")
 
@@ -939,10 +1132,12 @@ describe("Organization employees, invitations, and event links", () => {
       label: "Manager created",
       iconKey: "general",
       description: "Full access can create content",
+      kind: "guide",
     })
     await appManager.mutation(api.content.deleteCategory, {
       hubId,
       slug: "manager-created",
+      kind: "guide",
     })
     await expect(
       appManager.mutation(api.employees.update, {
@@ -1022,6 +1217,7 @@ describe("Organization employees, invitations, and event links", () => {
       label: "Operations",
       iconKey: "general",
       description: "Operational guides",
+      kind: "guide",
     })
     await owner.mutation(api.content.saveGuide, {
       hubId,
@@ -1064,7 +1260,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "draft-event",
       title: "Draft event",
       description: "Must stay outside a guide-only worker snapshot",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-08-01T10:00",
       end: "2026-08-01T11:00",
       location: "Office",
@@ -1078,7 +1274,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "unlinked-draft-event",
       title: "Unlinked draft event",
       description: "Must remain hidden when event editing is disabled",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-08-02T10:00",
       end: "2026-08-02T11:00",
       location: "Office",
@@ -1171,7 +1367,7 @@ describe("Organization employees, invitations, and event links", () => {
         slug: "blocked-worker-event",
         title: "Blocked worker event",
         description: "Events have not been enabled",
-        category: "Training",
+        category: "event-reservation",
         start: "2026-08-02T10:00",
         end: "2026-08-02T11:00",
         location: "Office",
@@ -1250,7 +1446,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "worker-event",
       title: "Worker event",
       description: "Created by a worker",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-08-03T10:00",
       end: "2026-08-03T11:00",
       location: "Office",
@@ -1291,7 +1487,7 @@ describe("Organization employees, invitations, and event links", () => {
         slug: "invalid-reference-event",
         title: "Invalid reference event",
         description: "Must reject an unknown guide instead of dropping it",
-        category: "Training",
+        category: "event-reservation",
         start: "2026-08-04T10:00",
         end: "2026-08-04T11:00",
         location: "Office",
@@ -1339,7 +1535,7 @@ describe("Organization employees, invitations, and event links", () => {
         slug: "draft-event",
         title: "Blocked draft relationship update",
         description: "Must not add a new relationship to a hidden draft guide",
-        category: "Training",
+        category: "event-reservation",
         start: "2026-08-01T10:00",
         end: "2026-08-01T11:00",
         location: "Office",
@@ -1422,7 +1618,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "draft-event",
       title: "Draft event updated by worker",
       description: "Must keep its restricted guide relationship",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-08-01T10:00",
       end: "2026-08-01T11:00",
       location: "Office",
@@ -1536,7 +1732,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "former-employee-event",
       title: "Former employee event",
       description: "Used to verify permanent employee cleanup",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-07-20T10:00",
       end: "2026-07-20T11:00",
       location: "Office",
@@ -1640,7 +1836,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "linked-event",
       title: "Linked event",
       description: "Shows a safe employee projection",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-07-20T10:00",
       end: "2026-07-20T11:00",
       location: "Office",
@@ -1672,7 +1868,7 @@ describe("Organization employees, invitations, and event links", () => {
       hubId,
       title: "Calendar interoperability",
       description: "Calendar date semantics",
-      category: "Training" as const,
+      category: "event-reservation" as const,
       location: "Office",
       notes: "",
       published: true,
@@ -1754,7 +1950,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "team-event",
       title: "Team event",
       description: "Employee relationship test",
-      category: "Training" as const,
+      category: "event-reservation" as const,
       start: "2026-07-21T10:00",
       end: "2026-07-21T11:00",
       location: "Office",
@@ -1864,7 +2060,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "historical-event",
       title: "Historical event",
       description: "Keeps its employee display",
-      category: "Training" as const,
+      category: "event-reservation" as const,
       start: "2026-07-22T10:00",
       end: "2026-07-22T11:00",
       location: "Office",
@@ -1961,7 +2157,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "search-event",
       title: "Team briefing",
       description: "Normal event",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-07-24T10:00",
       end: "2026-07-24T11:00",
       location: "Office",
@@ -1989,7 +2185,7 @@ describe("Organization employees, invitations, and event links", () => {
       slug: "delete-event",
       title: "Delete event",
       description: "Deletion test",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-07-24T10:00",
       end: "2026-07-24T11:00",
       location: "Office",
@@ -2038,6 +2234,7 @@ describe("notification feeds", () => {
       label: "Operations",
       iconKey: "general",
       description: "Operational guides",
+      kind: "guide",
     })
     await t.mutation(api.notifications.markEmployeeRead, employeeArgs)
     await owner.mutation(api.content.saveGuide, {
@@ -2093,6 +2290,46 @@ describe("notification feeds", () => {
     ).rejects.toThrow("hubAccessRequired")
   })
 
+  test("treats attachments selected in the event editor as part of one notification", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "event-with-file",
+      title: "Event with file",
+      description: "Published together with an attachment",
+      category: "event-reservation",
+      start: "2026-08-01T10:00",
+      end: "2026-08-01T11:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+    })
+    const storageId = await createRegisteredUpload(t, {
+      hubId,
+      identity: ownerIdentity,
+      blob: new Blob(["agenda"], { type: "text/plain" }),
+    })
+    await owner.mutation(api.files.attachToEvent, {
+      hubId,
+      eventSlug: "event-with-file",
+      storageId,
+      name: "agenda.txt",
+      contentType: "text/plain",
+      notifyEmployees: false,
+    })
+
+    const feed = await t.query(api.notifications.listEmployee, {
+      hubSlug: "test-hub",
+      guestDeviceId: "guest-device-event-with-file",
+    })
+    expect(feed.notifications.map((item) => item.titleKey)).toEqual([
+      "notificationNewEventAdded",
+    ])
+  })
+
   test("adds personal assignment alerts only for the assigned employee", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)
@@ -2109,7 +2346,7 @@ describe("notification feeds", () => {
       slug: "team-training",
       title: "Team training",
       description: "A required training session",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-07-25T10:00",
       end: "2026-07-25T11:00",
       location: "Office",
@@ -2170,7 +2407,7 @@ describe("notification feeds", () => {
       slug: "capacity-training",
       title: "Capacity training",
       description: "Assignment limit regression test",
-      category: "Training",
+      category: "event-reservation",
       start: "2026-07-26T10:00",
       end: "2026-07-26T11:00",
       location: "Office",
