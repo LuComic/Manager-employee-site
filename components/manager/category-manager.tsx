@@ -190,7 +190,14 @@ export function CategoryManager() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">{displayLabel}</h2>
+                      <h2 className="font-semibold">
+                        <T>
+                          {category.kind === "guide"
+                            ? "guideCategory"
+                            : "eventType"}
+                        </T>
+                        : {displayLabel}
+                      </h2>
                       <Badge variant="secondary">
                         <T>
                           {category.kind === "guide"
