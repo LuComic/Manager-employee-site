@@ -261,7 +261,7 @@ export async function buildSnapshot(
       iconKey: category.iconKey,
       description: category.description,
       order: category.order,
-      kind: category.kind ?? "guide",
+      kind: category.kind,
     })),
     guides: guides.flatMap((guide) => {
       const category = categorySlugById.get(guide.categoryId)
@@ -283,9 +283,7 @@ export async function buildSnapshot(
       ]
     }),
     events: events.flatMap((event) => {
-      const category = event.categoryId
-        ? categorySlugById.get(event.categoryId)
-        : undefined
+      const category = categorySlugById.get(event.categoryId)
       if (!category) return []
       return [
         {

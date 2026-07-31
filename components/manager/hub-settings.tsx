@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react"
 import { Building2, ImageIcon, Trash2, Upload } from "lucide-react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
-import { CategorySchemaRecovery } from "@/components/manager/category-schema-recovery"
 import {
   type HubSettings,
   useOperations,
@@ -100,8 +99,6 @@ export function HubSettingsManager() {
         title="establishmentSettings"
         description="updateWorkplaceDetailsEmployeesSeeAcrossHub"
       />
-
-      <CategorySchemaRecovery />
 
       <form
         className="space-y-6"

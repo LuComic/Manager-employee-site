@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as categoryRecovery from "../categoryRecovery.js";
 import type * as content from "../content.js";
 import type * as documents from "../documents.js";
 import type * as employees from "../employees.js";
@@ -32,7 +31,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  categoryRecovery: typeof categoryRecovery;
   content: typeof content;
   documents: typeof documents;
   employees: typeof employees;

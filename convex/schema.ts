@@ -126,18 +126,7 @@ export default defineSchema({
     iconKey: v.string(),
     description: v.string(),
     order: v.number(),
-    // Recovery window: older guide categories did not store a kind.
-    kind: v.optional(v.union(v.literal("guide"), v.literal("event"))),
-    // Recovery window: remove after every workspace has run category recovery.
-    systemLabelKey: v.optional(
-      v.union(
-        v.literal("reservation"),
-        v.literal("training"),
-        v.literal("maintenance"),
-        v.literal("inspection"),
-        v.literal("openingHours")
-      )
-    ),
+    kind: v.union(v.literal("guide"), v.literal("event")),
   })
     .index("by_hubId_and_order", ["hubId", "order"])
     .index("by_hubId_and_kind_and_order", ["hubId", "kind", "order"])
@@ -178,9 +167,7 @@ export default defineSchema({
     slug: v.string(),
     title: v.string(),
     description: v.string(),
-    // Recovery window: legacy events stored `category` instead of categoryId.
-    categoryId: v.optional(v.id("categories")),
-    category: v.optional(v.string()),
+    categoryId: v.id("categories"),
     start: v.string(),
     end: v.string(),
     allDay: v.optional(v.boolean()),
