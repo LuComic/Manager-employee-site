@@ -6,7 +6,6 @@ import {
   type WorkersCanEdit,
 } from "../../lib/worker-editing"
 import { assertGuideLinksPerHub, MAX_GUIDE_LINKS_PER_HUB } from "./guideLinks"
-import { categoryKind } from "./categories"
 
 export async function buildSnapshot(
   ctx: QueryCtx,
@@ -262,10 +261,7 @@ export async function buildSnapshot(
       iconKey: category.iconKey,
       description: category.description,
       order: category.order,
-      kind: categoryKind(category),
-      ...(category.systemLabelKey
-        ? { systemLabelKey: category.systemLabelKey }
-        : {}),
+      kind: category.kind,
     })),
     guides: guides.flatMap((guide) => {
       const category = categorySlugById.get(guide.categoryId)
@@ -286,26 +282,35 @@ export async function buildSnapshot(
         },
       ]
     }),
-    events: events.map((event) => ({
-      id: event.slug,
-      title: event.title,
-      description: event.description,
-      category: event.category,
-      start: event.start,
-      end: event.end,
-      allDay: event.allDay ?? false,
-      ...(event.startUtc ? { startUtc: event.startUtc } : {}),
-      ...(event.endUtc ? { endUtc: event.endUtc } : {}),
-      ...(event.icalUid ? { icalUid: event.icalUid } : {}),
-      location: event.location,
-      employees: (employeesByEventId.get(event._id) ?? []).map((employee) =>
-        includeEventDrafts ? employee : { displayName: employee.displayName }
-      ),
-      notes: event.notes,
-      published: event.published,
-      guideIds: guideIdsByEventId.get(event._id) ?? [],
-      attachments: attachmentsByEventId.get(event._id) ?? [],
-    })),
+    events: events.flatMap((event) => {
+      const category = categorySlugById.get(event.categoryId)
+      if (!category) return []
+      return [
+        {
+          id: event.slug,
+          title: event.title,
+          description: event.description,
+          category,
+          start: event.start,
+          end: event.end,
+          allDay: event.allDay ?? false,
+          ...(event.startUtc ? { startUtc: event.startUtc } : {}),
+          ...(event.endUtc ? { endUtc: event.endUtc } : {}),
+          ...(event.icalUid ? { icalUid: event.icalUid } : {}),
+          location: event.location,
+          employees: (employeesByEventId.get(event._id) ?? []).map(
+            (employee) =>
+              includeEventDrafts
+                ? employee
+                : { displayName: employee.displayName }
+          ),
+          notes: event.notes,
+          published: event.published,
+          guideIds: guideIdsByEventId.get(event._id) ?? [],
+          attachments: attachmentsByEventId.get(event._id) ?? [],
+        },
+      ]
+    }),
     announcements: announcements.map((announcement) => ({
       id: announcement.slug,
       title: announcement.title,

@@ -162,7 +162,7 @@ export function EventManager() {
         cancelledEventTitle: t("calendarCancelledEvent"),
         eventTypes: eventTypes.map((eventType) => ({
           ...eventType,
-          label: eventCategoryLabel(eventType.id, eventTypes, t),
+          label: eventCategoryLabel(eventType.id, eventTypes),
         })),
       })
       setImportFileName(file.name)
@@ -366,7 +366,7 @@ export function EventManager() {
             <SelectValue>
               {category === "All"
                 ? t("all")
-                : eventCategoryLabel(category, eventTypes, t)}
+                : eventCategoryLabel(category, eventTypes)}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -375,7 +375,7 @@ export function EventManager() {
             </SelectItem>
             {eventTypes.map((eventType) => (
               <SelectItem key={eventType.id} value={eventType.id}>
-                {eventCategoryLabel(eventType.id, eventTypes, t)}
+                {eventCategoryLabel(eventType.id, eventTypes)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -396,7 +396,7 @@ export function EventManager() {
                   <T>{event.published ? "published" : "draft"}</T>
                 </Badge>,
                 <Badge key="category" variant="secondary">
-                  {eventCategoryLabel(event.category, eventTypes, t)}
+                  {eventCategoryLabel(event.category, eventTypes)}
                 </Badge>,
               ]}
               description={

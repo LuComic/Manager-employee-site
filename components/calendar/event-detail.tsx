@@ -62,7 +62,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
       <Card className="shadow-none">
         <CardHeader className="border-b">
           <Badge variant="secondary">
-            {eventCategoryLabel(event.category, eventTypes, t)}
+            {eventCategoryLabel(event.category, eventTypes)}
           </Badge>
           <CardTitle>
             <h1 className="text-2xl tracking-tight">{event.title}</h1>

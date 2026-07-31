@@ -4,7 +4,6 @@ import ICAL from "ical.js"
 
 import type { AppMessageKey } from "@/i18n/messages"
 import { SITE_NAME } from "@/lib/branding"
-import { defaultEventTypeDefinitions } from "@/lib/categories"
 import type { Category } from "@/lib/knowledge-base"
 import { addCalendarDays, slugify, type CalendarEvent } from "@/lib/operations"
 
@@ -34,7 +33,7 @@ type ImportOptions = {
   defaultDescription?: string
   defaultLocation?: string
   cancelledEventTitle?: string
-  eventTypes?: readonly Category[]
+  eventTypes: readonly Category[]
 }
 
 export type CalendarImportIssue = {
@@ -307,7 +306,7 @@ function parseEvent(
   defaultDescription: string,
   defaultLocation: string,
   uidNamespace: string,
-  eventTypes: readonly Category[] | undefined,
+  eventTypes: readonly Category[],
   warn: (key: AppMessageKey, values?: Record<string, string | number>) => void
 ): CalendarEvent {
   const summary = textValue(component, "summary").trim()
@@ -398,11 +397,11 @@ function parseEvent(
     )
   }
 
-  const rawCategories = textValue(component, "categories")
+  const rawCategories = textValues(component, "categories")
   const category = matchCategory(rawCategories, eventTypes)
   if (!category.matched) {
     warn(
-      rawCategories.trim()
+      rawCategories.length
         ? "calendarEventUnsupportedCategory"
         : "calendarEventNoCategory",
       { category: category.warningLabel }
@@ -535,6 +534,12 @@ function textValue(component: ICAL.Component, name: string) {
   return typeof value === "string" ? value : ""
 }
 
+function textValues(component: ICAL.Component, name: string) {
+  return (component.getFirstProperty(name)?.getValues() ?? []).filter(
+    (value): value is string => typeof value === "string"
+  )
+}
+
 function parseCalendarDate(
   property: ICAL.Property,
   calendar: ICAL.Component,
@@ -657,35 +662,25 @@ function fourDigits(value: number) {
 }
 
 function matchCategory(
-  value: string,
-  eventTypes?: readonly Category[]
+  values: readonly string[],
+  eventTypes: readonly Category[]
 ): {
   value: string
   matched: boolean
   warningLabel: string
 } {
-  const candidates = value.split(",").map((item) => item.trim().toLowerCase())
-  const definitions = defaultEventTypeDefinitions
-  if (eventTypes?.length) {
-    const category = eventTypes.find((eventType) => {
-      const definition = definitions.find((item) => item.id === eventType.id)
-      return [eventType.id, eventType.label, definition?.legacyValue]
-        .filter((item): item is string => Boolean(item))
-        .some((item) => candidates.includes(item.toLowerCase()))
-    })
-    return {
-      value: category?.id ?? eventTypes[0].id,
-      matched: Boolean(category),
-      warningLabel: category?.label ?? eventTypes[0].label,
-    }
-  }
-  const category = definitions.find((item) =>
-    candidates.includes(item.legacyValue.toLowerCase())
+  const candidates = values.map((item) => item.trim().toLowerCase())
+  const fallback = eventTypes[0]
+  if (!fallback) throw new Error("At least one event type is required.")
+  const category = eventTypes.find((eventType) =>
+    [eventType.id, eventType.label].some((item) =>
+      candidates.includes(item.toLowerCase())
+    )
   )
   return {
-    value: category?.legacyValue ?? definitions[0].legacyValue,
+    value: category?.id ?? fallback.id,
     matched: Boolean(category),
-    warningLabel: category?.label ?? definitions[0].label,
+    warningLabel: category?.label ?? fallback.label,
   }
 }
 

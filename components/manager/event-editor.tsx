@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { eventCategoryLabel } from "@/lib/categories"
+import { eventCategoryLabel, RESERVATION_EVENT_TYPE_ID } from "@/lib/categories"
 import {
   addCalendarDays,
   slugify,
@@ -42,7 +42,7 @@ function cloneEvent(event: CalendarEvent): CalendarEvent {
 
 function newEvent(
   location = "",
-  category = "event-reservation"
+  category = RESERVATION_EVENT_TYPE_ID
 ): CalendarEvent {
   const start = new Date()
   start.setDate(start.getDate() + 1)
@@ -463,13 +463,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     className="w-full border border-input bg-background px-3"
                   >
                     <SelectValue>
-                      {eventCategoryLabel(draft.category, eventTypes, t)}
+                      {eventCategoryLabel(draft.category, eventTypes)}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {eventTypes.map((eventType) => (
                       <SelectItem key={eventType.id} value={eventType.id}>
-                        {eventCategoryLabel(eventType.id, eventTypes, t)}
+                        {eventCategoryLabel(eventType.id, eventTypes)}
                       </SelectItem>
                     ))}
                   </SelectContent>

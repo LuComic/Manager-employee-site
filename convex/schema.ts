@@ -126,19 +126,10 @@ export default defineSchema({
     iconKey: v.string(),
     description: v.string(),
     order: v.number(),
-    // Categories created before category purposes were introduced are guides.
-    kind: v.optional(v.union(v.literal("guide"), v.literal("event"))),
-    systemLabelKey: v.optional(
-      v.union(
-        v.literal("reservation"),
-        v.literal("training"),
-        v.literal("maintenance"),
-        v.literal("inspection"),
-        v.literal("openingHours")
-      )
-    ),
+    kind: v.union(v.literal("guide"), v.literal("event")),
   })
     .index("by_hubId_and_order", ["hubId", "order"])
+    .index("by_hubId_and_kind_and_order", ["hubId", "kind", "order"])
     .index("by_hubId_and_slug", ["hubId", "slug"]),
 
   guides: defineTable({
@@ -176,7 +167,7 @@ export default defineSchema({
     slug: v.string(),
     title: v.string(),
     description: v.string(),
-    category: v.string(),
+    categoryId: v.id("categories"),
     start: v.string(),
     end: v.string(),
     allDay: v.optional(v.boolean()),
@@ -190,6 +181,7 @@ export default defineSchema({
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_start", ["hubId", "start"])
     .index("by_hubId_and_published", ["hubId", "published"])
+    .index("by_hubId_and_categoryId", ["hubId", "categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["hubId", "published"],

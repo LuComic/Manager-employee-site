@@ -7,52 +7,22 @@ import {
   formatEventTime,
   formatTime,
   getAnnouncementState,
-  normalizeEventCategory,
   normalizeReadingTime,
   toDateKey,
   type CalendarEvent,
 } from "@/lib/operations"
-import {
-  categoryLabel,
-  eventCategoryLabel,
-  virtualDefaultEventTypes,
-} from "@/lib/categories"
+import { eventCategoryLabel } from "@/lib/categories"
 
-describe("normalizeEventCategory", () => {
-  test("preserves supported categories", () => {
-    expect(normalizeEventCategory("Training")).toBe("Training")
-  })
-
-  test("falls back safely for obsolete or unknown categories", () => {
-    expect(normalizeEventCategory("Promotion")).toBe("Reservation")
-    expect(normalizeEventCategory("Delivery")).toBe("Reservation")
-    expect(normalizeEventCategory("Anything else")).toBe("Reservation")
-  })
-
-  test("maps legacy values to configurable event type ids", () => {
-    expect(normalizeEventCategory("Training", virtualDefaultEventTypes)).toBe(
-      "event-training"
-    )
-  })
-
-  test("uses localized system labels and preserves custom labels", () => {
-    const translate = (key: string) =>
-      key === "reservation" ? "Broneering" : key
-    expect(categoryLabel(virtualDefaultEventTypes[0], translate)).toBe(
-      "Broneering"
-    )
+describe("event category labels", () => {
+  test("uses the manager-defined label", () => {
     expect(
-      eventCategoryLabel(
-        "custom-event",
-        [
-          {
-            id: "custom-event",
-            label: "Inventuur",
-            kind: "event",
-          },
-        ],
-        translate
-      )
+      eventCategoryLabel("custom-event", [
+        {
+          id: "custom-event",
+          label: "Inventuur",
+          kind: "event",
+        },
+      ])
     ).toBe("Inventuur")
   })
 })
@@ -61,7 +31,7 @@ const calendarEvent: CalendarEvent = {
   id: "event",
   title: "Event",
   description: "Description",
-  category: "Training",
+  category: "event-training",
   start: "2026-07-24T00:00",
   end: "2026-07-27T00:00",
   allDay: true,

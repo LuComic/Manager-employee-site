@@ -47,7 +47,7 @@ import {
   type CategoryIconKey,
 } from "@/lib/category-icons"
 import type { Category } from "@/lib/knowledge-base"
-import { categoryLabel, type CategoryKind } from "@/lib/categories"
+import type { CategoryKind } from "@/lib/categories"
 import { slugify } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
@@ -81,6 +81,7 @@ export function CategoryManager() {
   } = useOperations()
   const [editing, setEditing] = useState<CategoryDraft | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
+  const [pending, setPending] = useState(false)
   const [error, setError] = useState("")
   const affectedGuides = deleteTarget
     ? guides.filter((guide) => guide.category === deleteTarget.id)
@@ -98,7 +99,7 @@ export function CategoryManager() {
     ...categories.filter((category) => category.kind === "event"),
   ]
 
-  function submit() {
+  async function submit() {
     if (!editing) return
     const label = editing.label.trim()
     const description = editing.description.trim()
@@ -112,7 +113,7 @@ export function CategoryManager() {
         (category) =>
           category.id !== editing.id &&
           category.kind === editing.kind &&
-          categoryLabel(category, t).toLowerCase() === label.toLowerCase()
+          category.label.toLowerCase() === label.toLowerCase()
       )
     )
       return setError("categoryNameAlreadyExists")
@@ -128,16 +129,21 @@ export function CategoryManager() {
         suffix += 1
       }
     }
-    saveCategory({
-      id,
-      label,
-      description,
-      iconKey: editing.iconKey,
-      kind: editing.kind,
-    })
-    showFeedback(editing.id ? "categorySaved" : "categoryCreated")
-    setEditing(null)
-    setError("")
+    setPending(true)
+    try {
+      await saveCategory({
+        id,
+        label,
+        description,
+        iconKey: editing.iconKey,
+        kind: editing.kind,
+      })
+      showFeedback(editing.id ? "categorySaved" : "categoryCreated")
+      setEditing(null)
+      setError("")
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -174,7 +180,7 @@ export function CategoryManager() {
             const eventCount = events.filter(
               (event) => event.category === category.id
             ).length
-            const displayLabel = categoryLabel(category, t)
+            const displayLabel = category.label
             return (
               <Card key={category.id} size="sm" className="shadow-none">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -190,14 +196,7 @@ export function CategoryManager() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">
-                        <T>
-                          {category.kind === "guide"
-                            ? "guideCategory"
-                            : "eventType"}
-                        </T>
-                        : {displayLabel}
-                      </h2>
+                      <h2 className="font-semibold">{displayLabel}</h2>
                       <Badge variant="secondary">
                         <T>
                           {category.kind === "guide"
@@ -421,8 +420,8 @@ export function CategoryManager() {
                 >
                   <T>cancel</T>
                 </Button>
-                <Button type="submit">
-                  <T>saveCategory</T>
+                <Button type="submit" disabled={pending}>
+                  <T>{pending ? "saving" : "saveCategory"}</T>
                 </Button>
               </DialogFooter>
             </form>
@@ -446,8 +445,8 @@ export function CategoryManager() {
               </T>
             </DialogTitle>
             <DialogDescription>
-              {deleteTarget ? categoryLabel(deleteTarget, t) : ""}{" "}
-              <T>isStillUsedByLowercase</T> {affectedItems.length}{" "}
+              {deleteTarget?.label ?? ""} <T>isStillUsedByLowercase</T>{" "}
+              {affectedItems.length}{" "}
               <T>
                 {deleteTarget?.kind === "event"
                   ? affectedItems.length === 1
@@ -493,14 +492,15 @@ export function CategoryManager() {
 
       <ConfirmDeleteDialog
         open={Boolean(deleteTarget && !affectedItems.length)}
-        title={deleteTarget ? categoryLabel(deleteTarget, t) : "category"}
+        title={deleteTarget?.label ?? "category"}
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
         onConfirm={() => {
           if (deleteTarget) {
-            deleteCategory(deleteTarget)
-            showFeedback("categoryDeleted")
+            void deleteCategory(deleteTarget)
+              .then(() => showFeedback("categoryDeleted"))
+              .catch(() => undefined)
           }
         }}
       />

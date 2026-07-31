@@ -34,7 +34,7 @@ export function CalendarExportButton({
   function exportCalendar() {
     const localizedEvents = events.map((event) => ({
       ...event,
-      category: eventCategoryLabel(event.category, eventTypes, t),
+      category: eventCategoryLabel(event.category, eventTypes),
     }))
     const contents = serializeICalendar(localizedEvents, {
       calendarName,

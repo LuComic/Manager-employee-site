@@ -42,7 +42,7 @@ export function EventCard({
       >
         <CardHeader>
           <Badge variant="secondary">
-            {eventCategoryLabel(event.category, eventTypes, t)}
+            {eventCategoryLabel(event.category, eventTypes)}
           </Badge>
           <CardTitle className="text-base">{event.title}</CardTitle>
           <CardDescription className={compact ? "line-clamp-2" : undefined}>

@@ -4,16 +4,39 @@ import {
   calendarFileName,
   ICALENDAR_UID_DOMAIN,
   mergeImportedEvent,
-  parseICalendar,
+  parseICalendar as parseICalendarSource,
   serializeICalendar,
 } from "@/lib/icalendar"
+import type { Category } from "@/lib/knowledge-base"
 import type { CalendarEvent } from "@/lib/operations"
+
+const eventTypes: Category[] = [
+  {
+    id: "event-training",
+    label: "Training",
+    description: "",
+    iconKey: "general",
+    kind: "event",
+  },
+]
+
+function parseICalendar(
+  source: string,
+  options: Omit<Parameters<typeof parseICalendarSource>[1], "eventTypes"> & {
+    eventTypes?: readonly Category[]
+  }
+) {
+  return parseICalendarSource(source, {
+    ...options,
+    eventTypes: options.eventTypes ?? eventTypes,
+  })
+}
 
 const event: CalendarEvent = {
   id: "team-training",
   title: "Team training, session",
   description: "Service workflow & safety",
-  category: "Training",
+  category: "event-training",
   start: "2026-07-24T10:00",
   end: "2026-07-24T11:30",
   allDay: false,
@@ -204,6 +227,35 @@ describe("iCalendar import", () => {
     expect(result.events[0]?.category).toBe("event-inventory")
   })
 
+  test("matches custom event type names containing commas", () => {
+    const result = parseICalendar(
+      calendar([
+        "UID:custom-category-with-comma",
+        "DTSTART:20260801T100000Z",
+        "DTEND:20260801T110000Z",
+        "SUMMARY:Safety session",
+        "DESCRIPTION:Practice",
+        "LOCATION:Stockroom",
+        "CATEGORIES:Safety\\, training",
+      ]),
+      {
+        timeZone: "Europe/Tallinn",
+        uidNamespace: "hub-a",
+        eventTypes: [
+          {
+            id: "event-safety-training",
+            label: "Safety, training",
+            description: "",
+            iconKey: "general",
+            kind: "event",
+          },
+        ],
+      }
+    )
+
+    expect(result.events[0]?.category).toBe("event-safety-training")
+  })
+
   test("imports UTC, zoned, and folded event values", () => {
     const result = parseICalendar(
       calendar([
@@ -224,7 +276,7 @@ describe("iCalendar import", () => {
     expect(result.events[0]).toMatchObject({
       title: "Team training",
       description: "First line\nSecond line",
-      category: "Training",
+      category: "event-training",
       start: "2026-07-24T10:00",
       end: "2026-07-24T13:00",
       startUtc: "2026-07-24T07:00:00.000Z",
@@ -591,7 +643,7 @@ describe("safe re-imports", () => {
       id: "external-stable",
       title: "Externally updated",
       description: "New external description",
-      category: "Reservation",
+      category: "event-reservation",
       start: "2026-07-25T00:00",
       end: "2026-07-26T00:00",
       allDay: true,
@@ -604,7 +656,7 @@ describe("safe re-imports", () => {
     const existing: CalendarEvent = {
       ...event,
       id: imported.id,
-      category: "Inspection",
+      category: "event-inspection",
       employees: [{ id: "employee-1", displayName: "Manager choice" }],
       notes: "Manager note",
       attachments: [

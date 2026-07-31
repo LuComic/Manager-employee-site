@@ -2,7 +2,6 @@ import type { Category, Guide } from "@/lib/knowledge-base"
 import type { RichTextDocument } from "@/lib/rich-text"
 import type { WorkspaceDocument } from "@/lib/documents"
 import type { AppMessageKey } from "@/i18n/messages"
-export { normalizeEventCategory } from "@/lib/categories"
 
 export type Attachment = {
   id: string

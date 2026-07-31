@@ -30,10 +30,6 @@ import {
   MAX_BANNER_IMAGE_SIZE_BYTES,
 } from "@/lib/banner-image"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
-import {
-  normalizeEventCategory,
-  virtualDefaultEventTypes,
-} from "@/lib/categories"
 import type { Category, Guide } from "@/lib/knowledge-base"
 import type {
   DocumentUploadChanges,
@@ -468,34 +464,21 @@ export function OperationsProvider({
       description: category.description,
       iconKey: category.iconKey as CategoryIconKey,
       kind: category.kind,
-      systemLabelKey: category.systemLabelKey,
     })) as Category[]
-    const storedEventTypes = storedCategories.filter(
-      (category) => category.kind === "event"
-    )
-    const eventTypes = storedEventTypes.length
-      ? storedEventTypes
-      : (virtualDefaultEventTypes as Category[])
-    const categories = storedEventTypes.length
-      ? storedCategories
-      : [...storedCategories, ...eventTypes]
     const categoryById = new Map(
-      categories
+      storedCategories
         .filter((category) => category.kind === "guide")
         .map((category) => [category.id, category])
     )
     return {
-      categories,
+      categories: storedCategories,
       guides: activeSnapshot.guides.map((guide) => ({
         ...guide,
         icon: getCategoryIcon(
           categoryById.get(guide.category)?.iconKey ?? "general"
         ),
       })) as Guide[],
-      events: activeSnapshot.events.map((event) => ({
-        ...event,
-        category: normalizeEventCategory(event.category, eventTypes),
-      })) as CalendarEvent[],
+      events: activeSnapshot.events as CalendarEvent[],
       announcements: activeSnapshot.announcements as Announcement[],
       faqs: activeSnapshot.faqs as Faq[],
       documents: activeSnapshot.documents as WorkspaceDocument[],

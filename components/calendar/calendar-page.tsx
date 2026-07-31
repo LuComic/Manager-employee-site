@@ -173,7 +173,7 @@ export function CalendarPage() {
               <SelectValue>
                 {category === "All"
                   ? t("allEventTypes")
-                  : eventCategoryLabel(category, eventTypes, t)}
+                  : eventCategoryLabel(category, eventTypes)}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -182,7 +182,7 @@ export function CalendarPage() {
               </SelectItem>
               {eventTypes.map((eventType) => (
                 <SelectItem key={eventType.id} value={eventType.id}>
-                  {eventCategoryLabel(eventType.id, eventTypes, t)}
+                  {eventCategoryLabel(eventType.id, eventTypes)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -311,7 +311,7 @@ export function CalendarPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold">{event.title}</h3>
                   <Badge variant="secondary">
-                    {eventCategoryLabel(event.category, eventTypes, t)}
+                    {eventCategoryLabel(event.category, eventTypes)}
                   </Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
