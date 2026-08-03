@@ -23,6 +23,9 @@ The project expects these environment variable names in `.env.local`:
 - `CLERK_SECRET_KEY`
 - `NEXT_PUBLIC_CONVEX_URL`
 - `CLERK_FRONTEND_API_URL`
+- `DEPUTY_CLIENT_ID` (required to enable the Deputy integration)
+- `DEPUTY_CLIENT_SECRET` (server-only Deputy OAuth secret)
+- `DEPUTY_OAUTH_REDIRECT_URI` (the exact registered callback URL, ending in `/api/integrations/deputy/callback`)
 
 Production deployments should also set `SITE_URL` to the public application
 origin (for example, `https://workhal.example`) so social preview image URLs
@@ -34,12 +37,33 @@ The Convex deployment also expects:
 - `CLERK_FRONTEND_API_URL` (the Clerk issuer already used by `convex/auth.config.ts`)
 - `CLERK_WEBHOOK_SIGNING_SECRET` (the signing secret for the direct Convex webhook endpoint)
 - `HUB_CREDENTIALS_ENCRYPTION_KEY` (a 64-character hexadecimal AES-256 key used only by Convex)
+- `DEPUTY_CLIENT_ID`, `DEPUTY_CLIENT_SECRET`, and `DEPUTY_OAUTH_REDIRECT_URI` (the same Deputy OAuth application values used by Next.js, required for background token refresh)
 
 Generate the credential-encryption key once per deployment with
 `openssl rand -hex 32 | bunx convex env set HUB_CREDENTIALS_ENCRYPTION_KEY`
 (add `--prod` for production). Store a backup in the project's secret manager:
 replacing or losing this key makes the encrypted join code and private link
-unreadable.
+unreadable, along with stored Deputy OAuth tokens.
+
+## Deputy integration
+
+Create a Deputy OAuth client at `https://once.deputy.com/my/oauth_clients` and
+register the application callback URL as
+`https://<application-origin>/api/integrations/deputy/callback`. Add the three
+Deputy environment variables above to both the Next.js deployment and the
+matching Convex deployment. Workplace owners can then connect Deputy from
+Manager → More tools → Third Party Apps. Workhal performs an initial sync and
+refreshes published and draft employee rosters every 15 minutes. To keep this
+small-project integration bounded, each run covers the previous day through
+the next 31 days and accepts at most 500 shifts. A result over that limit or
+containing invalid shifts is rejected without replacing the last good sync.
+Synchronized shifts outside the rolling window are hidden until they enter it.
+
+Deputy owns the synchronized shift employee, area, start, end, and publication
+state. Workhal owns local presentation fields, including privacy. New Deputy
+shifts are private by default; changing that value is preserved by subsequent
+syncs. Draft Deputy rosters remain manager-only, and private published shifts
+are returned only to active members of the matching Clerk Organization.
 
 The same `CLERK_FRONTEND_API_URL` issuer must be configured in the Convex development deployment. Keep all secret values out of source control and documentation. Clerk project configuration can be checked with `clerk doctor`; Convex configuration can be validated with `bunx convex dev --once`.
 

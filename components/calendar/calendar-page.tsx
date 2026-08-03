@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { PrivateEventFilterLabel } from "@/components/calendar/private-event-filter-label"
 import {
   CreateSectionButton,
   ManageSectionButton,
@@ -37,10 +38,12 @@ import {
 } from "@/components/ui/select"
 import {
   eventLastDateKey,
+  eventMatchesFilter,
   eventOccursOnDate,
   formatEventDate,
   formatEventTime,
   formatTime,
+  PRIVATE_EVENT_FILTER,
   toDateKey,
 } from "@/lib/operations"
 import { eventCategoryLabel } from "@/lib/categories"
@@ -75,10 +78,10 @@ export function CalendarPage() {
   )
   const [category, setCategory] = useState<string>("All")
   const published = events.filter(
-    (event) =>
-      event.published && (category === "All" || event.category === category)
+    (event) => event.published && eventMatchesFilter(event, category)
   )
   const allPublished = events.filter((event) => event.published)
+  const hasPrivateEvents = allPublished.some((event) => event.isPrivate)
   const visibleMonthStart = calendarKey(firstOfMonth(visibleDate))
   const visibleMonthEnd = calendarKey(
     new Date(visibleDate.getFullYear(), visibleDate.getMonth() + 1, 0)
@@ -174,15 +177,24 @@ export function CalendarPage() {
               className="border border-input bg-background px-3"
             >
               <SelectValue>
-                {category === "All"
-                  ? t("allEventTypes")
-                  : eventCategoryLabel(category, eventTypes)}
+                {category === PRIVATE_EVENT_FILTER ? (
+                  <PrivateEventFilterLabel />
+                ) : category === "All" ? (
+                  t("allEventTypes")
+                ) : (
+                  eventCategoryLabel(category, eventTypes)
+                )}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">
                 <T>allEventTypes</T>
               </SelectItem>
+              {hasPrivateEvents && (
+                <SelectItem value={PRIVATE_EVENT_FILTER}>
+                  <PrivateEventFilterLabel />
+                </SelectItem>
+              )}
               {eventTypes.map((eventType) => (
                 <SelectItem key={eventType.id} value={eventType.id}>
                   {eventCategoryLabel(eventType.id, eventTypes)}

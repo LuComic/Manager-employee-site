@@ -178,15 +178,56 @@ export default defineSchema({
     location: v.string(),
     notes: v.string(),
     published: v.boolean(),
+    isPrivate: v.optional(v.boolean()),
+    source: v.optional(v.literal("deputy")),
+    externalId: v.optional(v.string()),
+    sourceEmployeeId: v.optional(v.string()),
+    sourceAreaId: v.optional(v.string()),
+    lastSourceSyncId: v.optional(v.string()),
+    sourceDeleted: v.optional(v.boolean()),
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_start", ["hubId", "start"])
     .index("by_hubId_and_published", ["hubId", "published"])
+    .index("by_hubId_and_published_and_isPrivate_and_start", [
+      "hubId",
+      "published",
+      "isPrivate",
+      "start",
+    ])
+    .index("by_hubId_and_source_and_start", ["hubId", "source", "start"])
     .index("by_hubId_and_categoryId", ["hubId", "categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["hubId", "published"],
     }),
+
+  deputyConnections: defineTable({
+    hubId: v.id("hubs"),
+    endpoint: v.string(),
+    tokenCiphertext: v.string(),
+    tokenInitializationVector: v.string(),
+    tokenVersion: v.number(),
+    generation: v.optional(v.number()),
+    accessTokenExpiresAt: v.number(),
+    status: v.union(
+      v.literal("connected"),
+      v.literal("syncing"),
+      v.literal("error")
+    ),
+    connectedAt: v.number(),
+    connectedBy: v.string(),
+    lastSyncedAt: v.optional(v.number()),
+    lastSyncError: v.optional(v.string()),
+    activeSyncId: v.optional(v.string()),
+    syncStartedAt: v.optional(v.number()),
+  }).index("by_hubId", ["hubId"]),
+
+  deputyEmployeeMappings: defineTable({
+    hubId: v.id("hubs"),
+    deputyEmployeeId: v.string(),
+    employeeProfileId: v.id("employeeProfiles"),
+  }).index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"]),
 
   eventGuides: defineTable({
     hubId: v.id("hubs"),

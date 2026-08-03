@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { PrivateEventFilterLabel } from "@/components/calendar/private-event-filter-label"
 import { CalendarImportIssues } from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
@@ -59,8 +60,10 @@ import {
   type CalendarImportResult,
 } from "@/lib/icalendar"
 import {
+  eventMatchesFilter,
   formatEventDate,
   formatEventTime,
+  PRIVATE_EVENT_FILTER,
   type CalendarEvent,
 } from "@/lib/operations"
 import { eventCategoryLabel } from "@/lib/categories"
@@ -110,6 +113,7 @@ export function EventManager() {
     total: number
   } | null>(null)
   const canCreateEvents = canCreateInSection("events")
+  const hasPrivateEvents = events.some((event) => event.isPrivate)
   const importReadyCount =
     (importResult?.events.length ?? 0) +
     (importResult?.cancellations.length ?? 0)
@@ -123,7 +127,7 @@ export function EventManager() {
               .includes(query.toLowerCase()) &&
             (status === "All" ||
               (status === "Published" ? event.published : !event.published)) &&
-            (category === "All" || event.category === category)
+            eventMatchesFilter(event, category)
         )
         .sort((a, b) => a.start.localeCompare(b.start)),
     [events, query, status, category]
@@ -364,15 +368,24 @@ export function EventManager() {
             aria-label={t("filterEventsByType")}
           >
             <SelectValue>
-              {category === "All"
-                ? t("all")
-                : eventCategoryLabel(category, eventTypes)}
+              {category === PRIVATE_EVENT_FILTER ? (
+                <PrivateEventFilterLabel />
+              ) : category === "All" ? (
+                t("all")
+              ) : (
+                eventCategoryLabel(category, eventTypes)
+              )}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All">
               <T>all</T>
             </SelectItem>
+            {hasPrivateEvents && (
+              <SelectItem value={PRIVATE_EVENT_FILTER}>
+                <PrivateEventFilterLabel />
+              </SelectItem>
+            )}
             {eventTypes.map((eventType) => (
               <SelectItem key={eventType.id} value={eventType.id}>
                 {eventCategoryLabel(eventType.id, eventTypes)}
@@ -419,18 +432,22 @@ export function EventManager() {
               }
               actions={
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      saveEvent({ ...event, published: !event.published })
-                      showFeedback(
-                        event.published ? "eventUnpublished" : "eventPublished"
-                      )
-                    }}
-                  >
-                    <T>{event.published ? "unpublish" : "publish"}</T>
-                  </Button>
+                  {event.source !== "deputy" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        saveEvent({ ...event, published: !event.published })
+                        showFeedback(
+                          event.published
+                            ? "eventUnpublished"
+                            : "eventPublished"
+                        )
+                      }}
+                    >
+                      <T>{event.published ? "unpublish" : "publish"}</T>
+                    </Button>
+                  )}
                   <Link
                     href={`/manager/calendar/${event.id}/edit`}
                     className={cn(
@@ -439,7 +456,7 @@ export function EventManager() {
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
-                  {canCreateContent && (
+                  {canCreateContent && event.source !== "deputy" && (
                     <Button
                       variant="destructive"
                       size="icon-sm"

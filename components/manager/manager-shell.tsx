@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   Menu,
   Megaphone,
+  Plug,
   ShieldCheck,
   Tags,
   Users,
@@ -116,6 +117,11 @@ const moreNavigationGroups: {
         label: "establishment",
         icon: Building2,
       },
+      {
+        href: "/manager/apps",
+        label: "thirdPartyApps",
+        icon: Plug,
+      },
     ],
   },
 ]
@@ -206,7 +212,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               />
               {!focusedEditor && hub && (
                 <Link
-                  href={`/?hub=${hub.slug}`}
+                  href="/"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
                     "tracking-normal normal-case"

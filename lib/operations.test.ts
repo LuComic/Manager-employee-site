@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
 import {
+  eventMatchesFilter,
   eventOccursOnDate,
   formatDate,
   formatEventDate,
@@ -8,6 +9,7 @@ import {
   formatTime,
   getAnnouncementState,
   normalizeReadingTime,
+  PRIVATE_EVENT_FILTER,
   toDateKey,
   type CalendarEvent,
 } from "@/lib/operations"
@@ -24,6 +26,18 @@ describe("event category labels", () => {
         },
       ])
     ).toBe("Inventuur")
+  })
+})
+
+describe("event filtering", () => {
+  test("filters private events independently from event categories", () => {
+    const publicEvent = { category: "reservation", isPrivate: false }
+    const privateEvent = { category: "reservation", isPrivate: true }
+
+    expect(eventMatchesFilter(publicEvent, "All")).toBeTrue()
+    expect(eventMatchesFilter(publicEvent, "reservation")).toBeTrue()
+    expect(eventMatchesFilter(publicEvent, PRIVATE_EVENT_FILTER)).toBeFalse()
+    expect(eventMatchesFilter(privateEvent, PRIVATE_EVENT_FILTER)).toBeTrue()
   })
 })
 
