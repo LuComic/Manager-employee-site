@@ -22,7 +22,7 @@ import {
   requireIdentity,
   requireHubPermission,
 } from "./lib/access"
-import { createAuditLog } from "./lib/auditLogs"
+import { auditActorFromIdentity, createAuditLog } from "./lib/auditLogs"
 import {
   decryptHubCredentials,
   encryptHubCredentials,
@@ -213,7 +213,7 @@ export const create = mutation({
       order: 0,
       kind: "event",
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActorFromIdentity(identity), {
       hubId,
       action: "created",
       entityType: "workplace",
@@ -252,7 +252,11 @@ export const updateSettings = mutation({
     contactPhone: v.string(),
   },
   handler: async (ctx, args) => {
-    const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
+    const { hub, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "owner"
+    )
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80)
       throw new Error("hubNameBetween280Characters")
@@ -279,7 +283,7 @@ export const updateSettings = mutation({
       messageKey: "notificationTodayInformationChanged",
       href: "/",
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: hub._id,
       action: "edited",
       entityType: "workplace",
@@ -297,7 +301,11 @@ export const moveTodaySection = mutation({
     direction: v.union(v.literal(-1), v.literal(1)),
   },
   handler: async (ctx, args) => {
-    const { hub } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "editor"
+    )
     const sections = normalizeTodaySections(hub.todaySections)
     const index = sections.findIndex((section) => section.key === args.key)
     const target = index + args.direction
@@ -309,7 +317,7 @@ export const moveTodaySection = mutation({
       todaySections: sections,
       updatedAt: Date.now(),
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: hub._id,
       action: "edited",
       entityType: "workplace",
@@ -327,7 +335,11 @@ export const setTodaySectionVisibility = mutation({
     visible: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const { hub } = await requireHubPermission(ctx, args.hubId, "editor")
+    const { hub, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "editor"
+    )
     const todaySections = normalizeTodaySections(hub.todaySections).map(
       (section) =>
         section.key === args.key
@@ -338,7 +350,7 @@ export const setTodaySectionVisibility = mutation({
       todaySections,
       updatedAt: Date.now(),
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: hub._id,
       action: "edited",
       entityType: "workplace",
@@ -357,7 +369,11 @@ export const setWorkersCanEdit = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { hub } = await requireHubPermission(ctx, args.hubId, "manager")
+    const { hub, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "manager"
+    )
     await ctx.db.patch("hubs", hub._id, {
       workersCanEdit: {
         ...normalizeWorkersCanEdit(hub.workersCanEdit),
@@ -365,7 +381,7 @@ export const setWorkersCanEdit = mutation({
       },
       updatedAt: Date.now(),
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: hub._id,
       action: "edited",
       entityType: "workplace",
@@ -586,7 +602,11 @@ export const rotateCredentials = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
+    const { hub, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "owner"
+    )
     if (normalizeJoinCode(args.joinCode).length < 8) {
       throw new Error("joinCodeIsTooShort")
     }
@@ -607,7 +627,7 @@ export const rotateCredentials = mutation({
       privateToken: args.privateToken,
       credentialVersion,
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: hub._id,
       action: "edited",
       entityType: "workplace",
@@ -625,12 +645,16 @@ export const setAccessMode = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { hub } = await requireHubPermission(ctx, args.hubId, "owner")
+    const { hub, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "owner"
+    )
     await ctx.db.patch("hubs", hub._id, {
       accessMode: args.accessMode,
       updatedAt: Date.now(),
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: hub._id,
       action: "edited",
       entityType: "workplace",

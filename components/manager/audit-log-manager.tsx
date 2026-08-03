@@ -1,6 +1,7 @@
 "use client"
 
 import { History } from "lucide-react"
+import { useUser } from "@clerk/nextjs"
 import { usePaginatedQuery } from "convex/react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
@@ -29,11 +30,13 @@ const entityMessages = {
   faq: "auditEntityFaq",
   guide: "auditEntityGuide",
   helpRequest: "auditEntityHelpRequest",
+  workerNote: "auditEntityWorkerNote",
   workplace: "auditEntityWorkplace",
 } as const satisfies Record<string, AppMessageKey>
 
 export function AuditLogManager() {
   const { hub } = useOperations()
+  const { user } = useUser()
   const t = useAppTranslations()
   const languageTag = useLanguageTag()
   const { results, status, loadMore } = usePaginatedQuery(
@@ -41,6 +44,10 @@ export function AuditLogManager() {
     hub ? { hubId: hub.id } : "skip",
     { initialNumItems: 50 }
   )
+  const loadMoreLabel =
+    status === "LoadingMore"
+      ? t("loadingMoreActivityLogs")
+      : t("loadMoreActivityLogs")
 
   return (
     <div className="space-y-6">
@@ -51,46 +58,50 @@ export function AuditLogManager() {
           <T>loadingActivityLogs</T>
         </p>
       ) : results.length ? (
-        <div className="border bg-background">
-          <ol className="divide-y">
-            {results.map((log) => (
-              <li
-                key={log._id}
-                className="flex flex-col gap-1 px-4 py-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
-              >
-                <p className="text-sm leading-6">
-                  {t(actionMessages[log.action], {
-                    actor: log.actorName,
-                    entityType: t(entityMessages[log.entityType]),
-                    title: log.entityTitle,
-                  })}
-                </p>
+        <div className="space-y-2">
+          {results.map((log) => {
+            const storedActorName =
+              log.actorId === "anonymous"
+                ? t("anonymousEmployee")
+                : log.actorName
+            const actorName =
+              (log.actorSubject ?? log.actorId) === user?.id
+                ? user.fullName ||
+                  user.primaryEmailAddress?.emailAddress ||
+                  user.username ||
+                  storedActorName
+                : storedActorName
+
+            return (
+              <p key={log._id} className="text-sm leading-6">
                 <time
                   dateTime={new Date(log.occurredAt).toISOString()}
-                  className="shrink-0 text-xs text-muted-foreground"
+                  className="text-muted-foreground"
                 >
                   {new Intl.DateTimeFormat(languageTag, {
                     dateStyle: "medium",
                     timeStyle: "short",
                     timeZone: hub?.timeZone,
                   }).format(log.occurredAt)}
-                </time>
-              </li>
-            ))}
-          </ol>
+                </time>{" "}
+                —{" "}
+                {t(actionMessages[log.action], {
+                  actor: actorName,
+                  entityType: t(entityMessages[log.entityType]),
+                  title: log.entityTitle,
+                })}
+              </p>
+            )
+          })}
           {(status === "CanLoadMore" || status === "LoadingMore") && (
-            <div className="border-t p-4 text-center">
+            <div className="pt-2">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={status === "LoadingMore"}
                 onClick={() => loadMore(50)}
               >
-                <T>
-                  {status === "LoadingMore"
-                    ? "loadingMoreActivityLogs"
-                    : "loadMoreActivityLogs"}
-                </T>
+                {loadMoreLabel}
               </Button>
             </div>
           )}

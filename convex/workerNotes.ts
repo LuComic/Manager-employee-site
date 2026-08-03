@@ -10,6 +10,7 @@ import {
   type QueryCtx,
 } from "./_generated/server"
 import { hasHubAccess, requireHubPermission } from "./lib/access"
+import { createAuditLog } from "./lib/auditLogs"
 
 const TEMPORARY_NOTES_LIFETIME_MS = 24 * 60 * 60 * 1000
 const MAX_NOTES_LENGTH = 10_000
@@ -86,7 +87,11 @@ export const save = mutation({
   },
   returns: saveResultValidator,
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "viewer")
+    const { hub, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "viewer"
+    )
     if (args.text.length > MAX_NOTES_LENGTH) {
       throw new Error("workerNoteTooLong")
     }
@@ -98,7 +103,16 @@ export const save = mutation({
     }
 
     if (!args.text.trim()) {
-      if (notes) await ctx.db.delete("workerNotes", notes._id)
+      if (notes) {
+        await ctx.db.delete("workerNotes", notes._id)
+        await createAuditLog(ctx, auditActor, {
+          hubId: args.hubId,
+          action: "deleted",
+          entityType: "workerNote",
+          entityId: notes._id,
+          entityTitle: hub.name,
+        })
+      }
       return { status: "saved" } as const
     }
 
@@ -125,6 +139,13 @@ export const save = mutation({
         { noteId, temporaryExpiresAt }
       )
     }
+    await createAuditLog(ctx, auditActor, {
+      hubId: args.hubId,
+      action: notes ? "edited" : "created",
+      entityType: "workerNote",
+      entityId: noteId,
+      entityTitle: hub.name,
+    })
     return { status: "saved" } as const
   },
 })

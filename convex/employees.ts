@@ -9,12 +9,11 @@ import {
 } from "./_generated/server"
 import {
   hashCredential,
-  requireIdentity,
   requireHubEditingPermission,
   requireHubPermission,
   requireOrganizationHub,
 } from "./lib/access"
-import { createAuditLog } from "./lib/auditLogs"
+import { auditActorFromIdentity, createAuditLog } from "./lib/auditLogs"
 import { createNotification } from "./lib/notifications"
 
 const invitationStatus = v.union(
@@ -205,8 +204,11 @@ export const create = mutation({
     accessLevel: v.optional(accessLevel),
   },
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "owner")
-    const identity = await requireIdentity(ctx)
+    const { identity, auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "owner"
+    )
     const displayName = clean(args.displayName, 120)
     if (!displayName) throw new Error("employeeNameIsRequired")
     const normalizedEmail = normalizeEmail(args.email)
@@ -236,7 +238,7 @@ export const create = mutation({
       updatedAt: now,
       invitationStatus: "not-sent",
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: args.hubId,
       action: "created",
       entityType: "employee",
@@ -259,7 +261,11 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
     const displayName = clean(args.displayName, 120)
     if (!displayName) throw new Error("employeeNameIsRequired")
     const normalizedEmail = normalizeEmail(args.email)
@@ -287,7 +293,7 @@ export const update = mutation({
       accessLevel: args.accessLevel ?? profile.accessLevel ?? "viewer",
       updatedAt: Date.now(),
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "edited",
       entityType: "employee",
@@ -306,7 +312,11 @@ export const prepareInvitation = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
     if (!profile.email) throw new Error("addEmailBeforeSendingInvitation")
     if (profile.status === "active") throw new Error("employeeIsAlreadyActive")
     if (profile.status === "deactivated")
@@ -323,6 +333,13 @@ export const prepareInvitation = mutation({
       invitedAt: now,
       updatedAt: now,
     })
+    await createAuditLog(ctx, auditActor, {
+      hubId: profile.hubId,
+      action: "edited",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: profile.displayName,
+    })
     return { email: profile.email }
   },
 })
@@ -335,12 +352,23 @@ export const recordInvitation = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationId: args.invitationId,
       invitationStatus: "pending",
       invitationError: undefined,
       updatedAt: Date.now(),
+    })
+    await createAuditLog(ctx, auditActor, {
+      hubId: profile.hubId,
+      action: "edited",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: profile.displayName,
     })
     return null
   },
@@ -354,11 +382,22 @@ export const recordInvitationFailure = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationStatus: "failed",
       invitationError: args.message.slice(0, 500),
       updatedAt: Date.now(),
+    })
+    await createAuditLog(ctx, auditActor, {
+      hubId: profile.hubId,
+      action: "edited",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: profile.displayName,
     })
     return null
   },
@@ -372,10 +411,21 @@ export const markInvitationStatus = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
     await ctx.db.patch("employeeProfiles", profile._id, {
       invitationStatus: args.status,
       updatedAt: Date.now(),
+    })
+    await createAuditLog(ctx, auditActor, {
+      hubId: profile.hubId,
+      action: "edited",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: profile.displayName,
     })
     return null
   },
@@ -398,6 +448,17 @@ export const activateByInvitation = mutation({
       throw new Error("invitationDoesNotMatchThisWorkplace")
     }
     await activateProfile(ctx, profile, identity.subject, Date.now())
+    await createAuditLog(
+      ctx,
+      auditActorFromIdentity(identity, profile.displayName),
+      {
+        hubId: profile.hubId,
+        action: "edited",
+        entityType: "employee",
+        entityId: profile._id,
+        entityTitle: profile.displayName,
+      }
+    )
     return { hubSlug: hub.slug }
   },
 })
@@ -423,9 +484,13 @@ export const deactivateAfterClerkRemoval = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
     await deactivateProfileRecords(ctx, profile, Date.now())
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "edited",
       entityType: "employee",
@@ -442,7 +507,11 @@ export const removeProfileBatch = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
 
     const [
       eventAssignments,
@@ -499,7 +568,7 @@ export const removeProfileBatch = mutation({
     }
 
     await ctx.db.delete("employeeProfiles", profile._id)
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "deleted",
       entityType: "employee",
@@ -515,7 +584,11 @@ export const reactivateUnclaimed = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    await requireHubPermission(ctx, profile.hubId, "owner")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      profile.hubId,
+      "owner"
+    )
     await ctx.db.patch("employeeProfiles", profile._id, {
       clerkUserId: undefined,
       status: "unclaimed",
@@ -527,7 +600,7 @@ export const reactivateUnclaimed = mutation({
       deactivatedAt: undefined,
       updatedAt: Date.now(),
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "edited",
       entityType: "employee",
@@ -544,7 +617,7 @@ export const reconcileMemberships = mutation({
     activeClerkUserIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "owner")
+    const { auditActor } = await requireHubPermission(ctx, args.hubId, "owner")
     const activeUsers = new Set(args.activeClerkUserIds.slice(0, 20))
     const profiles = await ctx.db
       .query("employeeProfiles")
@@ -558,12 +631,26 @@ export const reconcileMemberships = mutation({
         profile.status === "active"
       ) {
         await deactivateProfileRecords(ctx, profile, now)
+        await createAuditLog(ctx, auditActor, {
+          hubId: profile.hubId,
+          action: "edited",
+          entityType: "employee",
+          entityId: profile._id,
+          entityTitle: profile.displayName,
+        })
       } else if (
         activeUsers.has(profile.clerkUserId) &&
         profile.status !== "active" &&
         profile.status !== "deactivated"
       ) {
         await activateProfile(ctx, profile, profile.clerkUserId, now)
+        await createAuditLog(ctx, auditActor, {
+          hubId: profile.hubId,
+          action: "edited",
+          entityType: "employee",
+          entityId: profile._id,
+          entityTitle: profile.displayName,
+        })
       }
     }
     return null

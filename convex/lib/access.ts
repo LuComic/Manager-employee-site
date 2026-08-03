@@ -7,6 +7,7 @@ import {
 } from "../../lib/worker-editing"
 import type { Doc, Id } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
+import { auditActorFromIdentity } from "./auditLogs"
 
 type ReadCtx = QueryCtx | MutationCtx
 
@@ -74,6 +75,14 @@ export async function getHubPermission(
   const identity = await getIdentity(ctx)
   if (!identity) return null
 
+  return (await getHubAccessForIdentity(ctx, hub, identity))?.permission ?? null
+}
+
+async function getHubAccessForIdentity(
+  ctx: ReadCtx,
+  hub: Doc<"hubs">,
+  identity: NonNullable<Awaited<ReturnType<typeof getIdentity>>>
+) {
   const activeOrganization = getActiveOrganizationFromIdentity(identity)
   if (activeOrganization?.organizationId !== hub.clerkOrganizationId) {
     return null
@@ -87,9 +96,19 @@ export async function getHubPermission(
     .take(10)
   const activeProfile = profiles.find((profile) => profile.status === "active")
   if (profiles.length > 0 && !activeProfile) return null
-  if (activeOrganization.role === "org:admin") return "owner"
-  if (activeProfile) return activeProfile.accessLevel ?? "viewer"
-  return null
+  let permission: HubPermission
+  if (activeOrganization.role === "org:admin") {
+    permission = "owner"
+  } else if (activeProfile) {
+    permission = activeProfile.accessLevel ?? "viewer"
+  } else {
+    return null
+  }
+  return {
+    permission,
+    identity,
+    auditActor: auditActorFromIdentity(identity, activeProfile?.displayName),
+  }
 }
 
 export async function requireHubPermission(
@@ -97,13 +116,12 @@ export async function requireHubPermission(
   hubId: Id<"hubs">,
   minimum: HubPermission
 ) {
-  const identity = await getIdentity(ctx)
-  if (!identity) throw new Error("notAuthenticated")
+  const identity = await requireIdentity(ctx)
   const hub = await ctx.db.get("hubs", hubId)
   if (!hub) throw new Error("unauthorized")
-  const permission = await getHubPermission(ctx, hub)
-  if (!permission) throw new Error("unauthorized")
-  if (permissionRank[permission] < permissionRank[minimum]) {
+  const access = await getHubAccessForIdentity(ctx, hub, identity)
+  if (!access) throw new Error("unauthorized")
+  if (permissionRank[access.permission] < permissionRank[minimum]) {
     throw new Error(
       minimum === "owner"
         ? "workplaceOwnerAccessRequired"
@@ -112,7 +130,7 @@ export async function requireHubPermission(
           : "editingAccessRequired"
     )
   }
-  return { hub, permission }
+  return { hub, ...access }
 }
 
 export async function requireHubEditingPermission(
@@ -142,8 +160,8 @@ export async function getManagedHub(ctx: ReadCtx) {
     )
     .unique()
   if (!hub) return null
-  const permission = await getHubPermission(ctx, hub)
-  return { hub, permission }
+  const access = await getHubAccessForIdentity(ctx, hub, identity)
+  return { hub, permission: access?.permission ?? null }
 }
 
 export async function hasHubAccess(ctx: ReadCtx, hub: Doc<"hubs">) {

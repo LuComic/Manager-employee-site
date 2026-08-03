@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
 import { hubStorageBindingValidator } from "./lib/hubStorage"
+import { auditLogDocumentValidator } from "./lib/auditLogs"
 
 const accessMode = v.union(v.literal("public"), v.literal("restricted"))
 const employeeStatus = v.union(
@@ -330,32 +331,10 @@ export default defineSchema({
     status: v.union(v.literal("open"), v.literal("resolved")),
   }).index("by_hubId_and_submittedAt", ["hubId", "submittedAt"]),
 
-  auditLogs: defineTable({
-    hubId: v.id("hubs"),
-    actorId: v.string(),
-    actorName: v.string(),
-    action: v.union(
-      v.literal("created"),
-      v.literal("edited"),
-      v.literal("deleted"),
-      v.literal("drafted")
-    ),
-    entityType: v.union(
-      v.literal("announcement"),
-      v.literal("attachment"),
-      v.literal("category"),
-      v.literal("document"),
-      v.literal("employee"),
-      v.literal("event"),
-      v.literal("faq"),
-      v.literal("guide"),
-      v.literal("helpRequest"),
-      v.literal("workplace")
-    ),
-    entityId: v.optional(v.string()),
-    entityTitle: v.string(),
-    occurredAt: v.number(),
-  }).index("by_hubId_and_occurredAt", ["hubId", "occurredAt"]),
+  auditLogs: defineTable(auditLogDocumentValidator).index(
+    "by_hubId_and_occurredAt",
+    ["hubId", "occurredAt"]
+  ),
 
   workerNotes: defineTable({
     hubId: v.id("hubs"),

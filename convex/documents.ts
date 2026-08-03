@@ -8,11 +8,7 @@ import type { AppMessageKey } from "../i18n/messages"
 import { normalizeWorkersCanEdit } from "../lib/worker-editing"
 import type { Doc, Id } from "./_generated/dataModel"
 import { mutation, type MutationCtx } from "./_generated/server"
-import {
-  requireHubEditingPermission,
-  requireHubPermission,
-  requireIdentity,
-} from "./lib/access"
+import { requireHubEditingPermission, requireHubPermission } from "./lib/access"
 import { createAuditLog } from "./lib/auditLogs"
 import {
   assertGuideLinkReplacementFits,
@@ -123,12 +119,8 @@ export const save = mutation({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { hub, permission } = await requireHubEditingPermission(
-      ctx,
-      args.hubId,
-      "documents"
-    )
-    const identity = await requireIdentity(ctx)
+    const { hub, permission, identity, auditActor } =
+      await requireHubEditingPermission(ctx, args.hubId, "documents")
     const existing = await ctx.db
       .query("documents")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -335,7 +327,7 @@ export const save = mutation({
       updatedTitleKey: "notificationDocumentUpdated",
       unpublishedTitleKey: "notificationDocumentUnpublished",
     })
-    await createAuditLog(ctx, {
+    await createAuditLog(ctx, auditActor, {
       hubId: args.hubId,
       action: existing ? "edited" : args.published ? "created" : "drafted",
       entityType: "document",
@@ -350,7 +342,11 @@ export const remove = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireHubPermission(ctx, args.hubId, "manager")
+    const { auditActor } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "manager"
+    )
     const document = await ctx.db
       .query("documents")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -408,7 +404,7 @@ export const remove = mutation({
           href: "/documents",
         })
       }
-      await createAuditLog(ctx, {
+      await createAuditLog(ctx, auditActor, {
         hubId: args.hubId,
         action: "deleted",
         entityType: "document",
