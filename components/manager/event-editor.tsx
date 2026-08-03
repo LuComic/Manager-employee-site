@@ -4,9 +4,18 @@ import { T } from "@/components/translated-text"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
-import { ArrowLeft, CalendarDays, Paperclip, Trash2, Users } from "lucide-react"
+import {
+  ArrowLeft,
+  CalendarDays,
+  LockKeyhole,
+  Paperclip,
+  Trash2,
+  TriangleAlert,
+  Users,
+} from "lucide-react"
 
 import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
+import { EventCategoryLabel } from "@/components/calendar/event-category-label"
 import { useUnsavedChanges } from "@/components/manager/use-unsaved-changes"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -23,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { eventCategoryLabel, RESERVATION_EVENT_TYPE_ID } from "@/lib/categories"
+import { RESERVATION_EVENT_TYPE_ID } from "@/lib/categories"
 import {
   addCalendarDays,
   slugify,
@@ -63,6 +72,7 @@ function newEvent(
     attachments: [],
     guideIds: [],
     published: false,
+    isPrivate: false,
   }
 }
 
@@ -96,6 +106,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const deputyManaged = draft?.source === "deputy"
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "event",
@@ -199,6 +210,16 @@ export function EventEditor({ eventId }: { eventId?: string }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {deputyManaged && (
+                <div className="border bg-muted/40 p-3 text-sm">
+                  <p className="font-semibold">
+                    <T>managedByDeputy</T>
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    <T>deputyControlsEmployeeAreaDateTimeMessage</T>
+                  </p>
+                </div>
+              )}
               <Field label="title" id="event-title">
                 <Input
                   id="event-title"
@@ -207,6 +228,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change({ ...draft, title: event.target.value })
                   }
                   className="border border-input px-3 text-base"
+                  disabled={deputyManaged}
                 />
               </Field>
               <Field label="description" id="event-description">
@@ -227,6 +249,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change({ ...draft, location: event.target.value })
                   }
                   className="border border-input px-3"
+                  disabled={deputyManaged}
                 />
               </Field>
             </CardContent>
@@ -243,6 +266,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                 <input
                   type="checkbox"
                   checked={draft.allDay}
+                  disabled={deputyManaged}
                   onChange={(event) =>
                     change(toggleAllDayEvent(draft, event.target.checked))
                   }
@@ -269,6 +293,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                       )
                     }}
                     className="border border-input px-3"
+                    disabled={deputyManaged}
                   />
                 </Field>
                 <Field label={draft.allDay ? "lastDay" : "ends"} id="event-end">
@@ -293,6 +318,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                       )
                     }}
                     className="border border-input px-3"
+                    disabled={deputyManaged}
                   />
                 </Field>
               </div>
@@ -335,6 +361,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         variant={selected ? "default" : "outline"}
                         className={selected ? undefined : "bg-background"}
                         aria-pressed={selected}
+                        disabled={deputyManaged}
                         onClick={() =>
                           change({
                             ...draft,
@@ -445,15 +472,41 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                 <input
                   type="checkbox"
                   checked={draft.published}
+                  disabled={deputyManaged}
                   onChange={(event) =>
                     change({ ...draft, published: event.target.checked })
                   }
                 />
                 <T>publishNow</T>
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.isPrivate}
+                  onChange={(event) =>
+                    change({ ...draft, isPrivate: event.target.checked })
+                  }
+                />
+                <LockKeyhole className="size-4" /> <T>private</T>
+              </label>
+              {deputyManaged && !draft.isPrivate && (
+                <div
+                  role="alert"
+                  className="border border-warning/40 bg-warning/10 p-3 text-sm"
+                >
+                  <p className="flex items-center gap-2 font-semibold">
+                    <TriangleAlert className="size-4" />
+                    <T>publicDeputyShiftWarningTitle</T>
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    <T>publicDeputyShiftWarningMessage</T>
+                  </p>
+                </div>
+              )}
               <Field label="eventType" id="event-type">
                 <Select
                   value={draft.category}
+                  disabled={deputyManaged}
                   onValueChange={(value) => {
                     if (value) change({ ...draft, category: value })
                   }}
@@ -463,13 +516,21 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     className="w-full border border-input bg-background px-3"
                   >
                     <SelectValue>
-                      {eventCategoryLabel(draft.category, eventTypes)}
+                      <EventCategoryLabel
+                        category={draft.category}
+                        eventTypes={eventTypes}
+                        showSchedulePrivacy
+                      />
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {eventTypes.map((eventType) => (
                       <SelectItem key={eventType.id} value={eventType.id}>
-                        {eventCategoryLabel(eventType.id, eventTypes)}
+                        <EventCategoryLabel
+                          category={eventType.id}
+                          eventTypes={eventTypes}
+                          showSchedulePrivacy
+                        />
                       </SelectItem>
                     ))}
                   </SelectContent>

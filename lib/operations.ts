@@ -28,6 +28,8 @@ export type CalendarEvent = {
   attachments: Attachment[]
   guideIds: string[]
   published: boolean
+  isPrivate?: boolean
+  source?: "deputy"
 }
 
 export type EmployeeStatus = "unclaimed" | "invited" | "active" | "deactivated"

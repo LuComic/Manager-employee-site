@@ -830,6 +830,7 @@ export function OperationsProvider({
           ),
           notes: event.notes,
           published: event.published,
+          isPrivate: Boolean(event.isPrivate),
           guideSlugs: event.guideIds,
         })
       )

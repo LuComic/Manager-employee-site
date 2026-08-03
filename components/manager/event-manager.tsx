@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { EventCategoryLabel } from "@/components/calendar/event-category-label"
 import { CalendarImportIssues } from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
@@ -364,9 +365,15 @@ export function EventManager() {
             aria-label={t("filterEventsByType")}
           >
             <SelectValue>
-              {category === "All"
-                ? t("all")
-                : eventCategoryLabel(category, eventTypes)}
+              {category === "All" ? (
+                t("all")
+              ) : (
+                <EventCategoryLabel
+                  category={category}
+                  eventTypes={eventTypes}
+                  showSchedulePrivacy
+                />
+              )}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -375,7 +382,11 @@ export function EventManager() {
             </SelectItem>
             {eventTypes.map((eventType) => (
               <SelectItem key={eventType.id} value={eventType.id}>
-                {eventCategoryLabel(eventType.id, eventTypes)}
+                <EventCategoryLabel
+                  category={eventType.id}
+                  eventTypes={eventTypes}
+                  showSchedulePrivacy
+                />
               </SelectItem>
             ))}
           </SelectContent>
@@ -396,7 +407,11 @@ export function EventManager() {
                   <T>{event.published ? "published" : "draft"}</T>
                 </Badge>,
                 <Badge key="category" variant="secondary">
-                  {eventCategoryLabel(event.category, eventTypes)}
+                  <EventCategoryLabel
+                    category={event.category}
+                    eventTypes={eventTypes}
+                    isPrivate={event.isPrivate}
+                  />
                 </Badge>,
               ]}
               description={
@@ -419,18 +434,22 @@ export function EventManager() {
               }
               actions={
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      saveEvent({ ...event, published: !event.published })
-                      showFeedback(
-                        event.published ? "eventUnpublished" : "eventPublished"
-                      )
-                    }}
-                  >
-                    <T>{event.published ? "unpublish" : "publish"}</T>
-                  </Button>
+                  {event.source !== "deputy" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        saveEvent({ ...event, published: !event.published })
+                        showFeedback(
+                          event.published
+                            ? "eventUnpublished"
+                            : "eventPublished"
+                        )
+                      }}
+                    >
+                      <T>{event.published ? "unpublish" : "publish"}</T>
+                    </Button>
+                  )}
                   <Link
                     href={`/manager/calendar/${event.id}/edit`}
                     className={cn(
@@ -439,7 +458,7 @@ export function EventManager() {
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
-                  {canCreateContent && (
+                  {canCreateContent && event.source !== "deputy" && (
                     <Button
                       variant="destructive"
                       size="icon-sm"

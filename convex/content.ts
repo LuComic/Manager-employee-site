@@ -514,6 +514,7 @@ export const saveEvent = mutation({
     employeeProfileIds: v.optional(v.array(v.id("employeeProfiles"))),
     notes: v.string(),
     published: v.boolean(),
+    isPrivate: v.optional(v.boolean()),
     guideSlugs: v.array(v.string()),
   },
   returns: v.string(),
@@ -584,7 +585,7 @@ export const saveEvent = mutation({
       previousCount: oldGuideRelations.length,
       nextCount: selectedGuides.length,
     })
-    const value = {
+    const editableValue = {
       title: required(args.title, "eventTitle", 140),
       description: required(args.description, "eventDescription", 500),
       categoryId: category._id,
@@ -599,7 +600,24 @@ export const saveEvent = mutation({
       location: required(args.location, "eventLocation", 140),
       notes: args.notes.trim().slice(0, 4000),
       published: args.published,
+      isPrivate: args.isPrivate ?? existing?.isPrivate ?? false,
     }
+    const value =
+      existing?.source === "deputy"
+        ? {
+            ...editableValue,
+            title: existing.title,
+            categoryId: existing.categoryId,
+            start: existing.start,
+            end: existing.end,
+            allDay: existing.allDay,
+            startUtc: existing.startUtc,
+            endUtc: existing.endUtc,
+            icalUid: existing.icalUid,
+            location: existing.location,
+            published: existing.published,
+          }
+        : editableValue
     const eventId = existing
       ? (await ctx.db.patch("events", existing._id, value), existing._id)
       : await ctx.db.insert("events", {
@@ -609,7 +627,10 @@ export const saveEvent = mutation({
         })
 
     const newlyAssignedEmployeeIds: Id<"employeeProfiles">[] = []
-    if (args.employeeProfileIds !== undefined) {
+    if (
+      args.employeeProfileIds !== undefined &&
+      existing?.source !== "deputy"
+    ) {
       const selectedIds = [...new Set(args.employeeProfileIds)].slice(0, 100)
       const oldEmployeeRelations = await ctx.db
         .query("eventEmployees")
@@ -666,7 +687,7 @@ export const saveEvent = mutation({
       hubId: args.hubId,
       kind: "event",
       wasPublished: existing?.published ?? false,
-      isPublished: args.published,
+      isPublished: value.published,
       contentTitle: value.title,
       detailHref: `/calendar/${args.slug}`,
       listHref: "/calendar",
@@ -674,7 +695,7 @@ export const saveEvent = mutation({
       updatedTitleKey: "notificationEventUpdated",
       unpublishedTitleKey: "notificationEventUnpublished",
     })
-    if (args.published) {
+    if (value.published) {
       const assignmentRecipients = !existing?.published
         ? (
             await ctx.db
@@ -699,7 +720,7 @@ export const saveEvent = mutation({
     }
     await createAuditLog(ctx, auditActor, {
       hubId: args.hubId,
-      action: existing ? "edited" : args.published ? "created" : "drafted",
+      action: existing ? "edited" : value.published ? "created" : "drafted",
       entityType: "event",
       entityId: eventId,
       entityTitle: value.title,
@@ -724,6 +745,7 @@ export const deleteEvent = mutation({
       )
       .unique()
     if (!event) return null
+    if (event.source === "deputy") throw new Error("deputyShiftManagedByDeputy")
     const [relations, employeeRelations, attachments, announcements] =
       await Promise.all([
         ctx.db

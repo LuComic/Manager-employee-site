@@ -10,10 +10,12 @@ import {
   ChevronLeft,
   ChevronRight,
   List,
+  LockKeyhole,
   MapPin,
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { EventCategoryLabel } from "@/components/calendar/event-category-label"
 import {
   CreateSectionButton,
   ManageSectionButton,
@@ -43,7 +45,6 @@ import {
   formatTime,
   toDateKey,
 } from "@/lib/operations"
-import { eventCategoryLabel } from "@/lib/categories"
 import { cn } from "@/lib/utils"
 
 type View = "month" | "list"
@@ -67,7 +68,7 @@ function calendarKey(value: Date) {
 export function CalendarPage() {
   const t = useAppTranslations()
   const languageTag = useLanguageTag()
-  const { events, eventTypes, hub } = useOperations()
+  const { events, eventTypes, hub, managerAccess } = useOperations()
   const todayKey = toDateKey(new Date(), hub?.timeZone)
   const [view, setView] = useState<View>("month")
   const [visibleDate, setVisibleDate] = useState(() =>
@@ -174,9 +175,15 @@ export function CalendarPage() {
               className="border border-input bg-background px-3"
             >
               <SelectValue>
-                {category === "All"
-                  ? t("allEventTypes")
-                  : eventCategoryLabel(category, eventTypes)}
+                {category === "All" ? (
+                  t("allEventTypes")
+                ) : (
+                  <EventCategoryLabel
+                    category={category}
+                    eventTypes={eventTypes}
+                    showSchedulePrivacy={Boolean(managerAccess)}
+                  />
+                )}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -185,7 +192,11 @@ export function CalendarPage() {
               </SelectItem>
               {eventTypes.map((eventType) => (
                 <SelectItem key={eventType.id} value={eventType.id}>
-                  {eventCategoryLabel(eventType.id, eventTypes)}
+                  <EventCategoryLabel
+                    category={eventType.id}
+                    eventTypes={eventTypes}
+                    showSchedulePrivacy={Boolean(managerAccess)}
+                  />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -274,6 +285,12 @@ export function CalendarPage() {
                               )
                             )}{" "}
                             {event.title}
+                            {event.isPrivate && (
+                              <LockKeyhole
+                                className="ml-1 inline size-3"
+                                aria-label={t("privateEvent")}
+                              />
+                            )}
                           </span>
                         </Link>
                       ))}
@@ -319,7 +336,11 @@ export function CalendarPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold">{event.title}</h3>
                   <Badge variant="secondary">
-                    {eventCategoryLabel(event.category, eventTypes)}
+                    <EventCategoryLabel
+                      category={event.category}
+                      eventTypes={eventTypes}
+                      isPrivate={event.isPrivate}
+                    />
                   </Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">

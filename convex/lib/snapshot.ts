@@ -12,6 +12,7 @@ export async function buildSnapshot(
   hub: Doc<"hubs">,
   options: {
     includeDrafts: boolean
+    includePrivateEvents: boolean
     workerSections?: WorkersCanEdit
     includeOrganizationMapping: boolean
     nowDate: string
@@ -103,9 +104,13 @@ export async function buildSnapshot(
   const guides = includeGuideDrafts
     ? allGuides
     : allGuides.filter((guide) => guide.published)
+  const activeEvents = allEvents.filter((event) => !event.sourceDeleted)
+  const privacyFilteredEvents = options.includePrivateEvents
+    ? activeEvents
+    : activeEvents.filter((event) => !event.isPrivate)
   const events = includeEventDrafts
-    ? allEvents
-    : allEvents.filter((event) => event.published)
+    ? privacyFilteredEvents
+    : privacyFilteredEvents.filter((event) => event.published)
   const announcements = includeAnnouncementDrafts
     ? allAnnouncements
     : allAnnouncements.filter(
@@ -306,6 +311,8 @@ export async function buildSnapshot(
           ),
           notes: event.notes,
           published: event.published,
+          isPrivate: event.isPrivate ?? false,
+          ...(event.source ? { source: event.source } : {}),
           guideIds: guideIdsByEventId.get(event._id) ?? [],
           attachments: attachmentsByEventId.get(event._id) ?? [],
         },

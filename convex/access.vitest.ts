@@ -1860,6 +1860,118 @@ describe("Organization employees, invitations, and event links", () => {
     )
   })
 
+  test("returns private events only to active members of the current workplace", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const profileId = await createEmployee(t, hubId, "Active Member")
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", profileId, {
+        clerkUserId: orgMemberIdentity.subject,
+        status: "active",
+      })
+    })
+    const admin = t.withIdentity(orgAdminIdentity)
+    const baseEvent = {
+      hubId,
+      description: "Privacy boundary test",
+      category: "event-reservation",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+    }
+    await admin.mutation(api.content.saveEvent, {
+      ...baseEvent,
+      slug: "public-event",
+      title: "Public briefing",
+      start: "2026-07-21T10:00",
+      end: "2026-07-21T11:00",
+      isPrivate: false,
+    })
+    await admin.mutation(api.content.saveEvent, {
+      ...baseEvent,
+      slug: "private-event",
+      title: "Private employee shift",
+      start: "2026-07-21T11:00",
+      end: "2026-07-21T12:00",
+      isPrivate: true,
+    })
+
+    const guest = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "org-hub",
+      nowDate: "2026-07-19",
+    })
+    if (guest.kind !== "ready") throw new Error("Expected public snapshot")
+    expect(guest.events.map((event) => event.id)).toEqual(["public-event"])
+    expect(JSON.stringify(guest)).not.toContain("Private employee shift")
+
+    const credentialGuest = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "org-hub",
+      credential: "ORGA-NIZE",
+      nowDate: "2026-07-19",
+    })
+    if (credentialGuest.kind !== "ready") {
+      throw new Error("Expected credential snapshot")
+    }
+    expect(credentialGuest.events.map((event) => event.id)).toEqual([
+      "public-event",
+    ])
+
+    const wrongWorkplace = await t
+      .withIdentity(otherOrgAdminIdentity)
+      .query(api.hubs.getPublicSnapshot, {
+        slug: "org-hub",
+        nowDate: "2026-07-19",
+      })
+    if (wrongWorkplace.kind !== "ready") {
+      throw new Error("Expected public snapshot for other account")
+    }
+    expect(wrongWorkplace.events.map((event) => event.id)).toEqual([
+      "public-event",
+    ])
+
+    const member = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.hubs.getActiveMemberSnapshot, {
+        nowDate: "2026-07-19",
+        organizationHint: "org-a",
+      })
+    if (member.kind !== "ready") throw new Error("Expected member snapshot")
+    expect(member.events.map((event) => event.id)).toEqual([
+      "public-event",
+      "private-event",
+    ])
+    expect(member.events[1]).toMatchObject({ isPrivate: true })
+    const memberUsingPublicRoute = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.hubs.getPublicSnapshot, {
+        slug: "org-hub",
+        nowDate: "2026-07-19",
+      })
+    if (memberUsingPublicRoute.kind !== "ready") {
+      throw new Error("Expected member snapshot through public route")
+    }
+    expect(memberUsingPublicRoute.events.map((event) => event.id)).toEqual([
+      "public-event",
+      "private-event",
+    ])
+
+    const guestSearch = await t.query(api.search.published, {
+      hubSlug: "org-hub",
+      query: "Private employee shift",
+      nowDate: "2026-07-19",
+    })
+    expect(guestSearch).toEqual([])
+    const memberSearch = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.search.published, {
+        hubSlug: "org-hub",
+        query: "Private employee shift",
+        nowDate: "2026-07-19",
+      })
+    expect(memberSearch.map((result) => result.id)).toEqual(["private-event"])
+  })
+
   test("persists all-day state and validates exact timed instants", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)

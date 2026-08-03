@@ -1,7 +1,7 @@
 import { v } from "convex/values"
 
 import { query } from "./_generated/server"
-import { canReadPublishedHub } from "./lib/access"
+import { canReadPublishedHub, hasHubAccess } from "./lib/access"
 
 function plainText(value: unknown): string {
   if (typeof value === "string") return value
@@ -31,6 +31,7 @@ export const published = query({
       .unique()
     if (!hub || !(await canReadPublishedHub(ctx, hub, args.credential)))
       return []
+    const includePrivateEvents = await hasHubAccess(ctx, hub)
     const cleanQuery = args.query.trim().toLocaleLowerCase().slice(0, 120)
     if (!cleanQuery) return []
 
@@ -133,6 +134,7 @@ export const published = query({
           type: "Guide" as const,
         })),
       ...events
+        .filter((event) => includePrivateEvents || !event.isPrivate)
         .filter((event) =>
           includes(
             cleanQuery,

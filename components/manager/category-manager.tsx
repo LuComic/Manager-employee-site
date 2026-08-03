@@ -10,6 +10,7 @@ import {
   ArrowUp,
   CalendarDays,
   FilePenLine,
+  LockKeyhole,
   Plus,
   Tags,
   Trash2,
@@ -47,7 +48,10 @@ import {
   type CategoryIconKey,
 } from "@/lib/category-icons"
 import type { Category } from "@/lib/knowledge-base"
-import type { CategoryKind } from "@/lib/categories"
+import {
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  type CategoryKind,
+} from "@/lib/categories"
 import { slugify } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
@@ -196,7 +200,15 @@ export function CategoryManager() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">{displayLabel}</h2>
+                      <h2 className="inline-flex items-center gap-1.5 font-semibold">
+                        {displayLabel}
+                        {category.id === DEPUTY_SCHEDULES_EVENT_TYPE_ID && (
+                          <LockKeyhole
+                            className="size-3.5"
+                            aria-label={t("privateEvent")}
+                          />
+                        )}
+                      </h2>
                       <Badge variant="secondary">
                         <T>
                           {category.kind === "guide"

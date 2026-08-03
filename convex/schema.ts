@@ -178,6 +178,13 @@ export default defineSchema({
     location: v.string(),
     notes: v.string(),
     published: v.boolean(),
+    isPrivate: v.optional(v.boolean()),
+    source: v.optional(v.literal("deputy")),
+    externalId: v.optional(v.string()),
+    sourceEmployeeId: v.optional(v.string()),
+    sourceAreaId: v.optional(v.string()),
+    lastSourceSyncId: v.optional(v.string()),
+    sourceDeleted: v.optional(v.boolean()),
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_start", ["hubId", "start"])
@@ -187,6 +194,30 @@ export default defineSchema({
       searchField: "title",
       filterFields: ["hubId", "published"],
     }),
+
+  deputyConnections: defineTable({
+    hubId: v.id("hubs"),
+    endpoint: v.string(),
+    tokenCiphertext: v.string(),
+    tokenInitializationVector: v.string(),
+    tokenVersion: v.number(),
+    accessTokenExpiresAt: v.number(),
+    status: v.union(
+      v.literal("connected"),
+      v.literal("syncing"),
+      v.literal("error")
+    ),
+    connectedAt: v.number(),
+    connectedBy: v.string(),
+    lastSyncedAt: v.optional(v.number()),
+    lastSyncError: v.optional(v.string()),
+  }).index("by_hubId", ["hubId"]),
+
+  deputyEmployeeMappings: defineTable({
+    hubId: v.id("hubs"),
+    deputyEmployeeId: v.string(),
+    employeeProfileId: v.id("employeeProfiles"),
+  }).index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"]),
 
   eventGuides: defineTable({
     hubId: v.id("hubs"),
