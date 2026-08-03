@@ -17,6 +17,7 @@ import {
   FilePenLine,
   Files,
   Headphones,
+  History,
   Home,
   LayoutDashboard,
   Menu,
@@ -53,6 +54,7 @@ type NavigationLink = {
   href: string
   label: AppMessageKey
   icon: LucideIcon
+  managerOnly?: boolean
 }
 
 const primaryNavigationItems: NavigationLink[] = [
@@ -91,6 +93,12 @@ const moreNavigationGroups: {
         icon: CircleHelp,
       },
       { href: "/manager/drafts", label: "drafts", icon: FilePenLine },
+      {
+        href: "/manager/logs",
+        label: "activityLogs",
+        icon: History,
+        managerOnly: true,
+      },
     ],
   },
   {
@@ -154,7 +162,15 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           .filter((group) => group.items.length)
       : managerAccess === "owner"
         ? moreNavigationGroups
-        : moreNavigationGroups.filter((group) => group.label === "content")
+        : moreNavigationGroups
+            .filter((group) => group.label === "content")
+            .map((group) => ({
+              ...group,
+              items:
+                managerAccess === "manager"
+                  ? group.items
+                  : group.items.filter((item) => !item.managerOnly),
+            }))
   const contentRoute =
     pathname === "/manager" ||
     pathname.startsWith("/manager/today") ||
@@ -164,12 +180,15 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/manager/announcements") ||
     pathname.startsWith("/manager/documents") ||
     pathname.startsWith("/manager/questions") ||
-    pathname.startsWith("/manager/drafts")
+    pathname.startsWith("/manager/drafts") ||
+    pathname.startsWith("/manager/logs")
+  const managerOnlyRoute = pathname.startsWith("/manager/logs")
   const routeAllowed =
     managerAccess === "owner" ||
     (managerAccess === "manager" && contentRoute) ||
     (managerAccess === "editor" &&
       contentRoute &&
+      !managerOnlyRoute &&
       (!pathname.endsWith("/new") || workerRouteAllowed)) ||
     (managerAccess === "viewer" && workerRouteAllowed)
   return (

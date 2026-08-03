@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
 import { hubStorageBindingValidator } from "./lib/hubStorage"
+import { auditLogDocumentValidator } from "./lib/auditLogs"
 
 const accessMode = v.union(v.literal("public"), v.literal("restricted"))
 const employeeStatus = v.union(
@@ -329,6 +330,11 @@ export default defineSchema({
     submittedAt: v.number(),
     status: v.union(v.literal("open"), v.literal("resolved")),
   }).index("by_hubId_and_submittedAt", ["hubId", "submittedAt"]),
+
+  auditLogs: defineTable(auditLogDocumentValidator).index(
+    "by_hubId_and_occurredAt",
+    ["hubId", "occurredAt"]
+  ),
 
   workerNotes: defineTable({
     hubId: v.id("hubs"),
