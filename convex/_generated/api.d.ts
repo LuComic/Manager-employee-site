@@ -22,6 +22,7 @@ import type * as lib_access from "../lib/access.js";
 import type * as lib_auditLogs from "../lib/auditLogs.js";
 import type * as lib_credentialEncryption from "../lib/credentialEncryption.js";
 import type * as lib_deputyCredentials from "../lib/deputyCredentials.js";
+import type * as lib_events from "../lib/events.js";
 import type * as lib_guideLinks from "../lib/guideLinks.js";
 import type * as lib_hubStorage from "../lib/hubStorage.js";
 import type * as lib_notifications from "../lib/notifications.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auditLogs": typeof lib_auditLogs;
   "lib/credentialEncryption": typeof lib_credentialEncryption;
   "lib/deputyCredentials": typeof lib_deputyCredentials;
+  "lib/events": typeof lib_events;
   "lib/guideLinks": typeof lib_guideLinks;
   "lib/hubStorage": typeof lib_hubStorage;
   "lib/notifications": typeof lib_notifications;

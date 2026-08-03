@@ -3,6 +3,10 @@ export const DEPUTY_OAUTH_AUTHORIZE_URL =
 export const DEPUTY_OAUTH_TOKEN_URL =
   "https://once.deputy.com/my/oauth/access_token"
 
+export const DEPUTY_SYNC_LOOKBACK_DAYS = 1
+export const DEPUTY_SYNC_LOOKAHEAD_DAYS = 31
+export const DEPUTY_SYNC_MAX_ROSTERS = 500
+
 export function normalizeDeputyEndpoint(value: string) {
   const candidate = value
     .trim()

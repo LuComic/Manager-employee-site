@@ -189,6 +189,13 @@ export default defineSchema({
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_start", ["hubId", "start"])
     .index("by_hubId_and_published", ["hubId", "published"])
+    .index("by_hubId_and_published_and_isPrivate_and_start", [
+      "hubId",
+      "published",
+      "isPrivate",
+      "start",
+    ])
+    .index("by_hubId_and_source_and_start", ["hubId", "source", "start"])
     .index("by_hubId_and_categoryId", ["hubId", "categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
@@ -201,6 +208,7 @@ export default defineSchema({
     tokenCiphertext: v.string(),
     tokenInitializationVector: v.string(),
     tokenVersion: v.number(),
+    generation: v.optional(v.number()),
     accessTokenExpiresAt: v.number(),
     status: v.union(
       v.literal("connected"),
@@ -211,6 +219,8 @@ export default defineSchema({
     connectedBy: v.string(),
     lastSyncedAt: v.optional(v.number()),
     lastSyncError: v.optional(v.string()),
+    activeSyncId: v.optional(v.string()),
+    syncStartedAt: v.optional(v.number()),
   }).index("by_hubId", ["hubId"]),
 
   deputyEmployeeMappings: defineTable({

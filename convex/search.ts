@@ -2,6 +2,7 @@ import { v } from "convex/values"
 
 import { query } from "./_generated/server"
 import { canReadPublishedHub, hasHubAccess } from "./lib/access"
+import { loadPublishedEvents } from "./lib/events"
 
 function plainText(value: unknown): string {
   if (typeof value === "string") return value
@@ -56,12 +57,7 @@ export const published = query({
           q.eq("hubId", hub._id).eq("published", true)
         )
         .take(500),
-      ctx.db
-        .query("events")
-        .withIndex("by_hubId_and_published", (q) =>
-          q.eq("hubId", hub._id).eq("published", true)
-        )
-        .take(500),
+      loadPublishedEvents(ctx, hub._id, includePrivateEvents),
       ctx.db
         .query("announcements")
         .withIndex("by_hubId_and_published", (q) =>
@@ -134,7 +130,7 @@ export const published = query({
           type: "Guide" as const,
         })),
       ...events
-        .filter((event) => includePrivateEvents || !event.isPrivate)
+        .filter((event) => !event.sourceDeleted)
         .filter((event) =>
           includes(
             cleanQuery,

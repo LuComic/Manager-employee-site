@@ -14,7 +14,6 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
-import { EventCategoryLabel } from "@/components/calendar/event-category-label"
 import { EmptyState } from "@/components/operations/empty-state"
 import { RelatedInformation } from "@/components/operations/related-information"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -28,6 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { eventCategoryLabel } from "@/lib/categories"
 import { formatEventDate, formatEventTime } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
@@ -62,11 +62,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
       <Card className="shadow-none">
         <CardHeader className="border-b">
           <Badge variant="secondary">
-            <EventCategoryLabel
-              category={event.category}
-              eventTypes={eventTypes}
-              isPrivate={event.isPrivate}
-            />
+            {eventCategoryLabel(event.category, eventTypes)}
           </Badge>
           <CardTitle>
             <h1 className="text-2xl tracking-tight">{event.title}</h1>

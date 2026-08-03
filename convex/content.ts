@@ -557,6 +557,15 @@ export const saveEvent = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    const existingPrivacy = existing?.isPrivate ?? false
+    const requestedPrivacy = args.isPrivate ?? existingPrivacy
+    if (
+      permission !== "manager" &&
+      permission !== "owner" &&
+      requestedPrivacy !== existingPrivacy
+    ) {
+      throw new Error("eventPrivacyManagerAccessRequired")
+    }
     const oldGuideRelations = existing
       ? await ctx.db
           .query("eventGuides")
@@ -600,7 +609,7 @@ export const saveEvent = mutation({
       location: required(args.location, "eventLocation", 140),
       notes: args.notes.trim().slice(0, 4000),
       published: args.published,
-      isPrivate: args.isPrivate ?? existing?.isPrivate ?? false,
+      isPrivate: requestedPrivacy,
     }
     const value =
       existing?.source === "deputy"

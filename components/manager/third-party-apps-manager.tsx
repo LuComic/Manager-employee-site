@@ -26,6 +26,11 @@ import {
   useAppTranslations,
 } from "@/i18n/use-app-translations"
 import type { AppMessageKey } from "@/i18n/messages"
+import {
+  DEPUTY_SYNC_LOOKAHEAD_DAYS,
+  DEPUTY_SYNC_LOOKBACK_DAYS,
+  DEPUTY_SYNC_MAX_ROSTERS,
+} from "@/lib/deputy"
 
 export function ThirdPartyAppsManager() {
   const t = useAppTranslations()
@@ -127,18 +132,29 @@ export function ThirdPartyAppsManager() {
                 ) : (
                   <CheckCircle2 />
                 )}
-                {t(
-                  connection.status === "syncing"
-                    ? "syncing"
-                    : connection.status === "error"
-                      ? "needsAttention"
-                      : "connected"
+                {connection.status === "syncing" ? (
+                  <T>syncing</T>
+                ) : connection.status === "error" ? (
+                  <T>needsAttention</T>
+                ) : (
+                  <T>connected</T>
                 )}
               </Badge>
             )}
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
+          <p className="text-sm text-warning">
+            <T
+              values={{
+                pastDays: DEPUTY_SYNC_LOOKBACK_DAYS,
+                futureDays: DEPUTY_SYNC_LOOKAHEAD_DAYS,
+                limit: DEPUTY_SYNC_MAX_ROSTERS,
+              }}
+            >
+              deputySyncScopeMessage
+            </T>
+          </p>
           {connection === undefined ? (
             <p role="status" className="text-sm text-muted-foreground">
               <T>loadingIntegration</T>

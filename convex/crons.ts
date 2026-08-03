@@ -8,7 +8,7 @@ crons.interval(
   "sync Deputy employee schedules",
   { minutes: 15 },
   internal.deputySync.syncAllConnections,
-  {}
+  { paginationOpts: { numItems: 50, cursor: null } }
 )
 
 export default crons

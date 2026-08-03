@@ -1,6 +1,12 @@
+import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
 
-import { normalizeDeputyEndpoint } from "../lib/deputy"
+import {
+  DEPUTY_SYNC_LOOKAHEAD_DAYS,
+  DEPUTY_SYNC_LOOKBACK_DAYS,
+  DEPUTY_SYNC_MAX_ROSTERS,
+  normalizeDeputyEndpoint,
+} from "../lib/deputy"
 import { internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import { env, internalAction, type ActionCtx } from "./_generated/server"
@@ -11,6 +17,13 @@ type SyncConnection = {
   accessToken: string
   refreshToken: string
   accessTokenExpiresAt: number
+  generation: number
+}
+
+type SyncJob = {
+  connectionId: Id<"deputyConnections">
+  generation: number
+  syncId: string
 }
 
 type DeputyRoster = {
@@ -22,6 +35,22 @@ type DeputyRoster = {
   areaId: string
   areaName: string
   published: boolean
+}
+
+const SYNC_ERROR_MESSAGES = new Set([
+  "deputyIntegrationNotConfigured",
+  "deputyRosterLimitExceeded",
+  "deputyRosterResponseInvalid",
+  "deputyRosterSyncFailed",
+  "deputySyncSuperseded",
+  "deputyTokenRefreshFailed",
+  "invalidDeputyEndpoint",
+])
+
+function safeSyncErrorMessage(error: unknown) {
+  return error instanceof Error && SYNC_ERROR_MESSAGES.has(error.message)
+    ? error.message
+    : "deputyRosterSyncFailed"
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -115,7 +144,7 @@ function tokenResponse(value: unknown) {
 
 async function refreshAccessToken(
   ctx: ActionCtx,
-  connectionId: Id<"deputyConnections">,
+  job: SyncJob,
   connection: SyncConnection
 ) {
   const clientId = env.DEPUTY_CLIENT_ID
@@ -140,12 +169,16 @@ async function refreshAccessToken(
   })
   if (!response.ok) throw new Error("deputyTokenRefreshFailed")
   const tokens = tokenResponse(await response.json())
-  await ctx.runMutation(internal.deputy.storeRefreshedTokens, {
-    connectionId,
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    expiresInSeconds: tokens.expiresIn,
-  })
+  const stored: boolean = await ctx.runMutation(
+    internal.deputy.storeRefreshedTokens,
+    {
+      ...job,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresInSeconds: tokens.expiresIn,
+    }
+  )
+  if (!stored) throw new Error("deputySyncSuperseded")
   return {
     ...connection,
     accessToken: tokens.accessToken,
@@ -160,6 +193,7 @@ async function rosterPage(args: {
   windowStart: number
   windowEnd: number
   start: number
+  max: number
 }) {
   return await fetch(`https://${args.endpoint}/api/v1/resource/Roster/QUERY`, {
     method: "POST",
@@ -175,98 +209,147 @@ async function rosterPage(args: {
       join: ["EmployeeObject", "OperationalUnitObject"],
       sort: { StartTime: "asc" },
       start: args.start,
-      max: 500,
+      max: args.max,
     }),
   })
 }
 
-async function synchronize(
-  ctx: ActionCtx,
-  connectionId: Id<"deputyConnections">
-) {
-  let connection: SyncConnection | null = await ctx.runQuery(
+async function synchronize(ctx: ActionCtx, job: SyncJob) {
+  const connection: SyncConnection | null = await ctx.runQuery(
     internal.deputy.getConnectionForSync,
-    { connectionId }
+    job
   )
   if (!connection) return
   const endpoint = normalizeDeputyEndpoint(connection.endpoint)
   if (!endpoint) throw new Error("invalidDeputyEndpoint")
-  connection = { ...connection, endpoint }
-  if (connection.accessTokenExpiresAt <= Date.now() + 60_000) {
-    connection = await refreshAccessToken(ctx, connectionId, connection)
+  let activeConnection: SyncConnection = { ...connection, endpoint }
+  if (activeConnection.accessTokenExpiresAt <= Date.now() + 60_000) {
+    activeConnection = await refreshAccessToken(ctx, job, activeConnection)
   }
 
   const now = Date.now()
-  const windowStart = Math.floor((now - 30 * 24 * 60 * 60 * 1000) / 1000)
-  const windowEnd = Math.floor((now + 180 * 24 * 60 * 60 * 1000) / 1000)
-  const rosters: DeputyRoster[] = []
-  for (let start = 0; start < 5_000; start += 500) {
+  const dayMs = 24 * 60 * 60 * 1000
+  const windowStart = Math.floor(
+    (now - DEPUTY_SYNC_LOOKBACK_DAYS * dayMs) / 1000
+  )
+  const windowEnd = Math.floor(
+    (now + DEPUTY_SYNC_LOOKAHEAD_DAYS * dayMs) / 1000
+  )
+
+  async function loadRosterPage(start: number, max: number) {
     let response = await rosterPage({
-      endpoint,
-      accessToken: connection.accessToken,
+      endpoint: activeConnection.endpoint,
+      accessToken: activeConnection.accessToken,
       windowStart,
       windowEnd,
       start,
+      max,
     })
     if (response.status === 401) {
-      connection = await refreshAccessToken(ctx, connectionId, connection)
+      activeConnection = await refreshAccessToken(ctx, job, activeConnection)
       response = await rosterPage({
-        endpoint,
-        accessToken: connection.accessToken,
+        endpoint: activeConnection.endpoint,
+        accessToken: activeConnection.accessToken,
         windowStart,
         windowEnd,
         start,
+        max,
       })
     }
     if (!response.ok) throw new Error("deputyRosterSyncFailed")
-    const payload: unknown = await response.json()
+    let payload: unknown
+    try {
+      payload = await response.json()
+    } catch {
+      throw new Error("deputyRosterResponseInvalid")
+    }
     const page = Array.isArray(payload)
       ? payload
       : Array.isArray(record(payload)?.data)
         ? (record(payload)!.data as unknown[])
         : null
     if (!page) throw new Error("deputyRosterResponseInvalid")
-    for (const item of page) {
-      const roster = parseRoster(item)
-      if (roster) rosters.push(roster)
-    }
-    if (page.length < 500) break
+    return page
   }
 
-  const syncId = crypto.randomUUID()
-  for (let index = 0; index < rosters.length; index += 20) {
-    await ctx.runMutation(internal.deputy.applyRosterBatch, {
-      connectionId,
-      syncId,
-      rosters: rosters.slice(index, index + 20),
-    })
+  const page = await loadRosterPage(0, DEPUTY_SYNC_MAX_ROSTERS)
+  if (page.length > DEPUTY_SYNC_MAX_ROSTERS) {
+    throw new Error("deputyRosterLimitExceeded")
+  }
+  if (page.length === DEPUTY_SYNC_MAX_ROSTERS) {
+    const overflowProbe = await loadRosterPage(DEPUTY_SYNC_MAX_ROSTERS, 1)
+    if (overflowProbe.length > 0) {
+      throw new Error("deputyRosterLimitExceeded")
+    }
+  }
+  const rosters = page.map(parseRoster)
+  if (rosters.some((roster) => roster === null)) {
+    throw new Error("deputyRosterResponseInvalid")
+  }
+  const validRosters = rosters as DeputyRoster[]
+  if (
+    new Set(validRosters.map((roster) => roster.externalId)).size !==
+    validRosters.length
+  ) {
+    throw new Error("deputyRosterResponseInvalid")
+  }
+
+  for (let index = 0; index < validRosters.length; index += 20) {
+    const applied: boolean = await ctx.runMutation(
+      internal.deputy.applyRosterBatch,
+      {
+        ...job,
+        rosters: validRosters.slice(index, index + 20),
+      }
+    )
+    if (!applied) return
   }
   const windowStartUtc = new Date(windowStart * 1000).toISOString()
   const windowEndUtc = new Date(windowEnd * 1000).toISOString()
-  while (
-    (await ctx.runMutation(internal.deputy.hideStaleRosters, {
-      connectionId,
-      syncId,
-      windowStartUtc,
-      windowEndUtc,
-    })) > 0
-  ) {
-    // Continue in bounded transactions until every stale roster is hidden.
+  while (true) {
+    const result: { active: boolean; updated: number } = await ctx.runMutation(
+      internal.deputy.hideStaleRosters,
+      {
+        ...job,
+        windowStartUtc,
+        windowEndUtc,
+      }
+    )
+    if (!result.active) return
+    if (result.updated === 0) break
   }
-  await ctx.runMutation(internal.deputy.finishSync, { connectionId })
+  for (const [direction, boundaryUtc] of [
+    ["before", windowStartUtc],
+    ["after", windowEndUtc],
+  ] as const) {
+    while (true) {
+      const result: { active: boolean; updated: number } =
+        await ctx.runMutation(internal.deputy.hideRostersOutsideWindow, {
+          ...job,
+          direction,
+          boundaryUtc,
+        })
+      if (!result.active) return
+      if (result.updated === 0) break
+    }
+  }
+  await ctx.runMutation(internal.deputy.finishSync, job)
 }
 
 export const syncConnection = internalAction({
-  args: { connectionId: v.id("deputyConnections") },
+  args: {
+    connectionId: v.id("deputyConnections"),
+    generation: v.number(),
+    syncId: v.string(),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     try {
-      await synchronize(ctx, args.connectionId)
+      await synchronize(ctx, args)
     } catch (error) {
       await ctx.runMutation(internal.deputy.failSync, {
-        connectionId: args.connectionId,
-        message:
-          error instanceof Error ? error.message : "deputyRosterSyncFailed",
+        ...args,
+        message: safeSyncErrorMessage(error),
       })
     }
     return null
@@ -274,23 +357,29 @@ export const syncConnection = internalAction({
 })
 
 export const syncAllConnections = internalAction({
-  args: {},
+  args: { paginationOpts: paginationOptsValidator },
   returns: v.null(),
-  handler: async (ctx) => {
-    const connectionIds: Id<"deputyConnections">[] = await ctx.runQuery(
-      internal.deputy.listConnectionIds,
-      {}
-    )
-    for (const connectionId of connectionIds) {
-      try {
-        await synchronize(ctx, connectionId)
-      } catch (error) {
-        await ctx.runMutation(internal.deputy.failSync, {
-          connectionId,
-          message:
-            error instanceof Error ? error.message : "deputyRosterSyncFailed",
-        })
-      }
+  handler: async (ctx, args) => {
+    const result: {
+      page: Array<{
+        connectionId: Id<"deputyConnections">
+        generation: number
+      }>
+      isDone: boolean
+      continueCursor: string
+    } = await ctx.runQuery(internal.deputy.listConnectionJobs, {
+      paginationOpts: args.paginationOpts,
+    })
+    for (const job of result.page) {
+      await ctx.runMutation(internal.deputy.claimScheduledSync, job)
+    }
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.deputySync.syncAllConnections, {
+        paginationOpts: {
+          ...args.paginationOpts,
+          cursor: result.continueCursor,
+        },
+      })
     }
     return null
   },

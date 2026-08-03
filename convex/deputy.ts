@@ -1,3 +1,7 @@
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server"
 import { v } from "convex/values"
 
 import { DEPUTY_SCHEDULES_EVENT_TYPE_ID } from "../lib/categories"
@@ -27,6 +31,58 @@ const rosterValidator = v.object({
   areaName: v.string(),
   published: v.boolean(),
 })
+
+const connectionJobValidator = v.object({
+  connectionId: v.id("deputyConnections"),
+  generation: v.number(),
+})
+
+const SYNC_LEASE_MS = 12 * 60 * 1000
+
+function connectionGeneration(connection: { generation?: number }) {
+  return connection.generation ?? 0
+}
+
+function isActiveSync(
+  connection: { generation?: number; activeSyncId?: string },
+  args: { generation: number; syncId: string }
+) {
+  return (
+    connectionGeneration(connection) === args.generation &&
+    connection.activeSyncId === args.syncId
+  )
+}
+
+async function queueSync(
+  ctx: MutationCtx,
+  args: {
+    connectionId: Id<"deputyConnections">
+    generation: number
+  }
+) {
+  const connection = await ctx.db.get("deputyConnections", args.connectionId)
+  if (
+    !connection ||
+    connectionGeneration(connection) !== args.generation ||
+    (connection.activeSyncId &&
+      (connection.syncStartedAt ?? 0) > Date.now() - SYNC_LEASE_MS)
+  ) {
+    return false
+  }
+  const syncId = crypto.randomUUID()
+  await ctx.db.patch("deputyConnections", connection._id, {
+    activeSyncId: syncId,
+    syncStartedAt: Date.now(),
+    status: "syncing",
+    lastSyncError: undefined,
+  })
+  await ctx.scheduler.runAfter(0, internal.deputySync.syncConnection, {
+    connectionId: connection._id,
+    generation: args.generation,
+    syncId,
+  })
+  return true
+}
 
 function wallTime(value: string, timeZone: string) {
   const parts = Object.fromEntries(
@@ -177,6 +233,7 @@ export const connect = mutation({
       .withIndex("by_hubId", (q) => q.eq("hubId", args.hubId))
       .unique()
     const tokenVersion = (existing?.tokenVersion ?? 0) + 1
+    const generation = connectionGeneration(existing ?? {}) + 1
     const encrypted = await encryptDeputyTokens({
       hubId: args.hubId,
       tokenVersion,
@@ -190,6 +247,7 @@ export const connect = mutation({
       endpoint,
       ...encrypted,
       tokenVersion,
+      generation,
       accessTokenExpiresAt:
         Date.now() + Math.max(60, args.expiresInSeconds) * 1000,
       status: "syncing" as const,
@@ -197,13 +255,16 @@ export const connect = mutation({
       connectedBy: identity.subject,
       lastSyncedAt: existing?.lastSyncedAt,
       lastSyncError: undefined,
+      activeSyncId: undefined,
+      syncStartedAt: undefined,
     }
     const connectionId = existing
       ? (await ctx.db.replace("deputyConnections", existing._id, value),
         existing._id)
       : await ctx.db.insert("deputyConnections", value)
-    await ctx.scheduler.runAfter(0, internal.deputySync.syncConnection, {
+    await queueSync(ctx, {
       connectionId,
+      generation,
     })
     return null
   },
@@ -219,13 +280,11 @@ export const requestSync = mutation({
       .withIndex("by_hubId", (q) => q.eq("hubId", args.hubId))
       .unique()
     if (!connection) throw new Error("deputyNotConnected")
-    await ctx.db.patch("deputyConnections", connection._id, {
-      status: "syncing",
-      lastSyncError: undefined,
-    })
-    await ctx.scheduler.runAfter(0, internal.deputySync.syncConnection, {
+    const queued = await queueSync(ctx, {
       connectionId: connection._id,
+      generation: connectionGeneration(connection),
     })
+    if (!queued) throw new Error("deputySyncAlreadyRunning")
     return null
   },
 })
@@ -244,17 +303,35 @@ export const disconnect = mutation({
   },
 })
 
-export const listConnectionIds = internalQuery({
-  args: {},
-  returns: v.array(v.id("deputyConnections")),
-  handler: async (ctx) =>
-    (await ctx.db.query("deputyConnections").take(500)).map(
-      (connection) => connection._id
-    ),
+export const listConnectionJobs = internalQuery({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: paginationResultValidator(connectionJobValidator),
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("deputyConnections")
+      .paginate(args.paginationOpts)
+    return {
+      ...result,
+      page: result.page.map((connection) => ({
+        connectionId: connection._id,
+        generation: connectionGeneration(connection),
+      })),
+    }
+  },
+})
+
+export const claimScheduledSync = internalMutation({
+  args: connectionJobValidator.fields,
+  returns: v.boolean(),
+  handler: async (ctx, args) => await queueSync(ctx, args),
 })
 
 export const getConnectionForSync = internalQuery({
-  args: { connectionId: v.id("deputyConnections") },
+  args: {
+    connectionId: v.id("deputyConnections"),
+    generation: v.number(),
+    syncId: v.string(),
+  },
   returns: v.union(
     v.null(),
     v.object({
@@ -263,17 +340,19 @@ export const getConnectionForSync = internalQuery({
       accessToken: v.string(),
       refreshToken: v.string(),
       accessTokenExpiresAt: v.number(),
+      generation: v.number(),
     })
   ),
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
-    if (!connection) return null
+    if (!connection || !isActiveSync(connection, args)) return null
     const tokens = await decryptDeputyTokens(connection)
     return {
       hubId: connection.hubId,
       endpoint: connection.endpoint,
       ...tokens,
       accessTokenExpiresAt: connection.accessTokenExpiresAt,
+      generation: connectionGeneration(connection),
     }
   },
 })
@@ -281,14 +360,16 @@ export const getConnectionForSync = internalQuery({
 export const storeRefreshedTokens = internalMutation({
   args: {
     connectionId: v.id("deputyConnections"),
+    generation: v.number(),
+    syncId: v.string(),
     accessToken: v.string(),
     refreshToken: v.string(),
     expiresInSeconds: v.number(),
   },
-  returns: v.null(),
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
-    if (!connection) return null
+    if (!connection || !isActiveSync(connection, args)) return false
     const tokenVersion = connection.tokenVersion + 1
     await ctx.db.patch("deputyConnections", connection._id, {
       ...(await encryptDeputyTokens({
@@ -303,22 +384,23 @@ export const storeRefreshedTokens = internalMutation({
       accessTokenExpiresAt:
         Date.now() + Math.max(60, args.expiresInSeconds) * 1000,
     })
-    return null
+    return true
   },
 })
 
 export const applyRosterBatch = internalMutation({
   args: {
     connectionId: v.id("deputyConnections"),
+    generation: v.number(),
     syncId: v.string(),
     rosters: v.array(rosterValidator),
   },
-  returns: v.null(),
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
-    if (!connection) return null
+    if (!connection || !isActiveSync(connection, args)) return false
     const hub = await ctx.db.get("hubs", connection.hubId)
-    if (!hub) return null
+    if (!hub) return false
     const category = await deputyCategory(ctx, hub._id)
     const timeZone = hub.timeZone ?? "UTC"
 
@@ -389,35 +471,38 @@ export const applyRosterBatch = internalMutation({
         })
       }
     }
-    return null
+    return true
   },
 })
 
 export const hideStaleRosters = internalMutation({
   args: {
     connectionId: v.id("deputyConnections"),
+    generation: v.number(),
     syncId: v.string(),
     windowStartUtc: v.string(),
     windowEndUtc: v.string(),
   },
-  returns: v.number(),
+  returns: v.object({ active: v.boolean(), updated: v.number() }),
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
-    if (!connection) return 0
+    if (!connection || !isActiveSync(connection, args)) {
+      return { active: false, updated: 0 }
+    }
     const hub = await ctx.db.get("hubs", connection.hubId)
-    if (!hub) return 0
+    if (!hub) return { active: false, updated: 0 }
     const timeZone = hub.timeZone ?? "UTC"
     const stale = await ctx.db
       .query("events")
-      .withIndex("by_hubId_and_start", (q) =>
+      .withIndex("by_hubId_and_source_and_start", (q) =>
         q
           .eq("hubId", hub._id)
+          .eq("source", "deputy")
           .gte("start", wallTime(args.windowStartUtc, timeZone))
           .lte("start", wallTime(args.windowEndUtc, timeZone))
       )
       .filter((q) =>
         q.and(
-          q.eq(q.field("source"), "deputy"),
           q.neq(q.field("lastSourceSyncId"), args.syncId),
           q.neq(q.field("sourceDeleted"), true)
         )
@@ -429,37 +514,85 @@ export const hideStaleRosters = internalMutation({
         sourceDeleted: true,
       })
     }
-    return stale.length
+    return { active: true, updated: stale.length }
+  },
+})
+
+export const hideRostersOutsideWindow = internalMutation({
+  args: {
+    connectionId: v.id("deputyConnections"),
+    generation: v.number(),
+    syncId: v.string(),
+    boundaryUtc: v.string(),
+    direction: v.union(v.literal("before"), v.literal("after")),
+  },
+  returns: v.object({ active: v.boolean(), updated: v.number() }),
+  handler: async (ctx, args) => {
+    const connection = await ctx.db.get("deputyConnections", args.connectionId)
+    if (!connection || !isActiveSync(connection, args)) {
+      return { active: false, updated: 0 }
+    }
+    const hub = await ctx.db.get("hubs", connection.hubId)
+    if (!hub) return { active: false, updated: 0 }
+    const boundary = wallTime(args.boundaryUtc, hub.timeZone ?? "UTC")
+    const query = ctx.db
+      .query("events")
+      .withIndex("by_hubId_and_source_and_start", (q) => {
+        const deputyEvents = q.eq("hubId", hub._id).eq("source", "deputy")
+        return args.direction === "before"
+          ? deputyEvents.lt("start", boundary)
+          : deputyEvents.gt("start", boundary)
+      })
+    const outside = await query
+      .filter((q) => q.neq(q.field("sourceDeleted"), true))
+      .take(50)
+    for (const event of outside) {
+      await ctx.db.patch("events", event._id, {
+        published: false,
+        sourceDeleted: true,
+      })
+    }
+    return { active: true, updated: outside.length }
   },
 })
 
 export const finishSync = internalMutation({
-  args: { connectionId: v.id("deputyConnections") },
-  returns: v.null(),
+  args: {
+    connectionId: v.id("deputyConnections"),
+    generation: v.number(),
+    syncId: v.string(),
+  },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
-    if (!connection) return null
+    if (!connection || !isActiveSync(connection, args)) return false
     await ctx.db.patch("deputyConnections", connection._id, {
       status: "connected",
       lastSyncedAt: Date.now(),
       lastSyncError: undefined,
+      activeSyncId: undefined,
+      syncStartedAt: undefined,
     })
-    return null
+    return true
   },
 })
 
 export const failSync = internalMutation({
   args: {
     connectionId: v.id("deputyConnections"),
+    generation: v.number(),
+    syncId: v.string(),
     message: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
-    if (!connection) return null
+    if (!connection || !isActiveSync(connection, args)) return null
     await ctx.db.patch("deputyConnections", connection._id, {
       status: "error",
       lastSyncError: args.message.slice(0, 300),
+      activeSyncId: undefined,
+      syncStartedAt: undefined,
     })
     return null
   },

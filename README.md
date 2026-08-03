@@ -53,7 +53,11 @@ register the application callback URL as
 Deputy environment variables above to both the Next.js deployment and the
 matching Convex deployment. Workplace owners can then connect Deputy from
 Manager → More tools → Third Party Apps. Workhal performs an initial sync and
-refreshes published and draft employee rosters every 15 minutes.
+refreshes published and draft employee rosters every 15 minutes. To keep this
+small-project integration bounded, each run covers the previous day through
+the next 31 days and accepts at most 500 shifts. A result over that limit or
+containing invalid shifts is rejected without replacing the last good sync.
+Synchronized shifts outside the rolling window are hidden until they enter it.
 
 Deputy owns the synchronized shift employee, area, start, end, and publication
 state. Workhal owns local presentation fields, including privacy. New Deputy

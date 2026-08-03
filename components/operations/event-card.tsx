@@ -3,7 +3,6 @@ import { ArrowRight, Clock3, MapPin } from "lucide-react"
 
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 import { Badge } from "@/components/ui/badge"
-import { EventCategoryLabel } from "@/components/calendar/event-category-label"
 import {
   Card,
   CardDescription,
@@ -11,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { eventCategoryLabel } from "@/lib/categories"
 import {
   formatEventDate,
   formatEventTime,
@@ -42,11 +42,7 @@ export function EventCard({
       >
         <CardHeader>
           <Badge variant="secondary">
-            <EventCategoryLabel
-              category={event.category}
-              eventTypes={eventTypes}
-              isPrivate={event.isPrivate}
-            />
+            {eventCategoryLabel(event.category, eventTypes)}
           </Badge>
           <CardTitle className="text-base">{event.title}</CardTitle>
           <CardDescription className={compact ? "line-clamp-2" : undefined}>

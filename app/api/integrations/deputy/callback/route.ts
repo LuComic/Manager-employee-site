@@ -9,6 +9,7 @@ import {
   decodeDeputyOAuthState,
   deputyOAuthConfig,
   parseDeputyTokenResponse,
+  safeDeputyReturnPath,
 } from "@/lib/server/deputy-oauth"
 
 function redirectResult(
@@ -32,10 +33,25 @@ function redirectResult(
 }
 
 export async function GET(request: NextRequest) {
-  const stored = decodeDeputyOAuthState(
-    request.cookies.get(DEPUTY_OAUTH_COOKIE)?.value
-  )
-  const returnTo = stored?.returnTo ?? "/manager/apps"
+  const config = deputyOAuthConfig()
+  const stored = config
+    ? decodeDeputyOAuthState(
+        request.cookies.get(DEPUTY_OAUTH_COOKIE)?.value,
+        config.clientSecret
+      )
+    : null
+  const returnTo = stored
+    ? (safeDeputyReturnPath(stored.returnTo, request.nextUrl) ??
+      "/manager/apps")
+    : "/manager/apps"
+  if (!config) {
+    return redirectResult(
+      request,
+      returnTo,
+      "error",
+      "deputyIntegrationNotConfigured"
+    )
+  }
   const code = request.nextUrl.searchParams.get("code")
   const state = request.nextUrl.searchParams.get("state")
   if (!stored || !code || !state || state !== stored.state) {
@@ -50,16 +66,6 @@ export async function GET(request: NextRequest) {
       "workplaceOwnerAccessRequired"
     )
   }
-  const config = deputyOAuthConfig()
-  if (!config) {
-    return redirectResult(
-      request,
-      returnTo,
-      "error",
-      "deputyIntegrationNotConfigured"
-    )
-  }
-
   try {
     const response = await fetch(DEPUTY_OAUTH_TOKEN_URL, {
       method: "POST",

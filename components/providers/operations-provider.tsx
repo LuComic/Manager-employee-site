@@ -295,7 +295,10 @@ export function OperationsProvider({
   )
   const publicSnapshot = useQuery(
     api.hubs.getPublicSnapshot,
-    !isManagerRoute && !isAuthPage && (requestedHubSlug || !isAuthenticated)
+    !isManagerRoute &&
+      !isAuthPage &&
+      !authLoading &&
+      (requestedHubSlug || !isAuthenticated)
       ? { slug: hubSlug, credential, nowDate }
       : "skip"
   )
@@ -605,27 +608,28 @@ export function OperationsProvider({
     }
   }
 
-  const hubState: OperationsContextValue["hubState"] = isAuthPage
-    ? "loading"
-    : isManagerRoute
-      ? authLoading || (isAuthenticated && managerSnapshot === undefined)
-        ? "loading"
-        : !isAuthenticated
-          ? "auth-error"
-          : managerSnapshot?.kind === "none"
-            ? "needs-setup"
-            : managerSnapshot?.kind === "forbidden"
-              ? "forbidden"
-              : "ready"
-      : isAuthenticated && !requestedHubSlug
-        ? authLoading || memberSnapshot === undefined
+  const hubState: OperationsContextValue["hubState"] =
+    isAuthPage || authLoading
+      ? "loading"
+      : isManagerRoute
+        ? isAuthenticated && managerSnapshot === undefined
           ? "loading"
-          : memberSnapshot.kind === "none"
-            ? "not-found"
-            : memberSnapshot.kind
-        : publicSnapshot === undefined
-          ? "loading"
-          : publicSnapshot.kind
+          : !isAuthenticated
+            ? "auth-error"
+            : managerSnapshot?.kind === "none"
+              ? "needs-setup"
+              : managerSnapshot?.kind === "forbidden"
+                ? "forbidden"
+                : "ready"
+        : isAuthenticated && !requestedHubSlug
+          ? memberSnapshot === undefined
+            ? "loading"
+            : memberSnapshot.kind === "none"
+              ? "not-found"
+              : memberSnapshot.kind
+          : publicSnapshot === undefined
+            ? "loading"
+            : publicSnapshot.kind
 
   const value: OperationsContextValue = {
     ...state,

@@ -1896,6 +1896,46 @@ describe("Organization employees, invitations, and event links", () => {
       end: "2026-07-21T12:00",
       isPrivate: true,
     })
+    await admin.mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "events",
+      enabled: true,
+    })
+    await expect(
+      t.withIdentity(orgMemberIdentity).mutation(api.content.saveEvent, {
+        ...baseEvent,
+        slug: "private-event",
+        title: "Private employee shift",
+        start: "2026-07-21T11:00",
+        end: "2026-07-21T12:00",
+        isPrivate: false,
+      })
+    ).rejects.toThrow("eventPrivacyManagerAccessRequired")
+    const managerProfileId = await createEmployee(t, hubId, "Privacy Manager")
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", managerProfileId, {
+        clerkUserId: appManagerIdentity.subject,
+        status: "active",
+        accessLevel: "manager",
+      })
+    })
+    const manager = t.withIdentity(appManagerIdentity)
+    await manager.mutation(api.content.saveEvent, {
+      ...baseEvent,
+      slug: "private-event",
+      title: "Private employee shift",
+      start: "2026-07-21T11:00",
+      end: "2026-07-21T12:00",
+      isPrivate: false,
+    })
+    await manager.mutation(api.content.saveEvent, {
+      ...baseEvent,
+      slug: "private-event",
+      title: "Private employee shift",
+      start: "2026-07-21T11:00",
+      end: "2026-07-21T12:00",
+      isPrivate: true,
+    })
 
     const guest = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
@@ -1970,6 +2010,59 @@ describe("Organization employees, invitations, and event links", () => {
         nowDate: "2026-07-19",
       })
     expect(memberSearch.map((result) => result.id)).toEqual(["private-event"])
+  })
+
+  test("does not let private events consume the public snapshot limit", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const category = await t.run(async (ctx) =>
+      ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "event-reservation")
+        )
+        .unique()
+    )
+    if (!category) throw new Error("Expected event category")
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 501; index += 1) {
+        await ctx.db.insert("events", {
+          hubId,
+          slug: `private-${index}`,
+          title: `Private ${index}`,
+          description: "Private event",
+          categoryId: category._id,
+          start: `2026-07-${String((index % 28) + 1).padStart(2, "0")}T10:00`,
+          end: `2026-07-${String((index % 28) + 1).padStart(2, "0")}T11:00`,
+          location: "Office",
+          notes: "",
+          published: true,
+          isPrivate: true,
+        })
+      }
+      await ctx.db.insert("events", {
+        hubId,
+        slug: "public-after-private-limit",
+        title: "Public after private limit",
+        description: "Must remain visible",
+        categoryId: category._id,
+        start: "2026-08-01T10:00",
+        end: "2026-08-01T11:00",
+        location: "Office",
+        notes: "",
+        published: true,
+        isPrivate: false,
+      })
+    })
+
+    const snapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "org-hub",
+      nowDate: "2026-07-19",
+    })
+    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
+    expect(snapshot.events.map((event) => event.id)).toEqual([
+      "public-after-private-limit",
+    ])
   })
 
   test("persists all-day state and validates exact timed instants", async () => {

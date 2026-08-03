@@ -212,7 +212,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               />
               {!focusedEditor && hub && (
                 <Link
-                  href={`/?hub=${hub.slug}`}
+                  href="/"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
                     "tracking-normal normal-case"

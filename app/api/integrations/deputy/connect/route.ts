@@ -57,11 +57,14 @@ export async function GET(request: Request) {
   const response = NextResponse.redirect(authorizeUrl)
   response.cookies.set(
     DEPUTY_OAUTH_COOKIE,
-    encodeDeputyOAuthState({
-      state,
-      organizationId: orgId,
-      returnTo,
-    }),
+    encodeDeputyOAuthState(
+      {
+        state,
+        organizationId: orgId,
+        returnTo,
+      },
+      config.clientSecret
+    ),
     {
       httpOnly: true,
       sameSite: "lax",

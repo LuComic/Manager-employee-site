@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
-import { EventCategoryLabel } from "@/components/calendar/event-category-label"
+import { PrivateEventFilterLabel } from "@/components/calendar/private-event-filter-label"
 import { CalendarImportIssues } from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
@@ -60,8 +60,10 @@ import {
   type CalendarImportResult,
 } from "@/lib/icalendar"
 import {
+  eventMatchesFilter,
   formatEventDate,
   formatEventTime,
+  PRIVATE_EVENT_FILTER,
   type CalendarEvent,
 } from "@/lib/operations"
 import { eventCategoryLabel } from "@/lib/categories"
@@ -111,6 +113,7 @@ export function EventManager() {
     total: number
   } | null>(null)
   const canCreateEvents = canCreateInSection("events")
+  const hasPrivateEvents = events.some((event) => event.isPrivate)
   const importReadyCount =
     (importResult?.events.length ?? 0) +
     (importResult?.cancellations.length ?? 0)
@@ -124,7 +127,7 @@ export function EventManager() {
               .includes(query.toLowerCase()) &&
             (status === "All" ||
               (status === "Published" ? event.published : !event.published)) &&
-            (category === "All" || event.category === category)
+            eventMatchesFilter(event, category)
         )
         .sort((a, b) => a.start.localeCompare(b.start)),
     [events, query, status, category]
@@ -365,14 +368,12 @@ export function EventManager() {
             aria-label={t("filterEventsByType")}
           >
             <SelectValue>
-              {category === "All" ? (
+              {category === PRIVATE_EVENT_FILTER ? (
+                <PrivateEventFilterLabel />
+              ) : category === "All" ? (
                 t("all")
               ) : (
-                <EventCategoryLabel
-                  category={category}
-                  eventTypes={eventTypes}
-                  showSchedulePrivacy
-                />
+                eventCategoryLabel(category, eventTypes)
               )}
             </SelectValue>
           </SelectTrigger>
@@ -380,13 +381,14 @@ export function EventManager() {
             <SelectItem value="All">
               <T>all</T>
             </SelectItem>
+            {hasPrivateEvents && (
+              <SelectItem value={PRIVATE_EVENT_FILTER}>
+                <PrivateEventFilterLabel />
+              </SelectItem>
+            )}
             {eventTypes.map((eventType) => (
               <SelectItem key={eventType.id} value={eventType.id}>
-                <EventCategoryLabel
-                  category={eventType.id}
-                  eventTypes={eventTypes}
-                  showSchedulePrivacy
-                />
+                {eventCategoryLabel(eventType.id, eventTypes)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -407,11 +409,7 @@ export function EventManager() {
                   <T>{event.published ? "published" : "draft"}</T>
                 </Badge>,
                 <Badge key="category" variant="secondary">
-                  <EventCategoryLabel
-                    category={event.category}
-                    eventTypes={eventTypes}
-                    isPrivate={event.isPrivate}
-                  />
+                  {eventCategoryLabel(event.category, eventTypes)}
                 </Badge>,
               ]}
               description={

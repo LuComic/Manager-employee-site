@@ -1,5 +1,7 @@
 import "server-only"
 
+import { createHmac, timingSafeEqual } from "node:crypto"
+
 import { normalizeDeputyEndpoint } from "@/lib/deputy"
 
 export const DEPUTY_OAUTH_COOKIE = "workhal-deputy-oauth"
@@ -10,15 +12,39 @@ export type DeputyOAuthState = {
   returnTo: string
 }
 
-export function encodeDeputyOAuthState(value: DeputyOAuthState) {
-  return Buffer.from(JSON.stringify(value)).toString("base64url")
+function deputyOAuthStateSignature(payload: string, signingSecret: string) {
+  return createHmac("sha256", signingSecret)
+    .update(`workhal:deputy-oauth-state:v1:${payload}`)
+    .digest("base64url")
 }
 
-export function decodeDeputyOAuthState(value?: string) {
+export function encodeDeputyOAuthState(
+  value: DeputyOAuthState,
+  signingSecret: string
+) {
+  const payload = Buffer.from(JSON.stringify(value)).toString("base64url")
+  return `${payload}.${deputyOAuthStateSignature(payload, signingSecret)}`
+}
+
+export function decodeDeputyOAuthState(
+  value: string | undefined,
+  signingSecret: string
+) {
   if (!value) return null
   try {
+    const [payload, suppliedSignature, extra] = value.split(".")
+    if (!payload || !suppliedSignature || extra) return null
+    const expectedSignature = deputyOAuthStateSignature(payload, signingSecret)
+    const suppliedBytes = Buffer.from(suppliedSignature, "utf8")
+    const expectedBytes = Buffer.from(expectedSignature, "utf8")
+    if (
+      suppliedBytes.length !== expectedBytes.length ||
+      !timingSafeEqual(suppliedBytes, expectedBytes)
+    ) {
+      return null
+    }
     const parsed: unknown = JSON.parse(
-      Buffer.from(value, "base64url").toString("utf8")
+      Buffer.from(payload, "base64url").toString("utf8")
     )
     if (
       !parsed ||
@@ -38,23 +64,29 @@ export function decodeDeputyOAuthState(value?: string) {
   }
 }
 
+export function safeDeputyReturnPath(candidate: string, requestUrl: URL) {
+  try {
+    const url = new URL(candidate, requestUrl.origin)
+    if (
+      url.origin === requestUrl.origin &&
+      /^\/(?:[a-z]{2}\/)?manager\/apps\/?$/.test(url.pathname)
+    ) {
+      return url.pathname
+    }
+  } catch {
+    // Ignore malformed return paths.
+  }
+  return null
+}
+
 export function safeDeputyReturnTo(request: Request) {
   const requestUrl = new URL(request.url)
   const explicit = requestUrl.searchParams.get("returnTo")
   const referer = request.headers.get("referer")
   for (const candidate of [explicit, referer]) {
     if (!candidate) continue
-    try {
-      const url = new URL(candidate, requestUrl.origin)
-      if (
-        url.origin === requestUrl.origin &&
-        /^\/(?:[a-z]{2}\/)?manager\/apps\/?$/.test(url.pathname)
-      ) {
-        return url.pathname
-      }
-    } catch {
-      // Ignore malformed return paths.
-    }
+    const safe = safeDeputyReturnPath(candidate, requestUrl)
+    if (safe) return safe
   }
   return "/manager/apps"
 }

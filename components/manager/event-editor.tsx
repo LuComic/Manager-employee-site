@@ -7,7 +7,6 @@ import { useState } from "react"
 import {
   ArrowLeft,
   CalendarDays,
-  LockKeyhole,
   Paperclip,
   Trash2,
   TriangleAlert,
@@ -15,7 +14,6 @@ import {
 } from "lucide-react"
 
 import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
-import { EventCategoryLabel } from "@/components/calendar/event-category-label"
 import { useUnsavedChanges } from "@/components/manager/use-unsaved-changes"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -32,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { RESERVATION_EVENT_TYPE_ID } from "@/lib/categories"
+import { eventCategoryLabel, RESERVATION_EVENT_TYPE_ID } from "@/lib/categories"
 import {
   addCalendarDays,
   slugify,
@@ -84,6 +82,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
     employees,
     guideReferences,
     hub,
+    managerAccess,
     saveEvent,
     uploadAttachment,
     deleteAttachment,
@@ -107,6 +106,8 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const deputyManaged = draft?.source === "deputy"
+  const canManagePrivacy =
+    managerAccess === "manager" || managerAccess === "owner"
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "event",
@@ -483,12 +484,18 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                 <input
                   type="checkbox"
                   checked={draft.isPrivate}
+                  disabled={!canManagePrivacy}
                   onChange={(event) =>
                     change({ ...draft, isPrivate: event.target.checked })
                   }
                 />
-                <LockKeyhole className="size-4" /> <T>private</T>
+                <T>private</T>
               </label>
+              {!canManagePrivacy && (
+                <p className="text-xs text-muted-foreground">
+                  <T>eventPrivacyManagerAccessRequired</T>
+                </p>
+              )}
               {deputyManaged && !draft.isPrivate && (
                 <div
                   role="alert"
@@ -516,21 +523,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     className="w-full border border-input bg-background px-3"
                   >
                     <SelectValue>
-                      <EventCategoryLabel
-                        category={draft.category}
-                        eventTypes={eventTypes}
-                        showSchedulePrivacy
-                      />
+                      {eventCategoryLabel(draft.category, eventTypes)}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {eventTypes.map((eventType) => (
                       <SelectItem key={eventType.id} value={eventType.id}>
-                        <EventCategoryLabel
-                          category={eventType.id}
-                          eventTypes={eventTypes}
-                          showSchedulePrivacy
-                        />
+                        {eventCategoryLabel(eventType.id, eventTypes)}
                       </SelectItem>
                     ))}
                   </SelectContent>
