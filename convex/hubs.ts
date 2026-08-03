@@ -22,6 +22,7 @@ import {
   requireIdentity,
   requireHubPermission,
 } from "./lib/access"
+import { createAuditLog } from "./lib/auditLogs"
 import {
   decryptHubCredentials,
   encryptHubCredentials,
@@ -212,6 +213,13 @@ export const create = mutation({
       order: 0,
       kind: "event",
     })
+    await createAuditLog(ctx, {
+      hubId,
+      action: "created",
+      entityType: "workplace",
+      entityId: hubId,
+      entityTitle: name,
+    })
     return { hubId, slug, created: true }
   },
 })
@@ -271,6 +279,13 @@ export const updateSettings = mutation({
       messageKey: "notificationTodayInformationChanged",
       href: "/",
     })
+    await createAuditLog(ctx, {
+      hubId: hub._id,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: name,
+    })
     return null
   },
 })
@@ -294,6 +309,13 @@ export const moveTodaySection = mutation({
       todaySections: sections,
       updatedAt: Date.now(),
     })
+    await createAuditLog(ctx, {
+      hubId: hub._id,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: hub.name,
+    })
     return null
   },
 })
@@ -316,6 +338,13 @@ export const setTodaySectionVisibility = mutation({
       todaySections,
       updatedAt: Date.now(),
     })
+    await createAuditLog(ctx, {
+      hubId: hub._id,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: hub.name,
+    })
     return null
   },
 })
@@ -335,6 +364,13 @@ export const setWorkersCanEdit = mutation({
         [args.section]: args.enabled,
       },
       updatedAt: Date.now(),
+    })
+    await createAuditLog(ctx, {
+      hubId: hub._id,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: hub.name,
     })
     return null
   },
@@ -571,6 +607,13 @@ export const rotateCredentials = mutation({
       privateToken: args.privateToken,
       credentialVersion,
     })
+    await createAuditLog(ctx, {
+      hubId: hub._id,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: hub.name,
+    })
     return null
   },
 })
@@ -586,6 +629,13 @@ export const setAccessMode = mutation({
     await ctx.db.patch("hubs", hub._id, {
       accessMode: args.accessMode,
       updatedAt: Date.now(),
+    })
+    await createAuditLog(ctx, {
+      hubId: hub._id,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: hub.name,
     })
     return null
   },

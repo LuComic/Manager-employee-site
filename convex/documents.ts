@@ -13,6 +13,7 @@ import {
   requireHubPermission,
   requireIdentity,
 } from "./lib/access"
+import { createAuditLog } from "./lib/auditLogs"
 import {
   assertGuideLinkReplacementFits,
   assertGuideLinksPerItem,
@@ -334,6 +335,13 @@ export const save = mutation({
       updatedTitleKey: "notificationDocumentUpdated",
       unpublishedTitleKey: "notificationDocumentUnpublished",
     })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: existing ? "edited" : args.published ? "created" : "drafted",
+      entityType: "document",
+      entityId: documentId,
+      entityTitle: value.title,
+    })
     return args.slug
   },
 })
@@ -400,6 +408,13 @@ export const remove = mutation({
           href: "/documents",
         })
       }
+      await createAuditLog(ctx, {
+        hubId: args.hubId,
+        action: "deleted",
+        entityType: "document",
+        entityId: document._id,
+        entityTitle: document.title,
+      })
     }
     return null
   },

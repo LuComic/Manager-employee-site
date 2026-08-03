@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as auditLogs from "../auditLogs.js";
 import type * as content from "../content.js";
 import type * as documents from "../documents.js";
 import type * as employees from "../employees.js";
@@ -15,6 +16,7 @@ import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as hubs from "../hubs.js";
 import type * as lib_access from "../lib/access.js";
+import type * as lib_auditLogs from "../lib/auditLogs.js";
 import type * as lib_credentialEncryption from "../lib/credentialEncryption.js";
 import type * as lib_guideLinks from "../lib/guideLinks.js";
 import type * as lib_hubStorage from "../lib/hubStorage.js";
@@ -31,6 +33,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auditLogs: typeof auditLogs;
   content: typeof content;
   documents: typeof documents;
   employees: typeof employees;
@@ -38,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   hubs: typeof hubs;
   "lib/access": typeof lib_access;
+  "lib/auditLogs": typeof lib_auditLogs;
   "lib/credentialEncryption": typeof lib_credentialEncryption;
   "lib/guideLinks": typeof lib_guideLinks;
   "lib/hubStorage": typeof lib_hubStorage;

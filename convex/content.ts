@@ -10,6 +10,7 @@ import {
   requireHubEditingPermission,
   requireHubPermission,
 } from "./lib/access"
+import { createAuditLog } from "./lib/auditLogs"
 import {
   assertGuideLinkReplacementFits,
   assertGuideLinksPerHub,
@@ -142,6 +143,13 @@ export const saveCategory = mutation({
     }
     if (existing) {
       await ctx.db.patch("categories", existing._id, value)
+      await createAuditLog(ctx, {
+        hubId: args.hubId,
+        action: "edited",
+        entityType: "category",
+        entityId: existing._id,
+        entityTitle: value.label,
+      })
       return existing.slug
     }
     const lastCategory = await ctx.db
@@ -151,11 +159,18 @@ export const saveCategory = mutation({
       )
       .order("desc")
       .first()
-    await ctx.db.insert("categories", {
+    const categoryId = await ctx.db.insert("categories", {
       hubId: args.hubId,
       slug,
       order: (lastCategory?.order ?? -1) + 1,
       ...value,
+    })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "created",
+      entityType: "category",
+      entityId: categoryId,
+      entityTitle: value.label,
     })
     return slug
   },
@@ -194,6 +209,13 @@ export const moveCategory = mutation({
     })
     await ctx.db.patch("categories", sibling._id, {
       order: category.order,
+    })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "edited",
+      entityType: "category",
+      entityId: category._id,
+      entityTitle: category.label,
     })
     return null
   },
@@ -243,6 +265,13 @@ export const deleteCategory = mutation({
       }
     }
     await ctx.db.delete("categories", category._id)
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "deleted",
+      entityType: "category",
+      entityId: category._id,
+      entityTitle: category.label,
+    })
     return null
   },
 })
@@ -359,6 +388,13 @@ export const saveGuide = mutation({
       updatedTitleKey: "notificationGuideUpdated",
       unpublishedTitleKey: "notificationGuideUnpublished",
     })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: existing ? "edited" : args.published ? "created" : "drafted",
+      entityType: "guide",
+      entityId: guideId,
+      entityTitle: value.title,
+    })
     return args.slug
   },
 })
@@ -434,6 +470,13 @@ export const deleteGuide = mutation({
         href: "/guides",
       })
     }
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "deleted",
+      entityType: "guide",
+      entityId: guide._id,
+      entityTitle: guide.title,
+    })
     return null
   },
 })
@@ -642,6 +685,13 @@ export const saveEvent = mutation({
         })
       }
     }
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: existing ? "edited" : args.published ? "created" : "drafted",
+      entityType: "event",
+      entityId: eventId,
+      entityTitle: value.title,
+    })
     return args.slug
   },
 })
@@ -713,6 +763,13 @@ export const deleteEvent = mutation({
         href: "/calendar",
       })
     }
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "deleted",
+      entityType: "event",
+      entityId: event._id,
+      entityTitle: event.title,
+    })
     return null
   },
 })
@@ -791,13 +848,13 @@ export const saveAnnouncement = mutation({
       guideId: guide?._id,
       eventId: event?._id,
     }
-    if (existing) await ctx.db.patch("announcements", existing._id, value)
-    else
-      await ctx.db.insert("announcements", {
-        hubId: args.hubId,
-        slug: required(args.slug, "announcementSlug", 100),
-        ...value,
-      })
+    const announcementId = existing
+      ? (await ctx.db.patch("announcements", existing._id, value), existing._id)
+      : await ctx.db.insert("announcements", {
+          hubId: args.hubId,
+          slug: required(args.slug, "announcementSlug", 100),
+          ...value,
+        })
     await notifyPublicationChange(ctx, {
       hubId: args.hubId,
       kind: "announcement",
@@ -809,6 +866,13 @@ export const saveAnnouncement = mutation({
       publishedTitleKey: "notificationNewAnnouncement",
       updatedTitleKey: "notificationAnnouncementUpdated",
       unpublishedTitleKey: "notificationAnnouncementUnpublished",
+    })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: existing ? "edited" : args.published ? "created" : "drafted",
+      entityType: "announcement",
+      entityId: announcementId,
+      entityTitle: value.title,
     })
     return args.slug
   },
@@ -836,6 +900,13 @@ export const deleteAnnouncement = mutation({
           href: "/announcements",
         })
       }
+      await createAuditLog(ctx, {
+        hubId: args.hubId,
+        action: "deleted",
+        entityType: "announcement",
+        entityId: announcement._id,
+        entityTitle: announcement.title,
+      })
     }
     return null
   },
@@ -873,13 +944,16 @@ export const saveFaq = mutation({
       answer: required(args.answer, "answer", 4000),
       published: true,
     }
-    if (existing) await ctx.db.patch("faqs", existing._id, value)
-    else {
+    let faqId
+    if (existing) {
+      await ctx.db.patch("faqs", existing._id, value)
+      faqId = existing._id
+    } else {
       const faqs = await ctx.db
         .query("faqs")
         .withIndex("by_hubId_and_order", (q) => q.eq("hubId", args.hubId))
         .take(500)
-      await ctx.db.insert("faqs", {
+      faqId = await ctx.db.insert("faqs", {
         hubId: args.hubId,
         slug: required(args.slug, "questionSlug", 120),
         order: faqs.length,
@@ -895,6 +969,13 @@ export const saveFaq = mutation({
         : "notificationNewCommonAnswer",
       message: value.question,
       href: `/questions#${args.slug}`,
+    })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: existing ? "edited" : "created",
+      entityType: "faq",
+      entityId: faqId,
+      entityTitle: value.question,
     })
     return args.slug
   },
@@ -918,6 +999,13 @@ export const moveFaq = mutation({
     if (index < 0 || target < 0 || target >= faqs.length) return null
     await ctx.db.patch("faqs", faqs[index]._id, { order: faqs[target].order })
     await ctx.db.patch("faqs", faqs[target]._id, { order: faqs[index].order })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "edited",
+      entityType: "faq",
+      entityId: faqs[index]._id,
+      entityTitle: faqs[index].question,
+    })
     return null
   },
 })
@@ -942,6 +1030,13 @@ export const deleteFaq = mutation({
         titleKey: "notificationCommonAnswerRemoved",
         message: faq.question,
         href: "/questions",
+      })
+      await createAuditLog(ctx, {
+        hubId: args.hubId,
+        action: "deleted",
+        entityType: "faq",
+        entityId: faq._id,
+        entityTitle: faq.question,
       })
     }
     return null
@@ -1013,6 +1108,13 @@ export const setHelpRequestStatus = mutation({
     if (!request || request.hubId !== args.hubId)
       throw new Error("helpRequestNotFound")
     await ctx.db.patch("helpRequests", request._id, { status: args.status })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "edited",
+      entityType: "helpRequest",
+      entityId: request._id,
+      entityTitle: request.topic,
+    })
     return null
   },
 })
@@ -1028,6 +1130,13 @@ export const deleteHelpRequest = mutation({
     if (!request || request.hubId !== args.hubId)
       throw new Error("helpRequestNotFound")
     await ctx.db.delete("helpRequests", request._id)
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "deleted",
+      entityType: "helpRequest",
+      entityId: request._id,
+      entityTitle: request.topic,
+    })
     return null
   },
 })

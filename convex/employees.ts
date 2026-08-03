@@ -14,6 +14,7 @@ import {
   requireHubPermission,
   requireOrganizationHub,
 } from "./lib/access"
+import { createAuditLog } from "./lib/auditLogs"
 import { createNotification } from "./lib/notifications"
 
 const invitationStatus = v.union(
@@ -221,7 +222,7 @@ export const create = mutation({
       }
     }
     const now = Date.now()
-    return await ctx.db.insert("employeeProfiles", {
+    const profileId = await ctx.db.insert("employeeProfiles", {
       hubId: args.hubId,
       displayName,
       email: normalizedEmail,
@@ -235,6 +236,14 @@ export const create = mutation({
       updatedAt: now,
       invitationStatus: "not-sent",
     })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "created",
+      entityType: "employee",
+      entityId: profileId,
+      entityTitle: displayName,
+    })
+    return profileId
   },
 })
 
@@ -277,6 +286,13 @@ export const update = mutation({
       jobTitle: clean(args.jobTitle, 120),
       accessLevel: args.accessLevel ?? profile.accessLevel ?? "viewer",
       updatedAt: Date.now(),
+    })
+    await createAuditLog(ctx, {
+      hubId: profile.hubId,
+      action: "edited",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: displayName,
     })
     return null
   },
@@ -409,6 +425,13 @@ export const deactivateAfterClerkRemoval = mutation({
     if (!profile) throw new Error("employeeNotFound")
     await requireHubPermission(ctx, profile.hubId, "owner")
     await deactivateProfileRecords(ctx, profile, Date.now())
+    await createAuditLog(ctx, {
+      hubId: profile.hubId,
+      action: "edited",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: profile.displayName,
+    })
     return null
   },
 })
@@ -476,6 +499,13 @@ export const removeProfileBatch = mutation({
     }
 
     await ctx.db.delete("employeeProfiles", profile._id)
+    await createAuditLog(ctx, {
+      hubId: profile.hubId,
+      action: "deleted",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: profile.displayName,
+    })
     return { removed: true }
   },
 })
@@ -496,6 +526,13 @@ export const reactivateUnclaimed = mutation({
       activatedAt: undefined,
       deactivatedAt: undefined,
       updatedAt: Date.now(),
+    })
+    await createAuditLog(ctx, {
+      hubId: profile.hubId,
+      action: "edited",
+      entityType: "employee",
+      entityId: profile._id,
+      entityTitle: profile.displayName,
     })
     return null
   },

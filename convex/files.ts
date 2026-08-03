@@ -16,6 +16,7 @@ import {
   requireHubPermission,
   requireIdentity,
 } from "./lib/access"
+import { createAuditLog } from "./lib/auditLogs"
 import {
   bindHubStorage,
   deleteReferencedHubStorage,
@@ -253,6 +254,13 @@ export const attachToEvent = mutation({
         href: `/calendar/${event.slug}`,
       })
     }
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "created",
+      entityType: "attachment",
+      entityId: attachmentId,
+      entityTitle: args.name,
+    })
     return attachmentId
   },
 })
@@ -292,6 +300,13 @@ export const remove = mutation({
         href: `/calendar/${event.slug}`,
       })
     }
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "deleted",
+      entityType: "attachment",
+      entityId: attachment._id,
+      entityTitle: attachment.name,
+    })
     return null
   },
 })
@@ -359,6 +374,13 @@ export const attachToHubBanner = mutation({
       messageKey: "notificationTodayImageChanged",
       href: "/",
     })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: hub.name,
+    })
     return null
   },
 })
@@ -386,6 +408,13 @@ export const removeHubBanner = mutation({
       titleKey: "notificationWorkplaceBannerUpdated",
       messageKey: "notificationTodayBannerReset",
       href: "/",
+    })
+    await createAuditLog(ctx, {
+      hubId: args.hubId,
+      action: "edited",
+      entityType: "workplace",
+      entityId: hub._id,
+      entityTitle: hub.name,
     })
     return null
   },

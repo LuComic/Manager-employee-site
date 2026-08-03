@@ -1,11 +1,13 @@
 "use client"
 
-import { Settings2 } from "lucide-react"
+import { Plus, Settings2 } from "lucide-react"
 
 import { useOperations } from "@/components/providers/operations-provider"
 import { T } from "@/components/translated-text"
 import { buttonVariants } from "@/components/ui/button"
+import type { AppMessageKey } from "@/i18n/messages"
 import { Link } from "@/i18n/navigation"
+import { useAppTranslations } from "@/i18n/use-app-translations"
 import type { WorkerEditableSection } from "@/lib/worker-editing"
 
 export function ManageSectionButton({
@@ -24,6 +26,31 @@ export function ManageSectionButton({
   return (
     <Link href={href} className={buttonVariants({ size })}>
       <Settings2 data-icon="inline-start" /> <T>manage</T>
+    </Link>
+  )
+}
+
+export function CreateSectionButton({
+  section,
+  href,
+  label,
+}: {
+  section: WorkerEditableSection
+  href: string
+  label: AppMessageKey
+}) {
+  const { hub, managerAccess } = useOperations()
+  const t = useAppTranslations()
+
+  if (!managerAccess || !hub?.workersCanEdit[section]) return null
+
+  return (
+    <Link
+      href={href}
+      className={buttonVariants({ size: "icon-sm" })}
+      aria-label={t(label)}
+    >
+      <Plus />
     </Link>
   )
 }
