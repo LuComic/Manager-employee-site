@@ -194,6 +194,16 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .rich-text-content {
   @apply text-sm leading-7 sm:text-base;
+  overflow-wrap: anywhere;
+}
+
+.rich-text-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.rich-text-content code {
+  overflow-wrap: anywhere;
 }
 
 .rich-text-content > *:first-child {

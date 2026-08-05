@@ -193,34 +193,52 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     (managerAccess === "viewer" && workerRouteAllowed)
   return (
     <div className="min-h-svh bg-muted/40">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Brand linked={!focusedEditor} />
-            <div className="ml-auto flex items-center gap-3">
-              <OrganizationSwitcher
-                hidePersonal={false}
-                afterCreateOrganizationUrl={href("/manager")}
-                afterSelectOrganizationUrl={href("/manager")}
-                afterSelectPersonalUrl={href("/manager")}
-              />
+      <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3">
+              <Brand linked={!focusedEditor} />
+              <div className="flex items-center gap-1 sm:hidden">
+                <UserButton />
+                {hub && managerAccess && (
+                  <NotificationButton manager={managerAccess === "owner"} />
+                )}
+              </div>
+            </div>
+            <div className="flex min-w-0 items-center gap-2 sm:ml-auto sm:justify-end sm:gap-3">
               {!focusedEditor && hub && (
                 <Link
                   href={`/?hub=${hub.slug}`}
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "tracking-normal normal-case"
-                  )}
+                  aria-label={t("employeeSite")}
+                  title={t("employeeSite")}
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "icon-sm",
+                  })}
                 >
-                  <ArrowLeft data-icon="inline-start" /> <T>employeeSite</T>
+                  <ArrowLeft />
                 </Link>
               )}
-              <UserButton />
-              {hub && managerAccess && (
-                <NotificationButton manager={managerAccess === "owner"} />
-              )}
+              <div className="min-w-0 flex-1 overflow-hidden sm:max-w-64 sm:flex-none">
+                <OrganizationSwitcher
+                  hidePersonal={false}
+                  afterCreateOrganizationUrl={href("/manager")}
+                  afterSelectOrganizationUrl={href("/manager")}
+                  afterSelectPersonalUrl={href("/manager")}
+                />
+              </div>
+              <div className="hidden items-center gap-2 sm:flex">
+                <UserButton />
+                {hub && managerAccess && (
+                  <NotificationButton manager={managerAccess === "owner"} />
+                )}
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+      <header className="border-b bg-background">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div>
             <p className="text-lg font-semibold">
               {t(
@@ -241,7 +259,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           </div>
           {!focusedEditor && (
             <nav
-              className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
+              className="grid grid-cols-4 gap-1 sm:flex sm:flex-wrap sm:gap-2"
               aria-label={t("managerNavigation")}
             >
               {visiblePrimaryNavigationItems.map((item) => {
@@ -251,37 +269,46 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={href}
                     href={href}
+                    aria-label={t(label)}
                     className={cn(
                       buttonVariants({
                         variant: active ? "secondary" : "ghost",
-                        size: "default",
+                        size: "sm",
                       }),
-                      "w-full justify-start pr-4 pl-3 text-sm tracking-normal normal-case sm:w-auto"
+                      "w-full min-w-0 justify-center px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
                     )}
                   >
-                    <Icon /> <T>{label}</T>
+                    <Icon />
+                    <span className="hidden sm:inline">
+                      <T>{label}</T>
+                    </span>
                   </Link>
                 )
               })}
               {showGuideNavigation && (
                 <Link
                   href={guideNavigationItem.href}
+                  aria-label={t(guideNavigationItem.label)}
                   className={cn(
                     buttonVariants({
                       variant: isActiveLink(pathname, guideNavigationItem.href)
                         ? "secondary"
                         : "ghost",
-                      size: "default",
+                      size: "sm",
                     }),
-                    "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                    "w-full min-w-0 justify-center px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
                   )}
                 >
-                  <BookOpen /> <T>{guideNavigationItem.label}</T>
+                  <BookOpen />
+                  <span className="hidden sm:inline">
+                    <T>{guideNavigationItem.label}</T>
+                  </span>
                 </Link>
               )}
               {visibleMoreNavigationGroups.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
+                    aria-label={t("moreTools")}
                     className={cn(
                       buttonVariants({
                         variant: visibleMoreNavigationGroups.some((group) =>
@@ -291,12 +318,16 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                         )
                           ? "secondary"
                           : "ghost",
-                        size: "default",
+                        size: "sm",
                       }),
-                      "w-full justify-start px-4 text-sm tracking-normal normal-case sm:w-auto"
+                      "w-full min-w-0 justify-center px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
                     )}
                   >
-                    <Menu /> <T>moreTools</T> <ChevronDown />
+                    <Menu />
+                    <span className="hidden sm:inline">
+                      <T>moreTools</T>
+                    </span>
+                    <ChevronDown className="hidden sm:block" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-64">
                     {visibleMoreNavigationGroups.map((group, groupIndex) => (

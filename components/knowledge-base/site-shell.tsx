@@ -63,34 +63,40 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           </aside>
 
           <div className="lg:pl-64">
-            <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur sm:px-6 lg:h-20 lg:px-8">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="lg:hidden"
-                onClick={() => setMobileOpen(true)}
-                aria-label={t("openMenu")}
-              >
-                <Menu />
-              </Button>
-              <div className="lg:hidden">
-                <Brand compact />
-              </div>
-              <SearchField inputRef={searchRef} />
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                <Show when="signed-in">
-                  <OrganizationSwitcher
-                    hidePersonal={false}
-                    afterCreateOrganizationUrl={href("/manager")}
-                    afterSelectOrganizationUrl={href("/")}
-                    afterSelectPersonalUrl={href("/")}
-                  />
-                </Show>
-                <ContactButton className="hidden sm:flex" />
-                <UserButton />
-                <NotificationButton />
-                <div className="sm:hidden">
-                  <ContactButton compact />
+            <header className="sticky top-0 z-20 border-b bg-background/90 px-4 py-2 backdrop-blur sm:px-6 lg:px-8 lg:py-5">
+              <div className="mx-auto grid max-w-7xl grid-cols-[auto_auto_1fr] items-center gap-2 sm:flex sm:gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="lg:hidden"
+                  onClick={() => setMobileOpen(true)}
+                  aria-label={t("openMenu")}
+                >
+                  <Menu />
+                </Button>
+                <div className="lg:hidden">
+                  <Brand compact />
+                </div>
+                <div className="ml-auto flex min-w-0 items-center justify-end gap-1 sm:order-2 sm:shrink-0 sm:gap-2">
+                  <Show when="signed-in">
+                    <div className="hidden max-w-48 overflow-hidden md:block">
+                      <OrganizationSwitcher
+                        hidePersonal={false}
+                        afterCreateOrganizationUrl={href("/manager")}
+                        afterSelectOrganizationUrl={href("/")}
+                        afterSelectPersonalUrl={href("/")}
+                      />
+                    </div>
+                  </Show>
+                  <ContactButton className="hidden md:flex" />
+                  <UserButton />
+                  <NotificationButton />
+                  <div className="md:hidden">
+                    <ContactButton compact />
+                  </div>
+                </div>
+                <div className="col-span-3 min-w-0 sm:order-1 sm:col-span-1 sm:flex-1">
+                  <SearchField inputRef={searchRef} />
                 </div>
               </div>
             </header>
@@ -109,8 +115,18 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 <SheetDescription>
                   <T>todaySInformationAndPracticalGuides</T>
                 </SheetDescription>
+                <Show when="signed-in">
+                  <div className="mt-3 max-w-full overflow-hidden">
+                    <OrganizationSwitcher
+                      hidePersonal={false}
+                      afterCreateOrganizationUrl={href("/manager")}
+                      afterSelectOrganizationUrl={href("/")}
+                      afterSelectPersonalUrl={href("/")}
+                    />
+                  </div>
+                </Show>
               </SheetHeader>
-              <SidebarNav onContact={() => setMobileOpen(false)} />
+              <SidebarNav onNavigate={() => setMobileOpen(false)} />
             </SheetContent>
           </Sheet>
         </div>

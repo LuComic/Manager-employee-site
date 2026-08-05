@@ -2,11 +2,18 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
-import { StickyNote, X } from "lucide-react"
+import { ChevronUp, StickyNote, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useOperations } from "@/components/providers/operations-provider"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -14,6 +21,7 @@ import {
   useAppErrorTranslation,
   useAppTranslations,
 } from "@/i18n/use-app-translations"
+import { cn } from "@/lib/utils"
 
 import { useWorkerNotesWindow } from "./use-worker-notes-window"
 
@@ -223,10 +231,9 @@ export function WorkerNotes() {
   const [now, setNow] = useState(() => Date.now())
   const canAccessWorkerNotes = useQuery(
     api.workerNotes.canAccess,
-    isDesktop && isAuthenticated && hub ? { hubId: hub.id } : "skip"
+    isAuthenticated && hub ? { hubId: hub.id } : "skip"
   )
   const isMemberView =
-    isDesktop &&
     isAuthenticated &&
     Boolean(activeHubId) &&
     restored &&
@@ -259,12 +266,57 @@ export function WorkerNotes() {
 
   if (!isMemberView || !hub) return null
 
+  const editor = (
+    <>
+      {conflictText !== null && (
+        <div
+          className="mb-4 border border-destructive/40 bg-destructive/5 p-3 text-sm"
+          role="alert"
+        >
+          <p>{t("workerNotesChanged")}</p>
+          <p className="mt-3 font-medium">{t("workerNotesLatestVersion")}</p>
+          <pre className="mt-1 max-h-24 overflow-auto bg-background p-2 font-sans text-xs whitespace-pre-wrap">
+            {conflictText}
+          </pre>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={loadLatest}>
+              {t("loadLatestWorkerNotes")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={overwriteWithDraft}
+            >
+              {t("overwriteWorkerNotes")}
+            </Button>
+          </div>
+        </div>
+      )}
+      <Textarea
+        value={draft}
+        maxLength={MAX_NOTES_LENGTH}
+        disabled={remoteText === undefined}
+        aria-label={t("workerNotePlaceholder")}
+        placeholder={
+          remoteText === undefined
+            ? t("loadingWorkersNotes")
+            : t("workerNotePlaceholder")
+        }
+        className="h-full min-h-0 flex-1 resize-none border-0! p-0! leading-6 focus-visible:border-0!"
+        onChange={(event) => changeDraft(event.target.value)}
+        onBlur={saveNow}
+      />
+    </>
+  )
+
   return (
     <>
       <Button
         type="button"
         variant={isOpen ? "selected" : "outline"}
-        className="fixed right-4 bottom-4 z-40 h-auto items-center justify-center gap-2 bg-background px-3! py-2 whitespace-normal shadow-md"
+        className="fixed right-4 bottom-4 z-40 h-auto items-center justify-center gap-2 bg-background px-3! py-2 shadow-md"
+        aria-label={t("workersNotes")}
         aria-expanded={isOpen}
         aria-controls="worker-notes-window"
         onClick={() => {
@@ -273,12 +325,51 @@ export function WorkerNotes() {
         }}
       >
         <StickyNote className="size-5" />
-        <span className="w-full text-center leading-4 wrap-break-word whitespace-normal">
+        <span className="hidden w-full text-center leading-4 wrap-break-word sm:inline">
           {t("workersNotes")}
         </span>
+        <ChevronUp
+          className={cn(
+            "size-4 transition-transform sm:hidden",
+            isOpen && "rotate-180"
+          )}
+        />
       </Button>
 
-      {isOpen && (
+      {!isDesktop && (
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetContent
+            id="worker-notes-window"
+            side="bottom"
+            showCloseButton={false}
+            className="h-[min(42rem,calc(100dvh-1rem))] max-h-[calc(100dvh-1rem)] overflow-hidden"
+          >
+            <SheetHeader className="flex-row items-start gap-4 border-b text-left">
+              <div className="min-w-0 flex-1">
+                <SheetTitle>{t("workersNotes")}</SheetTitle>
+                <SheetDescription className="mt-2">
+                  {t("workersNotesDescription")}
+                </SheetDescription>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="-mt-1 -mr-2"
+                aria-label={t("close")}
+                onClick={() => setIsOpen(false)}
+              >
+                <X className="size-5" />
+              </Button>
+            </SheetHeader>
+            <div className="flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 sm:py-6">
+              {editor}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {isDesktop && isOpen && (
         <div
           ref={windowRef}
           id="worker-notes-window"
@@ -322,49 +413,7 @@ export function WorkerNotes() {
             </Button>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col px-6 py-6">
-            {conflictText !== null && (
-              <div
-                className="mb-4 border border-destructive/40 bg-destructive/5 p-3 text-sm"
-                role="alert"
-              >
-                <p>{t("workerNotesChanged")}</p>
-                <p className="mt-3 font-medium">
-                  {t("workerNotesLatestVersion")}
-                </p>
-                <pre className="mt-1 max-h-24 overflow-auto bg-background p-2 font-sans text-xs whitespace-pre-wrap">
-                  {conflictText}
-                </pre>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" size="sm" onClick={loadLatest}>
-                    {t("loadLatestWorkerNotes")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={overwriteWithDraft}
-                  >
-                    {t("overwriteWorkerNotes")}
-                  </Button>
-                </div>
-              </div>
-            )}
-            <Textarea
-              value={draft}
-              maxLength={MAX_NOTES_LENGTH}
-              disabled={remoteText === undefined}
-              aria-label={t("workerNotePlaceholder")}
-              placeholder={
-                remoteText === undefined
-                  ? t("loadingWorkersNotes")
-                  : t("workerNotePlaceholder")
-              }
-              className="h-full min-h-0 flex-1 resize-none border-0! p-0! leading-6 focus-visible:border-0!"
-              onChange={(event) => changeDraft(event.target.value)}
-              onBlur={saveNow}
-            />
-          </div>
+          <div className="flex min-h-0 flex-1 flex-col px-6 py-6">{editor}</div>
         </div>
       )}
     </>

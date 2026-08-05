@@ -73,24 +73,32 @@ export function AuditLogManager() {
                 : storedActorName
 
             return (
-              <p key={log._id} className="text-sm leading-6">
+              <article
+                key={log._id}
+                className="border bg-background p-3 text-sm leading-6 sm:border-0 sm:bg-transparent sm:p-0"
+              >
                 <time
                   dateTime={new Date(log.occurredAt).toISOString()}
-                  className="text-muted-foreground"
+                  className="block text-xs text-muted-foreground sm:inline sm:text-sm"
                 >
                   {new Intl.DateTimeFormat(languageTag, {
                     dateStyle: "medium",
                     timeStyle: "short",
                     timeZone: hub?.timeZone,
                   }).format(log.occurredAt)}
-                </time>{" "}
-                —{" "}
-                {t(actionMessages[log.action], {
-                  actor: actorName,
-                  entityType: t(entityMessages[log.entityType]),
-                  title: log.entityTitle,
-                })}
-              </p>
+                </time>
+                <span className="hidden sm:inline" aria-hidden="true">
+                  {" "}
+                  —{" "}
+                </span>
+                <span className="mt-1 block wrap-break-word sm:mt-0 sm:inline">
+                  {t(actionMessages[log.action], {
+                    actor: actorName,
+                    entityType: t(entityMessages[log.entityType]),
+                    title: log.entityTitle,
+                  })}
+                </span>
+              </article>
             )
           })}
           {(status === "CanLoadMore" || status === "LoadingMore") && (

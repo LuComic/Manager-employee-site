@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
+import { ManagerFilterPanel } from "@/components/manager/manager-filter-panel"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
@@ -98,7 +99,7 @@ export function AnnouncementManager() {
           ) : undefined
         }
       />
-      <div className="flex flex-col gap-4 border bg-background p-4 sm:flex-row">
+      <ManagerFilterPanel className="flex flex-col sm:flex-row">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -137,7 +138,7 @@ export function AnnouncementManager() {
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </ManagerFilterPanel>
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((announcement) => {

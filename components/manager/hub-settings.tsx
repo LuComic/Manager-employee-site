@@ -204,7 +204,7 @@ export function HubSettingsManager() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div
-              className="flex min-h-48 items-end border bg-primary bg-cover bg-center p-5 text-primary-foreground"
+              className="flex min-h-48 w-full max-w-full items-end overflow-hidden border bg-primary bg-cover bg-center p-5 text-primary-foreground"
               style={
                 bannerPreviewUrl
                   ? { backgroundImage: `url("${bannerPreviewUrl}")` }

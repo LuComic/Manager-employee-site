@@ -52,7 +52,7 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
   return (
     <Link
       href={`/documents/${document.id}`}
-      className="group block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+      className="group block h-full max-w-full min-w-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
     >
       <Card
         size="sm"
@@ -60,7 +60,7 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
       >
         {document.bannerImageUrl && (
           <div
-            className="aspect-16/6 border-b bg-muted bg-cover bg-center"
+            className="aspect-16/6 w-full max-w-full overflow-hidden border-b bg-muted bg-cover bg-center"
             style={{
               backgroundImage: `url("${document.bannerImageUrl}")`,
             }}

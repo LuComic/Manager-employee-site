@@ -414,7 +414,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
               </h2>
               <div
                 className={cn(
-                  "flex aspect-[16/7] items-center justify-center overflow-hidden border bg-muted/40 bg-cover bg-center",
+                  "flex aspect-[16/7] w-full max-w-full items-center justify-center overflow-hidden border bg-muted/40 bg-cover bg-center",
                   visibleBanner && "text-transparent"
                 )}
                 style={

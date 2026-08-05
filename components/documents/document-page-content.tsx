@@ -48,7 +48,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
   )
 
   return (
-    <article className="space-y-6">
+    <article className="max-w-full min-w-0 space-y-6 overflow-x-clip">
       <div>
         <Link
           href="/documents"
@@ -63,7 +63,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
 
       {document.bannerImageUrl && (
         <div
-          className="aspect-[16/5] min-h-40 border bg-muted bg-cover bg-center"
+          className="h-40 w-full max-w-full overflow-hidden border bg-muted bg-cover bg-center sm:aspect-[16/5] sm:h-auto"
           style={{ backgroundImage: `url("${document.bannerImageUrl}")` }}
         />
       )}
@@ -128,10 +128,10 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
             href={resource.url}
             target="_blank"
             rel="noreferrer"
-            className="block max-w-4xl outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            className="block max-w-4xl min-w-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
           >
             <div
-              className="aspect-video border bg-muted bg-contain bg-center bg-no-repeat"
+              className="aspect-video w-full max-w-full overflow-hidden border bg-muted bg-contain bg-center bg-no-repeat"
               style={{
                 backgroundImage: `url("${resource.url}")`,
               }}

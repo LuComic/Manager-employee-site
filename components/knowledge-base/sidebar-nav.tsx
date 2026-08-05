@@ -25,7 +25,7 @@ import { CategoryIcon } from "@/lib/category-icons"
 import { cn } from "@/lib/utils"
 import { firstWorkerManagerPath } from "@/lib/worker-editing"
 
-export function SidebarNav({ onContact }: { onContact?: () => void }) {
+export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const t = useAppTranslations()
   const { guideCategories, documents, hub, managerAccess } = useOperations()
@@ -40,14 +40,25 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
       className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
       aria-label={t("knowledgeBaseNavigation")}
     >
-      <SidebarSection label={t("workspace")} href="/" active={pathname === "/"}>
-        <NavLink href="/" label={t("today")} active={pathname === "/"}>
+      <SidebarSection
+        label={t("workspace")}
+        href="/"
+        active={pathname === "/"}
+        onNavigate={onNavigate}
+      >
+        <NavLink
+          href="/"
+          label={t("today")}
+          active={pathname === "/"}
+          onNavigate={onNavigate}
+        >
           <Home />
         </NavLink>
         <NavLink
           href="/notifications"
           label={t("notifications")}
           active={pathname === "/notifications"}
+          onNavigate={onNavigate}
         >
           <Bell />
         </NavLink>
@@ -55,6 +66,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           href="/guides"
           label={t("guides")}
           active={pathname === "/guides" || pathname.startsWith("/guides/")}
+          onNavigate={onNavigate}
         >
           <BookOpen />
         </NavLink>
@@ -62,6 +74,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           href="/calendar"
           label={t("calendar")}
           active={pathname.startsWith("/calendar")}
+          onNavigate={onNavigate}
         >
           <CalendarDays />
         </NavLink>
@@ -69,6 +82,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
           href="/announcements"
           label={t("announcements")}
           active={pathname.startsWith("/announcements")}
+          onNavigate={onNavigate}
         >
           <Megaphone />
         </NavLink>
@@ -78,6 +92,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         label={t("guideCategories")}
         href="/categories"
         active={pathname.startsWith("/categories")}
+        onNavigate={onNavigate}
       >
         {guideCategories.map((category) => {
           const categoryHref = `/categories/${category.id}`
@@ -88,6 +103,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
               href={categoryHref}
               label={category.label}
               active={pathname === categoryHref}
+              onNavigate={onNavigate}
             >
               <CategoryIcon iconKey={category.iconKey} />
             </NavLink>
@@ -99,6 +115,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         label={t("documents")}
         href="/documents"
         active={pathname.startsWith("/documents")}
+        onNavigate={onNavigate}
       >
         {publishedDocuments.slice(0, 8).map((document) => {
           const documentHref = `/documents/${document.id}`
@@ -108,6 +125,7 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
               href={documentHref}
               label={document.title}
               active={pathname === documentHref}
+              onNavigate={onNavigate}
             >
               <DocumentResourceIcon resource={document.resource} />
             </NavLink>
@@ -119,31 +137,38 @@ export function SidebarNav({ onContact }: { onContact?: () => void }) {
         label={t("helpAndTools")}
         href="/questions"
         active={pathname === "/questions"}
+        onNavigate={onNavigate}
       >
         <NavLink
           href="/questions"
           label={t("commonQuestions")}
           active={pathname === "/questions"}
+          onNavigate={onNavigate}
         >
           <CircleHelp />
         </NavLink>
         {managerAccess && (
-          <NavLink href={managerHref} label={t("managerArea")} active={false}>
+          <NavLink
+            href={managerHref}
+            label={t("managerArea")}
+            active={false}
+            onNavigate={onNavigate}
+          >
             <Settings />
           </NavLink>
         )}
         <Separator className="my-4" />
         <ContactButton
           className="h-10 w-full justify-start px-3"
-          onBeforeOpen={onContact}
+          onBeforeOpen={onNavigate}
         />
-        <LanguageSelector />
+        <LanguageSelector onNavigate={onNavigate} />
       </SidebarSection>
     </nav>
   )
 }
 
-function LanguageSelector() {
+function LanguageSelector({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const locale = useLocale()
@@ -163,6 +188,7 @@ function LanguageSelector() {
     <a
       href={href}
       hrefLang={nextLocale}
+      onClick={onNavigate}
       aria-label={t(
         nextLocale === "en" ? "switchToEnglish" : "switchToEstonian"
       )}
@@ -184,11 +210,13 @@ function SidebarSection({
   href,
   active,
   children,
+  onNavigate,
 }: {
   label: string
   href: string
   active: boolean
   children: React.ReactNode
+  onNavigate?: () => void
 }) {
   const [open, setOpen] = useState(true)
   const contentId = useId()
@@ -199,6 +227,7 @@ function SidebarSection({
       <div className="flex items-center">
         <Link
           href={href}
+          onClick={onNavigate}
           className={cn(
             "min-w-0 flex-1 px-3 py-2 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30",
             active && "text-primary"
@@ -237,15 +266,18 @@ function NavLink({
   label,
   active,
   children,
+  onNavigate,
 }: {
   href: string
   label: string
   active: boolean
   children: React.ReactNode
+  onNavigate?: () => void
 }) {
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={cn(
         buttonVariants({ variant: "ghost" }),
         "h-10 w-full justify-start gap-3 px-3 tracking-normal normal-case",

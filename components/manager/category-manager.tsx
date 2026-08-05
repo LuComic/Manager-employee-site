@@ -463,7 +463,7 @@ export function CategoryManager() {
               </T>
             </DialogDescription>
           </DialogHeader>
-          <div className="my-4 space-y-2">
+          <div className="my-4 max-h-[min(20rem,40dvh)] space-y-2 overflow-y-auto overscroll-contain pr-1">
             {affectedItems.map((item) => (
               <Link
                 key={item.id}
@@ -477,7 +477,9 @@ export function CategoryManager() {
                   "h-auto w-full justify-between py-3 tracking-normal normal-case"
                 )}
               >
-                {item.title}
+                <span className="min-w-0 flex-1 text-left wrap-break-word">
+                  {item.title}
+                </span>
                 <FilePenLine data-icon="inline-end" />
               </Link>
             ))}

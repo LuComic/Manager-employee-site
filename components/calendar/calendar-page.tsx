@@ -126,8 +126,14 @@ export function CalendarPage() {
           />
         }
       />
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="order-first w-full font-semibold sm:order-none sm:mr-2 sm:w-auto">
+            {new Intl.DateTimeFormat(languageTag, {
+              month: "long",
+              year: "numeric",
+            }).format(visibleDate)}
+          </h2>
           <Button
             variant="outline"
             size="icon-sm"
@@ -151,14 +157,8 @@ export function CalendarPage() {
           >
             <ChevronRight />
           </Button>
-          <h2 className="ml-2 font-semibold">
-            {new Intl.DateTimeFormat(languageTag, {
-              month: "long",
-              year: "numeric",
-            }).format(visibleDate)}
-          </h2>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <label htmlFor="event-category" className="sr-only">
             <T>filterByEventType</T>
           </label>
@@ -171,7 +171,7 @@ export function CalendarPage() {
             <SelectTrigger
               id="event-category"
               size="sm"
-              className="border border-input bg-background px-3"
+              className="w-full border border-input bg-background px-3 sm:w-auto sm:max-w-64"
             >
               <SelectValue>
                 {category === "All"
@@ -222,17 +222,19 @@ export function CalendarPage() {
       </div>
 
       {view === "month" ? (
-        <div className="overflow-x-auto border bg-background">
-          <div className="min-w-2xl">
-            <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-xs font-semibold text-muted-foreground">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                <div key={day} className="p-3">
-                  {day}
+        <>
+          <div className="border bg-background md:hidden">
+            <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-[0.6875rem] font-semibold text-muted-foreground">
+              {days.slice(0, 7).map((day) => (
+                <div key={calendarKey(day)} className="py-2">
+                  {new Intl.DateTimeFormat(languageTag, {
+                    weekday: "narrow",
+                  }).format(day)}
                 </div>
               ))}
             </div>
             <div className="grid grid-cols-7">
-              {days.map((day, dayIndex) => {
+              {days.map((day) => {
                 const key = calendarKey(day)
                 const dayEvents = published.filter((event) =>
                   eventOccursOnDate(event, key)
@@ -243,9 +245,17 @@ export function CalendarPage() {
                   <div
                     key={key}
                     className={cn(
-                      "min-h-28 border-r border-b p-2 last:border-r-0",
+                      "flex min-h-14 min-w-0 flex-col items-center border-r border-b px-0.5 py-1.5 [&:nth-child(7n)]:border-r-0",
                       !inMonth && "bg-muted/30 text-muted-foreground"
                     )}
+                    aria-label={[
+                      new Intl.DateTimeFormat(languageTag, {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      }).format(day),
+                      ...dayEvents.map((event) => event.title),
+                    ].join(", ")}
                   >
                     <span
                       className={cn(
@@ -256,52 +266,108 @@ export function CalendarPage() {
                     >
                       {day.getDate()}
                     </span>
-                    <div className="mt-2 space-y-1">
-                      {dayEvents.slice(0, 3).map((event) => {
-                        const continuesFromPreviousDay =
-                          dayIndex % 7 !== 0 && event.start.slice(0, 10) < key
-                        const continuesIntoNextDay =
-                          dayIndex % 7 !== 6 && eventLastDateKey(event) > key
-
-                        // Bridge the cell's 8px inset and 1px border while
-                        // preserving the event label's original inset.
-                        return (
-                          <Link
+                    {dayEvents.length > 0 && (
+                      <span
+                        className="mt-1 flex max-w-full items-center justify-center gap-0.5"
+                        aria-hidden="true"
+                      >
+                        {dayEvents.slice(0, 3).map((event) => (
+                          <span
                             key={event.id}
-                            href={`/calendar/${event.id}`}
-                            className={cn(
-                              "relative z-10 block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20",
-                              continuesFromPreviousDay && "-ml-2 pl-4",
-                              continuesIntoNextDay && "-mr-[9px] pr-[17px]"
-                            )}
-                          >
-                            <span className="block truncate">
-                              {event.allDay ? (
-                                <T>allDay</T>
-                              ) : (
-                                formatTime(
-                                  event.startUtc ?? event.start,
-                                  hub?.timeZone,
-                                  languageTag
-                                )
-                              )}{" "}
-                              {event.title}
-                            </span>
-                          </Link>
-                        )
-                      })}
-                      {dayEvents.length > 3 && (
-                        <span className="block px-2 text-xs text-muted-foreground">
-                          +{dayEvents.length - 3} <T>moreLowercase</T>
-                        </span>
-                      )}
-                    </div>
+                            className="size-1.5 shrink-0 rounded-full bg-primary"
+                          />
+                        ))}
+                      </span>
+                    )}
                   </div>
                 )
               })}
             </div>
           </div>
-        </div>
+
+          <div className="hidden overflow-x-auto border bg-background md:block">
+            <div className="min-w-2xl">
+              <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-xs font-semibold text-muted-foreground">
+                {days.slice(0, 7).map((day) => (
+                  <div key={calendarKey(day)} className="p-3">
+                    {new Intl.DateTimeFormat(languageTag, {
+                      weekday: "short",
+                    }).format(day)}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7">
+                {days.map((day) => {
+                  const key = calendarKey(day)
+                  const dayEvents = published.filter((event) =>
+                    eventOccursOnDate(event, key)
+                  )
+                  const inMonth = day.getMonth() === visibleDate.getMonth()
+                  const isToday = key === todayKey
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        "min-h-28 border-r border-b p-2 [&:nth-child(7n)]:border-r-0",
+                        !inMonth && "bg-muted/30 text-muted-foreground"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-7 items-center justify-center text-xs",
+                          isToday &&
+                            "bg-primary font-semibold text-primary-foreground"
+                        )}
+                      >
+                        {day.getDate()}
+                      </span>
+                      <div className="mt-2 space-y-1">
+                        {dayEvents.slice(0, 3).map((event) => {
+                          const continuesFromPreviousDay =
+                            event.start.slice(0, 10) < key
+                          const continuesIntoNextDay =
+                            eventLastDateKey(event) > key
+
+                          // Bridge the cell's 8px inset and 1px border while
+                          // preserving the label inset, including at week wraps.
+                          return (
+                            <Link
+                              key={event.id}
+                              href={`/calendar/${event.id}`}
+                              className={cn(
+                                "relative z-10 block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20",
+                                continuesFromPreviousDay && "-ml-2 pl-4",
+                                continuesIntoNextDay && "-mr-2.25 pr-4.25"
+                              )}
+                            >
+                              <span className="block truncate">
+                                {event.allDay ? (
+                                  <T>allDay</T>
+                                ) : (
+                                  formatTime(
+                                    event.startUtc ?? event.start,
+                                    hub?.timeZone,
+                                    languageTag
+                                  )
+                                )}{" "}
+                                {event.title}
+                              </span>
+                            </Link>
+                          )
+                        })}
+                        {dayEvents.length > 3 && (
+                          <span className="block px-2 text-xs text-muted-foreground">
+                            +{dayEvents.length - 3} <T>moreLowercase</T>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </>
       ) : monthEvents.length ? (
         <div className="space-y-3">
           {monthEvents.map((event) => (

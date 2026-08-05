@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
+import { ManagerFilterPanel } from "@/components/manager/manager-filter-panel"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -187,7 +188,7 @@ export function DraftManager() {
         title="drafts"
         description="draftItemsNotVisibleEmployeesUntilTheyMessage"
       />
-      <div className="grid gap-4 border bg-background p-4 sm:grid-cols-2">
+      <ManagerFilterPanel className="grid sm:grid-cols-2">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -219,7 +220,7 @@ export function DraftManager() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </ManagerFilterPanel>
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((draft) => (

@@ -152,18 +152,18 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 {event.attachments.map((attachment) => (
                   <li
                     key={attachment.id}
-                    className="flex items-center gap-2 text-sm"
+                    className="flex min-w-0 flex-wrap items-center gap-2 text-sm"
                   >
-                    <FileText className="size-4 text-primary" />
+                    <FileText className="size-4 shrink-0 text-primary" />
                     <a
                       href={attachment.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="underline underline-offset-4 hover:text-primary"
+                      className="min-w-0 flex-1 wrap-break-word underline underline-offset-4 hover:text-primary"
                     >
                       {attachment.name}
                     </a>
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="shrink-0">
                       {Math.max(1, Math.round(attachment.size / 1024))}{" "}
                       <T>kilobyteAbbreviation</T>
                     </Badge>
@@ -197,11 +197,11 @@ function Detail({
       <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
         <Icon className="size-5" />
       </span>
-      <div>
+      <div className="min-w-0">
         <p className="text-xs font-semibold text-muted-foreground">
           <T>{label}</T>
         </p>
-        <p className="mt-1 text-sm font-medium">{value}</p>
+        <p className="mt-1 text-sm font-medium wrap-break-word">{value}</p>
       </div>
     </div>
   )

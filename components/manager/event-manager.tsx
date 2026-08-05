@@ -19,6 +19,7 @@ import {
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
 import { CalendarImportIssues } from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
+import { ManagerFilterPanel } from "@/components/manager/manager-filter-panel"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
@@ -284,10 +285,17 @@ export function EventManager() {
         title="manageCalendarEvents"
         description="maintainSharedOperationalDatesImportEventsOtherMessage"
         action={
-          <div className="flex flex-wrap gap-2">
+          <div
+            className={cn(
+              "grid w-full gap-2 sm:flex sm:w-auto",
+              canCreateEvents ? "grid-cols-2" : "grid-cols-1"
+            )}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={<Button variant="outline" size="sm" />}
+                render={
+                  <Button variant="outline" className="w-full sm:w-auto" />
+                }
               >
                 <Menu /> <T>moreLowercase</T> <ChevronDown />
               </DropdownMenuTrigger>
@@ -312,7 +320,7 @@ export function EventManager() {
             {canCreateEvents && (
               <Link
                 href="/manager/calendar/new"
-                className={buttonVariants({ size: "sm" })}
+                className={cn(buttonVariants(), "w-full sm:w-auto")}
               >
                 <Plus data-icon="inline-start" /> <T>add</T>
               </Link>
@@ -320,7 +328,7 @@ export function EventManager() {
           </div>
         }
       />
-      <div className="grid gap-4 border bg-background p-4 sm:grid-cols-3">
+      <ManagerFilterPanel className="grid sm:grid-cols-3">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -380,7 +388,7 @@ export function EventManager() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </ManagerFilterPanel>
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((event) => (
