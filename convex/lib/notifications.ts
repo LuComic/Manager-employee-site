@@ -34,7 +34,13 @@ export async function createNotification(
   ctx: MutationCtx,
   notification: NotificationInput
 ) {
-  await ctx.db.insert("notifications", notification)
+  const identity = await ctx.auth.getUserIdentity()
+  await ctx.db.insert("notifications", {
+    ...notification,
+    ...(identity
+      ? { actorViewerKey: `identity:${identity.tokenIdentifier}` }
+      : {}),
+  })
 }
 
 export async function notifyPublicationChange(

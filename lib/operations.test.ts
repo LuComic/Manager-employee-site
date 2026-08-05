@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
 import {
+  addHoursToLocalDateTime,
   eventOccursOnDate,
   formatDate,
   formatEventDate,
@@ -58,6 +59,16 @@ describe("normalizeReadingTime", () => {
 })
 
 describe("Europe/Tallinn dates", () => {
+  test("adds an hour to local event times and carries into the next day", () => {
+    expect(addHoursToLocalDateTime("2026-08-01T14:00", 1)).toBe(
+      "2026-08-01T15:00"
+    )
+    expect(addHoursToLocalDateTime("2026-08-01T23:30", 1)).toBe(
+      "2026-08-02T00:30"
+    )
+    expect(addHoursToLocalDateTime("2026-02-30T14:00", 1)).toBe("")
+  })
+
   test("keeps local calendar event wall time stable", () => {
     expect(toDateKey("2026-07-18T09:30")).toBe("2026-07-18")
     expect(formatTime("2026-07-18T09:30")).toBe("09:30")

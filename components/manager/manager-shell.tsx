@@ -216,8 +216,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 </Link>
               )}
               <UserButton />
-              {hub && managerAccess === "owner" && (
-                <NotificationButton manager />
+              {hub && managerAccess && (
+                <NotificationButton manager={managerAccess === "owner"} />
               )}
             </div>
           </div>

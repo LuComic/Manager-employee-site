@@ -102,7 +102,7 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
       keywords: [],
       relatedGuideIds: [],
       content: cloneContent(emptyRichTextDocument),
-      published: false,
+      published: true,
       featured: false,
       icon: getCategoryIcon(category.iconKey),
     }

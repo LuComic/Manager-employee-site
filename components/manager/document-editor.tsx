@@ -44,7 +44,7 @@ function newDocument(): EditableDocument {
     description: "",
     employees: [],
     relatedGuideIds: [],
-    published: false,
+    published: true,
     updatedAt: Date.now(),
   }
 }

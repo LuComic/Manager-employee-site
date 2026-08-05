@@ -2216,6 +2216,113 @@ describe("Organization employees, invitations, and event links", () => {
 })
 
 describe("notification feeds", () => {
+  test("shows the actor's own content notifications without marking them unread", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const owner = t.withIdentity(orgAdminIdentity)
+    const coworkerIdentity = {
+      ...orgAdminIdentity,
+      subject: "coworker-admin",
+      tokenIdentifier: "https://clerk.example.test|coworker-admin",
+    }
+
+    await t.withIdentity(coworkerIdentity).mutation(api.content.saveEvent, {
+      hubId,
+      slug: "coworker-created-event",
+      title: "Coworker-created event",
+      description: "This should notify the owner",
+      category: "event-reservation",
+      start: "2026-08-01T12:00",
+      end: "2026-08-01T13:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+    })
+
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "owner-created-event",
+      title: "Owner-created event",
+      description: "Visible to everyone without notifying the creator",
+      category: "event-reservation",
+      start: "2026-08-01T14:00",
+      end: "2026-08-01T15:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+    })
+
+    const ownFeed = await owner.query(api.notifications.listEmployee, {
+      hubSlug: "org-hub",
+    })
+    const coworkerFeed = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.notifications.listEmployee, { hubSlug: "org-hub" })
+
+    expect(ownFeed.notifications).toHaveLength(2)
+    expect(ownFeed.notifications[0]).toMatchObject({
+      titleKey: "notificationNewEventAdded",
+      isOwn: true,
+    })
+    expect(ownFeed.notifications[1]).toMatchObject({
+      titleKey: "notificationNewEventAdded",
+      isOwn: false,
+    })
+    expect(ownFeed.unreadCount).toBe(1)
+    expect(coworkerFeed.notifications[0]).toMatchObject({
+      titleKey: "notificationNewEventAdded",
+      isOwn: false,
+    })
+    expect(coworkerFeed.unreadCount).toBe(2)
+
+    await owner.mutation(api.notifications.markEmployeeRead, {
+      hubSlug: "org-hub",
+    })
+    const readFeed = await owner.query(api.notifications.listEmployee, {
+      hubSlug: "org-hub",
+    })
+    expect(readFeed.notifications).toHaveLength(2)
+    expect(readFeed.unreadCount).toBe(0)
+  })
+
+  test("shows a manager's own notifications without marking them unread", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const owner = t.withIdentity(orgAdminIdentity)
+
+    await t.mutation(api.content.submitHelpRequest, {
+      hubSlug: "org-hub",
+      topic: "Employee question",
+      message: "This should notify the manager.",
+    })
+    await owner.mutation(api.content.submitHelpRequest, {
+      hubSlug: "org-hub",
+      topic: "Owner question",
+      message: "This should remain visible without an unread indicator.",
+    })
+
+    const feed = await owner.query(api.notifications.listManager, { hubId })
+    expect(feed.notifications).toHaveLength(2)
+    expect(feed.notifications[0]).toMatchObject({
+      titleKey: "notificationNewEmployeeQuestion",
+      isOwn: true,
+    })
+    expect(feed.notifications[1]).toMatchObject({
+      titleKey: "notificationNewEmployeeQuestion",
+      isOwn: false,
+    })
+    expect(feed.unreadCount).toBe(1)
+
+    await owner.mutation(api.notifications.markManagerRead, { hubId })
+    const readFeed = await owner.query(api.notifications.listManager, {
+      hubId,
+    })
+    expect(readFeed.notifications).toHaveLength(2)
+    expect(readFeed.unreadCount).toBe(0)
+  })
+
   test("tracks anonymous and manager unread state independently", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t, { restricted: true })
