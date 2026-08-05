@@ -232,7 +232,7 @@ export function CalendarPage() {
               ))}
             </div>
             <div className="grid grid-cols-7">
-              {days.map((day) => {
+              {days.map((day, dayIndex) => {
                 const key = calendarKey(day)
                 const dayEvents = published.filter((event) =>
                   eventOccursOnDate(event, key)
@@ -257,26 +257,39 @@ export function CalendarPage() {
                       {day.getDate()}
                     </span>
                     <div className="mt-2 space-y-1">
-                      {dayEvents.slice(0, 3).map((event) => (
-                        <Link
-                          key={event.id}
-                          href={`/calendar/${event.id}`}
-                          className="block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
-                        >
-                          <span className="block truncate">
-                            {event.allDay ? (
-                              <T>allDay</T>
-                            ) : (
-                              formatTime(
-                                event.startUtc ?? event.start,
-                                hub?.timeZone,
-                                languageTag
-                              )
-                            )}{" "}
-                            {event.title}
-                          </span>
-                        </Link>
-                      ))}
+                      {dayEvents.slice(0, 3).map((event) => {
+                        const continuesFromPreviousDay =
+                          dayIndex % 7 !== 0 && event.start.slice(0, 10) < key
+                        const continuesIntoNextDay =
+                          dayIndex % 7 !== 6 && eventLastDateKey(event) > key
+
+                        // Bridge the cell's 8px inset and 1px border while
+                        // preserving the event label's original inset.
+                        return (
+                          <Link
+                            key={event.id}
+                            href={`/calendar/${event.id}`}
+                            className={cn(
+                              "relative z-10 block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20",
+                              continuesFromPreviousDay && "-ml-2 pl-4",
+                              continuesIntoNextDay && "-mr-[9px] pr-[17px]"
+                            )}
+                          >
+                            <span className="block truncate">
+                              {event.allDay ? (
+                                <T>allDay</T>
+                              ) : (
+                                formatTime(
+                                  event.startUtc ?? event.start,
+                                  hub?.timeZone,
+                                  languageTag
+                                )
+                              )}{" "}
+                              {event.title}
+                            </span>
+                          </Link>
+                        )
+                      })}
                       {dayEvents.length > 3 && (
                         <span className="block px-2 text-xs text-muted-foreground">
                           +{dayEvents.length - 3} <T>moreLowercase</T>
