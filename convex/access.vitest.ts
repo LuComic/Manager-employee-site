@@ -2216,6 +2216,40 @@ describe("Organization employees, invitations, and event links", () => {
 })
 
 describe("notification feeds", () => {
+  test("excludes the actor's own content notifications", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const owner = t.withIdentity(orgAdminIdentity)
+
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "owner-created-event",
+      title: "Owner-created event",
+      description: "Visible to everyone except the person who created it",
+      category: "event-reservation",
+      start: "2026-08-01T14:00",
+      end: "2026-08-01T15:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+    })
+
+    const ownFeed = await owner.query(api.notifications.listEmployee, {
+      hubSlug: "org-hub",
+    })
+    const coworkerFeed = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.notifications.listEmployee, { hubSlug: "org-hub" })
+
+    expect(ownFeed.notifications).toEqual([])
+    expect(ownFeed.unreadCount).toBe(0)
+    expect(coworkerFeed.notifications[0]?.titleKey).toBe(
+      "notificationNewEventAdded"
+    )
+    expect(coworkerFeed.unreadCount).toBe(1)
+  })
+
   test("tracks anonymous and manager unread state independently", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t, { restricted: true })

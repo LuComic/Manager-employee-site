@@ -59,7 +59,7 @@ function newAnnouncement(timeZone?: string): AnnouncementDraft {
     expiresAt: toDateKey(expires, timeZone),
     priority: "Normal",
     pinned: false,
-    published: false,
+    published: true,
   }
 }
 

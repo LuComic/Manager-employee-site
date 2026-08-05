@@ -367,6 +367,8 @@ export default defineSchema({
       v.record(v.string(), v.union(v.string(), v.number()))
     ),
     href: v.string(),
+    // Authenticated viewers do not receive notifications for their own actions.
+    actorViewerKey: v.optional(v.string()),
     // Transitional: older notification rows stored this redundantly.
     createdAt: v.optional(v.number()),
   })
