@@ -368,7 +368,7 @@ export function CalendarPage() {
                     <div
                       key={key}
                       className={cn(
-                        "min-h-28 border-r border-b p-2 [&:nth-child(7n)]:border-r-0",
+                        "min-h-28 border-r border-b p-2 nth-[7n]:border-r-0",
                         !inMonth && "bg-muted/30 text-muted-foreground"
                       )}
                     >
