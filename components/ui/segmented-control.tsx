@@ -14,7 +14,7 @@ function SegmentedControl({
       data-slot="segmented-control"
       role="group"
       className={cn(
-        "inline-flex max-w-full overflow-x-auto border bg-background",
+        "inline-flex max-w-full overflow-x-auto overflow-y-hidden border bg-background",
         className
       )}
       {...props}

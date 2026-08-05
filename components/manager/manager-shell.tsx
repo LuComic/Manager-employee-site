@@ -33,7 +33,7 @@ import { Brand } from "@/components/knowledge-base/brand"
 import { HubSetup } from "@/components/manager/hub-setup"
 import { NotificationButton } from "@/components/notifications/notification-center"
 import { useOperations } from "@/components/providers/operations-provider"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -207,17 +207,20 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex min-w-0 items-center gap-2 sm:ml-auto sm:justify-end sm:gap-3">
               {!focusedEditor && hub && (
-                <Link
-                  href={`/?hub=${hub.slug}`}
-                  aria-label={t("employeeSite")}
-                  title={t("employeeSite")}
-                  className={buttonVariants({
-                    variant: "outline",
-                    size: "icon-sm",
-                  })}
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-9 min-h-0"
+                  render={
+                    <Link
+                      href={`/?hub=${hub.slug}`}
+                      aria-label={t("employeeSite")}
+                      title={t("employeeSite")}
+                    />
+                  }
                 >
                   <ArrowLeft />
-                </Link>
+                </Button>
               )}
               <div className="min-w-0 flex-1 overflow-hidden sm:max-w-64 sm:flex-none">
                 <OrganizationSwitcher

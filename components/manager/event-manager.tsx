@@ -425,11 +425,13 @@ export function EventManager() {
                   · {event.location}
                 </>
               }
+              actionsClassName="grid w-full grid-flow-col auto-cols-fr sm:flex sm:w-auto"
               actions={
                 <>
                   <Button
                     variant="outline"
                     size="sm"
+                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
                     onClick={() => {
                       saveEvent({ ...event, published: !event.published })
                       showFeedback(
@@ -442,7 +444,8 @@ export function EventManager() {
                   <Link
                     href={`/manager/calendar/${event.id}/edit`}
                     className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" })
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "min-h-11 w-full sm:min-h-9 sm:w-auto"
                     )}
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
@@ -451,6 +454,7 @@ export function EventManager() {
                     <Button
                       variant="destructive"
                       size="icon-sm"
+                      className="w-full sm:size-9"
                       onClick={() => setDeleteTarget(event)}
                       aria-label={t("deleteName", { name: event.title })}
                     >

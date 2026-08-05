@@ -4,7 +4,7 @@ import { T } from "@/components/translated-text"
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   CalendarDays,
   ChevronLeft,
@@ -74,6 +74,8 @@ export function CalendarPage() {
     firstOfMonth(dateFromKey(todayKey))
   )
   const [category, setCategory] = useState<string>("All")
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null)
+  const monthEventsSectionRef = useRef<HTMLElement>(null)
   const published = events.filter(
     (event) =>
       event.published && (category === "All" || event.category === category)
@@ -90,6 +92,14 @@ export function CalendarPage() {
         eventLastDateKey(event) >= visibleMonthStart
     )
     .sort((a, b) => a.start.localeCompare(b.start))
+  const selectedDayEvents = selectedDayKey
+    ? published
+        .filter((event) => eventOccursOnDate(event, selectedDayKey))
+        .sort((a, b) => a.start.localeCompare(b.start))
+    : []
+  const summaryEvents = selectedDayEvents.length
+    ? selectedDayEvents
+    : monthEvents.slice(0, 4)
 
   const days = useMemo(() => {
     const first = firstOfMonth(visibleDate)
@@ -103,11 +113,36 @@ export function CalendarPage() {
     })
   }, [visibleDate])
 
+  useEffect(() => {
+    if (!selectedDayKey) return
+    const frame = window.requestAnimationFrame(() => {
+      monthEventsSectionRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [selectedDayKey])
+
   function moveMonth(amount: number) {
+    setSelectedDayKey(null)
     setVisibleDate(
       (current) =>
         new Date(current.getFullYear(), current.getMonth() + amount, 1)
     )
+  }
+
+  function showEventsForDay(key: string) {
+    if (selectedDayKey === key) {
+      monthEventsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+      return
+    }
+    setSelectedDayKey(key)
   }
 
   return (
@@ -145,7 +180,10 @@ export function CalendarPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setVisibleDate(firstOfMonth(dateFromKey(todayKey)))}
+            onClick={() => {
+              setSelectedDayKey(null)
+              setVisibleDate(firstOfMonth(dateFromKey(todayKey)))
+            }}
           >
             <T>today</T>
           </Button>
@@ -165,7 +203,10 @@ export function CalendarPage() {
           <Select
             value={category}
             onValueChange={(value) => {
-              if (value) setCategory(value)
+              if (value) {
+                setSelectedDayKey(null)
+                setCategory(value)
+              }
             }}
           >
             <SelectTrigger
@@ -194,7 +235,7 @@ export function CalendarPage() {
             <SegmentedControlItem
               selected={view === "month"}
               size="sm"
-              className="h-full"
+              className="h-full min-h-0"
               onClick={() => setView("month")}
             >
               <CalendarDays /> <T>month</T>
@@ -202,7 +243,7 @@ export function CalendarPage() {
             <SegmentedControlItem
               selected={view === "list"}
               size="sm"
-              className="h-full"
+              className="h-full min-h-0"
               onClick={() => setView("list")}
             >
               <List /> <T>list</T>
@@ -241,22 +282,24 @@ export function CalendarPage() {
                 )
                 const inMonth = day.getMonth() === visibleDate.getMonth()
                 const isToday = key === todayKey
-                return (
-                  <div
-                    key={key}
-                    className={cn(
-                      "flex min-h-14 min-w-0 flex-col items-center border-r border-b px-0.5 py-1.5 [&:nth-child(7n)]:border-r-0",
-                      !inMonth && "bg-muted/30 text-muted-foreground"
-                    )}
-                    aria-label={[
-                      new Intl.DateTimeFormat(languageTag, {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                      }).format(day),
-                      ...dayEvents.map((event) => event.title),
-                    ].join(", ")}
-                  >
+                const label = [
+                  new Intl.DateTimeFormat(languageTag, {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  }).format(day),
+                  ...dayEvents.map((event) => event.title),
+                ].join(", ")
+                const cellClassName = cn(
+                  "flex min-h-14 min-w-0 flex-col items-center border-r border-b px-0.5 py-1.5 [&:nth-child(7n)]:border-r-0",
+                  !inMonth && "bg-muted/30 text-muted-foreground",
+                  dayEvents.length > 0 &&
+                    "cursor-pointer hover:bg-muted/50 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+                  selectedDayKey === key &&
+                    "bg-primary/10 ring-2 ring-primary ring-inset"
+                )
+                const content = (
+                  <>
                     <span
                       className={cn(
                         "flex size-7 items-center justify-center text-xs",
@@ -279,6 +322,23 @@ export function CalendarPage() {
                         ))}
                       </span>
                     )}
+                  </>
+                )
+                return dayEvents.length > 0 ? (
+                  <button
+                    key={key}
+                    type="button"
+                    className={cellClassName}
+                    aria-label={label}
+                    aria-pressed={selectedDayKey === key}
+                    aria-controls="calendar-month-events"
+                    onClick={() => showEventsForDay(key)}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <div key={key} className={cellClassName} aria-label={label}>
+                    {content}
                   </div>
                 )
               })}
@@ -420,13 +480,25 @@ export function CalendarPage() {
         />
       )}
 
-      {view === "month" && monthEvents.length > 0 && (
-        <section>
+      {view === "month" && summaryEvents.length > 0 && (
+        <section
+          id="calendar-month-events"
+          ref={monthEventsSectionRef}
+          className="scroll-mt-24"
+        >
           <h2 className="mb-4 text-xl font-semibold">
-            <T>thisMonth</T>
+            {selectedDayKey && selectedDayEvents.length ? (
+              new Intl.DateTimeFormat(languageTag, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              }).format(dateFromKey(selectedDayKey))
+            ) : (
+              <T>thisMonth</T>
+            )}
           </h2>
           <div className="grid gap-3 lg:grid-cols-2">
-            {monthEvents.slice(0, 4).map((event) => (
+            {summaryEvents.map((event) => (
               <EventCard
                 key={event.id}
                 event={event}

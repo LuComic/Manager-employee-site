@@ -176,10 +176,11 @@ export function DocumentManager() {
                     {document.description}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid w-full auto-cols-fr grid-flow-col gap-2 sm:flex sm:w-auto sm:flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
                     onClick={() => {
                       void (async () => {
                         try {
@@ -204,7 +205,8 @@ export function DocumentManager() {
                   <Link
                     href={`/manager/documents/${document.id}/edit`}
                     className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" })
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "min-h-11 w-full sm:min-h-9 sm:w-auto"
                     )}
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
@@ -213,6 +215,7 @@ export function DocumentManager() {
                     <Button
                       variant="destructive"
                       size="icon-sm"
+                      className="w-full sm:size-9"
                       onClick={() => setDeleteTarget(document)}
                       aria-label={t("deleteName", {
                         name: document.title,

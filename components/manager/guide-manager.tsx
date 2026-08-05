@@ -164,11 +164,13 @@ export function GuideManager() {
                 </Badge>,
               ]}
               description={guide.description}
+              actionsClassName="grid w-full grid-flow-col auto-cols-fr sm:flex sm:w-auto"
               actions={
                 <>
                   <Button
                     variant="outline"
                     size="sm"
+                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
                     onClick={() => {
                       saveGuide({
                         ...guide,
@@ -185,7 +187,8 @@ export function GuideManager() {
                   <Link
                     href={`/manager/guides/${guide.id}/edit`}
                     className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" })
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "min-h-11 w-full sm:min-h-9 sm:w-auto"
                     )}
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
@@ -194,6 +197,7 @@ export function GuideManager() {
                     <Button
                       variant="destructive"
                       size="icon-sm"
+                      className="w-full sm:size-9"
                       onClick={() => setDeleteTarget(guide)}
                       aria-label={t("deleteName", { name: guide.title })}
                     >
