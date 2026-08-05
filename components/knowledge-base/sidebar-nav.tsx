@@ -280,7 +280,7 @@ function NavLink({
       onClick={onNavigate}
       className={cn(
         buttonVariants({ variant: "ghost" }),
-        "h-auto min-h-10 w-full justify-start gap-3 px-3 py-2 text-left tracking-normal normal-case",
+        "h-auto min-h-10 w-full justify-start gap-3 px-3 py-2 text-left tracking-normal normal-case sm:h-10 sm:py-0",
         active && "bg-sidebar-accent text-sidebar-accent-foreground"
       )}
     >
@@ -292,7 +292,9 @@ function NavLink({
       >
         {children}
       </span>
-      <span className="min-w-0 flex-1 text-left">{label}</span>
+      <span className="min-w-0 flex-1 text-left sm:min-w-fit sm:flex-none sm:whitespace-nowrap">
+        {label}
+      </span>
     </Link>
   )
 }

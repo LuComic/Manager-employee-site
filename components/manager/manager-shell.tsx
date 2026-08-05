@@ -207,24 +207,33 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex min-w-0 items-center gap-2 sm:ml-auto sm:justify-end sm:gap-3">
               {!focusedEditor && hub && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  nativeButton={false}
-                  className="size-9 min-h-0 p-0 sm:h-auto sm:min-h-9 sm:w-auto sm:px-4 sm:py-1.5"
-                  render={
-                    <Link
-                      href={`/?hub=${hub.slug}`}
-                      aria-label={t("employeeSite")}
-                      title={t("employeeSite")}
-                    />
-                  }
-                >
-                  <ArrowLeft />
-                  <span className="hidden sm:inline">
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    nativeButton={false}
+                    className="size-9 min-h-0 sm:hidden"
+                    render={
+                      <Link
+                        href={`/?hub=${hub.slug}`}
+                        aria-label={t("employeeSite")}
+                        title={t("employeeSite")}
+                      />
+                    }
+                  >
+                    <ArrowLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    nativeButton={false}
+                    className="hidden sm:inline-flex"
+                    render={<Link href={`/?hub=${hub.slug}`} />}
+                  >
+                    <ArrowLeft />
                     <T>employeeSite</T>
-                  </span>
-                </Button>
+                  </Button>
+                </>
               )}
               <div className="min-w-0 flex-1 overflow-hidden sm:max-w-64 sm:flex-none">
                 <OrganizationSwitcher
