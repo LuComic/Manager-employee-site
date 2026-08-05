@@ -193,8 +193,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     (managerAccess === "viewer" && workerRouteAllowed)
   return (
     <div className="min-h-svh bg-muted/40">
-      <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur sm:static">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+      <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur sm:static sm:z-auto sm:border-b-0 sm:bg-background sm:backdrop-blur-none">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:pt-4 sm:pb-0 lg:px-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center justify-between gap-3">
               <Brand linked={!focusedEditor} />
