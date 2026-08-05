@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button"
 import type { AppMessageKey } from "@/i18n/messages"
 import { Link } from "@/i18n/navigation"
 import { useAppTranslations } from "@/i18n/use-app-translations"
+import { cn } from "@/lib/utils"
 import type { WorkerEditableSection } from "@/lib/worker-editing"
 
 export function ManageSectionButton({
@@ -47,7 +48,7 @@ export function CreateSectionButton({
   return (
     <Link
       href={href}
-      className={buttonVariants({ size: "icon-sm" })}
+      className={cn(buttonVariants({ size: "icon-sm" }), "size-9 min-h-0")}
       aria-label={t(label)}
     >
       <Plus />

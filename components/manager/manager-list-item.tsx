@@ -9,6 +9,7 @@ type ManagerListItemProps = {
   metadata?: readonly ReactNode[]
   description?: ReactNode
   actions?: ReactNode
+  actionsClassName?: string
   titleAs?: "h2" | "h3"
   align?: "center" | "start"
   descriptionClassName?: string
@@ -20,6 +21,7 @@ export function ManagerListItem({
   metadata,
   description,
   actions,
+  actionsClassName,
   titleAs: Title = "h3",
   align = "center",
   descriptionClassName,
@@ -64,7 +66,11 @@ export function ManagerListItem({
           )}
         </div>
         {actions && (
-          <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>
+          <div
+            className={cn("flex shrink-0 flex-wrap gap-2", actionsClassName)}
+          >
+            {actions}
+          </div>
         )}
       </CardContent>
     </Card>

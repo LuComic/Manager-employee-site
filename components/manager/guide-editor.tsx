@@ -249,7 +249,10 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
             <T>writeClearInstructionsPreviewHowEmployeesRead</T>
           </p>
         </div>
-        <SegmentedControl aria-label={t("guideEditorView")}>
+        <SegmentedControl
+          className="grid w-full grid-cols-2 sm:w-auto"
+          aria-label={t("guideEditorView")}
+        >
           <SegmentedControlItem
             type="button"
             selected={mode === "edit"}
@@ -460,11 +463,19 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={leave}>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={leave}
+          >
             <T>cancel</T>
           </Button>
-          <Button onClick={() => void submit()} disabled={saving}>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => void submit()}
+            disabled={saving}
+          >
             <T>{saving ? "saving" : "saveGuide"}</T>
           </Button>
         </div>

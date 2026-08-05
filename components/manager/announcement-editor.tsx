@@ -183,7 +183,10 @@ export function AnnouncementEditor({
             <T>writeClearUpdateControlEmployeesSee</T>
           </p>
         </div>
-        <SegmentedControl aria-label={t("announcementEditorView")}>
+        <SegmentedControl
+          className="grid w-full grid-cols-2 sm:w-auto"
+          aria-label={t("announcementEditorView")}
+        >
           <SegmentedControlItem
             type="button"
             selected={mode === "edit"}
@@ -365,11 +368,19 @@ export function AnnouncementEditor({
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={leave}>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={leave}
+          >
             <T>cancel</T>
           </Button>
-          <Button onClick={() => void submit()} disabled={saving}>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => void submit()}
+            disabled={saving}
+          >
             <T>{saving ? "saving" : "saveAnnouncement"}</T>
           </Button>
         </div>

@@ -510,11 +510,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   {pendingFiles.map((file) => (
                     <li
                       key={`${file.name}-${file.size}`}
-                      className="flex items-center gap-2 text-muted-foreground"
+                      className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground"
                     >
-                      <Paperclip className="size-4" />
-                      <span>{file.name}</span>
-                      <span>
+                      <Paperclip className="size-4 shrink-0" />
+                      <span className="min-w-0 flex-1 wrap-break-word text-foreground">
+                        {file.name}
+                      </span>
+                      <span className="shrink-0 text-xs">
                         <T>uploadsOnSave</T>
                       </span>
                     </li>
@@ -598,11 +600,19 @@ export function EventEditor({ eventId }: { eventId?: string }) {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={leave}>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={leave}
+          >
             <T>cancel</T>
           </Button>
-          <Button onClick={() => void submit()} disabled={saving}>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => void submit()}
+            disabled={saving}
+          >
             <T>{saving ? "saving" : "saveEvent"}</T>
           </Button>
         </div>

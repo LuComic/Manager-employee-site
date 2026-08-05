@@ -63,10 +63,11 @@ export function GuideDetail({
           <RichTextContent content={guide.content} />
         </CardContent>
 
-        <div className="flex flex-col gap-4 border-t bg-muted/30 p-6 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-xs text-muted-foreground">{guide.updated}</span>
-          {!preview && <PrintButton />}
-        </div>
+        {!preview && (
+          <div className="flex justify-end border-t bg-muted/30 p-6">
+            <PrintButton />
+          </div>
+        )}
       </Card>
       <RelatedInformation guides={relatedGuides} />
     </article>

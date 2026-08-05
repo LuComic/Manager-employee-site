@@ -336,6 +336,7 @@
     "filterEmployeesByStatus": "Filter employees by status",
     "filterEventsByStatus": "Filter events by status",
     "filterEventsByType": "Filter events by type",
+    "filters": "Filters",
     "filterGuidesByStatus": "Filter guides by status",
     "filterGuidesByWorkArea": "Filter guides by work area",
     "findContentInWorkhal": "Find guides, events, announcements, documents, and questions in workhal.",
