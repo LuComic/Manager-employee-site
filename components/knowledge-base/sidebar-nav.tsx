@@ -280,14 +280,19 @@ function NavLink({
       onClick={onNavigate}
       className={cn(
         buttonVariants({ variant: "ghost" }),
-        "h-10 w-full justify-start gap-3 px-3 tracking-normal normal-case",
+        "h-auto min-h-10 w-full justify-start gap-3 px-3 py-2 text-left tracking-normal normal-case",
         active && "bg-sidebar-accent text-sidebar-accent-foreground"
       )}
     >
-      <span className={cn("text-muted-foreground", active && "text-primary")}>
+      <span
+        className={cn(
+          "shrink-0 text-muted-foreground",
+          active && "text-primary"
+        )}
+      >
         {children}
       </span>
-      {label}
+      <span className="min-w-0 flex-1 text-left">{label}</span>
     </Link>
   )
 }

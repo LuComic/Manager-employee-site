@@ -209,8 +209,9 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               {!focusedEditor && hub && (
                 <Button
                   variant="outline"
-                  size="icon-sm"
-                  className="size-9 min-h-0"
+                  size="sm"
+                  nativeButton={false}
+                  className="size-9 min-h-0 p-0 sm:h-auto sm:min-h-9 sm:w-auto sm:px-4 sm:py-1.5"
                   render={
                     <Link
                       href={`/?hub=${hub.slug}`}
@@ -220,6 +221,9 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                   }
                 >
                   <ArrowLeft />
+                  <span className="hidden sm:inline">
+                    <T>employeeSite</T>
+                  </span>
                 </Button>
               )}
               <div className="min-w-0 flex-1 overflow-hidden sm:max-w-64 sm:flex-none">
