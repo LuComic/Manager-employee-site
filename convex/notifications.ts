@@ -36,6 +36,7 @@ const notificationItem = v.object({
   ),
   href: v.string(),
   createdAt: v.number(),
+  isOwn: v.boolean(),
 })
 
 const notificationFeed = v.object({
@@ -45,9 +46,11 @@ const notificationFeed = v.object({
 })
 
 const NOTIFICATION_FEED_LIMIT = 100
-const NOTIFICATION_SCAN_LIMIT = 200
 
-const notificationFields = (notification: Doc<"notifications">) => ({
+const notificationFields = (
+  notification: Doc<"notifications">,
+  viewerKey: string
+) => ({
   id: notification._id,
   kind: notification.kind,
   title: notification.title,
@@ -57,6 +60,7 @@ const notificationFields = (notification: Doc<"notifications">) => ({
   messageValues: notification.messageValues,
   href: notification.href,
   createdAt: notification._creationTime,
+  isOwn: notification.actorViewerKey === viewerKey,
 })
 
 async function getLastReadAt(
@@ -171,7 +175,7 @@ async function employeeNotifications(
         q.eq("hubId", viewer.hub._id).eq("audience", "employees")
       )
       .order("desc")
-      .take(NOTIFICATION_SCAN_LIMIT),
+      .take(NOTIFICATION_FEED_LIMIT),
     viewer.employeeProfileId
       ? ctx.db
           .query("notifications")
@@ -180,11 +184,10 @@ async function employeeNotifications(
           )
           .filter((q) => q.eq(q.field("audience"), "employee"))
           .order("desc")
-          .take(NOTIFICATION_SCAN_LIMIT)
+          .take(NOTIFICATION_FEED_LIMIT)
       : [],
   ])
   return [...broadcast, ...personal]
-    .filter((notification) => notification.actorViewerKey !== viewer.viewerKey)
     .sort((a, b) => b._creationTime - a._creationTime)
     .slice(0, NOTIFICATION_FEED_LIMIT)
 }
@@ -193,29 +196,23 @@ async function latestEmployeeNotificationTime(
   ctx: QueryCtx | MutationCtx,
   viewer: Awaited<ReturnType<typeof employeeViewer>>
 ) {
-  const [broadcast, personal] = await Promise.all([
-    ctx.db
-      .query("notifications")
-      .withIndex("by_hubId_and_audience", (q) =>
-        q.eq("hubId", viewer.hub._id).eq("audience", "employees")
-      )
-      .order("desc")
-      .take(NOTIFICATION_SCAN_LIMIT),
-    viewer.employeeProfileId
-      ? ctx.db
-          .query("notifications")
-          .withIndex("by_employeeProfileId", (q) =>
-            q.eq("employeeProfileId", viewer.employeeProfileId)
-          )
-          .filter((q) => q.eq(q.field("audience"), "employee"))
-          .order("desc")
-          .take(NOTIFICATION_SCAN_LIMIT)
-      : [],
-  ])
-  const latest = [...broadcast, ...personal]
-    .filter((notification) => notification.actorViewerKey !== viewer.viewerKey)
-    .sort((a, b) => b._creationTime - a._creationTime)[0]
+  const latest = (await employeeNotifications(ctx, viewer)).find(
+    (notification) => notification.actorViewerKey !== viewer.viewerKey
+  )
   return latest?._creationTime ?? 0
+}
+
+async function managerNotifications(
+  ctx: QueryCtx | MutationCtx,
+  hubId: Id<"hubs">
+) {
+  return await ctx.db
+    .query("notifications")
+    .withIndex("by_hubId_and_audience", (q) =>
+      q.eq("hubId", hubId).eq("audience", "managers")
+    )
+    .order("desc")
+    .take(NOTIFICATION_FEED_LIMIT)
 }
 
 export const listEmployee = query({
@@ -235,10 +232,14 @@ export const listEmployee = query({
       "employee"
     )
     return {
-      notifications: notifications.map(notificationFields),
+      notifications: notifications.map((notification) =>
+        notificationFields(notification, viewer.viewerKey)
+      ),
       lastReadAt,
       unreadCount: notifications.filter(
-        (notification) => notification._creationTime > lastReadAt
+        (notification) =>
+          notification.actorViewerKey !== viewer.viewerKey &&
+          notification._creationTime > lastReadAt
       ).length,
     }
   },
@@ -274,23 +275,17 @@ export const listManager = query({
     ])
     const { hub } = access
     const viewerKey = `identity:${identity.tokenIdentifier}`
-    const notifications = (
-      await ctx.db
-        .query("notifications")
-        .withIndex("by_hubId_and_audience", (q) =>
-          q.eq("hubId", hub._id).eq("audience", "managers")
-        )
-        .order("desc")
-        .take(NOTIFICATION_SCAN_LIMIT)
-    )
-      .filter((notification) => notification.actorViewerKey !== viewerKey)
-      .slice(0, NOTIFICATION_FEED_LIMIT)
+    const notifications = await managerNotifications(ctx, hub._id)
     const lastReadAt = await getLastReadAt(ctx, hub._id, viewerKey, "manager")
     return {
-      notifications: notifications.map(notificationFields),
+      notifications: notifications.map((notification) =>
+        notificationFields(notification, viewerKey)
+      ),
       lastReadAt,
       unreadCount: notifications.filter(
-        (notification) => notification._creationTime > lastReadAt
+        (notification) =>
+          notification.actorViewerKey !== viewerKey &&
+          notification._creationTime > lastReadAt
       ).length,
     }
   },
@@ -305,22 +300,14 @@ export const markManagerRead = mutation({
       requireIdentity(ctx),
     ])
     const { hub } = access
-    const latest = (
-      await ctx.db
-        .query("notifications")
-        .withIndex("by_hubId_and_audience", (q) =>
-          q.eq("hubId", hub._id).eq("audience", "managers")
-        )
-        .order("desc")
-        .take(NOTIFICATION_SCAN_LIMIT)
-    ).find(
-      (notification) =>
-        notification.actorViewerKey !== `identity:${identity.tokenIdentifier}`
+    const viewerKey = `identity:${identity.tokenIdentifier}`
+    const latest = (await managerNotifications(ctx, hub._id)).find(
+      (notification) => notification.actorViewerKey !== viewerKey
     )
     return await setLastReadAt(
       ctx,
       hub._id,
-      `identity:${identity.tokenIdentifier}`,
+      viewerKey,
       "manager",
       latest?._creationTime ?? 0
     )

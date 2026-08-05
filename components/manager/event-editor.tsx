@@ -98,7 +98,8 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         : null
       : newEvent(hub?.address ?? "", eventTypes[0]?.id)
   )
-  const [endWasEdited, setEndWasEdited] = useState(Boolean(eventId))
+  const [endDateWasEdited, setEndDateWasEdited] = useState(Boolean(eventId))
+  const [endTimeWasEdited, setEndTimeWasEdited] = useState(Boolean(eventId))
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [removedAttachments, setRemovedAttachments] = useState<
     CalendarEvent["attachments"]
@@ -122,7 +123,13 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   function changeTimedStart(value: string) {
     if (!draft) return
     const suggestedEnd = addHoursToLocalDateTime(value, 1)
-    const end = !endWasEdited && suggestedEnd ? suggestedEnd : draft.end
+    let end = suggestedEnd || draft.end
+    if (suggestedEnd && endDateWasEdited) {
+      end = replaceLocalDate(end, draft.end.slice(0, 10))
+    }
+    if (suggestedEnd && endTimeWasEdited) {
+      end = replaceLocalTime(end, localTime(draft.end))
+    }
     if (value === draft.start && end === draft.end) return
     change(
       clearEventInstants({
@@ -135,7 +142,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
 
   function changeTimedEnd(value: string) {
     if (!draft) return
-    setEndWasEdited(true)
+    setEndTimeWasEdited(true)
     change(clearEventInstants({ ...draft, end: value }))
   }
 
@@ -339,13 +346,19 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     languageTag={languageTag}
                     ariaLabel={t(draft.allDay ? "lastDay" : "ends")}
                     onChange={(value) => {
+                      setEndDateWasEdited(true)
                       if (draft.allDay) {
                         change({
                           ...draft,
                           end: `${addCalendarDays(value, 1)}T00:00`,
                         })
                       } else {
-                        changeTimedEnd(replaceLocalDate(draft.end, value))
+                        change(
+                          clearEventInstants({
+                            ...draft,
+                            end: replaceLocalDate(draft.end, value),
+                          })
+                        )
                       }
                     }}
                   />
@@ -641,6 +654,7 @@ function EventDatePicker({
         <Calendar
           mode="single"
           selected={selected}
+          defaultMonth={selected}
           locale={languageTag === "et-EE" ? et : enGB}
           disabled={minimumDate ? { before: minimumDate } : undefined}
           onSelect={(date) => {
