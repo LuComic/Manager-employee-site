@@ -264,7 +264,7 @@ export function CalendarPage() {
 
       {view === "month" ? (
         <>
-          <div className="border bg-background md:hidden">
+          <div className="border border-b-0 bg-background md:hidden">
             <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-[0.6875rem] font-semibold text-muted-foreground">
               {days.slice(0, 7).map((day) => (
                 <div key={calendarKey(day)} className="py-2">
@@ -345,7 +345,7 @@ export function CalendarPage() {
             </div>
           </div>
 
-          <div className="hidden overflow-x-auto border bg-background md:block">
+          <div className="hidden overflow-x-auto border border-b-0 bg-background md:block">
             <div className="min-w-2xl">
               <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-xs font-semibold text-muted-foreground">
                 {days.slice(0, 7).map((day) => (
@@ -357,7 +357,7 @@ export function CalendarPage() {
                 ))}
               </div>
               <div className="grid grid-cols-7">
-                {days.map((day) => {
+                {days.map((day, dayIndex) => {
                   const key = calendarKey(day)
                   const dayEvents = published.filter((event) =>
                     eventOccursOnDate(event, key)
@@ -384,12 +384,12 @@ export function CalendarPage() {
                       <div className="mt-2 space-y-1">
                         {dayEvents.slice(0, 3).map((event) => {
                           const continuesFromPreviousDay =
-                            event.start.slice(0, 10) < key
+                            dayIndex % 7 !== 0 && event.start.slice(0, 10) < key
                           const continuesIntoNextDay =
-                            eventLastDateKey(event) > key
+                            dayIndex % 7 !== 6 && eventLastDateKey(event) > key
 
                           // Bridge the cell's 8px inset and 1px border while
-                          // preserving the label inset, including at week wraps.
+                          // preserving the label inset within each calendar row.
                           return (
                             <Link
                               key={event.id}
