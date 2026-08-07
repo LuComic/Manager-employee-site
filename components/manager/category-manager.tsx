@@ -17,11 +17,11 @@ import {
 
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -182,48 +182,44 @@ export function CategoryManager() {
             ).length
             const displayLabel = category.label
             return (
-              <Card key={category.id} size="sm" className="shadow-none">
-                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                    {category.kind === "guide" ? (
-                      <CategoryIcon
-                        iconKey={category.iconKey}
-                        className="size-5"
-                      />
-                    ) : (
-                      <CalendarDays className="size-5" />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">{displayLabel}</h2>
-                      <Badge variant="secondary">
-                        <T>
-                          {category.kind === "guide"
-                            ? "guideCategory"
-                            : "eventType"}
-                        </T>
-                      </Badge>
-                      <Badge variant="outline">
-                        {category.kind === "guide" ? guideCount : eventCount}{" "}
-                        <T>
-                          {category.kind === "guide"
-                            ? guideCount === 1
-                              ? "guideLowercase"
-                              : "guidesLowercase"
-                            : eventCount === 1
-                              ? "eventLowercase"
-                              : "eventsLowercase"}
-                        </T>
-                      </Badge>
-                    </div>
-                    {category.description && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {category.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
+              <ManagerListItem
+                key={category.id}
+                icon={
+                  category.kind === "guide" ? (
+                    <CategoryIcon
+                      iconKey={category.iconKey}
+                      className="size-5"
+                    />
+                  ) : (
+                    <CalendarDays className="size-5" />
+                  )
+                }
+                title={displayLabel}
+                titleAs="h2"
+                metadata={[
+                  <Badge key="kind" variant="secondary">
+                    <T>
+                      {category.kind === "guide"
+                        ? "guideCategory"
+                        : "eventType"}
+                    </T>
+                  </Badge>,
+                  <Badge key="count" variant="outline">
+                    {category.kind === "guide" ? guideCount : eventCount}{" "}
+                    <T>
+                      {category.kind === "guide"
+                        ? guideCount === 1
+                          ? "guideLowercase"
+                          : "guidesLowercase"
+                        : eventCount === 1
+                          ? "eventLowercase"
+                          : "eventsLowercase"}
+                    </T>
+                  </Badge>,
+                ]}
+                description={category.description || undefined}
+                actions={
+                  <>
                     <Button
                       variant="outline"
                       size="icon-sm"
@@ -271,9 +267,9 @@ export function CategoryManager() {
                         <Trash2 />
                       </Button>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </>
+                }
+              />
             )
           })}
         </div>
