@@ -338,6 +338,16 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                 />
                 <T>publishNow</T>
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.featured}
+                  onChange={(event) =>
+                    change({ featured: event.target.checked })
+                  }
+                />
+                <T>featureOnToday</T>
+              </label>
               <Field label="category" id="guide-category">
                 <Select
                   value={draft.category}
@@ -436,16 +446,6 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
                 onChange={(relatedGuideIds) => change({ relatedGuideIds })}
                 excludeGuideId={draft.id || undefined}
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.featured}
-                  onChange={(event) =>
-                    change({ featured: event.target.checked })
-                  }
-                />
-                <T>featureOnToday</T>
-              </label>
             </CardContent>
           </Card>
         </div>

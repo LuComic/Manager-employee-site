@@ -392,21 +392,16 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
 
         <Card className="h-fit shadow-none">
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    changeBase({ published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
-              <p className="text-xs text-muted-foreground">
-                <T>publishedResourcesAppearEmployeeDocumentLibrary</T>
-              </p>
-            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.published}
+                onChange={(event) =>
+                  changeBase({ published: event.target.checked })
+                }
+              />
+              <T>publishNow</T>
+            </label>
 
             <section className="space-y-3">
               <h2 className="text-xs font-semibold">
