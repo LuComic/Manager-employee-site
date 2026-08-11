@@ -14,6 +14,7 @@ import {
   Search,
   Trash2,
   Upload,
+  UsersRound,
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
@@ -96,6 +97,7 @@ export function EventManager() {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [category, setCategory] = useState<string>("All")
+  const [showWorkerSchedules, setShowWorkerSchedules] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importResult, setImportResult] = useState<CalendarImportResult | null>(
@@ -130,10 +132,11 @@ export function EventManager() {
               .includes(query.toLowerCase()) &&
             (status === "All" ||
               (status === "Published" ? event.published : !event.published)) &&
-            eventMatchesFilter(event, category)
+            eventMatchesFilter(event, category) &&
+            (showWorkerSchedules || event.source !== "deputy")
         )
         .sort((a, b) => a.start.localeCompare(b.start)),
-    [events, query, status, category]
+    [events, query, status, category, showWorkerSchedules]
   )
 
   function resetImport() {
@@ -327,7 +330,7 @@ export function EventManager() {
           </div>
         }
       />
-      <div className="grid gap-4 border bg-background p-4 sm:grid-cols-3">
+      <div className="grid gap-4 border bg-background p-4 md:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -396,6 +399,17 @@ export function EventManager() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          role="switch"
+          aria-checked={showWorkerSchedules}
+          aria-label={t("showWorkerSchedules")}
+          variant={showWorkerSchedules ? "default" : "outline"}
+          className="w-full xl:w-auto"
+          onClick={() => setShowWorkerSchedules((current) => !current)}
+        >
+          <UsersRound /> <T>workers</T>
+        </Button>
       </div>
       {visible.length ? (
         <div className="space-y-4">

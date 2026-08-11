@@ -765,6 +765,8 @@
     "workersCanEditDisabled": "Töötajad ei saa enam jaotist {section} hallata.",
     "workersCanEditEnabled": "Töötajad saavad nüüd jaotist {section} hallata.",
     "workersCanEditSection": "Töötajad saavad jaotist {section} muuta",
+    "workers": "Töötajad",
+    "showWorkerSchedules": "Näita töötajate graafikuid",
     "workersNotes": "Töötajate märkmed",
     "workersNotesDescription": "Salvestatakse automaatselt. Read kustutatakse 24 tundi pärast märkmete viimast muutmist; säilitamiseks alusta rida !-märgiga.",
     "loadingWorkersNotes": "Töötajate märkmete laadimine…",

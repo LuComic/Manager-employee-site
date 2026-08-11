@@ -765,6 +765,8 @@
     "workersCanEditDisabled": "Workers can no longer manage {section}.",
     "workersCanEditEnabled": "Workers can now manage {section}.",
     "workersCanEditSection": "Workers can edit {section}",
+    "workers": "Workers",
+    "showWorkerSchedules": "Show worker schedules",
     "workersNotes": "Workers’ notes",
     "workersNotesDescription": "Saved automatically. Lines are cleared 24 hours after the notes are last edited; start a line with ! to keep it.",
     "loadingWorkersNotes": "Loading workers’ notes…",
