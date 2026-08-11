@@ -10,12 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { eventCategoryLabel } from "@/lib/categories"
 import {
   formatEventDate,
   formatEventTime,
   type CalendarEvent,
 } from "@/lib/operations"
-import { eventCategoryLabel } from "@/lib/categories"
 import { useOperations } from "@/components/providers/operations-provider"
 
 export function EventCard({

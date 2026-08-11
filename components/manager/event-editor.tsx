@@ -5,7 +5,14 @@ import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
 import { enGB, et } from "date-fns/locale"
-import { ArrowLeft, CalendarDays, Paperclip, Trash2, Users } from "lucide-react"
+import {
+  ArrowLeft,
+  CalendarDays,
+  Paperclip,
+  Trash2,
+  TriangleAlert,
+  Users,
+} from "lucide-react"
 
 import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { useUnsavedChanges } from "@/components/manager/use-unsaved-changes"
@@ -71,6 +78,7 @@ function newEvent(
     attachments: [],
     guideIds: [],
     published: true,
+    isPrivate: false,
   }
 }
 
@@ -83,6 +91,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
     employees,
     guideReferences,
     hub,
+    managerAccess,
     saveEvent,
     uploadAttachment,
     deleteAttachment,
@@ -107,6 +116,9 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const deputyManaged = draft?.source === "deputy"
+  const canManagePrivacy =
+    managerAccess === "manager" || managerAccess === "owner"
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "event",
@@ -239,6 +251,16 @@ export function EventEditor({ eventId }: { eventId?: string }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {deputyManaged && (
+                <div className="border bg-muted/40 p-3 text-sm">
+                  <p className="font-semibold">
+                    <T>managedByDeputy</T>
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    <T>deputyControlsEmployeeAreaDateTimeMessage</T>
+                  </p>
+                </div>
+              )}
               <Field label="title" id="event-title">
                 <Input
                   id="event-title"
@@ -247,6 +269,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change({ ...draft, title: event.target.value })
                   }
                   className="border border-input px-3 text-base"
+                  disabled={deputyManaged}
                 />
               </Field>
               <Field label="description" id="event-description">
@@ -267,6 +290,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     change({ ...draft, location: event.target.value })
                   }
                   className="border border-input px-3"
+                  disabled={deputyManaged}
                 />
               </Field>
             </CardContent>
@@ -283,6 +307,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                 <input
                   type="checkbox"
                   checked={draft.allDay}
+                  disabled={deputyManaged}
                   onChange={(event) =>
                     change(toggleAllDayEvent(draft, event.target.checked))
                   }
@@ -306,6 +331,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         changeTimedStart(replaceLocalDate(draft.start, value))
                       }
                     }}
+                    disabled={deputyManaged}
                   />
                   {!draft.allDay && (
                     <>
@@ -317,6 +343,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         type="time"
                         value={localTime(draft.start)}
                         aria-label={`${t("starts")} ${t("time")}`}
+                        disabled={deputyManaged}
                         onChange={(event) =>
                           changeTimedStart(
                             replaceLocalTime(draft.start, event.target.value)
@@ -361,6 +388,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         )
                       }
                     }}
+                    disabled={deputyManaged}
                   />
                   {!draft.allDay && (
                     <>
@@ -372,6 +400,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         type="time"
                         value={localTime(draft.end)}
                         aria-label={`${t("ends")} ${t("time")}`}
+                        disabled={deputyManaged}
                         onChange={(event) =>
                           changeTimedEnd(
                             replaceLocalTime(draft.end, event.target.value)
@@ -422,6 +451,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                         variant={selected ? "default" : "outline"}
                         className={selected ? undefined : "bg-background"}
                         aria-pressed={selected}
+                        disabled={deputyManaged}
                         onClick={() =>
                           change({
                             ...draft,
@@ -534,15 +564,47 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                 <input
                   type="checkbox"
                   checked={draft.published}
+                  disabled={deputyManaged}
                   onChange={(event) =>
                     change({ ...draft, published: event.target.checked })
                   }
                 />
                 <T>publishNow</T>
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.isPrivate}
+                  disabled={!canManagePrivacy}
+                  onChange={(event) =>
+                    change({ ...draft, isPrivate: event.target.checked })
+                  }
+                />
+                <T>private</T>
+              </label>
+              {!canManagePrivacy && (
+                <p className="text-xs text-muted-foreground">
+                  <T>eventPrivacyManagerAccessRequired</T>
+                </p>
+              )}
+              {deputyManaged && !draft.isPrivate && (
+                <div
+                  role="alert"
+                  className="border border-warning/40 bg-warning/10 p-3 text-sm"
+                >
+                  <p className="flex items-center gap-2 font-semibold">
+                    <TriangleAlert className="size-4" />
+                    <T>publicDeputyShiftWarningTitle</T>
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    <T>publicDeputyShiftWarningMessage</T>
+                  </p>
+                </div>
+              )}
               <Field label="eventType" id="event-type">
                 <Select
                   value={draft.category}
+                  disabled={deputyManaged}
                   onValueChange={(value) => {
                     if (value) change({ ...draft, category: value })
                   }}
@@ -627,6 +689,7 @@ function EventDatePicker({
   minimum,
   languageTag,
   ariaLabel,
+  disabled,
   onChange,
 }: {
   id: string
@@ -634,6 +697,7 @@ function EventDatePicker({
   minimum?: string
   languageTag: string
   ariaLabel: string
+  disabled?: boolean
   onChange: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -650,6 +714,7 @@ function EventDatePicker({
             variant="outline"
             className="w-full justify-start bg-background px-3 font-normal"
             aria-label={ariaLabel}
+            disabled={disabled}
           />
         }
       >

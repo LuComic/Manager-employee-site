@@ -14,9 +14,11 @@ import {
   Search,
   Trash2,
   Upload,
+  UsersRound,
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { PrivateEventFilterLabel } from "@/components/calendar/private-event-filter-label"
 import { CalendarImportIssues } from "@/components/manager/calendar-import-issues"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerFilterPanel } from "@/components/manager/manager-filter-panel"
@@ -60,11 +62,16 @@ import {
   type CalendarImportResult,
 } from "@/lib/icalendar"
 import {
+  eventMatchesFilter,
   formatEventDate,
   formatEventTime,
+  PRIVATE_EVENT_FILTER,
   type CalendarEvent,
 } from "@/lib/operations"
-import { eventCategoryLabel } from "@/lib/categories"
+import {
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  eventCategoryLabel,
+} from "@/lib/categories"
 import { cn } from "@/lib/utils"
 import type { AppMessageKey } from "@/i18n/messages"
 import type { TranslationValues } from "next-intl"
@@ -91,6 +98,7 @@ export function EventManager() {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [category, setCategory] = useState<string>("All")
+  const [showWorkerSchedules, setShowWorkerSchedules] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importResult, setImportResult] = useState<CalendarImportResult | null>(
@@ -111,6 +119,7 @@ export function EventManager() {
     total: number
   } | null>(null)
   const canCreateEvents = canCreateInSection("events")
+  const hasPrivateEvents = events.some((event) => event.isPrivate)
   const importReadyCount =
     (importResult?.events.length ?? 0) +
     (importResult?.cancellations.length ?? 0)
@@ -124,10 +133,11 @@ export function EventManager() {
               .includes(query.toLowerCase()) &&
             (status === "All" ||
               (status === "Published" ? event.published : !event.published)) &&
-            (category === "All" || event.category === category)
+            eventMatchesFilter(event, category) &&
+            (showWorkerSchedules || event.source !== "deputy")
         )
         .sort((a, b) => a.start.localeCompare(b.start)),
-    [events, query, status, category]
+    [events, query, status, category, showWorkerSchedules]
   )
 
   function resetImport() {
@@ -328,7 +338,7 @@ export function EventManager() {
           </div>
         }
       />
-      <ManagerFilterPanel className="grid sm:grid-cols-3">
+      <ManagerFilterPanel className="grid md:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -372,15 +382,24 @@ export function EventManager() {
             aria-label={t("filterEventsByType")}
           >
             <SelectValue>
-              {category === "All"
-                ? t("all")
-                : eventCategoryLabel(category, eventTypes)}
+              {category === PRIVATE_EVENT_FILTER ? (
+                <PrivateEventFilterLabel />
+              ) : category === "All" ? (
+                t("all")
+              ) : (
+                eventCategoryLabel(category, eventTypes)
+              )}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All">
               <T>all</T>
             </SelectItem>
+            {hasPrivateEvents && (
+              <SelectItem value={PRIVATE_EVENT_FILTER}>
+                <PrivateEventFilterLabel />
+              </SelectItem>
+            )}
             {eventTypes.map((eventType) => (
               <SelectItem key={eventType.id} value={eventType.id}>
                 {eventCategoryLabel(eventType.id, eventTypes)}
@@ -388,6 +407,17 @@ export function EventManager() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          role="switch"
+          aria-checked={showWorkerSchedules}
+          aria-label={t("showWorkerSchedules")}
+          variant={showWorkerSchedules ? "default" : "outline"}
+          className="w-full xl:w-auto"
+          onClick={() => setShowWorkerSchedules((current) => !current)}
+        >
+          <UsersRound /> <T>workers</T>
+        </Button>
       </ManagerFilterPanel>
       {visible.length ? (
         <div className="space-y-4">
@@ -395,6 +425,11 @@ export function EventManager() {
             <ManagerListItem
               key={event.id}
               icon={<CalendarDays className="size-5" />}
+              iconClassName={
+                event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                  ? "bg-muted text-muted-foreground"
+                  : undefined
+              }
               title={event.title}
               metadata={[
                 <Badge
@@ -428,19 +463,23 @@ export function EventManager() {
               actionsClassName="grid w-full grid-flow-col auto-cols-fr sm:flex sm:w-auto"
               actions={
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-                    onClick={() => {
-                      saveEvent({ ...event, published: !event.published })
-                      showFeedback(
-                        event.published ? "eventUnpublished" : "eventPublished"
-                      )
-                    }}
-                  >
-                    <T>{event.published ? "unpublish" : "publish"}</T>
-                  </Button>
+                  {event.source !== "deputy" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+                      onClick={() => {
+                        saveEvent({ ...event, published: !event.published })
+                        showFeedback(
+                          event.published
+                            ? "eventUnpublished"
+                            : "eventPublished"
+                        )
+                      }}
+                    >
+                      <T>{event.published ? "unpublish" : "publish"}</T>
+                    </Button>
+                  )}
                   <Link
                     href={`/manager/calendar/${event.id}/edit`}
                     className={cn(
@@ -450,7 +489,7 @@ export function EventManager() {
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
-                  {canCreateContent && (
+                  {canCreateContent && event.source !== "deputy" && (
                     <Button
                       variant="destructive"
                       size="icon-sm"

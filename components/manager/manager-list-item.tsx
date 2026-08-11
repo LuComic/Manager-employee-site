@@ -12,6 +12,7 @@ type ManagerListItemProps = {
   actionsClassName?: string
   titleAs?: "h2" | "h3"
   align?: "center" | "start"
+  iconClassName?: string
   descriptionClassName?: string
 }
 
@@ -24,6 +25,7 @@ export function ManagerListItem({
   actionsClassName,
   titleAs: Title = "h3",
   align = "center",
+  iconClassName,
   descriptionClassName,
 }: ManagerListItemProps) {
   return (
@@ -36,7 +38,10 @@ export function ManagerListItem({
       >
         <span
           aria-hidden="true"
-          className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary"
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary",
+            iconClassName
+          )}
         >
           {icon}
         </span>

@@ -27,8 +27,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { formatEventDate, formatEventTime } from "@/lib/operations"
 import { eventCategoryLabel } from "@/lib/categories"
+import { formatEventDate, formatEventTime } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {

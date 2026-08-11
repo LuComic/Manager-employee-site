@@ -6,17 +6,25 @@ import {
   type WorkersCanEdit,
 } from "../../lib/worker-editing"
 import { assertGuideLinksPerHub, MAX_GUIDE_LINKS_PER_HUB } from "./guideLinks"
+import { loadPublishedEvents, MAX_SNAPSHOT_EVENTS } from "./events"
 
 export async function buildSnapshot(
   ctx: QueryCtx,
   hub: Doc<"hubs">,
   options: {
     includeDrafts: boolean
+    includePrivateEvents: boolean
     workerSections?: WorkersCanEdit
     includeOrganizationMapping: boolean
     nowDate: string
   }
 ) {
+  const eventsPromise = options.includeDrafts
+    ? ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
+        .take(MAX_SNAPSHOT_EVENTS)
+    : loadPublishedEvents(ctx, hub._id, options.includePrivateEvents)
   const [
     bannerImageUrl,
     categories,
@@ -46,10 +54,7 @@ export async function buildSnapshot(
       .query("guideRelations")
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
       .take(MAX_GUIDE_LINKS_PER_HUB + 1),
-    ctx.db
-      .query("events")
-      .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
-      .take(500),
+    eventsPromise,
     ctx.db
       .query("announcements")
       .withIndex("by_hubId_and_published", (q) => q.eq("hubId", hub._id))
@@ -103,9 +108,13 @@ export async function buildSnapshot(
   const guides = includeGuideDrafts
     ? allGuides
     : allGuides.filter((guide) => guide.published)
+  const activeEvents = allEvents.filter((event) => !event.sourceDeleted)
+  const privacyFilteredEvents = options.includePrivateEvents
+    ? activeEvents
+    : activeEvents.filter((event) => !event.isPrivate)
   const events = includeEventDrafts
-    ? allEvents
-    : allEvents.filter((event) => event.published)
+    ? privacyFilteredEvents
+    : privacyFilteredEvents.filter((event) => event.published)
   const announcements = includeAnnouncementDrafts
     ? allAnnouncements
     : allAnnouncements.filter(
@@ -306,6 +315,8 @@ export async function buildSnapshot(
           ),
           notes: event.notes,
           published: event.published,
+          isPrivate: event.isPrivate ?? false,
+          ...(event.source ? { source: event.source } : {}),
           guideIds: guideIdsByEventId.get(event._id) ?? [],
           attachments: attachmentsByEventId.get(event._id) ?? [],
         },

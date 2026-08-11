@@ -430,6 +430,7 @@ export const getManagerSnapshot = query({
       managerAccess: managed.permission,
       ...(await buildSnapshot(ctx, managed.hub, {
         includeDrafts: true,
+        includePrivateEvents: true,
         ...(managed.permission === "viewer"
           ? { workerSections: workersCanEdit }
           : {}),
@@ -549,10 +550,12 @@ export const getPublicSnapshot = query({
         },
       }
     }
+    const includePrivateEvents = await hasHubAccess(ctx, hub)
     return {
       kind: "ready" as const,
       ...(await buildSnapshot(ctx, hub, {
         includeDrafts: false,
+        includePrivateEvents,
         includeOrganizationMapping: false,
         nowDate: args.nowDate,
       })),
@@ -587,6 +590,7 @@ export const getActiveMemberSnapshot = query({
       kind: "ready" as const,
       ...(await buildSnapshot(ctx, hub, {
         includeDrafts: false,
+        includePrivateEvents: true,
         includeOrganizationMapping: false,
         nowDate: args.nowDate,
       })),

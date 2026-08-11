@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
+import { PrivateEventFilterLabel } from "@/components/calendar/private-event-filter-label"
 import {
   CreateSectionButton,
   ManageSectionButton,
@@ -37,13 +38,18 @@ import {
 } from "@/components/ui/select"
 import {
   eventLastDateKey,
+  eventMatchesFilter,
   eventOccursOnDate,
   formatEventDate,
   formatEventTime,
   formatTime,
+  PRIVATE_EVENT_FILTER,
   toDateKey,
 } from "@/lib/operations"
-import { eventCategoryLabel } from "@/lib/categories"
+import {
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  eventCategoryLabel,
+} from "@/lib/categories"
 import { cn } from "@/lib/utils"
 
 type View = "month" | "list"
@@ -77,10 +83,10 @@ export function CalendarPage() {
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null)
   const monthEventsSectionRef = useRef<HTMLElement>(null)
   const published = events.filter(
-    (event) =>
-      event.published && (category === "All" || event.category === category)
+    (event) => event.published && eventMatchesFilter(event, category)
   )
   const allPublished = events.filter((event) => event.published)
+  const hasPrivateEvents = allPublished.some((event) => event.isPrivate)
   const visibleMonthStart = calendarKey(firstOfMonth(visibleDate))
   const visibleMonthEnd = calendarKey(
     new Date(visibleDate.getFullYear(), visibleDate.getMonth() + 1, 0)
@@ -215,15 +221,24 @@ export function CalendarPage() {
               className="w-full border border-input bg-background px-3 sm:w-auto sm:max-w-64"
             >
               <SelectValue>
-                {category === "All"
-                  ? t("allEventTypes")
-                  : eventCategoryLabel(category, eventTypes)}
+                {category === PRIVATE_EVENT_FILTER ? (
+                  <PrivateEventFilterLabel />
+                ) : category === "All" ? (
+                  t("allEventTypes")
+                ) : (
+                  eventCategoryLabel(category, eventTypes)
+                )}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">
                 <T>allEventTypes</T>
               </SelectItem>
+              {hasPrivateEvents && (
+                <SelectItem value={PRIVATE_EVENT_FILTER}>
+                  <PrivateEventFilterLabel />
+                </SelectItem>
+              )}
               {eventTypes.map((eventType) => (
                 <SelectItem key={eventType.id} value={eventType.id}>
                   {eventCategoryLabel(eventType.id, eventTypes)}
@@ -317,7 +332,12 @@ export function CalendarPage() {
                         {dayEvents.slice(0, 3).map((event) => (
                           <span
                             key={event.id}
-                            className="size-1.5 shrink-0 rounded-full bg-primary"
+                            className={cn(
+                              "size-1.5 shrink-0 rounded-full",
+                              event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                                ? "bg-muted-foreground"
+                                : "bg-primary"
+                            )}
                           />
                         ))}
                       </span>

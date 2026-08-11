@@ -30,6 +30,7 @@ import {
   MAX_BANNER_IMAGE_SIZE_BYTES,
 } from "@/lib/banner-image"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
+import { DEPUTY_SCHEDULES_EVENT_TYPE_ID } from "@/lib/categories"
 import type { Category, Guide } from "@/lib/knowledge-base"
 import type {
   DocumentUploadChanges,
@@ -295,7 +296,10 @@ export function OperationsProvider({
   )
   const publicSnapshot = useQuery(
     api.hubs.getPublicSnapshot,
-    !isManagerRoute && !isAuthPage && (requestedHubSlug || !isAuthenticated)
+    !isManagerRoute &&
+      !isAuthPage &&
+      !authLoading &&
+      (requestedHubSlug || !isAuthenticated)
       ? { slug: hubSlug, credential, nowDate }
       : "skip"
   )
@@ -460,7 +464,10 @@ export function OperationsProvider({
       }
     const storedCategories = activeSnapshot.categories.map((category) => ({
       id: category.id,
-      label: category.label,
+      label:
+        category.id === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+          ? t("schedules")
+          : category.label,
       description: category.description,
       iconKey: category.iconKey as CategoryIconKey,
       kind: category.kind,
@@ -483,7 +490,7 @@ export function OperationsProvider({
       faqs: activeSnapshot.faqs as Faq[],
       documents: activeSnapshot.documents as WorkspaceDocument[],
     }
-  }, [activeSnapshot])
+  }, [activeSnapshot, t])
   const guideCategories = state.categories.filter(
     (category) => category.kind === "guide"
   )
@@ -605,27 +612,28 @@ export function OperationsProvider({
     }
   }
 
-  const hubState: OperationsContextValue["hubState"] = isAuthPage
-    ? "loading"
-    : isManagerRoute
-      ? authLoading || (isAuthenticated && managerSnapshot === undefined)
-        ? "loading"
-        : !isAuthenticated
-          ? "auth-error"
-          : managerSnapshot?.kind === "none"
-            ? "needs-setup"
-            : managerSnapshot?.kind === "forbidden"
-              ? "forbidden"
-              : "ready"
-      : isAuthenticated && !requestedHubSlug
-        ? authLoading || memberSnapshot === undefined
+  const hubState: OperationsContextValue["hubState"] =
+    isAuthPage || authLoading
+      ? "loading"
+      : isManagerRoute
+        ? isAuthenticated && managerSnapshot === undefined
           ? "loading"
-          : memberSnapshot.kind === "none"
-            ? "not-found"
-            : memberSnapshot.kind
-        : publicSnapshot === undefined
-          ? "loading"
-          : publicSnapshot.kind
+          : !isAuthenticated
+            ? "auth-error"
+            : managerSnapshot?.kind === "none"
+              ? "needs-setup"
+              : managerSnapshot?.kind === "forbidden"
+                ? "forbidden"
+                : "ready"
+        : isAuthenticated && !requestedHubSlug
+          ? memberSnapshot === undefined
+            ? "loading"
+            : memberSnapshot.kind === "none"
+              ? "not-found"
+              : memberSnapshot.kind
+          : publicSnapshot === undefined
+            ? "loading"
+            : publicSnapshot.kind
 
   const value: OperationsContextValue = {
     ...state,
@@ -830,6 +838,7 @@ export function OperationsProvider({
           ),
           notes: event.notes,
           published: event.published,
+          isPrivate: Boolean(event.isPrivate),
           guideSlugs: event.guideIds,
         })
       )

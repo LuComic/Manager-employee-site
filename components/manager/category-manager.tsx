@@ -47,7 +47,10 @@ import {
   type CategoryIconKey,
 } from "@/lib/category-icons"
 import type { Category } from "@/lib/knowledge-base"
-import type { CategoryKind } from "@/lib/categories"
+import {
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  type CategoryKind,
+} from "@/lib/categories"
 import { slugify } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
@@ -193,6 +196,11 @@ export function CategoryManager() {
                   ) : (
                     <CalendarDays className="size-5" />
                   )
+                }
+                iconClassName={
+                  category.id === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                    ? "bg-muted text-muted-foreground"
+                    : undefined
                 }
                 title={displayLabel}
                 titleAs="h2"

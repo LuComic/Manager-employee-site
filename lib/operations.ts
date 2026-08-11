@@ -28,6 +28,19 @@ export type CalendarEvent = {
   attachments: Attachment[]
   guideIds: string[]
   published: boolean
+  isPrivate?: boolean
+  source?: "deputy"
+}
+
+export const PRIVATE_EVENT_FILTER = "__private__"
+
+export function eventMatchesFilter(
+  event: Pick<CalendarEvent, "category" | "isPrivate">,
+  filter: string
+) {
+  if (filter === "All") return true
+  if (filter === PRIVATE_EVENT_FILTER) return Boolean(event.isPrivate)
+  return event.category === filter
 }
 
 export type EmployeeStatus = "unclaimed" | "invited" | "active" | "deactivated"

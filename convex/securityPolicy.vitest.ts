@@ -217,6 +217,7 @@ describe("security policy regression coverage", () => {
       "employees",
       "notes",
       "published",
+      "isPrivate",
       "guideIds",
       "attachments",
     ])
