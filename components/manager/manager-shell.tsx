@@ -324,7 +324,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                           : "ghost",
                         size: "sm",
                       }),
-                      "w-full min-w-0 justify-center px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
+                      "w-full min-w-0 justify-center gap-2 px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
                     )}
                   >
                     <Menu />

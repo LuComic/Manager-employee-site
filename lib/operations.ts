@@ -2,6 +2,7 @@ import type { Category, Guide } from "@/lib/knowledge-base"
 import type { RichTextDocument } from "@/lib/rich-text"
 import type { WorkspaceDocument } from "@/lib/documents"
 import type { AppMessageKey } from "@/i18n/messages"
+import { DEPUTY_SCHEDULES_EVENT_TYPE_ID } from "@/lib/categories"
 
 export type Attachment = {
   id: string
@@ -202,6 +203,19 @@ export function eventOccursOnDate(event: CalendarEvent, dateKey: string) {
   )
 }
 
+export function eventRenderLastDateKey(event: CalendarEvent) {
+  return event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+    ? event.start.slice(0, 10)
+    : eventLastDateKey(event)
+}
+
+export function eventRendersOnDate(event: CalendarEvent, dateKey: string) {
+  return (
+    event.start.slice(0, 10) <= dateKey &&
+    eventRenderLastDateKey(event) >= dateKey
+  )
+}
+
 export function startOfToday() {
   const date = new Date()
   date.setHours(0, 0, 0, 0)
@@ -278,7 +292,7 @@ export function formatEventDate(
   const start = formatDate(event.start, options, timeZone, locale)
   return startKey === lastKey
     ? start
-    : `${start}–${formatDate(`${lastKey}T00:00`, options, timeZone, locale)}`
+    : `${start} - ${formatDate(`${lastKey}T00:00`, options, timeZone, locale)}`
 }
 
 export function formatEventTime(
@@ -292,18 +306,83 @@ export function formatEventTime(
     const startZone = formatTimeZoneName(event.startUtc, timeZone, locale)
     const endZone = formatTimeZoneName(event.endUtc, timeZone, locale)
     if (event.end <= event.start || startZone !== endZone) {
-      return `${formatTime(event.startUtc, timeZone, locale)} ${startZone}–${formatTime(
+      return `${formatTime(event.startUtc, timeZone, locale)} ${startZone} - ${formatTime(
         event.endUtc,
         timeZone,
         locale
       )} ${endZone}`
     }
   }
-  return `${formatTime(event.start, timeZone, locale)}–${formatTime(
+  return `${formatTime(event.start, timeZone, locale)} - ${formatTime(
     event.end,
     timeZone,
     locale
   )}`
+}
+
+export function formatEventDateTime(
+  event: CalendarEvent,
+  timeZone = HUB_TIME_ZONE,
+  locale = "en-GB",
+  allDayLabel = "All day",
+  dateOptions?: Intl.DateTimeFormatOptions
+) {
+  if (event.allDay || event.start.slice(0, 10) === event.end.slice(0, 10)) {
+    return `${formatEventDate(event, dateOptions, timeZone, locale)}, ${formatEventTime(
+      event,
+      timeZone,
+      locale,
+      allDayLabel
+    )}`
+  }
+
+  const startTimeZone = event.startUtc
+    ? formatTimeZoneName(event.startUtc, timeZone, locale)
+    : undefined
+  const endTimeZone = event.endUtc
+    ? formatTimeZoneName(event.endUtc, timeZone, locale)
+    : undefined
+  const includeTimeZone = startTimeZone !== endTimeZone
+  const formatTimePart = (
+    value: string,
+    utcValue: string | undefined,
+    zone: string | undefined
+  ) => {
+    const time = formatTime(utcValue ?? value, timeZone, locale)
+    return includeTimeZone && zone ? `${time} ${zone}` : time
+  }
+
+  return `${formatDate(event.start, dateOptions, timeZone, locale)}, ${formatTimePart(
+    event.start,
+    event.startUtc,
+    startTimeZone
+  )} - ${formatDate(event.end, dateOptions, timeZone, locale)}, ${formatTimePart(
+    event.end,
+    event.endUtc,
+    endTimeZone
+  )}`
+}
+
+export function formatEventDateTimeEndpoint(
+  event: CalendarEvent,
+  endpoint: "start" | "end",
+  dateOptions: Intl.DateTimeFormatOptions | undefined = undefined,
+  timeZone = HUB_TIME_ZONE,
+  locale = "en-GB"
+) {
+  const value = event[endpoint]
+  const utcValue = endpoint === "start" ? event.startUtc : event.endUtc
+  const otherUtcValue = endpoint === "start" ? event.endUtc : event.startUtc
+  const zone = utcValue
+    ? formatTimeZoneName(utcValue, timeZone, locale)
+    : undefined
+  const otherZone = otherUtcValue
+    ? formatTimeZoneName(otherUtcValue, timeZone, locale)
+    : undefined
+  const time = formatTime(utcValue ?? value, timeZone, locale)
+  const formattedTime = zone && zone !== otherZone ? `${time} ${zone}` : time
+
+  return `${formatDate(value, dateOptions, timeZone, locale)}, ${formattedTime}`
 }
 
 function formatTimeZoneName(value: string, timeZone: string, locale: string) {

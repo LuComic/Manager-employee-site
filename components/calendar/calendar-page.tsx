@@ -37,9 +37,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  eventLastDateKey,
   eventMatchesFilter,
-  eventOccursOnDate,
+  eventRenderLastDateKey,
+  eventRendersOnDate,
   formatEventDate,
   formatEventTime,
   formatTime,
@@ -95,12 +95,12 @@ export function CalendarPage() {
     .filter(
       (event) =>
         event.start.slice(0, 10) <= visibleMonthEnd &&
-        eventLastDateKey(event) >= visibleMonthStart
+        eventRenderLastDateKey(event) >= visibleMonthStart
     )
     .sort((a, b) => a.start.localeCompare(b.start))
   const selectedDayEvents = selectedDayKey
     ? published
-        .filter((event) => eventOccursOnDate(event, selectedDayKey))
+        .filter((event) => eventRendersOnDate(event, selectedDayKey))
         .sort((a, b) => a.start.localeCompare(b.start))
     : []
   const summaryEvents = selectedDayEvents.length
@@ -293,7 +293,7 @@ export function CalendarPage() {
               {days.map((day) => {
                 const key = calendarKey(day)
                 const dayEvents = published.filter((event) =>
-                  eventOccursOnDate(event, key)
+                  eventRendersOnDate(event, key)
                 )
                 const inMonth = day.getMonth() === visibleDate.getMonth()
                 const isToday = key === todayKey
@@ -309,9 +309,7 @@ export function CalendarPage() {
                   "flex min-h-14 min-w-0 flex-col items-center border-r border-b px-0.5 py-1.5 [&:nth-child(7n)]:border-r-0",
                   !inMonth && "bg-muted/30 text-muted-foreground",
                   dayEvents.length > 0 &&
-                    "cursor-pointer hover:bg-muted/50 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
-                  selectedDayKey === key &&
-                    "bg-primary/10 ring-2 ring-primary ring-inset"
+                    "cursor-pointer hover:bg-muted/50 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
                 )
                 const content = (
                   <>
@@ -380,48 +378,67 @@ export function CalendarPage() {
                 {days.map((day, dayIndex) => {
                   const key = calendarKey(day)
                   const dayEvents = published.filter((event) =>
-                    eventOccursOnDate(event, key)
+                    eventRendersOnDate(event, key)
                   )
                   const inMonth = day.getMonth() === visibleDate.getMonth()
                   const isToday = key === todayKey
+                  const label = [
+                    new Intl.DateTimeFormat(languageTag, {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                    }).format(day),
+                    ...dayEvents.map((event) => event.title),
+                  ].join(", ")
                   return (
                     <div
                       key={key}
                       className={cn(
-                        "min-h-28 border-r border-b p-2 nth-[7n]:border-r-0",
+                        "relative min-h-28 border-r border-b p-2 nth-[7n]:border-r-0",
                         !inMonth && "bg-muted/30 text-muted-foreground"
                       )}
                     >
+                      {dayEvents.length > 0 && (
+                        <button
+                          type="button"
+                          className="absolute inset-0 z-0 cursor-pointer hover:bg-muted/50 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                          aria-label={label}
+                          aria-pressed={selectedDayKey === key}
+                          aria-controls="calendar-month-events"
+                          onClick={() => showEventsForDay(key)}
+                        />
+                      )}
                       <span
                         className={cn(
-                          "flex size-7 items-center justify-center text-xs",
+                          "pointer-events-none relative z-10 flex size-7 items-center justify-center text-xs",
                           isToday &&
                             "bg-primary font-semibold text-primary-foreground"
                         )}
                       >
                         {day.getDate()}
                       </span>
-                      <div className="mt-2 space-y-1">
+                      <div className="pointer-events-none relative z-10 mt-2 space-y-1">
                         {dayEvents.slice(0, 3).map((event) => {
                           const continuesFromPreviousDay =
                             dayIndex % 7 !== 0 && event.start.slice(0, 10) < key
                           const continuesIntoNextDay =
-                            dayIndex % 7 !== 6 && eventLastDateKey(event) > key
+                            dayIndex % 7 !== 6 &&
+                            eventRenderLastDateKey(event) > key
 
-                          // Bridge the cell's 8px inset and 1px border while
-                          // preserving the label inset within each calendar row.
+                          // Bridge the cell's 8px inset while leaving the 1px
+                          // day divider visible between event segments.
                           return (
                             <Link
                               key={event.id}
                               href={`/calendar/${event.id}`}
                               className={cn(
-                                "relative z-10 block px-2 py-1 text-xs font-medium",
+                                "pointer-events-auto relative z-10 block px-2 py-1 text-xs font-medium",
                                 event.category ===
                                   DEPUTY_SCHEDULES_EVENT_TYPE_ID
                                   ? "bg-muted text-muted-foreground hover:bg-muted/80"
                                   : "bg-primary/10 text-foreground hover:bg-primary/20",
                                 continuesFromPreviousDay && "-ml-2 pl-4",
-                                continuesIntoNextDay && "-mr-2.25 pr-4.25"
+                                continuesIntoNextDay && "-mr-2 pr-4"
                               )}
                             >
                               <span className="block truncate">
