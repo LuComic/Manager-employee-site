@@ -46,7 +46,10 @@ import {
   PRIVATE_EVENT_FILTER,
   toDateKey,
 } from "@/lib/operations"
-import { eventCategoryLabel } from "@/lib/categories"
+import {
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  eventCategoryLabel,
+} from "@/lib/categories"
 import { cn } from "@/lib/utils"
 
 type View = "month" | "list"
@@ -273,7 +276,12 @@ export function CalendarPage() {
                         <Link
                           key={event.id}
                           href={`/calendar/${event.id}`}
-                          className="block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20"
+                          className={cn(
+                            "block px-2 py-1 text-xs font-medium",
+                            event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                              ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                              : "bg-primary/10 text-foreground hover:bg-primary/20"
+                          )}
                         >
                           <span className="block truncate">
                             {event.allDay ? (

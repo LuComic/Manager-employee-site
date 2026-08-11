@@ -33,6 +33,7 @@
     "invalidDeputyCredentials": "Deputy returned invalid credentials.",
     "invalidDeputyEndpoint": "Deputy returned an invalid installation address.",
     "lastScheduleSync": "Last schedule sync",
+    "schedules": "Schedules",
     "loadingIntegration": "Loading integration…",
     "managedByDeputy": "Managed by Deputy",
     "needsAttention": "Needs attention",

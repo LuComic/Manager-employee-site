@@ -30,6 +30,7 @@ import {
   MAX_BANNER_IMAGE_SIZE_BYTES,
 } from "@/lib/banner-image"
 import { getCategoryIcon, type CategoryIconKey } from "@/lib/category-icons"
+import { DEPUTY_SCHEDULES_EVENT_TYPE_ID } from "@/lib/categories"
 import type { Category, Guide } from "@/lib/knowledge-base"
 import type {
   DocumentUploadChanges,
@@ -463,7 +464,10 @@ export function OperationsProvider({
       }
     const storedCategories = activeSnapshot.categories.map((category) => ({
       id: category.id,
-      label: category.label,
+      label:
+        category.id === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+          ? t("schedules")
+          : category.label,
       description: category.description,
       iconKey: category.iconKey as CategoryIconKey,
       kind: category.kind,
@@ -486,7 +490,7 @@ export function OperationsProvider({
       faqs: activeSnapshot.faqs as Faq[],
       documents: activeSnapshot.documents as WorkspaceDocument[],
     }
-  }, [activeSnapshot])
+  }, [activeSnapshot, t])
   const guideCategories = state.categories.filter(
     (category) => category.kind === "guide"
   )

@@ -47,7 +47,10 @@ import {
   type CategoryIconKey,
 } from "@/lib/category-icons"
 import type { Category } from "@/lib/knowledge-base"
-import type { CategoryKind } from "@/lib/categories"
+import {
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  type CategoryKind,
+} from "@/lib/categories"
 import { slugify } from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
@@ -184,7 +187,13 @@ export function CategoryManager() {
             return (
               <Card key={category.id} size="sm" className="shadow-none">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
+                  <span
+                    className={cn(
+                      "flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary",
+                      category.id === DEPUTY_SCHEDULES_EVENT_TYPE_ID &&
+                        "bg-muted text-muted-foreground"
+                    )}
+                  >
                     {category.kind === "guide" ? (
                       <CategoryIcon
                         iconKey={category.iconKey}

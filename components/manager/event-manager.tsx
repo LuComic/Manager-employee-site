@@ -66,7 +66,10 @@ import {
   PRIVATE_EVENT_FILTER,
   type CalendarEvent,
 } from "@/lib/operations"
-import { eventCategoryLabel } from "@/lib/categories"
+import {
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  eventCategoryLabel,
+} from "@/lib/categories"
 import { cn } from "@/lib/utils"
 import type { AppMessageKey } from "@/i18n/messages"
 import type { TranslationValues } from "next-intl"
@@ -400,6 +403,11 @@ export function EventManager() {
             <ManagerListItem
               key={event.id}
               icon={<CalendarDays className="size-5" />}
+              iconClassName={
+                event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                  ? "bg-muted text-muted-foreground"
+                  : undefined
+              }
               title={event.title}
               metadata={[
                 <Badge

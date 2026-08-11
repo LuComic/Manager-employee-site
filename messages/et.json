@@ -33,6 +33,7 @@
     "invalidDeputyCredentials": "Deputy tagastas vigased kasutusandmed.",
     "invalidDeputyEndpoint": "Deputy tagastas vigase paigalduse aadressi.",
     "lastScheduleSync": "Viimane graafiku sünkroonimine",
+    "schedules": "Graafikud",
     "loadingIntegration": "Integratsiooni laadimine…",
     "managedByDeputy": "Deputy hallatav",
     "needsAttention": "Vajab tähelepanu",
