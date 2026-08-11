@@ -28,7 +28,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { eventCategoryLabel } from "@/lib/categories"
-import { formatEventDate, formatEventTime } from "@/lib/operations"
+import {
+  formatEventDate,
+  formatEventDateTimeEndpoint,
+  formatEventTime,
+} from "@/lib/operations"
 import { cn } from "@/lib/utils"
 
 export function EventDetail({ eventId }: { eventId: string }) {
@@ -47,6 +51,14 @@ export function EventDetail({ eventId }: { eventId: string }) {
   const relatedGuides = guides.filter(
     (guide) => guide.published && event.guideIds.includes(guide.id)
   )
+  const dateOptions = {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  } as const
+  const spansMultipleDates =
+    !event.allDay && event.start.slice(0, 10) !== event.end.slice(0, 10)
 
   return (
     <article className="mx-auto max-w-4xl space-y-6">
@@ -94,35 +106,59 @@ export function EventDetail({ eventId }: { eventId: string }) {
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Detail
-            icon={CalendarDays}
-            label="date"
-            value={formatEventDate(
-              event,
-              {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              },
-              hub?.timeZone,
-              languageTag
-            )}
-          />
-          <Detail
-            icon={Clock3}
-            label="time"
-            value={
-              event.allDay
-                ? t("allDay")
-                : formatEventTime(
-                    event,
-                    hub?.timeZone,
-                    languageTag,
-                    t("allDay")
-                  )
-            }
-          />
+          {spansMultipleDates ? (
+            <>
+              <Detail
+                icon={CalendarDays}
+                label="start"
+                value={formatEventDateTimeEndpoint(
+                  event,
+                  "start",
+                  dateOptions,
+                  hub?.timeZone,
+                  languageTag
+                )}
+              />
+              <Detail
+                icon={Clock3}
+                label="end"
+                value={formatEventDateTimeEndpoint(
+                  event,
+                  "end",
+                  dateOptions,
+                  hub?.timeZone,
+                  languageTag
+                )}
+              />
+            </>
+          ) : (
+            <>
+              <Detail
+                icon={CalendarDays}
+                label="date"
+                value={formatEventDate(
+                  event,
+                  dateOptions,
+                  hub?.timeZone,
+                  languageTag
+                )}
+              />
+              <Detail
+                icon={Clock3}
+                label="time"
+                value={
+                  event.allDay
+                    ? t("allDay")
+                    : formatEventTime(
+                        event,
+                        hub?.timeZone,
+                        languageTag,
+                        t("allDay")
+                      )
+                }
+              />
+            </>
+          )}
           <Detail icon={MapPin} label="location" value={event.location} />
           <Detail
             icon={UsersRound}

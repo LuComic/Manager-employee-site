@@ -23,7 +23,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { WorkerNotes } from "@/components/worker-notes/worker-notes"
 import type { AppMessageKey } from "@/i18n/messages"
 import {
-  eventOccursOnDate,
+  eventRendersOnDate,
   formatDate,
   isAnnouncementActive,
   toDateKey,
@@ -66,7 +66,7 @@ export default function TodayPage() {
   const timeZone = hub?.timeZone
   const today = toDateKey(new Date(), timeZone)
   const todayEvents = events
-    .filter((event) => event.published && eventOccursOnDate(event, today))
+    .filter((event) => event.published && eventRendersOnDate(event, today))
     .sort((a, b) => a.start.localeCompare(b.start))
   const upcomingEvents = events
     .filter((event) => event.published && toDateKey(event.start) > today)

@@ -4,8 +4,11 @@ import {
   addHoursToLocalDateTime,
   eventMatchesFilter,
   eventOccursOnDate,
+  eventRendersOnDate,
   formatDate,
   formatEventDate,
+  formatEventDateTime,
+  formatEventDateTimeEndpoint,
   formatEventTime,
   formatTime,
   getAnnouncementState,
@@ -128,7 +131,63 @@ describe("calendar event presentation", () => {
         month: "2-digit",
         year: "numeric",
       })
-    ).toBe("24/07/2026–26/07/2026")
+    ).toBe("24/07/2026 - 26/07/2026")
+  })
+
+  test("renders employee schedules only on their start date", () => {
+    const schedule: CalendarEvent = {
+      ...calendarEvent,
+      category: "deputy-schedules",
+      start: "2026-08-12T11:00",
+      end: "2026-08-13T01:30",
+      allDay: false,
+    }
+
+    expect(eventRendersOnDate(schedule, "2026-08-12")).toBeTrue()
+    expect(eventRendersOnDate(schedule, "2026-08-13")).toBeFalse()
+  })
+
+  test("keeps each date next to its time for overnight events", () => {
+    expect(
+      formatEventDateTime(
+        {
+          ...calendarEvent,
+          start: "2026-08-12T17:00",
+          end: "2026-08-13T00:30",
+          allDay: false,
+        },
+        "Europe/Tallinn",
+        "et-EE"
+      )
+    ).toBe("K, 12. aug, 17:00 - N, 13. aug, 00:30")
+  })
+
+  test("formats each endpoint with its date and time", () => {
+    const event = {
+      ...calendarEvent,
+      start: "2026-08-12T17:00",
+      end: "2026-08-13T00:30",
+      allDay: false,
+    }
+
+    expect(
+      formatEventDateTimeEndpoint(
+        event,
+        "start",
+        undefined,
+        "Europe/Tallinn",
+        "et-EE"
+      )
+    ).toBe("K, 12. aug, 17:00")
+    expect(
+      formatEventDateTimeEndpoint(
+        event,
+        "end",
+        undefined,
+        "Europe/Tallinn",
+        "et-EE"
+      )
+    ).toBe("N, 13. aug, 00:30")
   })
 
   test("disambiguates repeated wall-clock times during DST fallback", () => {
@@ -144,6 +203,6 @@ describe("calendar event presentation", () => {
         },
         "Europe/Tallinn"
       )
-    ).toBe("03:30 EEST–03:15 EET")
+    ).toBe("03:30 EEST - 03:15 EET")
   })
 })

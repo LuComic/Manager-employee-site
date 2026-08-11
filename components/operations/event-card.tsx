@@ -10,13 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { eventCategoryLabel } from "@/lib/categories"
 import {
-  formatEventDate,
-  formatEventTime,
-  type CalendarEvent,
-} from "@/lib/operations"
+  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
+  eventCategoryLabel,
+} from "@/lib/categories"
+import { formatEventDateTime, type CalendarEvent } from "@/lib/operations"
 import { useOperations } from "@/components/providers/operations-provider"
+import { cn } from "@/lib/utils"
 
 export function EventCard({
   event,
@@ -30,6 +30,7 @@ export function EventCard({
   const languageTag = useLanguageTag()
   const t = useAppTranslations()
   const { eventTypes } = useOperations()
+  const deputySchedule = event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
 
   return (
     <Link
@@ -38,7 +39,12 @@ export function EventCard({
     >
       <Card
         size="sm"
-        className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+        className={cn(
+          "h-full shadow-none transition-colors",
+          deputySchedule
+            ? "bg-muted text-muted-foreground group-hover:bg-muted/80"
+            : "group-hover:bg-muted/40"
+        )}
       >
         <CardHeader>
           <Badge variant="secondary">
@@ -53,8 +59,7 @@ export function EventCard({
           <span className="flex flex-wrap items-center gap-4">
             <span className="flex items-center gap-2">
               <Clock3 className="size-4" />{" "}
-              {formatEventDate(event, undefined, timeZone, languageTag)},{" "}
-              {formatEventTime(event, timeZone, languageTag, t("allDay"))}
+              {formatEventDateTime(event, timeZone, languageTag, t("allDay"))}
             </span>
             <span className="flex items-center gap-2">
               <MapPin className="size-4" /> {event.location}
