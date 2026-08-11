@@ -140,7 +140,12 @@ export function NotificationButton({
     >
       <Bell />
       {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] leading-none font-semibold text-background">
+        <span
+          className={cn(
+            "absolute -top-1 -right-1 flex items-center justify-center rounded-full bg-destructive text-[10px] leading-none font-semibold text-background",
+            unreadCount > 9 ? "h-4 min-w-5 px-1" : "size-4"
+          )}
+        >
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
       )}
@@ -192,7 +197,8 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
         <div className="space-y-3">
           {feed.notifications.map((notification) => {
             const Icon = kindIcons[notification.kind]
-            const wasUnread = notification.createdAt > feed.lastReadAt
+            const wasUnread =
+              !notification.isOwn && notification.createdAt > feed.lastReadAt
             return (
               <Link
                 key={notification.id}

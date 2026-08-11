@@ -408,7 +408,7 @@ export default defineSchema({
       v.record(v.string(), v.union(v.string(), v.number()))
     ),
     href: v.string(),
-    // Transitional: notification rows created by newer branches may include it.
+    // Used to suppress unread indicators for an authenticated actor's actions.
     actorViewerKey: v.optional(v.string()),
     // Transitional: older notification rows stored this redundantly.
     createdAt: v.optional(v.number()),

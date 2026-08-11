@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react"
 
+import { ManagerFilterPanel } from "@/components/manager/manager-filter-panel"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -244,7 +245,7 @@ export function EmployeeManager() {
           </div>
         }
       />
-      <div className="grid gap-4 border bg-background p-4 sm:grid-cols-2">
+      <ManagerFilterPanel className="grid sm:grid-cols-2">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -282,7 +283,7 @@ export function EmployeeManager() {
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </ManagerFilterPanel>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

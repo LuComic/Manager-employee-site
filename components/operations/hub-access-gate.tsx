@@ -157,6 +157,19 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
                 <KeyRound /> <T>openHub</T>
               </Button>
             </form>
+
+            {!isSignedIn && (
+              <div className="mt-6 space-y-4 border-t pt-6">
+                <p className="text-sm text-muted-foreground">
+                  <T>haveAnEmployeeOrManagerAccount</T>
+                </p>
+                <SignInButton mode="modal" forceRedirectUrl={href("/")}>
+                  <Button type="button" variant="outline" className="w-full">
+                    <LogIn /> <T>signIn</T>
+                  </Button>
+                </SignInButton>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

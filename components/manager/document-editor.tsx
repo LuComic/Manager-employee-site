@@ -44,7 +44,7 @@ function newDocument(): EditableDocument {
     description: "",
     employees: [],
     relatedGuideIds: [],
-    published: false,
+    published: true,
     updatedAt: Date.now(),
   }
 }
@@ -392,21 +392,16 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
 
         <Card className="h-fit shadow-none">
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  onChange={(event) =>
-                    changeBase({ published: event.target.checked })
-                  }
-                />
-                <T>publishNow</T>
-              </label>
-              <p className="text-xs text-muted-foreground">
-                <T>publishedResourcesAppearEmployeeDocumentLibrary</T>
-              </p>
-            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.published}
+                onChange={(event) =>
+                  changeBase({ published: event.target.checked })
+                }
+              />
+              <T>publishNow</T>
+            </label>
 
             <section className="space-y-3">
               <h2 className="text-xs font-semibold">
@@ -414,7 +409,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
               </h2>
               <div
                 className={cn(
-                  "flex aspect-[16/7] items-center justify-center overflow-hidden border bg-muted/40 bg-cover bg-center",
+                  "flex aspect-[16/7] w-full max-w-full items-center justify-center overflow-hidden border bg-muted/40 bg-cover bg-center",
                   visibleBanner && "text-transparent"
                 )}
                 style={
@@ -493,11 +488,19 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={leave}>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={leave}
+          >
             <T>cancel</T>
           </Button>
-          <Button onClick={() => void submit()} disabled={saving}>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => void submit()}
+            disabled={saving}
+          >
             <T>{saving ? "saving" : "saveDocument"}</T>
           </Button>
         </div>

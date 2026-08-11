@@ -9,6 +9,7 @@ import { FilePenLine, Files, Plus, Search, Trash2 } from "lucide-react"
 
 import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
+import { ManagerFilterPanel } from "@/components/manager/manager-filter-panel"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
@@ -89,7 +90,7 @@ export function DocumentManager() {
           ) : undefined
         }
       />
-      <div className="grid gap-4 border bg-background p-4 sm:grid-cols-3">
+      <ManagerFilterPanel className="grid sm:grid-cols-3">
         <div className="relative sm:col-span-3 lg:col-span-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -144,7 +145,7 @@ export function DocumentManager() {
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </ManagerFilterPanel>
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((document) => (
@@ -175,10 +176,11 @@ export function DocumentManager() {
                     {document.description}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid w-full auto-cols-fr grid-flow-col gap-2 sm:flex sm:w-auto sm:flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
                     onClick={() => {
                       void (async () => {
                         try {
@@ -203,7 +205,8 @@ export function DocumentManager() {
                   <Link
                     href={`/manager/documents/${document.id}/edit`}
                     className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" })
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "min-h-11 w-full sm:min-h-9 sm:w-auto"
                     )}
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
@@ -212,6 +215,7 @@ export function DocumentManager() {
                     <Button
                       variant="destructive"
                       size="icon-sm"
+                      className="w-full sm:size-9"
                       onClick={() => setDeleteTarget(document)}
                       aria-label={t("deleteName", {
                         name: document.title,

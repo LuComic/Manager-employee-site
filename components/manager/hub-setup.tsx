@@ -102,14 +102,16 @@ export function HubSetup() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="flex items-center justify-between gap-4 border bg-muted/30 p-4">
-          <OrganizationSwitcher
-            hidePersonal={false}
-            afterCreateOrganizationUrl={afterOrganizationCreated}
-            afterSelectOrganizationUrl={href("/manager")}
-            afterSelectPersonalUrl={href("/manager")}
-          />
-          <span className="text-xs text-muted-foreground">
+        <div className="flex flex-col items-start gap-3 border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="w-full min-w-0 overflow-hidden sm:w-auto sm:max-w-64">
+            <OrganizationSwitcher
+              hidePersonal={false}
+              afterCreateOrganizationUrl={afterOrganizationCreated}
+              afterSelectOrganizationUrl={href("/manager")}
+              afterSelectPersonalUrl={href("/manager")}
+            />
+          </div>
+          <span className="text-xs wrap-break-word text-muted-foreground">
             <T>activeWorkplace</T>
           </span>
         </div>
@@ -120,7 +122,7 @@ export function HubSetup() {
           <p className="mt-1 text-muted-foreground">
             <T>assignedAutomaticallyFromTheWorkplaceName</T>
           </p>
-          <p className="mt-2 font-mono text-xs">
+          <p className="mt-2 font-mono text-xs [overflow-wrap:anywhere]">
             <T>hubQueryParameter</T>
             {slug || "workplace"}
           </p>

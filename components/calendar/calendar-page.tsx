@@ -4,7 +4,7 @@ import { T } from "@/components/translated-text"
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   CalendarDays,
   ChevronLeft,
@@ -80,6 +80,8 @@ export function CalendarPage() {
     firstOfMonth(dateFromKey(todayKey))
   )
   const [category, setCategory] = useState<string>("All")
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null)
+  const monthEventsSectionRef = useRef<HTMLElement>(null)
   const published = events.filter(
     (event) => event.published && eventMatchesFilter(event, category)
   )
@@ -96,6 +98,14 @@ export function CalendarPage() {
         eventLastDateKey(event) >= visibleMonthStart
     )
     .sort((a, b) => a.start.localeCompare(b.start))
+  const selectedDayEvents = selectedDayKey
+    ? published
+        .filter((event) => eventOccursOnDate(event, selectedDayKey))
+        .sort((a, b) => a.start.localeCompare(b.start))
+    : []
+  const summaryEvents = selectedDayEvents.length
+    ? selectedDayEvents
+    : monthEvents.slice(0, 4)
 
   const days = useMemo(() => {
     const first = firstOfMonth(visibleDate)
@@ -109,11 +119,36 @@ export function CalendarPage() {
     })
   }, [visibleDate])
 
+  useEffect(() => {
+    if (!selectedDayKey) return
+    const frame = window.requestAnimationFrame(() => {
+      monthEventsSectionRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [selectedDayKey])
+
   function moveMonth(amount: number) {
+    setSelectedDayKey(null)
     setVisibleDate(
       (current) =>
         new Date(current.getFullYear(), current.getMonth() + amount, 1)
     )
+  }
+
+  function showEventsForDay(key: string) {
+    if (selectedDayKey === key) {
+      monthEventsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+      return
+    }
+    setSelectedDayKey(key)
   }
 
   return (
@@ -132,8 +167,14 @@ export function CalendarPage() {
           />
         }
       />
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="order-first w-full font-semibold sm:order-none sm:mr-2 sm:w-auto">
+            {new Intl.DateTimeFormat(languageTag, {
+              month: "long",
+              year: "numeric",
+            }).format(visibleDate)}
+          </h2>
           <Button
             variant="outline"
             size="icon-sm"
@@ -145,7 +186,10 @@ export function CalendarPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setVisibleDate(firstOfMonth(dateFromKey(todayKey)))}
+            onClick={() => {
+              setSelectedDayKey(null)
+              setVisibleDate(firstOfMonth(dateFromKey(todayKey)))
+            }}
           >
             <T>today</T>
           </Button>
@@ -157,27 +201,24 @@ export function CalendarPage() {
           >
             <ChevronRight />
           </Button>
-          <h2 className="ml-2 font-semibold">
-            {new Intl.DateTimeFormat(languageTag, {
-              month: "long",
-              year: "numeric",
-            }).format(visibleDate)}
-          </h2>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <label htmlFor="event-category" className="sr-only">
             <T>filterByEventType</T>
           </label>
           <Select
             value={category}
             onValueChange={(value) => {
-              if (value) setCategory(value)
+              if (value) {
+                setSelectedDayKey(null)
+                setCategory(value)
+              }
             }}
           >
             <SelectTrigger
               id="event-category"
               size="sm"
-              className="border border-input bg-background px-3"
+              className="w-full border border-input bg-background px-3 sm:w-auto sm:max-w-64"
             >
               <SelectValue>
                 {category === PRIVATE_EVENT_FILTER ? (
@@ -209,7 +250,7 @@ export function CalendarPage() {
             <SegmentedControlItem
               selected={view === "month"}
               size="sm"
-              className="h-full"
+              className="h-full min-h-0"
               onClick={() => setView("month")}
             >
               <CalendarDays /> <T>month</T>
@@ -217,7 +258,7 @@ export function CalendarPage() {
             <SegmentedControlItem
               selected={view === "list"}
               size="sm"
-              className="h-full"
+              className="h-full min-h-0"
               onClick={() => setView("list")}
             >
               <List /> <T>list</T>
@@ -237,12 +278,14 @@ export function CalendarPage() {
       </div>
 
       {view === "month" ? (
-        <div className="overflow-x-auto border bg-background">
-          <div className="min-w-2xl">
-            <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-xs font-semibold text-muted-foreground">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                <div key={day} className="p-3">
-                  {day}
+        <>
+          <div className="border border-b-0 bg-background md:hidden">
+            <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-[0.6875rem] font-semibold text-muted-foreground">
+              {days.slice(0, 7).map((day) => (
+                <div key={calendarKey(day)} className="py-2">
+                  {new Intl.DateTimeFormat(languageTag, {
+                    weekday: "narrow",
+                  }).format(day)}
                 </div>
               ))}
             </div>
@@ -254,14 +297,24 @@ export function CalendarPage() {
                 )
                 const inMonth = day.getMonth() === visibleDate.getMonth()
                 const isToday = key === todayKey
-                return (
-                  <div
-                    key={key}
-                    className={cn(
-                      "min-h-28 border-r border-b p-2 last:border-r-0",
-                      !inMonth && "bg-muted/30 text-muted-foreground"
-                    )}
-                  >
+                const label = [
+                  new Intl.DateTimeFormat(languageTag, {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  }).format(day),
+                  ...dayEvents.map((event) => event.title),
+                ].join(", ")
+                const cellClassName = cn(
+                  "flex min-h-14 min-w-0 flex-col items-center border-r border-b px-0.5 py-1.5 [&:nth-child(7n)]:border-r-0",
+                  !inMonth && "bg-muted/30 text-muted-foreground",
+                  dayEvents.length > 0 &&
+                    "cursor-pointer hover:bg-muted/50 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+                  selectedDayKey === key &&
+                    "bg-primary/10 ring-2 ring-primary ring-inset"
+                )
+                const content = (
+                  <>
                     <span
                       className={cn(
                         "flex size-7 items-center justify-center text-xs",
@@ -271,44 +324,130 @@ export function CalendarPage() {
                     >
                       {day.getDate()}
                     </span>
-                    <div className="mt-2 space-y-1">
-                      {dayEvents.slice(0, 3).map((event) => (
-                        <Link
-                          key={event.id}
-                          href={`/calendar/${event.id}`}
-                          className={cn(
-                            "block px-2 py-1 text-xs font-medium",
-                            event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
-                              ? "bg-muted text-muted-foreground hover:bg-muted/80"
-                              : "bg-primary/10 text-foreground hover:bg-primary/20"
-                          )}
-                        >
-                          <span className="block truncate">
-                            {event.allDay ? (
-                              <T>allDay</T>
-                            ) : (
-                              formatTime(
-                                event.startUtc ?? event.start,
-                                hub?.timeZone,
-                                languageTag
-                              )
-                            )}{" "}
-                            {event.title}
-                          </span>
-                        </Link>
-                      ))}
-                      {dayEvents.length > 3 && (
-                        <span className="block px-2 text-xs text-muted-foreground">
-                          +{dayEvents.length - 3} <T>moreLowercase</T>
-                        </span>
-                      )}
-                    </div>
+                    {dayEvents.length > 0 && (
+                      <span
+                        className="mt-1 flex max-w-full items-center justify-center gap-0.5"
+                        aria-hidden="true"
+                      >
+                        {dayEvents.slice(0, 3).map((event) => (
+                          <span
+                            key={event.id}
+                            className={cn(
+                              "size-1.5 shrink-0 rounded-full",
+                              event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                                ? "bg-muted-foreground"
+                                : "bg-primary"
+                            )}
+                          />
+                        ))}
+                      </span>
+                    )}
+                  </>
+                )
+                return dayEvents.length > 0 ? (
+                  <button
+                    key={key}
+                    type="button"
+                    className={cellClassName}
+                    aria-label={label}
+                    aria-pressed={selectedDayKey === key}
+                    aria-controls="calendar-month-events"
+                    onClick={() => showEventsForDay(key)}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <div key={key} className={cellClassName} aria-label={label}>
+                    {content}
                   </div>
                 )
               })}
             </div>
           </div>
-        </div>
+
+          <div className="hidden overflow-x-auto border border-b-0 bg-background md:block">
+            <div className="min-w-2xl">
+              <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-xs font-semibold text-muted-foreground">
+                {days.slice(0, 7).map((day) => (
+                  <div key={calendarKey(day)} className="p-3">
+                    {new Intl.DateTimeFormat(languageTag, {
+                      weekday: "short",
+                    }).format(day)}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7">
+                {days.map((day, dayIndex) => {
+                  const key = calendarKey(day)
+                  const dayEvents = published.filter((event) =>
+                    eventOccursOnDate(event, key)
+                  )
+                  const inMonth = day.getMonth() === visibleDate.getMonth()
+                  const isToday = key === todayKey
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        "min-h-28 border-r border-b p-2 nth-[7n]:border-r-0",
+                        !inMonth && "bg-muted/30 text-muted-foreground"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-7 items-center justify-center text-xs",
+                          isToday &&
+                            "bg-primary font-semibold text-primary-foreground"
+                        )}
+                      >
+                        {day.getDate()}
+                      </span>
+                      <div className="mt-2 space-y-1">
+                        {dayEvents.slice(0, 3).map((event) => {
+                          const continuesFromPreviousDay =
+                            dayIndex % 7 !== 0 && event.start.slice(0, 10) < key
+                          const continuesIntoNextDay =
+                            dayIndex % 7 !== 6 && eventLastDateKey(event) > key
+
+                          // Bridge the cell's 8px inset and 1px border while
+                          // preserving the label inset within each calendar row.
+                          return (
+                            <Link
+                              key={event.id}
+                              href={`/calendar/${event.id}`}
+                              className={cn(
+                                "relative z-10 block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20",
+                                continuesFromPreviousDay && "-ml-2 pl-4",
+                                continuesIntoNextDay && "-mr-2.25 pr-4.25"
+                              )}
+                            >
+                              <span className="block truncate">
+                                {event.allDay ? (
+                                  <T>allDay</T>
+                                ) : (
+                                  formatTime(
+                                    event.startUtc ?? event.start,
+                                    hub?.timeZone,
+                                    languageTag
+                                  )
+                                )}{" "}
+                                {event.title}
+                              </span>
+                            </Link>
+                          )
+                        })}
+                        {dayEvents.length > 3 && (
+                          <span className="block px-2 text-xs text-muted-foreground">
+                            +{dayEvents.length - 3} <T>moreLowercase</T>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </>
       ) : monthEvents.length ? (
         <div className="space-y-3">
           {monthEvents.map((event) => (
@@ -361,13 +500,25 @@ export function CalendarPage() {
         />
       )}
 
-      {view === "month" && monthEvents.length > 0 && (
-        <section>
+      {view === "month" && summaryEvents.length > 0 && (
+        <section
+          id="calendar-month-events"
+          ref={monthEventsSectionRef}
+          className="scroll-mt-24"
+        >
           <h2 className="mb-4 text-xl font-semibold">
-            <T>thisMonth</T>
+            {selectedDayKey && selectedDayEvents.length ? (
+              new Intl.DateTimeFormat(languageTag, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              }).format(dateFromKey(selectedDayKey))
+            ) : (
+              <T>thisMonth</T>
+            )}
           </h2>
           <div className="grid gap-3 lg:grid-cols-2">
-            {monthEvents.slice(0, 4).map((event) => (
+            {summaryEvents.map((event) => (
               <EventCard
                 key={event.id}
                 event={event}

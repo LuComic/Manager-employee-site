@@ -204,7 +204,7 @@ export function HubSettingsManager() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div
-              className="flex min-h-48 items-end border bg-primary bg-cover bg-center p-5 text-primary-foreground"
+              className="flex min-h-48 w-full max-w-full items-end overflow-hidden border bg-primary bg-cover bg-center p-5 text-primary-foreground"
               style={
                 bannerPreviewUrl
                   ? { backgroundImage: `url("${bannerPreviewUrl}")` }
@@ -316,10 +316,11 @@ export function HubSettingsManager() {
           <p className="text-sm text-muted-foreground">
             <T>{dirty ? "unsavedChanges" : "noUnsavedChanges"}</T>
           </p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               disabled={pending}
               onClick={() => {
                 setSettings(settingsFromHub(hub))
@@ -332,6 +333,7 @@ export function HubSettingsManager() {
             </Button>
             <Button
               type="submit"
+              className="w-full sm:w-auto"
               disabled={pending || !dirty || !settings.name.trim()}
             >
               <T>{pending ? "saving" : "saveSettings"}</T>

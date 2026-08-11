@@ -164,6 +164,29 @@ export function addCalendarDays(value: string, days: number) {
   return result.toISOString().slice(0, 10)
 }
 
+export function addHoursToLocalDateTime(value: string, hours: number) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return ""
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const hour = Number(match[4])
+  const minute = Number(match[5])
+  const initial = new Date(Date.UTC(year, month - 1, day, hour, minute))
+  if (
+    initial.getUTCFullYear() !== year ||
+    initial.getUTCMonth() !== month - 1 ||
+    initial.getUTCDate() !== day ||
+    initial.getUTCHours() !== hour ||
+    initial.getUTCMinutes() !== minute
+  ) {
+    return ""
+  }
+  return new Date(initial.getTime() + hours * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 16)
+}
+
 export function eventLastDateKey(event: CalendarEvent) {
   const startKey = event.start.slice(0, 10)
   const endKey = event.end.slice(0, 10)
