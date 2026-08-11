@@ -150,10 +150,12 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
   const workerRouteAllowed = Boolean(
     workerSection && hub?.workersCanEdit[workerSection]
   )
-  const visiblePrimaryNavigationItems =
-    managerAccess === "viewer" ? [] : primaryNavigationItems
-  const showGuideNavigation =
-    managerAccess !== "viewer" || Boolean(hub?.workersCanEdit.guides)
+  const visibleNavigationItems =
+    managerAccess === "viewer"
+      ? hub?.workersCanEdit.guides
+        ? [guideNavigationItem]
+        : []
+      : [...primaryNavigationItems, guideNavigationItem]
   const visibleMoreNavigationGroups =
     managerAccess === "viewer"
       ? moreNavigationGroups
@@ -284,7 +286,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               className="grid grid-cols-4 gap-1 sm:flex sm:flex-wrap sm:gap-2"
               aria-label={t("managerNavigation")}
             >
-              {visiblePrimaryNavigationItems.map((item) => {
+              {visibleNavigationItems.map((item) => {
                 const { href, label, icon: Icon } = item
                 const active = isActiveLink(pathname, href)
                 return (
@@ -297,7 +299,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                         variant: active ? "secondary" : "ghost",
                         size: "sm",
                       }),
-                      "w-full min-w-0 justify-center px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
+                      "w-full min-w-0 justify-center gap-2 px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
                     )}
                   >
                     <Icon />
@@ -307,26 +309,6 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 )
               })}
-              {showGuideNavigation && (
-                <Link
-                  href={guideNavigationItem.href}
-                  aria-label={t(guideNavigationItem.label)}
-                  className={cn(
-                    buttonVariants({
-                      variant: isActiveLink(pathname, guideNavigationItem.href)
-                        ? "secondary"
-                        : "ghost",
-                      size: "sm",
-                    }),
-                    "w-full min-w-0 justify-center px-2 text-sm tracking-normal normal-case sm:w-auto sm:px-3"
-                  )}
-                >
-                  <BookOpen />
-                  <span className="hidden sm:inline">
-                    <T>{guideNavigationItem.label}</T>
-                  </span>
-                </Link>
-              )}
               {visibleMoreNavigationGroups.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger

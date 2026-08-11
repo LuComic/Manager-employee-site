@@ -415,7 +415,11 @@ export function CalendarPage() {
                               key={event.id}
                               href={`/calendar/${event.id}`}
                               className={cn(
-                                "relative z-10 block bg-primary/10 px-2 py-1 text-xs font-medium text-foreground hover:bg-primary/20",
+                                "relative z-10 block px-2 py-1 text-xs font-medium",
+                                event.category ===
+                                  DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                                  ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                                  : "bg-primary/10 text-foreground hover:bg-primary/20",
                                 continuesFromPreviousDay && "-ml-2 pl-4",
                                 continuesIntoNextDay && "-mr-2.25 pr-4.25"
                               )}
@@ -454,7 +458,12 @@ export function CalendarPage() {
             <Link
               key={event.id}
               href={`/calendar/${event.id}`}
-              className="group flex flex-col gap-4 border bg-background p-4 outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex-row sm:items-center"
+              className={cn(
+                "group flex flex-col gap-4 border p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex-row sm:items-center",
+                event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+                  ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                  : "bg-background hover:bg-muted/30"
+              )}
             >
               <div className="sm:w-40">
                 <p className="font-semibold">
