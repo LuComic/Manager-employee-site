@@ -45,6 +45,11 @@ import {
   toLocalDateTimeValue,
   type CalendarEvent,
 } from "@/lib/operations"
+import {
+  quickEventDraftToCalendarEvent,
+  takeQuickEventDraft,
+  type QuickEventDraft,
+} from "@/lib/quick-event-draft"
 
 function cloneEvent(event: CalendarEvent): CalendarEvent {
   return {
@@ -57,8 +62,16 @@ function cloneEvent(event: CalendarEvent): CalendarEvent {
 
 function newEvent(
   location = "",
-  category = RESERVATION_EVENT_TYPE_ID
+  category = RESERVATION_EVENT_TYPE_ID,
+  quickDraft?: QuickEventDraft | null
 ): CalendarEvent {
+  if (quickDraft) {
+    return quickEventDraftToCalendarEvent(quickDraft, {
+      id: "",
+      category,
+      location,
+    })
+  }
   const start = new Date()
   start.setDate(start.getDate() + 1)
   start.setHours(10, 0, 0, 0)
@@ -100,12 +113,15 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const existing = eventId
     ? events.find((event) => event.id === eventId)
     : undefined
+  const [quickDraft] = useState(() =>
+    eventId || !hub ? null : takeQuickEventDraft(hub.id)
+  )
   const [draft, setDraft] = useState<CalendarEvent | null>(() =>
     eventId
       ? existing
         ? cloneEvent(existing)
         : null
-      : newEvent(hub?.address ?? "", eventTypes[0]?.id)
+      : newEvent(hub?.address ?? "", eventTypes[0]?.id, quickDraft)
   )
   const [endDateWasEdited, setEndDateWasEdited] = useState(Boolean(eventId))
   const [endTimeWasEdited, setEndTimeWasEdited] = useState(Boolean(eventId))
@@ -113,7 +129,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const [removedAttachments, setRemovedAttachments] = useState<
     CalendarEvent["attachments"]
   >([])
-  const [dirty, setDirty] = useState(false)
+  const [dirty, setDirty] = useState(Boolean(quickDraft))
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const deputyManaged = draft?.source === "deputy"

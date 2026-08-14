@@ -16,10 +16,8 @@ import {
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
 import { PrivateEventFilterLabel } from "@/components/calendar/private-event-filter-label"
-import {
-  CreateSectionButton,
-  ManageSectionButton,
-} from "@/components/knowledge-base/manage-section-button"
+import { QuickEventDialog } from "@/components/calendar/quick-event-dialog"
+import { ManageSectionButton } from "@/components/knowledge-base/manage-section-button"
 import { EmptyState } from "@/components/operations/empty-state"
 import { EventCard } from "@/components/operations/event-card"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -37,6 +35,7 @@ import {
   SegmentedControlItem,
 } from "@/components/ui/segmented-control"
 import {
+  addCalendarDays,
   eventMatchesFilters,
   eventRenderLastDateKey,
   eventRendersOnDate,
@@ -321,10 +320,8 @@ export function CalendarPage() {
             href="/manager/calendar"
             size="sm"
           />
-          <CreateSectionButton
-            section="events"
-            href="/manager/calendar/new"
-            label="createEvent"
+          <QuickEventDialog
+            defaultDate={selectedDayKey ?? addCalendarDays(todayKey, 1)}
           />
         </div>
       </div>
