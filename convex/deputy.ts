@@ -417,6 +417,7 @@ export const applyRosterBatch = internalMutation({
           q.eq("hubId", hub._id).eq("slug", slug)
         )
         .unique()
+      if (existing?.managerDeleted) continue
       const sourceValue = {
         title: roster.employeeName,
         categoryId: category._id,

@@ -797,7 +797,14 @@ export const deleteEvent = mutation({
         eventId: undefined,
       })
     }
-    await ctx.db.delete("events", event._id)
+    if (event.source === "deputy") {
+      await ctx.db.patch("events", event._id, {
+        published: false,
+        managerDeleted: true,
+      })
+    } else {
+      await ctx.db.delete("events", event._id)
+    }
     if (event.published) {
       await createNotification(ctx, {
         hubId: args.hubId,
