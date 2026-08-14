@@ -49,6 +49,10 @@ describe("event filtering", () => {
     const reservation = { category: "reservation", isPrivate: false }
     const training = { category: "training", isPrivate: false }
     const privateReservation = { category: "reservation", isPrivate: true }
+    const privateSchedule = {
+      category: "deputy-schedules",
+      isPrivate: true,
+    }
 
     expect(eventMatchesFilters(reservation, ["reservation", "training"])).toBe(
       true
@@ -57,6 +61,24 @@ describe("event filtering", () => {
     expect(eventMatchesFilters(privateReservation, ["reservation"])).toBe(false)
     expect(
       eventMatchesFilters(privateReservation, [PRIVATE_EVENT_FILTER])
+    ).toBe(false)
+    expect(
+      eventMatchesFilters(privateReservation, [
+        PRIVATE_EVENT_FILTER,
+        "reservation",
+      ])
+    ).toBe(true)
+    expect(
+      eventMatchesFilters(privateSchedule, [
+        PRIVATE_EVENT_FILTER,
+        "reservation",
+      ])
+    ).toBe(false)
+    expect(
+      eventMatchesFilters(privateSchedule, [
+        PRIVATE_EVENT_FILTER,
+        "deputy-schedules",
+      ])
     ).toBe(true)
     expect(eventMatchesFilters(reservation, [])).toBe(false)
   })

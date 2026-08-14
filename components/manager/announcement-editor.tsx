@@ -34,6 +34,7 @@ import {
   type Announcement,
   type AnnouncementPriority,
 } from "@/lib/operations"
+import { DEPUTY_SCHEDULES_EVENT_TYPE_ID } from "@/lib/categories"
 import {
   emptyRichTextDocument,
   isRichTextEmpty,
@@ -168,6 +169,11 @@ export function AnnouncementEditor({
   const previewEvent = events.find(
     (event) => event.id === draft.eventId && event.published
   )
+  const workerScheduleEventIds = new Set(
+    events
+      .filter((event) => event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID)
+      .map((event) => event.id)
+  )
 
   return (
     <div className="space-y-6">
@@ -255,6 +261,14 @@ export function AnnouncementEditor({
                 />
                 <T>publishNow</T>
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.pinned}
+                  onChange={(event) => change({ pinned: event.target.checked })}
+                />
+                <T>pinAnnouncement</T>
+              </label>
               <Field label="publishDate" id="announcement-start">
                 <Input
                   id="announcement-start"
@@ -333,7 +347,9 @@ export function AnnouncementEditor({
                     </SelectItem>
                     {eventReferences
                       .filter(
-                        (event) => event.published || event.id === draft.eventId
+                        (event) =>
+                          !workerScheduleEventIds.has(event.id) &&
+                          (event.published || event.id === draft.eventId)
                       )
                       .map((event) => (
                         <SelectItem key={event.id} value={event.id}>
@@ -343,14 +359,6 @@ export function AnnouncementEditor({
                   </SelectContent>
                 </Select>
               </Field>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={draft.pinned}
-                  onChange={(event) => change({ pinned: event.target.checked })}
-                />
-                <T>pinAnnouncement</T>
-              </label>
             </CardContent>
           </Card>
         </div>

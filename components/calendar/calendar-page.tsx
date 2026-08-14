@@ -59,7 +59,7 @@ type FilterSelection = {
 }
 
 const filterCheckboxItemClassName =
-  "pr-3 pl-10 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:right-auto [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:left-3 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:size-4 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:border [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:border-input [&_[data-slot=dropdown-menu-checkbox-item-indicator]_svg]:size-3"
+  "pr-3 pl-10 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:right-auto [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:left-3 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:size-4 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:border [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:border-input [&_[data-slot=dropdown-menu-checkbox-item-indicator]_svg]:size-3 data-checked:[&_[data-slot=dropdown-menu-checkbox-item-indicator]]:border-primary data-checked:[&_[data-slot=dropdown-menu-checkbox-item-indicator]]:bg-primary data-checked:[&_[data-slot=dropdown-menu-checkbox-item-indicator]_svg]:text-white data-checked:[&_[data-slot=dropdown-menu-checkbox-item-indicator]_svg]:stroke-white"
 
 function firstOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1)
