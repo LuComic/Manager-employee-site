@@ -4,7 +4,6 @@ import { T } from "@/components/translated-text"
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { useState } from "react"
-import { enGB, et } from "date-fns/locale"
 import {
   ArrowLeft,
   CalendarDays,
@@ -14,20 +13,18 @@ import {
   Users,
 } from "lucide-react"
 
+import {
+  EventDatePicker,
+  EventDateTimePicker,
+} from "@/components/calendar/event-date-time-picker"
 import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { useUnsavedChanges } from "@/components/manager/use-unsaved-changes"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import type { AppMessageKey } from "@/i18n/messages"
 import {
   Select,
@@ -45,6 +42,11 @@ import {
   toLocalDateTimeValue,
   type CalendarEvent,
 } from "@/lib/operations"
+import {
+  quickEventDraftToCalendarEvent,
+  takeQuickEventDraft,
+  type QuickEventDraft,
+} from "@/lib/quick-event-draft"
 
 function cloneEvent(event: CalendarEvent): CalendarEvent {
   return {
@@ -57,8 +59,16 @@ function cloneEvent(event: CalendarEvent): CalendarEvent {
 
 function newEvent(
   location = "",
-  category = RESERVATION_EVENT_TYPE_ID
+  category = RESERVATION_EVENT_TYPE_ID,
+  quickDraft?: QuickEventDraft | null
 ): CalendarEvent {
+  if (quickDraft) {
+    return quickEventDraftToCalendarEvent(quickDraft, {
+      id: "",
+      category,
+      location,
+    })
+  }
   const start = new Date()
   start.setDate(start.getDate() + 1)
   start.setHours(10, 0, 0, 0)
@@ -100,12 +110,15 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const existing = eventId
     ? events.find((event) => event.id === eventId)
     : undefined
+  const [quickDraft] = useState(() =>
+    eventId || !hub ? null : takeQuickEventDraft(hub.id)
+  )
   const [draft, setDraft] = useState<CalendarEvent | null>(() =>
     eventId
       ? existing
         ? cloneEvent(existing)
         : null
-      : newEvent(hub?.address ?? "", eventTypes[0]?.id)
+      : newEvent(hub?.address ?? "", eventTypes[0]?.id, quickDraft)
   )
   const [endDateWasEdited, setEndDateWasEdited] = useState(Boolean(eventId))
   const [endTimeWasEdited, setEndTimeWasEdited] = useState(Boolean(eventId))
@@ -113,7 +126,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const [removedAttachments, setRemovedAttachments] = useState<
     CalendarEvent["attachments"]
   >([])
-  const [dirty, setDirty] = useState(false)
+  const [dirty, setDirty] = useState(Boolean(quickDraft))
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const deputyManaged = draft?.source === "deputy"
@@ -319,96 +332,75 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                   label={draft.allDay ? "startDate" : "starts"}
                   id="event-start"
                 >
-                  <EventDatePicker
-                    id="event-start"
-                    value={draft.start.slice(0, 10)}
-                    languageTag={languageTag}
-                    ariaLabel={t(draft.allDay ? "startDate" : "starts")}
-                    onChange={(value) => {
-                      if (draft.allDay) {
+                  {draft.allDay ? (
+                    <EventDatePicker
+                      id="event-start"
+                      value={draft.start.slice(0, 10)}
+                      languageTag={languageTag}
+                      ariaLabel={t("startDate")}
+                      onChange={(value) =>
                         change(updateAllDayStart(draft, value))
-                      } else {
+                      }
+                      disabled={deputyManaged}
+                    />
+                  ) : (
+                    <EventDateTimePicker
+                      id="event-start"
+                      value={draft.start}
+                      languageTag={languageTag}
+                      dateAriaLabel={t("starts")}
+                      timeAriaLabel={`${t("starts")} ${t("time")}`}
+                      disabled={deputyManaged}
+                      onDateChange={(value) =>
                         changeTimedStart(replaceLocalDate(draft.start, value))
                       }
-                    }}
-                    disabled={deputyManaged}
-                  />
-                  {!draft.allDay && (
-                    <>
-                      <Label htmlFor="event-start-time" className="sr-only">
-                        <T>starts</T> <T>time</T>
-                      </Label>
-                      <Input
-                        id="event-start-time"
-                        type="time"
-                        value={localTime(draft.start)}
-                        aria-label={`${t("starts")} ${t("time")}`}
-                        disabled={deputyManaged}
-                        onChange={(event) =>
-                          changeTimedStart(
-                            replaceLocalTime(draft.start, event.target.value)
-                          )
-                        }
-                        onBlur={(event) =>
-                          changeTimedStart(
-                            replaceLocalTime(draft.start, event.target.value)
-                          )
-                        }
-                        className="mt-2 border border-input px-3"
-                      />
-                    </>
+                      onTimeChange={(value) =>
+                        changeTimedStart(replaceLocalTime(draft.start, value))
+                      }
+                      onTimeBlur={(value) =>
+                        changeTimedStart(replaceLocalTime(draft.start, value))
+                      }
+                    />
                   )}
                 </Field>
                 <Field label={draft.allDay ? "lastDay" : "ends"} id="event-end">
-                  <EventDatePicker
-                    id="event-end"
-                    value={
-                      draft.allDay
-                        ? addCalendarDays(draft.end.slice(0, 10), -1)
-                        : draft.end.slice(0, 10)
-                    }
-                    minimum={
-                      draft.allDay ? draft.start.slice(0, 10) : undefined
-                    }
-                    languageTag={languageTag}
-                    ariaLabel={t(draft.allDay ? "lastDay" : "ends")}
-                    onChange={(value) => {
-                      setEndDateWasEdited(true)
-                      if (draft.allDay) {
+                  {draft.allDay ? (
+                    <EventDatePicker
+                      id="event-end"
+                      value={addCalendarDays(draft.end.slice(0, 10), -1)}
+                      minimum={draft.start.slice(0, 10)}
+                      languageTag={languageTag}
+                      ariaLabel={t("lastDay")}
+                      onChange={(value) => {
+                        setEndDateWasEdited(true)
                         change({
                           ...draft,
                           end: `${addCalendarDays(value, 1)}T00:00`,
                         })
-                      } else {
+                      }}
+                      disabled={deputyManaged}
+                    />
+                  ) : (
+                    <EventDateTimePicker
+                      id="event-end"
+                      value={draft.end}
+                      languageTag={languageTag}
+                      dateAriaLabel={t("ends")}
+                      timeAriaLabel={`${t("ends")} ${t("time")}`}
+                      disabled={deputyManaged}
+                      onDateChange={(value) => {
+                        setEndDateWasEdited(true)
                         change(
                           clearEventInstants({
                             ...draft,
                             end: replaceLocalDate(draft.end, value),
                           })
                         )
+                      }}
+                      onTimeChange={(value) =>
+                        changeTimedEnd(replaceLocalTime(draft.end, value))
                       }
-                    }}
-                    disabled={deputyManaged}
-                  />
-                  {!draft.allDay && (
-                    <>
-                      <Label htmlFor="event-end-time" className="sr-only">
-                        <T>ends</T> <T>time</T>
-                      </Label>
-                      <Input
-                        id="event-end-time"
-                        type="time"
-                        value={localTime(draft.end)}
-                        aria-label={`${t("ends")} ${t("time")}`}
-                        disabled={deputyManaged}
-                        onChange={(event) =>
-                          changeTimedEnd(
-                            replaceLocalTime(draft.end, event.target.value)
-                          )
-                        }
-                        className="mt-2 border border-input px-3"
-                      />
-                    </>
+                    />
                   )}
                 </Field>
               </div>
@@ -681,90 +673,6 @@ export function EventEditor({ eventId }: { eventId?: string }) {
       </div>
     </div>
   )
-}
-
-function EventDatePicker({
-  id,
-  value,
-  minimum,
-  languageTag,
-  ariaLabel,
-  disabled,
-  onChange,
-}: {
-  id: string
-  value: string
-  minimum?: string
-  languageTag: string
-  ariaLabel: string
-  disabled?: boolean
-  onChange: (value: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const selected = localDate(value)
-  const minimumDate = minimum ? localDate(minimum) : undefined
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            id={id}
-            type="button"
-            variant="outline"
-            className="w-full justify-start bg-background px-3 font-normal"
-            aria-label={ariaLabel}
-            disabled={disabled}
-          />
-        }
-      >
-        <CalendarDays />
-        {selected
-          ? new Intl.DateTimeFormat(languageTag, {
-              dateStyle: "medium",
-            }).format(selected)
-          : ariaLabel}
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={selected}
-          defaultMonth={selected}
-          locale={languageTag === "et-EE" ? et : enGB}
-          disabled={minimumDate ? { before: minimumDate } : undefined}
-          onSelect={(date) => {
-            if (!date) return
-            onChange(localDateKey(date))
-            setOpen(false)
-          }}
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-function localDate(value: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (!match) return undefined
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const result = new Date(year, month - 1, day)
-  if (
-    result.getFullYear() !== year ||
-    result.getMonth() !== month - 1 ||
-    result.getDate() !== day
-  ) {
-    return undefined
-  }
-  return result
-}
-
-function localDateKey(value: Date) {
-  const year = String(value.getFullYear()).padStart(4, "0")
-  const month = String(value.getMonth() + 1).padStart(2, "0")
-  const day = String(value.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
 }
 
 function localTime(value: string) {

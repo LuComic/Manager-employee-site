@@ -521,6 +521,19 @@ export function OperationsProvider({
     return hub.id
   }
 
+  function editableHubId(section: WorkerEditableSection) {
+    if (
+      !hub ||
+      !managerAccess ||
+      (managerAccess !== "manager" &&
+        managerAccess !== "owner" &&
+        !hub.workersCanEdit[section])
+    ) {
+      throw new Error("createOrOpenYourHubFirst")
+    }
+    return hub.id
+  }
+
   async function run<T>(operation: () => Promise<T>) {
     try {
       return await operation()
@@ -821,7 +834,7 @@ export function OperationsProvider({
     saveEvent: async (event) => {
       return await run(() =>
         saveEventMutation({
-          hubId: managerHubId(),
+          hubId: editableHubId("events"),
           slug: event.id,
           title: event.title,
           description: event.description,
