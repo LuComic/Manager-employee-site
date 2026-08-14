@@ -754,7 +754,6 @@ export const deleteEvent = mutation({
       )
       .unique()
     if (!event) return null
-    if (event.source === "deputy") throw new Error("deputyShiftManagedByDeputy")
     const [relations, employeeRelations, attachments, announcements] =
       await Promise.all([
         ctx.db

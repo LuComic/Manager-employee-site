@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   List,
@@ -26,18 +27,17 @@ import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@/components/ui/segmented-control"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  eventMatchesFilter,
+  eventMatchesFilters,
   eventRenderLastDateKey,
   eventRendersOnDate,
   formatEventDate,
@@ -53,6 +53,13 @@ import {
 import { cn } from "@/lib/utils"
 
 type View = "month" | "list"
+type FilterSelection = {
+  defaultSelected: boolean
+  overrides: Record<string, boolean>
+}
+
+const filterCheckboxItemClassName =
+  "pr-3 pl-10 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:right-auto [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:left-3 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:size-4 [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:border [&_[data-slot=dropdown-menu-checkbox-item-indicator]]:border-input [&_[data-slot=dropdown-menu-checkbox-item-indicator]_svg]:size-3"
 
 function firstOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1)
@@ -79,14 +86,26 @@ export function CalendarPage() {
   const [visibleDate, setVisibleDate] = useState(() =>
     firstOfMonth(dateFromKey(todayKey))
   )
-  const [category, setCategory] = useState<string>("All")
+  const [categoryFilters, setCategoryFilters] = useState<FilterSelection>({
+    defaultSelected: true,
+    overrides: {},
+  })
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null)
   const monthEventsSectionRef = useRef<HTMLElement>(null)
-  const published = events.filter(
-    (event) => event.published && eventMatchesFilter(event, category)
-  )
   const allPublished = events.filter((event) => event.published)
   const hasPrivateEvents = allPublished.some((event) => event.isPrivate)
+  const filterIds = [
+    ...(hasPrivateEvents ? [PRIVATE_EVENT_FILTER] : []),
+    ...eventTypes.map((eventType) => eventType.id),
+  ]
+  const selectedFilterIds = filterIds.filter(
+    (filterId) =>
+      categoryFilters.overrides[filterId] ?? categoryFilters.defaultSelected
+  )
+  const allFiltersSelected = selectedFilterIds.length === filterIds.length
+  const published = allPublished.filter((event) =>
+    eventMatchesFilters(event, selectedFilterIds)
+  )
   const visibleMonthStart = calendarKey(firstOfMonth(visibleDate))
   const visibleMonthEnd = calendarKey(
     new Date(visibleDate.getFullYear(), visibleDate.getMonth() + 1, 0)
@@ -151,6 +170,25 @@ export function CalendarPage() {
     setSelectedDayKey(key)
   }
 
+  function setAllFilters(selected: boolean) {
+    setSelectedDayKey(null)
+    setCategoryFilters({ defaultSelected: selected, overrides: {} })
+  }
+
+  function setFilterSelected(filterId: string, selected: boolean) {
+    setSelectedDayKey(null)
+    setCategoryFilters((current) => ({
+      ...current,
+      overrides: { ...current.overrides, [filterId]: selected },
+    }))
+  }
+
+  function filterLabel(filterId: string) {
+    return filterId === PRIVATE_EVENT_FILTER
+      ? t("private")
+      : eventCategoryLabel(filterId, eventTypes)
+  }
+
   return (
     <div className="space-y-6">
       <PageHeading
@@ -203,49 +241,63 @@ export function CalendarPage() {
           </Button>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <label htmlFor="event-category" className="sr-only">
-            <T>filterByEventType</T>
-          </label>
-          <Select
-            value={category}
-            onValueChange={(value) => {
-              if (value) {
-                setSelectedDayKey(null)
-                setCategory(value)
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  id="event-category"
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-between bg-background px-3 sm:w-auto sm:max-w-64"
+                  aria-label={t("filterByEventType")}
+                />
               }
-            }}
-          >
-            <SelectTrigger
-              id="event-category"
-              size="sm"
-              className="w-full border border-input bg-background px-3 sm:w-auto sm:max-w-64"
             >
-              <SelectValue>
-                {category === PRIVATE_EVENT_FILTER ? (
-                  <PrivateEventFilterLabel />
-                ) : category === "All" ? (
-                  t("allEventTypes")
-                ) : (
-                  eventCategoryLabel(category, eventTypes)
-                )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">
+              <span className="truncate">
+                {allFiltersSelected
+                  ? t("allEventTypes")
+                  : selectedFilterIds.length === 1
+                    ? filterLabel(selectedFilterIds[0])
+                    : t("selectedEventFilters", {
+                        selected: selectedFilterIds.length,
+                        total: filterIds.length,
+                      })}
+              </span>
+              <ChevronDown />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuCheckboxItem
+                checked={allFiltersSelected}
+                onCheckedChange={setAllFilters}
+                className={filterCheckboxItemClassName}
+              >
                 <T>allEventTypes</T>
-              </SelectItem>
+              </DropdownMenuCheckboxItem>
               {hasPrivateEvents && (
-                <SelectItem value={PRIVATE_EVENT_FILTER}>
+                <DropdownMenuCheckboxItem
+                  checked={selectedFilterIds.includes(PRIVATE_EVENT_FILTER)}
+                  onCheckedChange={(selected) =>
+                    setFilterSelected(PRIVATE_EVENT_FILTER, selected)
+                  }
+                  className={filterCheckboxItemClassName}
+                >
                   <PrivateEventFilterLabel />
-                </SelectItem>
+                </DropdownMenuCheckboxItem>
               )}
               {eventTypes.map((eventType) => (
-                <SelectItem key={eventType.id} value={eventType.id}>
+                <DropdownMenuCheckboxItem
+                  key={eventType.id}
+                  checked={selectedFilterIds.includes(eventType.id)}
+                  onCheckedChange={(selected) =>
+                    setFilterSelected(eventType.id, selected)
+                  }
+                  className={filterCheckboxItemClassName}
+                >
                   {eventCategoryLabel(eventType.id, eventTypes)}
-                </SelectItem>
+                </DropdownMenuCheckboxItem>
               ))}
-            </SelectContent>
-          </Select>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <SegmentedControl className="h-9" aria-label={t("calendarView")}>
             <SegmentedControlItem
               selected={view === "month"}

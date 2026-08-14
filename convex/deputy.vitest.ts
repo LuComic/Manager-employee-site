@@ -45,6 +45,48 @@ async function setup(t: ReturnType<typeof convexTest>) {
 }
 
 describe("Deputy schedule synchronization", () => {
+  test("lets managers delete worker schedule events", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, connectionId } = await setup(t)
+    await t.mutation(internal.deputy.applyRosterBatch, {
+      connectionId,
+      generation: 1,
+      syncId: "sync-1",
+      rosters: [
+        {
+          externalId: "delete-me",
+          startUtc: "2026-08-04T06:00:00.000Z",
+          endUtc: "2026-08-04T14:00:00.000Z",
+          employeeId: "7",
+          employeeName: "Alice Worker",
+          areaId: "3",
+          areaName: "Kitchen",
+          published: true,
+        },
+      ],
+    })
+
+    await expect(
+      t.withIdentity(ownerIdentity).mutation(api.content.deleteEvent, {
+        hubId,
+        slug: "deputy-shift-delete-me",
+      })
+    ).resolves.toBeNull()
+
+    const stored = await t.run(async (ctx) =>
+      ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "deputy-shift-delete-me")
+        )
+        .unique()
+    )
+    expect(stored).toBeNull()
+    expect(
+      await t.run((ctx) => ctx.db.query("eventEmployees").take(10))
+    ).toHaveLength(0)
+  })
+
   test("keeps local privacy while Deputy updates schedule-owned fields", async () => {
     const t = convexTest(schema, modules)
     const { hubId, connectionId } = await setup(t)

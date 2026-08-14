@@ -44,6 +44,14 @@ export function eventMatchesFilter(
   return event.category === filter
 }
 
+export function eventMatchesFilters(
+  event: Pick<CalendarEvent, "category" | "isPrivate">,
+  filters: readonly string[]
+) {
+  const eventFilter = event.isPrivate ? PRIVATE_EVENT_FILTER : event.category
+  return filters.includes(eventFilter)
+}
+
 export type EmployeeStatus = "unclaimed" | "invited" | "active" | "deactivated"
 export type EmployeeAccessLevel = "viewer" | "editor" | "manager"
 

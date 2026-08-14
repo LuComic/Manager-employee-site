@@ -87,6 +87,7 @@
     "allDayEventsRemainAllDayImportedMessage": "Kogu päeva sündmused jäävad importimisel ja eksportimisel kogu päeva sündmusteks. Viimane päev on kaasa arvatud.",
     "allDayListSuffix": "· Kogu päev",
     "allEventTypes": "Kõik sündmused",
+    "selectedEventFilters": "Valitud {selected}/{total}",
     "allGuides": "Kõik juhendid",
     "allResources": "Kõik materjalid",
     "allStatuses": "Kõik olekud",

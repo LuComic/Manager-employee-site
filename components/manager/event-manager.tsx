@@ -489,7 +489,7 @@ export function EventManager() {
                   >
                     <FilePenLine data-icon="inline-start" /> <T>edit</T>
                   </Link>
-                  {canCreateContent && event.source !== "deputy" && (
+                  {canCreateContent && (
                     <Button
                       variant="destructive"
                       size="icon-sm"

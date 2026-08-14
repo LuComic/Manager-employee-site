@@ -87,6 +87,7 @@
     "allDayEventsRemainAllDayImportedMessage": "All-day events remain all day when imported and exported. The last day is inclusive.",
     "allDayListSuffix": "· All day",
     "allEventTypes": "All events",
+    "selectedEventFilters": "{selected} of {total} selected",
     "allGuides": "All guides",
     "allResources": "All resources",
     "allStatuses": "All statuses",

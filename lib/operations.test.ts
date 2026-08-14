@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test"
 import {
   addHoursToLocalDateTime,
   eventMatchesFilter,
+  eventMatchesFilters,
   eventOccursOnDate,
   eventRendersOnDate,
   formatDate,
@@ -42,6 +43,22 @@ describe("event filtering", () => {
     expect(eventMatchesFilter(publicEvent, "reservation")).toBeTrue()
     expect(eventMatchesFilter(publicEvent, PRIVATE_EVENT_FILTER)).toBeFalse()
     expect(eventMatchesFilter(privateEvent, PRIVATE_EVENT_FILTER)).toBeTrue()
+  })
+
+  test("matches any selected employee-calendar filter", () => {
+    const reservation = { category: "reservation", isPrivate: false }
+    const training = { category: "training", isPrivate: false }
+    const privateReservation = { category: "reservation", isPrivate: true }
+
+    expect(eventMatchesFilters(reservation, ["reservation", "training"])).toBe(
+      true
+    )
+    expect(eventMatchesFilters(training, ["reservation"])).toBe(false)
+    expect(eventMatchesFilters(privateReservation, ["reservation"])).toBe(false)
+    expect(
+      eventMatchesFilters(privateReservation, [PRIVATE_EVENT_FILTER])
+    ).toBe(true)
+    expect(eventMatchesFilters(reservation, [])).toBe(false)
   })
 })
 
