@@ -754,7 +754,6 @@ export const deleteEvent = mutation({
       )
       .unique()
     if (!event) return null
-    if (event.source === "deputy") throw new Error("deputyShiftManagedByDeputy")
     const [relations, employeeRelations, attachments, announcements] =
       await Promise.all([
         ctx.db
@@ -798,7 +797,14 @@ export const deleteEvent = mutation({
         eventId: undefined,
       })
     }
-    await ctx.db.delete("events", event._id)
+    if (event.source === "deputy") {
+      await ctx.db.patch("events", event._id, {
+        published: false,
+        managerDeleted: true,
+      })
+    } else {
+      await ctx.db.delete("events", event._id)
+    }
     if (event.published) {
       await createNotification(ctx, {
         hubId: args.hubId,

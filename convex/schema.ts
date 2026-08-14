@@ -185,6 +185,7 @@ export default defineSchema({
     sourceAreaId: v.optional(v.string()),
     lastSourceSyncId: v.optional(v.string()),
     sourceDeleted: v.optional(v.boolean()),
+    managerDeleted: v.optional(v.boolean()),
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_start", ["hubId", "start"])

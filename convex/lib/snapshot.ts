@@ -108,7 +108,9 @@ export async function buildSnapshot(
   const guides = includeGuideDrafts
     ? allGuides
     : allGuides.filter((guide) => guide.published)
-  const activeEvents = allEvents.filter((event) => !event.sourceDeleted)
+  const activeEvents = allEvents.filter(
+    (event) => !event.sourceDeleted && !event.managerDeleted
+  )
   const privacyFilteredEvents = options.includePrivateEvents
     ? activeEvents
     : activeEvents.filter((event) => !event.isPrivate)

@@ -45,6 +45,100 @@ async function setup(t: ReturnType<typeof convexTest>) {
 }
 
 describe("Deputy schedule synchronization", () => {
+  test("keeps manager-deleted worker schedules hidden after a later sync", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, connectionId } = await setup(t)
+    await t.mutation(internal.deputy.applyRosterBatch, {
+      connectionId,
+      generation: 1,
+      syncId: "sync-1",
+      rosters: [
+        {
+          externalId: "delete-me",
+          startUtc: "2026-08-04T06:00:00.000Z",
+          endUtc: "2026-08-04T14:00:00.000Z",
+          employeeId: "7",
+          employeeName: "Alice Worker",
+          areaId: "3",
+          areaName: "Kitchen",
+          published: true,
+        },
+      ],
+    })
+
+    await expect(
+      t.withIdentity(ownerIdentity).mutation(api.content.deleteEvent, {
+        hubId,
+        slug: "deputy-shift-delete-me",
+      })
+    ).resolves.toBeNull()
+
+    const deleted = await t.run(async (ctx) =>
+      ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "deputy-shift-delete-me")
+        )
+        .unique()
+    )
+    expect(deleted).toMatchObject({
+      managerDeleted: true,
+      published: false,
+      source: "deputy",
+    })
+    expect(
+      await t.run((ctx) => ctx.db.query("eventEmployees").take(10))
+    ).toHaveLength(0)
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("deputyConnections", connectionId, {
+        activeSyncId: "sync-2",
+      })
+    })
+    await expect(
+      t.mutation(internal.deputy.applyRosterBatch, {
+        connectionId,
+        generation: 1,
+        syncId: "sync-2",
+        rosters: [
+          {
+            externalId: "delete-me",
+            startUtc: "2026-08-05T07:00:00.000Z",
+            endUtc: "2026-08-05T15:00:00.000Z",
+            employeeId: "8",
+            employeeName: "Bob Worker",
+            areaId: "4",
+            areaName: "Front desk",
+            published: true,
+          },
+        ],
+      })
+    ).resolves.toBe(true)
+
+    const afterResync = await t.run(async (ctx) =>
+      ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "deputy-shift-delete-me")
+        )
+        .unique()
+    )
+    expect(afterResync).toMatchObject({
+      managerDeleted: true,
+      published: false,
+      title: "Alice Worker",
+    })
+    expect(
+      await t.run((ctx) => ctx.db.query("eventEmployees").take(10))
+    ).toHaveLength(0)
+
+    const snapshot = await t
+      .withIdentity(ownerIdentity)
+      .query(api.hubs.getManagerSnapshot, { nowDate: "2026-08-03" })
+    if (snapshot.kind !== "ready") throw new Error("Expected manager snapshot")
+    expect(snapshot.events).toEqual([])
+  })
+
   test("keeps local privacy while Deputy updates schedule-owned fields", async () => {
     const t = convexTest(schema, modules)
     const { hubId, connectionId } = await setup(t)
