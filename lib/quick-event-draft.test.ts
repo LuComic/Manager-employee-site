@@ -10,19 +10,19 @@ describe("quick event drafts", () => {
     expect(createQuickEventDraft("2026-08-15")).toEqual({
       title: "",
       description: "",
-      startDate: "2026-08-15",
-      endDate: "2026-08-15",
+      start: "2026-08-15T10:00",
+      end: "2026-08-15T11:00",
     })
   })
 
-  test("converts inclusive dates into an all-day calendar event", () => {
+  test("converts the selected local date and times into a calendar event", () => {
     expect(
       quickEventDraftToCalendarEvent(
         {
           title: "Summer menu",
           description: "Launch the updated menu.",
-          startDate: "2026-08-15",
-          endDate: "2026-08-17",
+          start: "2026-08-15T10:30",
+          end: "2026-08-15T12:00",
         },
         {
           id: "summer-menu",
@@ -34,9 +34,9 @@ describe("quick event drafts", () => {
       id: "summer-menu",
       title: "Summer menu",
       description: "Launch the updated menu.",
-      start: "2026-08-15T00:00",
-      end: "2026-08-18T00:00",
-      allDay: true,
+      start: "2026-08-15T10:30",
+      end: "2026-08-15T12:00",
+      allDay: false,
       category: "event-training",
       location: "Merevaade",
       published: true,

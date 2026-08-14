@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Plus } from "lucide-react"
 
+import { EventDateTimePicker } from "@/components/calendar/event-date-time-picker"
 import { useOperations } from "@/components/providers/operations-provider"
 import { T } from "@/components/translated-text"
 import { Button } from "@/components/ui/button"
@@ -19,8 +20,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "@/i18n/navigation"
 import type { AppMessageKey } from "@/i18n/messages"
-import { useAppTranslations } from "@/i18n/use-app-translations"
-import { slugify } from "@/lib/operations"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
+import { addHoursToLocalDateTime, slugify } from "@/lib/operations"
 import {
   createQuickEventDraft,
   quickEventDraftToCalendarEvent,
@@ -30,6 +31,7 @@ import {
 
 export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
   const t = useAppTranslations()
+  const languageTag = useLanguageTag()
   const router = useRouter()
   const { events, eventTypes, hub, managerAccess, saveEvent, showFeedback } =
     useOperations()
@@ -37,6 +39,8 @@ export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
   const [draft, setDraft] = useState<QuickEventDraft>(() =>
     createQuickEventDraft(defaultDate)
   )
+  const [endDateWasEdited, setEndDateWasEdited] = useState(false)
+  const [endTimeWasEdited, setEndTimeWasEdited] = useState(false)
   const [error, setError] = useState<AppMessageKey | "">("")
   const [saving, setSaving] = useState(false)
 
@@ -45,7 +49,28 @@ export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
     setError("")
-    if (nextOpen) setDraft(createQuickEventDraft(defaultDate))
+    if (nextOpen) {
+      setDraft(createQuickEventDraft(defaultDate))
+      setEndDateWasEdited(false)
+      setEndTimeWasEdited(false)
+    }
+  }
+
+  function changeStart(start: string) {
+    const suggestedEnd = addHoursToLocalDateTime(start, 1)
+    let end = suggestedEnd || draft.end
+    if (suggestedEnd && endDateWasEdited) {
+      end = replaceLocalDate(end, draft.end.slice(0, 10))
+    }
+    if (suggestedEnd && endTimeWasEdited) {
+      end = replaceLocalTime(end, localTime(draft.end))
+    }
+    setDraft({
+      ...draft,
+      start,
+      end,
+    })
+    setError("")
   }
 
   function validate() {
@@ -53,11 +78,14 @@ export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
       setError("addANameAndDescription")
       return false
     }
-    if (!draft.startDate || !draft.endDate) {
-      setError("addStartAndEndDates")
+    if (
+      !addHoursToLocalDateTime(draft.start, 0) ||
+      !addHoursToLocalDateTime(draft.end, 0)
+    ) {
+      setError("addStartEndDateTime")
       return false
     }
-    if (draft.endDate < draft.startDate) {
+    if (draft.end <= draft.start) {
       setError("endLaterThanStart")
       return false
     }
@@ -118,7 +146,7 @@ export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
       >
         <Plus />
       </Button>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <form
           onSubmit={(event) => {
             event.preventDefault()
@@ -170,47 +198,54 @@ export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="quick-event-start">
-                  <T>startDate</T>
+                  <T>starts</T>
                 </Label>
-                <Input
+                <EventDateTimePicker
                   id="quick-event-start"
-                  type="date"
-                  required
-                  value={draft.startDate}
-                  onChange={(event) => {
-                    const startDate = event.target.value
-                    setDraft({
-                      ...draft,
-                      startDate,
-                      endDate:
-                        draft.endDate < startDate ? startDate : draft.endDate,
-                    })
-                    setError("")
-                  }}
-                  className="border border-input px-3"
+                  value={draft.start}
+                  languageTag={languageTag}
+                  dateAriaLabel={t("starts")}
+                  timeAriaLabel={`${t("starts")} ${t("time")}`}
+                  onDateChange={(value) =>
+                    changeStart(replaceLocalDate(draft.start, value))
+                  }
+                  onTimeChange={(value) =>
+                    changeStart(replaceLocalTime(draft.start, value))
+                  }
+                  onTimeBlur={(value) =>
+                    changeStart(replaceLocalTime(draft.start, value))
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="quick-event-end">
-                  <T>lastDay</T>
+                  <T>ends</T>
                 </Label>
-                <Input
+                <EventDateTimePicker
                   id="quick-event-end"
-                  type="date"
-                  required
-                  min={draft.startDate}
-                  value={draft.endDate}
-                  onChange={(event) => {
-                    setDraft({ ...draft, endDate: event.target.value })
+                  value={draft.end}
+                  languageTag={languageTag}
+                  dateAriaLabel={t("ends")}
+                  timeAriaLabel={`${t("ends")} ${t("time")}`}
+                  onDateChange={(value) => {
+                    setEndDateWasEdited(true)
+                    setDraft({
+                      ...draft,
+                      end: replaceLocalDate(draft.end, value),
+                    })
                     setError("")
                   }}
-                  className="border border-input px-3"
+                  onTimeChange={(value) => {
+                    setEndTimeWasEdited(true)
+                    setDraft({
+                      ...draft,
+                      end: replaceLocalTime(draft.end, value),
+                    })
+                    setError("")
+                  }}
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              <T>quickEventsAreAllDay</T>
-            </p>
             {error && (
               <p role="alert" className="text-sm text-destructive">
                 <T>{error}</T>
@@ -221,19 +256,25 @@ export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
             <Button
               type="button"
               variant="ghost"
+              className="whitespace-nowrap"
               onClick={continueWithMoreDetails}
             >
               <T>continueWithMoreDetails</T>
             </Button>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
+                className="whitespace-nowrap"
                 onClick={() => setOpen(false)}
               >
                 <T>cancel</T>
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button
+                type="submit"
+                className="whitespace-nowrap"
+                disabled={saving}
+              >
                 <T>{saving ? "saving" : "saveEvent"}</T>
               </Button>
             </div>
@@ -242,4 +283,17 @@ export function QuickEventDialog({ defaultDate }: { defaultDate: string }) {
       </DialogContent>
     </Dialog>
   )
+}
+
+function localTime(value: string) {
+  const time = value.slice(11, 16)
+  return /^\d{2}:\d{2}$/.test(time) ? time : ""
+}
+
+function replaceLocalDate(value: string, date: string) {
+  return `${date}T${localTime(value)}`
+}
+
+function replaceLocalTime(value: string, time: string) {
+  return `${value.slice(0, 10)}T${time}`
 }
