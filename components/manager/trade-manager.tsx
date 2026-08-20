@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
+import { ArrowLeftRight, Plus } from "lucide-react"
 import { useQuery } from "convex/react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { useOperations } from "@/components/providers/operations-provider"
 import { T } from "@/components/translated-text"
@@ -13,23 +14,12 @@ import { api } from "@/convex/_generated/api"
 import { Link } from "@/i18n/navigation"
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 import { formatDate, formatTime } from "@/lib/operations"
-import { createDemoTrades, type ShiftTrade } from "@/lib/trades"
-import { tradeStatusLabel } from "@/lib/trades"
-import { cn } from "@/lib/utils"
-
-function tradeTone(status: ShiftTrade["status"]) {
-  if (status === "published") {
-    return "border-success/30 bg-success/10 hover:bg-success/15"
-  }
-  if (
-    status === "offer-pending" ||
-    status === "confirmed" ||
-    status === "processing"
-  ) {
-    return "border-warning/40 bg-warning/10 hover:bg-warning/15"
-  }
-  return "border-border bg-background hover:bg-muted/40"
-}
+import {
+  createDemoTrades,
+  tradeStatusIconClass,
+  tradeStatusLabel,
+  type ShiftTrade,
+} from "@/lib/trades"
 
 export function TradeManager() {
   const t = useAppTranslations()
@@ -87,21 +77,14 @@ export function TradeManager() {
             </div>
           )}
           {visibleTrades.map((trade) => (
-            <Link
+            <ManagerListItem
               key={trade.id}
-              href={`/trades/${trade.slug}`}
-              className="block outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-            >
-              <div
-                className={cn(
-                  "border p-4 transition-colors",
-                  tradeTone(trade.status)
-                )}
-              >
-                <h2 className="font-semibold">
-                  {t("tradeByName", { name: trade.publisherName })}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+              icon={<ArrowLeftRight className="size-5" />}
+              iconClassName={tradeStatusIconClass(trade.status)}
+              title={t("tradeByName", { name: trade.publisherName })}
+              summaryHref={`/trades/${trade.slug}`}
+              description={
+                <>
                   {t(tradeStatusLabel[trade.status])} ·
                   {trade.demo ? ` ${t("demo")} ·` : ""}{" "}
                   {formatDate(
@@ -123,9 +106,9 @@ export function TradeManager() {
                     languageTag
                   )}{" "}
                   · {trade.sourceShift.area} · {trade.reason}
-                </p>
-              </div>
-            </Link>
+                </>
+              }
+            />
           ))}
         </div>
       )}

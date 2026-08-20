@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest"
 
-import { createDemoOfferShifts, createDemoTrades } from "@/lib/trades"
+import {
+  createDemoOfferShifts,
+  createDemoTrades,
+  tradeStatusIconClass,
+} from "@/lib/trades"
 
 const copy = {
   publisherReason: "Publisher reason",
@@ -40,5 +44,13 @@ describe("trade demo fixtures", () => {
     expect(shifts.every((shift) => shift.employeeName === copy.yourName)).toBe(
       true
     )
+  })
+
+  test("uses teal and warning tokens only on active trade icons", () => {
+    expect(tradeStatusIconClass("published")).toContain("text-primary")
+    expect(tradeStatusIconClass("offer-pending")).toContain("text-warning")
+    expect(tradeStatusIconClass("confirmed")).toContain("text-warning")
+    expect(tradeStatusIconClass("processing")).toContain("text-warning")
+    expect(tradeStatusIconClass("approved")).toContain("text-muted-foreground")
   })
 })

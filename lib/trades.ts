@@ -202,3 +202,15 @@ export const tradeStatusLabel: Record<TradeStatus, AppMessageKey> = {
   "manager-declined": "tradeStatusDeclined",
   unpublished: "tradeStatusUnpublished",
 }
+
+export function tradeStatusIconClass(status: TradeStatus) {
+  if (status === "published") return "bg-primary/10 text-primary"
+  if (
+    status === "offer-pending" ||
+    status === "confirmed" ||
+    status === "processing"
+  ) {
+    return "bg-warning/10 text-warning"
+  }
+  return "bg-muted text-muted-foreground"
+}

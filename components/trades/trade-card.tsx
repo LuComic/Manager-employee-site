@@ -10,7 +10,7 @@ import { Link } from "@/i18n/navigation"
 import { useLanguageTag } from "@/i18n/use-app-translations"
 import { formatDate, formatTime } from "@/lib/operations"
 import type { ShiftTrade, TradeShift } from "@/lib/trades"
-import { tradeStatusLabel } from "@/lib/trades"
+import { tradeStatusIconClass, tradeStatusLabel } from "@/lib/trades"
 
 function ShiftLine({ shift }: { shift: TradeShift }) {
   const languageTag = useLanguageTag()
@@ -39,7 +39,9 @@ export function TradeCard({ trade }: { trade: ShiftTrade }) {
       <Card className="h-full shadow-none transition-colors group-hover:bg-muted/40">
         <CardContent className="space-y-4">
           <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
+            <span
+              className={`flex size-10 shrink-0 items-center justify-center ${tradeStatusIconClass(trade.status)}`}
+            >
               <ArrowLeftRight className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
