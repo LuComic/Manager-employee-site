@@ -13,6 +13,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Commands
 
 - use 'bun' and 'bunx' for packages and commands
+- after a task if fully done, eg code has been pushed or I say that the task is done, close any of your dev servers that are running
 
 <!-- convex-ai-start -->
 
