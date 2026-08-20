@@ -28,7 +28,10 @@ import type * as lib_hubStorage from "../lib/hubStorage.js";
 import type * as lib_notifications from "../lib/notifications.js";
 import type * as lib_snapshot from "../lib/snapshot.js";
 import type * as notifications from "../notifications.js";
+import type * as schedules from "../schedules.js";
 import type * as search from "../search.js";
+import type * as tradeApproval from "../tradeApproval.js";
+import type * as trades from "../trades.js";
 import type * as workerNotes from "../workerNotes.js";
 
 import type {
@@ -58,7 +61,10 @@ declare const fullApi: ApiFromModules<{
   "lib/notifications": typeof lib_notifications;
   "lib/snapshot": typeof lib_snapshot;
   notifications: typeof notifications;
+  schedules: typeof schedules;
   search: typeof search;
+  tradeApproval: typeof tradeApproval;
+  trades: typeof trades;
   workerNotes: typeof workerNotes;
 }>;
 

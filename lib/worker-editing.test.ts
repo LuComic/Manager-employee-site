@@ -19,6 +19,7 @@ describe("worker editing settings", () => {
       })
     ).toBe("/manager/calendar")
     expect(firstWorkerManagerPath({ faqs: true })).toBe("/manager/questions")
+    expect(firstWorkerManagerPath({ trades: true })).toBe("/manager/trades")
   })
 
   test("returns no manager path when editing is disabled", () => {

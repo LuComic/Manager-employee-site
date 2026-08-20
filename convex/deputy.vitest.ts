@@ -160,7 +160,8 @@ describe("Deputy schedule synchronization", () => {
       ],
     })
     const owner = t.withIdentity(ownerIdentity)
-    const initial = await owner.query(api.hubs.getManagerSnapshot, {
+    const initial = await owner.query(api.hubs.getPublicSnapshot, {
+      slug: "deputy-workplace",
       nowDate: "2026-08-03",
     })
     if (initial.kind !== "ready") throw new Error("Expected manager snapshot")
@@ -211,12 +212,16 @@ describe("Deputy schedule synchronization", () => {
       ],
     })
 
-    const updated = await owner.query(api.hubs.getManagerSnapshot, {
-      nowDate: "2026-08-03",
-    })
-    if (updated.kind !== "ready") throw new Error("Expected manager snapshot")
-    expect(updated.events[0]).toMatchObject({
-      id: "deputy-shift-42",
+    const updated = await t.run(async (ctx) =>
+      ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "deputy-shift-42")
+        )
+        .unique()
+    )
+    expect(updated).toMatchObject({
+      slug: "deputy-shift-42",
       title: "Bob Worker",
       description: "Local calendar description",
       startUtc: "2026-08-05T07:00:00.000Z",
@@ -227,7 +232,20 @@ describe("Deputy schedule synchronization", () => {
       isPrivate: false,
       source: "deputy",
     })
-    expect(updated.events[0].employees).toEqual([
+    const assignments = await t.run(async (ctx) =>
+      ctx.db
+        .query("eventEmployees")
+        .withIndex("by_hubId_and_eventId", (q) => q.eq("hubId", hubId))
+        .take(10)
+    )
+    const assignedEmployees = await t.run(async (ctx) =>
+      Promise.all(
+        assignments.map((assignment) =>
+          ctx.db.get("employeeProfiles", assignment.employeeProfileId)
+        )
+      )
+    )
+    expect(assignedEmployees).toEqual([
       expect.objectContaining({ displayName: "Bob Worker" }),
     ])
   })

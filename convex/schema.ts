@@ -42,6 +42,7 @@ const workersCanEdit = v.object({
   announcements: v.boolean(),
   documents: v.boolean(),
   faqs: v.optional(v.boolean()),
+  trades: v.optional(v.boolean()),
 })
 const richTextDocument = v.object({
   type: v.literal("doc"),
@@ -230,6 +231,34 @@ export default defineSchema({
     employeeProfileId: v.id("employeeProfiles"),
   }).index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"]),
 
+  shiftTrades: defineTable({
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    publisherId: v.id("employeeProfiles"),
+    sourceEventId: v.id("events"),
+    reason: v.string(),
+    status: v.union(
+      v.literal("published"),
+      v.literal("offer-pending"),
+      v.literal("confirmed"),
+      v.literal("processing"),
+      v.literal("approved"),
+      v.literal("manager-declined"),
+      v.literal("unpublished")
+    ),
+    offeringEmployeeId: v.optional(v.id("employeeProfiles")),
+    offeredEventId: v.optional(v.id("events")),
+    employeeDeclineReason: v.optional(v.string()),
+    managerDeclineReason: v.optional(v.string()),
+    deputyError: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_hubId_and_slug", ["hubId", "slug"])
+    .index("by_hubId_and_updatedAt", ["hubId", "updatedAt"])
+    .index("by_sourceEventId_and_status", ["sourceEventId", "status"])
+    .index("by_offeredEventId_and_status", ["offeredEventId", "status"]),
+
   eventGuides: defineTable({
     hubId: v.id("hubs"),
     eventId: v.id("events"),
@@ -398,7 +427,8 @@ export default defineSchema({
       v.literal("announcement"),
       v.literal("document"),
       v.literal("question"),
-      v.literal("workplace")
+      v.literal("workplace"),
+      v.literal("trade")
     ),
     // Transitional: existing development rows may still use rendered copy.
     title: v.optional(v.string()),

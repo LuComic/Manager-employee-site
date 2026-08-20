@@ -388,6 +388,38 @@ export const storeRefreshedTokens = internalMutation({
   },
 })
 
+export const storeTradeRefreshedTokens = internalMutation({
+  args: {
+    connectionId: v.id("deputyConnections"),
+    expectedTokenVersion: v.number(),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    expiresInSeconds: v.number(),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const connection = await ctx.db.get("deputyConnections", args.connectionId)
+    if (!connection || connection.tokenVersion !== args.expectedTokenVersion) {
+      return false
+    }
+    const tokenVersion = connection.tokenVersion + 1
+    await ctx.db.patch("deputyConnections", connection._id, {
+      ...(await encryptDeputyTokens({
+        hubId: connection.hubId,
+        tokenVersion,
+        tokens: {
+          accessToken: args.accessToken,
+          refreshToken: args.refreshToken,
+        },
+      })),
+      tokenVersion,
+      accessTokenExpiresAt:
+        Date.now() + Math.max(60, args.expiresInSeconds) * 1000,
+    })
+    return true
+  },
+})
+
 export const applyRosterBatch = internalMutation({
   args: {
     connectionId: v.id("deputyConnections"),

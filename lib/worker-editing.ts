@@ -4,6 +4,7 @@ export const workerEditableSections = [
   "announcements",
   "documents",
   "faqs",
+  "trades",
 ] as const
 
 export type WorkerEditableSection = (typeof workerEditableSections)[number]
@@ -16,6 +17,7 @@ export const workerManagerPaths = {
   announcements: "/manager/announcements",
   documents: "/manager/documents",
   faqs: "/manager/questions",
+  trades: "/manager/trades",
 } satisfies Record<WorkerEditableSection, string>
 
 export const defaultWorkersCanEdit: WorkersCanEdit = {
@@ -24,6 +26,7 @@ export const defaultWorkersCanEdit: WorkersCanEdit = {
   announcements: false,
   documents: false,
   faqs: false,
+  trades: false,
 }
 
 export function normalizeWorkersCanEdit(
@@ -35,6 +38,7 @@ export function normalizeWorkersCanEdit(
     announcements: value?.announcements ?? false,
     documents: value?.documents ?? false,
     faqs: value?.faqs ?? false,
+    trades: value?.trades ?? false,
   }
 }
 

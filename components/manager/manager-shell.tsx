@@ -9,9 +9,11 @@ import {
 import { Link, usePathname } from "@/i18n/navigation"
 import {
   ArrowLeft,
+  ArrowLeftRight,
   BookOpen,
   Building2,
   CalendarDays,
+  CalendarClock,
   ChevronDown,
   CircleHelp,
   FilePenLine,
@@ -83,6 +85,17 @@ const moreNavigationGroups: {
         icon: CalendarDays,
       },
       {
+        href: "/manager/schedules",
+        label: "schedules",
+        icon: CalendarClock,
+        managerOnly: true,
+      },
+      {
+        href: "/manager/trades",
+        label: "trades",
+        icon: ArrowLeftRight,
+      },
+      {
         href: "/manager/announcements",
         label: "announcements",
         icon: Megaphone,
@@ -136,6 +149,7 @@ function sectionForManagerPath(pathname: string): WorkerEditableSection | null {
   if (pathname.startsWith("/manager/announcements")) return "announcements"
   if (pathname.startsWith("/manager/documents")) return "documents"
   if (pathname.startsWith("/manager/questions")) return "faqs"
+  if (pathname.startsWith("/manager/trades")) return "trades"
   return null
 }
 
@@ -185,12 +199,17 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/manager/guides") ||
     pathname.startsWith("/manager/categories") ||
     pathname.startsWith("/manager/calendar") ||
+    pathname.startsWith("/manager/schedules") ||
+    pathname.startsWith("/manager/trades") ||
     pathname.startsWith("/manager/announcements") ||
     pathname.startsWith("/manager/documents") ||
     pathname.startsWith("/manager/questions") ||
     pathname.startsWith("/manager/drafts") ||
-    pathname.startsWith("/manager/logs")
-  const managerOnlyRoute = pathname.startsWith("/manager/logs")
+    pathname.startsWith("/manager/logs") ||
+    pathname.startsWith("/manager/notifications")
+  const managerOnlyRoute =
+    pathname.startsWith("/manager/logs") ||
+    pathname.startsWith("/manager/schedules")
   const routeAllowed =
     managerAccess === "owner" ||
     (managerAccess === "manager" && contentRoute) ||
@@ -209,7 +228,11 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-1 sm:hidden">
                 <UserButton />
                 {hub && managerAccess && (
-                  <NotificationButton manager={managerAccess === "owner"} />
+                  <NotificationButton
+                    manager={
+                      managerAccess === "manager" || managerAccess === "owner"
+                    }
+                  />
                 )}
               </div>
             </div>
@@ -254,7 +277,11 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               <div className="hidden items-center gap-2 sm:flex">
                 <UserButton />
                 {hub && managerAccess && (
-                  <NotificationButton manager={managerAccess === "owner"} />
+                  <NotificationButton
+                    manager={
+                      managerAccess === "manager" || managerAccess === "owner"
+                    }
+                  />
                 )}
               </div>
             </div>

@@ -2,7 +2,13 @@ import type { Id } from "../_generated/dataModel"
 import type { MutationCtx } from "../_generated/server"
 
 type NotificationKind =
-  "guide" | "event" | "announcement" | "document" | "question" | "workplace"
+  | "guide"
+  | "event"
+  | "announcement"
+  | "document"
+  | "question"
+  | "workplace"
+  | "trade"
 
 type NotificationDetails = {
   hubId: Id<"hubs">

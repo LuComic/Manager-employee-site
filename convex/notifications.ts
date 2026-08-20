@@ -21,7 +21,8 @@ const notificationKind = v.union(
   v.literal("announcement"),
   v.literal("document"),
   v.literal("question"),
-  v.literal("workplace")
+  v.literal("workplace"),
+  v.literal("trade")
 )
 
 const notificationItem = v.object({
@@ -270,7 +271,7 @@ export const listManager = query({
   returns: notificationFeed,
   handler: async (ctx, args) => {
     const [access, identity] = await Promise.all([
-      requireHubPermission(ctx, args.hubId, "owner"),
+      requireHubPermission(ctx, args.hubId, "manager"),
       requireIdentity(ctx),
     ])
     const { hub } = access
@@ -296,7 +297,7 @@ export const markManagerRead = mutation({
   returns: v.number(),
   handler: async (ctx, args) => {
     const [access, identity] = await Promise.all([
-      requireHubPermission(ctx, args.hubId, "owner"),
+      requireHubPermission(ctx, args.hubId, "manager"),
       requireIdentity(ctx),
     ])
     const { hub } = access
