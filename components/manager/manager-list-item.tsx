@@ -1,6 +1,7 @@
 import { Children, Fragment, type ReactNode } from "react"
 
 import { Card, CardContent } from "@/components/ui/card"
+import { Link } from "@/i18n/navigation"
 import { cn } from "@/lib/utils"
 
 type ManagerListItemProps = {
@@ -14,6 +15,7 @@ type ManagerListItemProps = {
   align?: "center" | "start"
   iconClassName?: string
   descriptionClassName?: string
+  summaryHref?: string
 }
 
 export function ManagerListItem({
@@ -27,49 +29,78 @@ export function ManagerListItem({
   align = "center",
   iconClassName,
   descriptionClassName,
+  summaryHref,
 }: ManagerListItemProps) {
+  const iconElement = (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary",
+        iconClassName
+      )}
+    >
+      {icon}
+    </span>
+  )
+  const summaryElement = (
+    <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <Title className="font-semibold">{title}</Title>
+        {Children.map(metadata, (item) =>
+          item === null ? null : (
+            <Fragment>
+              <span aria-hidden="true" className="text-border">
+                |
+              </span>
+              {item}
+            </Fragment>
+          )
+        )}
+      </div>
+      {description !== undefined && (
+        <p
+          className={cn(
+            "mt-1 text-sm text-muted-foreground",
+            descriptionClassName
+          )}
+        >
+          {description}
+        </p>
+      )}
+    </div>
+  )
   return (
-    <Card size="sm" className="shadow-none">
+    <Card
+      size="sm"
+      className={cn(
+        "shadow-none transition-colors",
+        summaryHref && "has-[a[data-manager-summary-link]:hover]:bg-muted/40"
+      )}
+    >
       <CardContent
         className={cn(
           "flex flex-col gap-4 sm:flex-row",
           align === "start" ? "sm:items-start" : "sm:items-center"
         )}
       >
-        <span
-          aria-hidden="true"
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary",
-            iconClassName
-          )}
-        >
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Title className="font-semibold">{title}</Title>
-            {Children.map(metadata, (item) =>
-              item === null ? null : (
-                <Fragment>
-                  <span aria-hidden="true" className="text-border">
-                    |
-                  </span>
-                  {item}
-                </Fragment>
-              )
+        {summaryHref ? (
+          <Link
+            href={summaryHref}
+            data-manager-summary-link
+            className={cn(
+              "flex min-w-0 flex-1 flex-col gap-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex-row",
+              align === "start" ? "sm:items-start" : "sm:items-center"
             )}
-          </div>
-          {description !== undefined && (
-            <p
-              className={cn(
-                "mt-1 text-sm text-muted-foreground",
-                descriptionClassName
-              )}
-            >
-              {description}
-            </p>
-          )}
-        </div>
+          >
+            {iconElement}
+            {summaryElement}
+          </Link>
+        ) : (
+          <>
+            {iconElement}
+            {summaryElement}
+          </>
+        )}
         {actions && (
           <div
             className={cn("flex shrink-0 flex-wrap gap-2", actionsClassName)}

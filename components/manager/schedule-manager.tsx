@@ -54,6 +54,11 @@ export function ScheduleManager() {
                     key={schedule.id}
                     icon={<CalendarClock className="size-5" />}
                     title={schedule.employeeName}
+                    summaryHref={
+                      schedule.published
+                        ? `/calendar/${schedule.id}`
+                        : `/manager/calendar/${schedule.id}/edit`
+                    }
                     metadata={[
                       <Badge key="time" variant="secondary">
                         {formatTime(schedule.start, hub?.timeZone, languageTag)}

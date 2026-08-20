@@ -152,6 +152,11 @@ export function AnnouncementManager() {
                 key={announcement.id}
                 icon={<Megaphone className="size-5" />}
                 title={announcement.title}
+                summaryHref={
+                  announcement.published
+                    ? `/announcements/${announcement.id}`
+                    : `/manager/announcements/${announcement.id}/edit`
+                }
                 metadata={[
                   <Badge
                     key="status"

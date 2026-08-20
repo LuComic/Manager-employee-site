@@ -151,6 +151,11 @@ export function GuideManager() {
               key={guide.id}
               icon={<BookOpen className="size-5" />}
               title={guide.title}
+              summaryHref={
+                guide.published
+                  ? `/guides/${guide.id}`
+                  : `/manager/guides/${guide.id}/edit`
+              }
               metadata={[
                 <Badge
                   key="status"

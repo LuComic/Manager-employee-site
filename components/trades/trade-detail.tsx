@@ -45,7 +45,11 @@ import {
 } from "@/i18n/use-app-translations"
 import { formatDate, formatTime } from "@/lib/operations"
 import type { ShiftTrade, TradeShift } from "@/lib/trades"
-import { tradeStatusLabel } from "@/lib/trades"
+import {
+  createDemoOfferShifts,
+  createDemoTrades,
+  tradeStatusLabel,
+} from "@/lib/trades"
 import { cn } from "@/lib/utils"
 
 export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
@@ -55,16 +59,33 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
   const languageTag = useLanguageTag()
   const { hub, showFeedback } = useOperations()
   const now = useState(() => Date.now())[0]
-  const trade = useQuery(
+  const demoCopy = {
+    publisherReason: t("demoPublisherTradeReason"),
+    receiverReason: t("demoReceiverTradeReason"),
+    managerReason: t("demoManagerTradeReason"),
+    kitchen: t("demoAreaKitchen"),
+    frontDesk: t("demoAreaFrontDesk"),
+    diningRoom: t("demoAreaDiningRoom"),
+    bar: t("demoAreaBar"),
+    yourName: t("demoYourName"),
+  }
+  const demoTrade = createDemoTrades(now, demoCopy).find(
+    (candidate) => candidate.slug === tradeSlug
+  )
+  const queriedTrade = useQuery(
     api.trades.get,
-    hub ? { hubId: hub.id, slug: tradeSlug } : "skip"
+    hub && !demoTrade ? { hubId: hub.id, slug: tradeSlug } : "skip"
   ) as ShiftTrade | null | undefined
-  const shifts = useQuery(
+  const trade = demoTrade ?? queriedTrade
+  const queriedShifts = useQuery(
     api.trades.listMyShifts,
-    hub && trade && trade.viewerRole !== "manager"
+    hub && trade && !demoTrade && trade.viewerRole !== "manager"
       ? { hubId: hub.id, now }
       : "skip"
   ) as TradeShift[] | undefined
+  const shifts = demoTrade
+    ? createDemoOfferShifts(now, demoCopy)
+    : queriedShifts
   const unpublishTrade = useMutation(api.trades.unpublish)
   const offerTrade = useMutation(api.trades.offer)
   const cancelOffer = useMutation(api.trades.cancelOffer)
@@ -120,6 +141,12 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
   async function decline() {
     if (!trade) return
     if (!declineReason.trim()) return setError(t("tradeDeclineReasonRequired"))
+    if (trade.demo) {
+      showFeedback("demoTradeActionNotSaved", undefined, "neutral")
+      setDeclineMode(null)
+      setDeclineReason("")
+      return
+    }
     await run(
       () =>
         declineMode === "manager"
@@ -159,6 +186,16 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
           <p className="mt-2 max-w-2xl text-muted-foreground">{trade.reason}</p>
         </CardHeader>
         <CardContent className="space-y-6">
+          {trade.demo && (
+            <div className="border bg-muted/30 p-4 text-sm">
+              <p className="font-semibold">
+                <T>demoTradePreview</T>
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                <T>demoTradePreviewDescription</T>
+              </p>
+            </div>
+          )}
           <div
             className={cn("grid gap-4", trade.offeredShift && "md:grid-cols-2")}
           >
@@ -226,13 +263,26 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
               timeZone={hub?.timeZone}
               onSelectedShift={setSelectedShift}
               onUnpublish={() =>
-                void run(async () => {
-                  await unpublishTrade({ tradeId: trade.id })
-                  router.push("/trades")
-                }, "tradeUnpublished")
+                trade.demo
+                  ? showFeedback(
+                      "demoTradeActionNotSaved",
+                      undefined,
+                      "neutral"
+                    )
+                  : void run(async () => {
+                      await unpublishTrade({ tradeId: trade.id })
+                      router.push("/trades")
+                    }, "tradeUnpublished")
               }
               onOffer={() => {
                 if (!selectedShift) return setError(t("chooseShiftToOffer"))
+                if (trade.demo) {
+                  return showFeedback(
+                    "demoTradeActionNotSaved",
+                    undefined,
+                    "neutral"
+                  )
+                }
                 void run(
                   () =>
                     offerTrade({
@@ -243,30 +293,48 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
                 )
               }}
               onCancel={() =>
-                void run(
-                  () => cancelOffer({ tradeId: trade.id }),
-                  "tradeOfferCancelled"
-                )
+                trade.demo
+                  ? showFeedback(
+                      "demoTradeActionNotSaved",
+                      undefined,
+                      "neutral"
+                    )
+                  : void run(
+                      () => cancelOffer({ tradeId: trade.id }),
+                      "tradeOfferCancelled"
+                    )
               }
               onAccept={() =>
-                void run(
-                  () =>
-                    respondToOffer({
-                      tradeId: trade.id,
-                      response: "accept",
-                    }),
-                  "tradeConfirmedForManager"
-                )
+                trade.demo
+                  ? showFeedback(
+                      "demoTradeActionNotSaved",
+                      undefined,
+                      "neutral"
+                    )
+                  : void run(
+                      () =>
+                        respondToOffer({
+                          tradeId: trade.id,
+                          response: "accept",
+                        }),
+                      "tradeConfirmedForManager"
+                    )
               }
               onDecline={(mode) => {
                 setError("")
                 setDeclineMode(mode)
               }}
               onManagerAccept={() =>
-                void run(
-                  () => approveTrade({ tradeId: trade.id }),
-                  "tradeApprovedAndDeputyUpdated"
-                )
+                trade.demo
+                  ? showFeedback(
+                      "demoTradeActionNotSaved",
+                      undefined,
+                      "neutral"
+                    )
+                  : void run(
+                      () => approveTrade({ tradeId: trade.id }),
+                      "tradeApprovedAndDeputyUpdated"
+                    )
               }
             />
           </div>
@@ -466,18 +534,18 @@ function TradeActions({
   }
   if (trade.viewerRole === "employee" && trade.status === "published") {
     return (
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <div className="space-y-2">
-          <Label htmlFor="offered-shift">
-            <T>shiftToOffer</T>
-          </Label>
+      <div className="space-y-2">
+        <Label htmlFor="offered-shift">
+          <T>shiftToOffer</T>
+        </Label>
+        <div className="flex items-center justify-between gap-3">
           <Select
             value={selectedShift}
             onValueChange={(value) => onSelectedShift(value ?? "")}
           >
             <SelectTrigger
               id="offered-shift"
-              className="w-full border border-input bg-background px-3"
+              className="min-w-0 flex-1 border border-input bg-background px-3"
             >
               <SelectValue placeholder={t("chooseShift")} />
             </SelectTrigger>
@@ -499,10 +567,14 @@ function TradeActions({
               ))}
             </SelectContent>
           </Select>
+          <Button
+            className="shrink-0"
+            onClick={onOffer}
+            disabled={pending || !shifts.length}
+          >
+            <ArrowLeftRight /> <T>switch</T>
+          </Button>
         </div>
-        <Button onClick={onOffer} disabled={pending || !shifts.length}>
-          <ArrowLeftRight /> <T>switch</T>
-        </Button>
       </div>
     )
   }

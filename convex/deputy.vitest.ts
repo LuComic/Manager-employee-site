@@ -45,6 +45,35 @@ async function setup(t: ReturnType<typeof convexTest>) {
 }
 
 describe("Deputy schedule synchronization", () => {
+  test("queues one follow-up sync when a trade completes during an active sync", async () => {
+    const t = convexTest(schema, modules)
+    const { connectionId } = await setup(t)
+    const owner = t.withIdentity(ownerIdentity)
+
+    await expect(
+      owner.mutation(internal.deputy.queueSyncAfterTrade, { connectionId })
+    ).resolves.toBe(true)
+    const pending = await t.run((ctx) =>
+      ctx.db.get("deputyConnections", connectionId)
+    )
+    expect(pending?.resyncRequested).toBe(true)
+
+    await expect(
+      t.mutation(internal.deputy.finishSync, {
+        connectionId,
+        generation: 1,
+        syncId: "sync-1",
+      })
+    ).resolves.toBe(true)
+    const followUp = await t.run((ctx) =>
+      ctx.db.get("deputyConnections", connectionId)
+    )
+    expect(followUp).toMatchObject({ status: "syncing" })
+    expect(followUp?.resyncRequested).toBeUndefined()
+    expect(followUp?.activeSyncId).toBeTruthy()
+    expect(followUp?.activeSyncId).not.toBe("sync-1")
+  })
+
   test("keeps manager-deleted worker schedules hidden after a later sync", async () => {
     const t = convexTest(schema, modules)
     const { hubId, connectionId } = await setup(t)

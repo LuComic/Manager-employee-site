@@ -50,6 +50,11 @@ export function TradeCard({ trade }: { trade: ShiftTrade }) {
                 <Badge variant="secondary">
                   <T>{tradeStatusLabel[trade.status]}</T>
                 </Badge>
+                {trade.demo && (
+                  <Badge variant="outline">
+                    <T>demo</T>
+                  </Badge>
+                )}
               </div>
               <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                 {trade.reason}

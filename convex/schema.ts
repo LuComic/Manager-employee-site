@@ -223,6 +223,7 @@ export default defineSchema({
     lastSyncError: v.optional(v.string()),
     activeSyncId: v.optional(v.string()),
     syncStartedAt: v.optional(v.number()),
+    resyncRequested: v.optional(v.boolean()),
   }).index("by_hubId", ["hubId"]),
 
   deputyEmployeeMappings: defineTable({

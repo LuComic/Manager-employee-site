@@ -85,6 +85,11 @@ async function setup(t: ReturnType<typeof convexTest>) {
       },
     ],
   })
+  await t.mutation(internal.deputy.finishSync, {
+    connectionId,
+    generation: 1,
+    syncId: "sync-1",
+  })
   const records = await t.run(async (ctx) => {
     const mappings = await ctx.db.query("deputyEmployeeMappings").take(10)
     const aliceMapping = mappings.find(
@@ -119,7 +124,7 @@ async function setup(t: ReturnType<typeof convexTest>) {
       bobShiftId: bobShift._id,
     }
   })
-  return { hubId, ...records }
+  return { hubId, connectionId, ...records }
 }
 
 async function confirmedTrade(
@@ -341,7 +346,7 @@ describe("shift trades", () => {
   test("updates both Deputy rosters and preserves live roster settings", async () => {
     const t = convexTest(schema, modules)
     const setupResult = await setup(t)
-    const { hubId } = setupResult
+    const { hubId, connectionId } = setupResult
     const { tradeId, slug } = await confirmedTrade(t, setupResult)
     const posts: Record<string, unknown>[] = []
     const fetchMock = vi
@@ -412,5 +417,10 @@ describe("shift trades", () => {
       slug,
     })
     expect(approved?.status).toBe("approved")
+    const connection = await t.run((ctx) =>
+      ctx.db.get("deputyConnections", connectionId)
+    )
+    expect(connection).toMatchObject({ status: "syncing" })
+    expect(connection?.activeSyncId).toBeTruthy()
   })
 })

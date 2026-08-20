@@ -413,6 +413,11 @@ export function EventManager() {
               key={event.id}
               icon={<CalendarDays className="size-5" />}
               title={event.title}
+              summaryHref={
+                event.published
+                  ? `/calendar/${event.id}`
+                  : `/manager/calendar/${event.id}/edit`
+              }
               metadata={[
                 <Badge
                   key="status"

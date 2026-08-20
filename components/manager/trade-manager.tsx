@@ -1,33 +1,58 @@
 "use client"
 
-import { ArrowLeftRight, Eye, FilePenLine, Plus } from "lucide-react"
+import { useState } from "react"
+import { Plus } from "lucide-react"
 import { useQuery } from "convex/react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
-import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
-import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { T } from "@/components/translated-text"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { api } from "@/convex/_generated/api"
 import { Link } from "@/i18n/navigation"
-import { useLanguageTag } from "@/i18n/use-app-translations"
+import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 import { formatDate, formatTime } from "@/lib/operations"
-import type { ShiftTrade } from "@/lib/trades"
+import { createDemoTrades, type ShiftTrade } from "@/lib/trades"
 import { tradeStatusLabel } from "@/lib/trades"
 import { cn } from "@/lib/utils"
 
+function tradeTone(status: ShiftTrade["status"]) {
+  if (status === "published") {
+    return "border-success/30 bg-success/10 hover:bg-success/15"
+  }
+  if (
+    status === "offer-pending" ||
+    status === "confirmed" ||
+    status === "processing"
+  ) {
+    return "border-warning/40 bg-warning/10 hover:bg-warning/15"
+  }
+  return "border-border bg-background hover:bg-muted/40"
+}
+
 export function TradeManager() {
+  const t = useAppTranslations()
   const languageTag = useLanguageTag()
   const { hub } = useOperations()
+  const now = useState(() => Date.now())[0]
   const trades = useQuery(api.trades.list, hub ? { hubId: hub.id } : "skip") as
     ShiftTrade[] | undefined
   const canPublish = useQuery(
     api.trades.canPublish,
     hub ? { hubId: hub.id } : "skip"
   )
+  const demoTrades = createDemoTrades(now, {
+    publisherReason: t("demoPublisherTradeReason"),
+    receiverReason: t("demoReceiverTradeReason"),
+    managerReason: t("demoManagerTradeReason"),
+    kitchen: t("demoAreaKitchen"),
+    frontDesk: t("demoAreaFrontDesk"),
+    diningRoom: t("demoAreaDiningRoom"),
+    bar: t("demoAreaBar"),
+    yourName: t("demoYourName"),
+  })
+  const visibleTrades = trades?.length ? trades : demoTrades
 
   return (
     <div className="space-y-6">
@@ -49,20 +74,36 @@ export function TradeManager() {
         <p role="status" className="text-sm text-muted-foreground">
           <T>loadingTrades</T>
         </p>
-      ) : trades.length ? (
+      ) : (
         <div className="space-y-4">
-          {trades.map((trade) => (
-            <ManagerListItem
+          {!trades.length && (
+            <div className="border bg-muted/30 p-4 text-sm">
+              <p className="font-semibold">
+                <T>demoTradePreview</T>
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                <T>demoTradePreviewDescription</T>
+              </p>
+            </div>
+          )}
+          {visibleTrades.map((trade) => (
+            <Link
               key={trade.id}
-              icon={<ArrowLeftRight className="size-5" />}
-              title={trade.publisherName}
-              metadata={[
-                <Badge key="status" variant="secondary">
-                  <T>{tradeStatusLabel[trade.status]}</T>
-                </Badge>,
-              ]}
-              description={
-                <>
+              href={`/trades/${trade.slug}`}
+              className="block outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            >
+              <div
+                className={cn(
+                  "border p-4 transition-colors",
+                  tradeTone(trade.status)
+                )}
+              >
+                <h2 className="font-semibold">
+                  {t("tradeByName", { name: trade.publisherName })}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t(tradeStatusLabel[trade.status])} ·
+                  {trade.demo ? ` ${t("demo")} ·` : ""}{" "}
                   {formatDate(
                     trade.sourceShift.start,
                     undefined,
@@ -82,44 +123,11 @@ export function TradeManager() {
                     languageTag
                   )}{" "}
                   · {trade.sourceShift.area} · {trade.reason}
-                </>
-              }
-              actions={
-                <>
-                  <Link
-                    href={`/trades/${trade.slug}`}
-                    className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" }),
-                      "min-h-11 sm:min-h-9"
-                    )}
-                  >
-                    <Eye /> <T>view</T>
-                  </Link>
-                  {trade.viewerRole === "publisher" &&
-                    trade.status === "published" && (
-                      <Link
-                        href={`/manager/trades/${trade.slug}/edit`}
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "min-h-11 sm:min-h-9"
-                        )}
-                      >
-                        <FilePenLine /> <T>edit</T>
-                      </Link>
-                    )}
-                </>
-              }
-            />
+                </p>
+              </div>
+            </Link>
           ))}
         </div>
-      ) : (
-        <EmptyState
-          icon={ArrowLeftRight}
-          title="noShiftTradesYet"
-          description="publishShiftToStartTrading"
-          actionLabel={canPublish === true ? "newTrade" : undefined}
-          actionHref={canPublish === true ? "/manager/trades/new" : undefined}
-        />
       )}
     </div>
   )

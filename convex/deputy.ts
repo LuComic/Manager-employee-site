@@ -75,6 +75,7 @@ async function queueSync(
     syncStartedAt: Date.now(),
     status: "syncing",
     lastSyncError: undefined,
+    resyncRequested: undefined,
   })
   await ctx.scheduler.runAfter(0, internal.deputySync.syncConnection, {
     connectionId: connection._id,
@@ -420,6 +421,29 @@ export const storeTradeRefreshedTokens = internalMutation({
   },
 })
 
+export const queueSyncAfterTrade = internalMutation({
+  args: { connectionId: v.id("deputyConnections") },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const connection = await ctx.db.get("deputyConnections", args.connectionId)
+    if (!connection) return false
+    await requireHubPermission(ctx, connection.hubId, "manager")
+    if (
+      connection.activeSyncId &&
+      (connection.syncStartedAt ?? 0) > Date.now() - SYNC_LEASE_MS
+    ) {
+      await ctx.db.patch("deputyConnections", connection._id, {
+        resyncRequested: true,
+      })
+      return true
+    }
+    return await queueSync(ctx, {
+      connectionId: connection._id,
+      generation: connectionGeneration(connection),
+    })
+  },
+})
+
 export const applyRosterBatch = internalMutation({
   args: {
     connectionId: v.id("deputyConnections"),
@@ -599,12 +623,31 @@ export const finishSync = internalMutation({
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
     if (!connection || !isActiveSync(connection, args)) return false
+    const finishedAt = Date.now()
+    if (connection.resyncRequested) {
+      const nextSyncId = crypto.randomUUID()
+      await ctx.db.patch("deputyConnections", connection._id, {
+        status: "syncing",
+        lastSyncedAt: finishedAt,
+        lastSyncError: undefined,
+        activeSyncId: nextSyncId,
+        syncStartedAt: finishedAt,
+        resyncRequested: undefined,
+      })
+      await ctx.scheduler.runAfter(0, internal.deputySync.syncConnection, {
+        connectionId: connection._id,
+        generation: connectionGeneration(connection),
+        syncId: nextSyncId,
+      })
+      return true
+    }
     await ctx.db.patch("deputyConnections", connection._id, {
       status: "connected",
-      lastSyncedAt: Date.now(),
+      lastSyncedAt: finishedAt,
       lastSyncError: undefined,
       activeSyncId: undefined,
       syncStartedAt: undefined,
+      resyncRequested: undefined,
     })
     return true
   },
@@ -621,11 +664,30 @@ export const failSync = internalMutation({
   handler: async (ctx, args) => {
     const connection = await ctx.db.get("deputyConnections", args.connectionId)
     if (!connection || !isActiveSync(connection, args)) return null
+    const message = args.message.slice(0, 300)
+    if (connection.resyncRequested) {
+      const nextSyncId = crypto.randomUUID()
+      const syncStartedAt = Date.now()
+      await ctx.db.patch("deputyConnections", connection._id, {
+        status: "syncing",
+        lastSyncError: message,
+        activeSyncId: nextSyncId,
+        syncStartedAt,
+        resyncRequested: undefined,
+      })
+      await ctx.scheduler.runAfter(0, internal.deputySync.syncConnection, {
+        connectionId: connection._id,
+        generation: connectionGeneration(connection),
+        syncId: nextSyncId,
+      })
+      return null
+    }
     await ctx.db.patch("deputyConnections", connection._id, {
       status: "error",
-      lastSyncError: args.message.slice(0, 300),
+      lastSyncError: message,
       activeSyncId: undefined,
       syncStartedAt: undefined,
+      resyncRequested: undefined,
     })
     return null
   },

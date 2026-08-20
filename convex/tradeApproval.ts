@@ -268,6 +268,9 @@ export const approve = action({
       throw new Error(message)
     }
     await ctx.runMutation(internal.trades.finishApproval, args)
+    await ctx.runMutation(internal.deputy.queueSyncAfterTrade, {
+      connectionId: approval.connectionId,
+    })
     return null
   },
 })
