@@ -1,10 +1,11 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test"
-import { describe, expect, test } from "vitest"
+import { describe, expect, test, vi } from "vitest"
 
 import { api, internal } from "./_generated/api"
 import schema from "./schema"
+import { encryptDeputyTokens } from "./lib/deputyCredentials"
 
 const modules = import.meta.glob("./**/*.ts")
 const ownerIdentity = {
@@ -25,15 +26,19 @@ async function setup(t: ReturnType<typeof convexTest>) {
       privateToken: "deputy-private-token-that-is-long-enough",
       timeZone: "Europe/Tallinn",
     })
+  const encrypted = await encryptDeputyTokens({
+    hubId,
+    tokenVersion: 1,
+    tokens: { accessToken: "access-token", refreshToken: "refresh-token" },
+  })
   const connectionId = await t.run(async (ctx) => {
     return await ctx.db.insert("deputyConnections", {
       hubId,
       endpoint: "example.eu.deputy.com",
-      tokenCiphertext: "not-used-by-this-test",
-      tokenInitializationVector: "not-used-by-this-test",
+      ...encrypted,
       tokenVersion: 1,
       generation: 1,
-      accessTokenExpiresAt: Date.now() + 60_000,
+      accessTokenExpiresAt: Date.now() + 60 * 60 * 1000,
       status: "syncing",
       connectedAt: Date.now(),
       connectedBy: ownerIdentity.subject,
@@ -45,6 +50,163 @@ async function setup(t: ReturnType<typeof convexTest>) {
 }
 
 describe("Deputy schedule synchronization", () => {
+  test("matches an existing Workhal employee by email without guessing by name", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, connectionId } = await setup(t)
+    const owner = t.withIdentity(ownerIdentity)
+    const matchingProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Tom Y.",
+      email: "tom@example.com",
+    })
+    const misleadingProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Tom Yankens",
+      email: "someone-else@example.com",
+    })
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", matchingProfileId, {
+        clerkUserId: "tom-workhal",
+        normalizedEmail: undefined,
+        status: "active",
+      })
+      await ctx.db.patch("employeeProfiles", misleadingProfileId, {
+        clerkUserId: "other-tom-workhal",
+        status: "active",
+      })
+    })
+
+    const startTime = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)
+    const employeeRequestBodies: Record<string, unknown>[] = []
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith("/api/v1/resource/Roster/QUERY")) {
+          return Response.json([
+            {
+              Id: "tom-shift",
+              StartTime: startTime,
+              EndTime: startTime + 8 * 60 * 60,
+              Employee: 7,
+              OperationalUnit: 3,
+              Published: true,
+              EmployeeObject: { DisplayName: "Tom Yankens" },
+              OperationalUnitObject: { OperationalUnitName: "Kitchen" },
+            },
+          ])
+        }
+        if (url.endsWith("/api/v1/resource/Employee/QUERY")) {
+          employeeRequestBodies.push(
+            JSON.parse(String(init?.body)) as Record<string, unknown>
+          )
+          return Response.json([
+            {
+              Id: 7,
+              DisplayName: "Tom Yankens",
+              ContactObject: {
+                Email1: " TOM@EXAMPLE.COM ",
+                PrimaryEmail: 1,
+              },
+            },
+          ])
+        }
+        return new Response(null, { status: 404 })
+      })
+    try {
+      await t.action(internal.deputySync.syncConnection, {
+        connectionId,
+        generation: 1,
+        syncId: "sync-1",
+      })
+    } finally {
+      fetchMock.mockRestore()
+    }
+    expect(employeeRequestBodies).toEqual([
+      {
+        search: { s1: { field: "Id", data: ["7"], type: "in" } },
+        join: ["ContactObject"],
+        max: 1,
+      },
+    ])
+
+    const result = await t.run(async (ctx) => {
+      const mapping = await ctx.db
+        .query("deputyEmployeeMappings")
+        .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
+          q.eq("hubId", hubId).eq("deputyEmployeeId", "7")
+        )
+        .unique()
+      const event = await ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "deputy-shift-tom-shift")
+        )
+        .unique()
+      const assignment = event
+        ? await ctx.db
+            .query("eventEmployees")
+            .withIndex("by_eventId_and_employeeProfileId", (q) =>
+              q.eq("eventId", event._id)
+            )
+            .unique()
+        : null
+      const connection = await ctx.db.get("deputyConnections", connectionId)
+      return { mapping, assignment, connection }
+    })
+    expect(result.mapping?.employeeProfileId).toBe(matchingProfileId)
+    expect(result.assignment?.employeeProfileId).toBe(matchingProfileId)
+    expect(result.connection?.status).toBe("connected")
+
+    const employees = await owner.query(api.employees.list, { hubId })
+    expect(employees).toHaveLength(2)
+    expect(
+      employees.find((employee) => employee.id === matchingProfileId)
+    ).toMatchObject({
+      displayName: "Tom Y.",
+      email: "tom@example.com",
+      status: "active",
+    })
+  })
+
+  test("creates an unclaimed Deputy employee that managers can see", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, connectionId } = await setup(t)
+
+    await expect(
+      t.mutation(internal.deputy.applyRosterBatch, {
+        connectionId,
+        generation: 1,
+        syncId: "sync-1",
+        rosters: [
+          {
+            externalId: "new-worker-shift",
+            startUtc: "2026-08-04T06:00:00.000Z",
+            endUtc: "2026-08-04T14:00:00.000Z",
+            employeeId: "8",
+            employeeName: "New Deputy Worker",
+            employeeEmail: "new.worker@example.com",
+            areaId: "3",
+            areaName: "Kitchen",
+            published: true,
+          },
+        ],
+      })
+    ).resolves.toBe(true)
+
+    const employees = await t
+      .withIdentity(ownerIdentity)
+      .query(api.employees.list, { hubId })
+    expect(employees).toEqual([
+      expect.objectContaining({
+        displayName: "New Deputy Worker",
+        email: "new.worker@example.com",
+        status: "unclaimed",
+        invitationStatus: "not-sent",
+      }),
+    ])
+  })
+
   test("queues one follow-up sync when a trade completes during an active sync", async () => {
     const t = convexTest(schema, modules)
     const { connectionId } = await setup(t)

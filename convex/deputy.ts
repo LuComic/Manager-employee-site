@@ -27,6 +27,7 @@ const rosterValidator = v.object({
   endUtc: v.string(),
   employeeId: v.string(),
   employeeName: v.string(),
+  employeeEmail: v.optional(v.string()),
   areaId: v.string(),
   areaName: v.string(),
   published: v.boolean(),
@@ -136,8 +137,14 @@ async function deputyEmployee(
     hubId: Id<"hubs">
     deputyEmployeeId: string
     displayName: string
+    email?: string
   }
 ) {
+  const normalizedEmail = args.email?.trim().toLocaleLowerCase()
+  const validEmail =
+    normalizedEmail && /^\S+@\S+\.\S+$/.test(normalizedEmail)
+      ? normalizedEmail
+      : undefined
   const mapping = await ctx.db
     .query("deputyEmployeeMappings")
     .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
@@ -150,9 +157,18 @@ async function deputyEmployee(
       mapping.employeeProfileId
     )
     if (profile) {
-      if (profile.displayName !== args.displayName) {
+      if (
+        profile.createdBy === "deputy" &&
+        profile.status === "unclaimed" &&
+        !profile.clerkUserId &&
+        (profile.displayName !== args.displayName ||
+          (validEmail && profile.normalizedEmail !== validEmail))
+      ) {
         await ctx.db.patch("employeeProfiles", profile._id, {
           displayName: args.displayName,
+          ...(validEmail
+            ? { email: validEmail, normalizedEmail: validEmail }
+            : {}),
           updatedAt: Date.now(),
         })
       }
@@ -161,10 +177,52 @@ async function deputyEmployee(
     await ctx.db.delete("deputyEmployeeMappings", mapping._id)
   }
 
+  if (validEmail) {
+    const indexedMatches = await ctx.db
+      .query("employeeProfiles")
+      .withIndex("by_hubId_and_normalizedEmail", (q) =>
+        q.eq("hubId", args.hubId).eq("normalizedEmail", validEmail)
+      )
+      .take(10)
+    const matches = indexedMatches.length
+      ? indexedMatches
+      : (
+          await ctx.db
+            .query("employeeProfiles")
+            .withIndex("by_hubId_and_displayName", (q) =>
+              q.eq("hubId", args.hubId)
+            )
+            .take(500)
+        ).filter(
+          (profile) => profile.email?.trim().toLocaleLowerCase() === validEmail
+        )
+    const available = matches.filter(
+      (profile) => profile.status !== "deactivated"
+    )
+    const active = available.filter((profile) => profile.status === "active")
+    const profile =
+      active.length === 1
+        ? active[0]
+        : active.length === 0 && available.length === 1
+          ? available[0]
+          : null
+    if (profile) {
+      await ctx.db.insert("deputyEmployeeMappings", {
+        hubId: args.hubId,
+        deputyEmployeeId: args.deputyEmployeeId,
+        employeeProfileId: profile._id,
+      })
+      return profile._id
+    }
+    if (available.length > 1) throw new Error("deputyRosterSyncFailed")
+  }
+
   const now = Date.now()
   const employeeProfileId = await ctx.db.insert("employeeProfiles", {
     hubId: args.hubId,
     displayName: args.displayName,
+    email: validEmail,
+    normalizedEmail: validEmail,
     status: "unclaimed",
     accessLevel: "viewer",
     createdBy: "deputy",
@@ -465,6 +523,7 @@ export const applyRosterBatch = internalMutation({
         hubId: hub._id,
         deputyEmployeeId: roster.employeeId,
         displayName: roster.employeeName,
+        email: roster.employeeEmail,
       })
       const slug = `deputy-shift-${roster.externalId}`
       const existing = await ctx.db
