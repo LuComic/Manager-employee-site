@@ -5,6 +5,8 @@ import { requireHubPermission } from "./lib/access"
 
 const scheduleValidator = v.object({
   id: v.id("events"),
+  slug: v.string(),
+  employeeId: v.optional(v.string()),
   employeeName: v.string(),
   start: v.string(),
   end: v.string(),
@@ -17,21 +19,41 @@ export const listForManager = query({
   returns: v.array(scheduleValidator),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "manager")
-    const schedules = await ctx.db
-      .query("events")
-      .withIndex("by_hubId_and_source_and_start", (q) =>
-        q.eq("hubId", args.hubId).eq("source", "deputy")
+    const schedules = (
+      await Promise.all(
+        ([false, undefined] as const).flatMap((sourceDeleted) =>
+          ([false, undefined] as const).map((managerDeleted) =>
+            ctx.db
+              .query("events")
+              .withIndex(
+                "by_hubId_source_sourceDeleted_managerDeleted_start",
+                (q) =>
+                  q
+                    .eq("hubId", args.hubId)
+                    .eq("source", "deputy")
+                    .eq("sourceDeleted", sourceDeleted)
+                    .eq("managerDeleted", managerDeleted)
+              )
+              .order("desc")
+              .take(500)
+          )
+        )
       )
-      .take(500)
+    )
+      .flat()
+      .sort((a, b) => b.start.localeCompare(a.start))
+      .slice(0, 500)
     return schedules
-      .filter((schedule) => !schedule.sourceDeleted && !schedule.managerDeleted)
       .map((schedule) => ({
         id: schedule._id,
+        slug: schedule.slug,
+        employeeId: schedule.sourceEmployeeId,
         employeeName: schedule.title,
         start: schedule.start,
         end: schedule.end,
         area: schedule.location,
         published: schedule.published,
       }))
+      .sort((a, b) => a.start.localeCompare(b.start))
   },
 })

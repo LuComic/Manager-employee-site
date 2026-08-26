@@ -6,6 +6,7 @@ import {
   mutation,
   query,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server"
 import {
   hashCredential,
@@ -172,6 +173,25 @@ export const listAssignable = query({
   },
 })
 
+async function employeeHasShiftTrades(
+  ctx: QueryCtx | MutationCtx,
+  profileId: Id<"employeeProfiles">
+) {
+  const [publishedTrade, offeredTrade] = await Promise.all([
+    ctx.db
+      .query("shiftTrades")
+      .withIndex("by_publisherId", (q) => q.eq("publisherId", profileId))
+      .first(),
+    ctx.db
+      .query("shiftTrades")
+      .withIndex("by_offeringEmployeeId", (q) =>
+        q.eq("offeringEmployeeId", profileId)
+      )
+      .first(),
+  ])
+  return Boolean(publishedTrade || offeredTrade)
+}
+
 export const getForAdmin = query({
   args: { profileId: v.id("employeeProfiles") },
   handler: async (ctx, args) => {
@@ -190,6 +210,7 @@ export const getForAdmin = query({
       },
       organizationId: hub.clerkOrganizationId,
       hubSlug: hub.slug,
+      hasShiftTrades: await employeeHasShiftTrades(ctx, profile._id),
     }
   },
 })
@@ -512,6 +533,9 @@ export const removeProfileBatch = mutation({
       profile.hubId,
       "owner"
     )
+    if (await employeeHasShiftTrades(ctx, profile._id)) {
+      throw new Error("employeeHasShiftTrades")
+    }
 
     const [
       eventAssignments,

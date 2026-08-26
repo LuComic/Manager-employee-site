@@ -73,12 +73,6 @@ function cleanReason(value: string, errorKey = "tradeReasonRequired") {
 
 async function accessForTrades(ctx: ReadCtx, hubId: Id<"hubs">) {
   const access = await requireHubPermission(ctx, hubId, "viewer")
-  if (
-    access.permission === "viewer" &&
-    !normalizeWorkersCanEdit(access.hub.workersCanEdit).trades
-  ) {
-    throw new Error("tradesNotEnabled")
-  }
   const profiles = await ctx.db
     .query("employeeProfiles")
     .withIndex("by_hubId_and_clerkUserId", (q) =>
@@ -87,6 +81,17 @@ async function accessForTrades(ctx: ReadCtx, hubId: Id<"hubs">) {
     .take(10)
   const employee = profiles.find((profile) => profile.status === "active")
   return { ...access, employee }
+}
+
+function assertEmployeeTradeAccess(
+  access: Awaited<ReturnType<typeof accessForTrades>>
+) {
+  if (
+    (access.permission !== "manager" && access.permission !== "owner") ||
+    !normalizeWorkersCanEdit(access.hub.workersCanEdit).trades
+  ) {
+    throw new Error("tradesNotEnabled")
+  }
 }
 
 async function assertOwnDeputyShift(
@@ -98,8 +103,9 @@ async function assertOwnDeputyShift(
     now: number
   }
 ) {
-  const [event, assignment] = await Promise.all([
+  const [event, employee, assignment] = await Promise.all([
     ctx.db.get("events", args.eventId),
+    ctx.db.get("employeeProfiles", args.employeeId),
     ctx.db
       .query("eventEmployees")
       .withIndex("by_eventId_and_employeeProfileId", (q) =>
@@ -109,6 +115,9 @@ async function assertOwnDeputyShift(
   ])
   if (
     !event ||
+    !employee ||
+    employee.hubId !== args.hubId ||
+    employee.status !== "active" ||
     event.hubId !== args.hubId ||
     event.source !== "deputy" ||
     !event.published ||
@@ -183,13 +192,17 @@ async function tradeResult(
   if (!publisher || !sourceShift) return null
   const manager =
     access.permission === "manager" || access.permission === "owner"
-  const viewerRole = manager
-    ? ("manager" as const)
-    : access.employee?._id === trade.publisherId
+  const viewerRole =
+    access.employee?._id === trade.publisherId
       ? ("publisher" as const)
       : access.employee?._id === trade.offeringEmployeeId
         ? ("offerer" as const)
-        : ("employee" as const)
+        : access.employee &&
+            (trade.status === "published" || trade.status === "offer-pending")
+          ? ("employee" as const)
+          : manager
+            ? ("manager" as const)
+            : ("employee" as const)
   return {
     id: trade._id,
     slug: trade.slug,
@@ -216,6 +229,7 @@ export const list = query({
     const access = await accessForTrades(ctx, args.hubId)
     const manager =
       access.permission === "manager" || access.permission === "owner"
+    if (!manager) assertEmployeeTradeAccess(access)
     const trades = await ctx.db
       .query("shiftTrades")
       .withIndex("by_hubId_and_updatedAt", (q) => q.eq("hubId", args.hubId))
@@ -240,6 +254,9 @@ export const get = query({
   returns: v.union(v.null(), tradeValidator),
   handler: async (ctx, args) => {
     const access = await accessForTrades(ctx, args.hubId)
+    const manager =
+      access.permission === "manager" || access.permission === "owner"
+    if (!manager) assertEmployeeTradeAccess(access)
     const trade = await ctx.db
       .query("shiftTrades")
       .withIndex("by_hubId_and_slug", (q) =>
@@ -263,6 +280,7 @@ export const listMyShifts = query({
   returns: v.array(shiftValidator),
   handler: async (ctx, args) => {
     const access = await accessForTrades(ctx, args.hubId)
+    assertEmployeeTradeAccess(access)
     if (!access.employee) return []
     const assignments = await ctx.db
       .query("eventEmployees")
@@ -302,7 +320,11 @@ export const canPublish = query({
   returns: v.boolean(),
   handler: async (ctx, args) => {
     const access = await accessForTrades(ctx, args.hubId)
-    return Boolean(access.employee)
+    return Boolean(
+      access.employee &&
+      (access.permission === "manager" || access.permission === "owner") &&
+      normalizeWorkersCanEdit(access.hub.workersCanEdit).trades
+    )
   },
 })
 
@@ -315,6 +337,7 @@ export const create = mutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     const access = await accessForTrades(ctx, args.hubId)
+    assertEmployeeTradeAccess(access)
     if (!access.employee) throw new Error("employeeProfileRequired")
     const event = await assertOwnDeputyShift(ctx, {
       hubId: args.hubId,
@@ -359,6 +382,7 @@ export const edit = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) throw new Error("tradeNotFound")
     const access = await accessForTrades(ctx, trade.hubId)
+    assertEmployeeTradeAccess(access)
     if (!access.employee || access.employee._id !== trade.publisherId) {
       throw new Error("unauthorized")
     }
@@ -387,6 +411,7 @@ export const unpublish = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) return null
     const access = await accessForTrades(ctx, trade.hubId)
+    assertEmployeeTradeAccess(access)
     if (!access.employee || access.employee._id !== trade.publisherId) {
       throw new Error("unauthorized")
     }
@@ -408,6 +433,7 @@ export const offer = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) throw new Error("tradeNotFound")
     const access = await accessForTrades(ctx, trade.hubId)
+    assertEmployeeTradeAccess(access)
     if (!access.employee) throw new Error("employeeProfileRequired")
     if (access.employee._id === trade.publisherId) {
       throw new Error("cannotOfferOwnTrade")
@@ -451,6 +477,7 @@ export const cancelOffer = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) return null
     const access = await accessForTrades(ctx, trade.hubId)
+    assertEmployeeTradeAccess(access)
     if (
       !access.employee ||
       access.employee._id !== trade.offeringEmployeeId ||
@@ -479,6 +506,7 @@ export const respondToOffer = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) throw new Error("tradeNotFound")
     const access = await accessForTrades(ctx, trade.hubId)
+    assertEmployeeTradeAccess(access)
     if (!access.employee || access.employee._id !== trade.publisherId) {
       throw new Error("unauthorized")
     }
@@ -502,7 +530,7 @@ export const respondToOffer = mutation({
       })
       await createNotification(ctx, {
         hubId: trade.hubId,
-        audience: "managers",
+        audience: "trade-managers",
         kind: "trade",
         titleKey: "notificationShiftTradeNeedsApproval",
         messageKey: "notificationEmployeesWantTrade",
@@ -581,6 +609,7 @@ export const beginApproval = internalMutation({
     accessToken: v.string(),
     refreshToken: v.string(),
     accessTokenExpiresAt: v.number(),
+    resuming: v.boolean(),
     source: v.object({
       rosterId: v.string(),
       employeeId: v.string(),
@@ -603,19 +632,31 @@ export const beginApproval = internalMutation({
     if (!trade) throw new Error("tradeNotFound")
     await requireHubPermission(ctx, trade.hubId, "manager")
     if (
-      trade.status !== "confirmed" ||
+      (trade.status !== "confirmed" && trade.status !== "processing") ||
       !trade.offeredEventId ||
       !trade.offeringEmployeeId
     ) {
       throw new Error("tradeNotReadyForManager")
     }
+    const resuming = trade.status === "processing"
+    const now = Date.now()
     const [connection, source, target] = await Promise.all([
       ctx.db
         .query("deputyConnections")
         .withIndex("by_hubId", (q) => q.eq("hubId", trade.hubId))
         .unique(),
-      ctx.db.get("events", trade.sourceEventId),
-      ctx.db.get("events", trade.offeredEventId),
+      assertOwnDeputyShift(ctx, {
+        hubId: trade.hubId,
+        employeeId: trade.publisherId,
+        eventId: trade.sourceEventId,
+        now,
+      }),
+      assertOwnDeputyShift(ctx, {
+        hubId: trade.hubId,
+        employeeId: trade.offeringEmployeeId,
+        eventId: trade.offeredEventId,
+        now,
+      }),
     ])
     if (!connection) throw new Error("deputyNotConnected")
     const shiftPayload = (event: typeof source) => {
@@ -651,6 +692,7 @@ export const beginApproval = internalMutation({
       endpoint: connection.endpoint,
       ...tokens,
       accessTokenExpiresAt: connection.accessTokenExpiresAt,
+      resuming,
       source: shiftPayload(source),
       target: shiftPayload(target),
     }
@@ -701,7 +743,6 @@ export const finishApproval = internalMutation({
     ) {
       throw new Error("tradeNotReadyForManager")
     }
-    await requireHubPermission(ctx, trade.hubId, "manager")
     const [source, target] = await Promise.all([
       ctx.db.get("events", trade.sourceEventId),
       ctx.db.get("events", trade.offeredEventId),
@@ -745,13 +786,17 @@ export const finishApproval = internalMutation({
 })
 
 export const failApproval = internalMutation({
-  args: { tradeId: v.id("shiftTrades"), message: v.string() },
+  args: {
+    tradeId: v.id("shiftTrades"),
+    message: v.string(),
+    keepProcessing: v.boolean(),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade || trade.status !== "processing") return null
     await ctx.db.patch("shiftTrades", trade._id, {
-      status: "confirmed",
+      status: args.keepProcessing ? "processing" : "confirmed",
       deputyError: args.message.slice(0, 300),
       updatedAt: Date.now(),
     })

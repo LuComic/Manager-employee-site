@@ -94,6 +94,7 @@ const moreNavigationGroups: {
         href: "/manager/trades",
         label: "trades",
         icon: ArrowLeftRight,
+        managerOnly: true,
       },
       {
         href: "/manager/announcements",
@@ -178,7 +179,9 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             ...group,
             items: group.items.filter((item) => {
               const section = sectionForManagerPath(item.href)
-              return Boolean(section && hub?.workersCanEdit[section])
+              return Boolean(
+                !item.managerOnly && section && hub?.workersCanEdit[section]
+              )
             }),
           }))
           .filter((group) => group.items.length)
@@ -209,7 +212,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/manager/notifications")
   const managerOnlyRoute =
     pathname.startsWith("/manager/logs") ||
-    pathname.startsWith("/manager/schedules")
+    pathname.startsWith("/manager/schedules") ||
+    pathname.startsWith("/manager/trades")
   const routeAllowed =
     managerAccess === "owner" ||
     (managerAccess === "manager" && contentRoute) ||

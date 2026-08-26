@@ -99,9 +99,8 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         </NavLink>
         {hub &&
           managerAccess &&
-          (managerAccess === "manager" ||
-            managerAccess === "owner" ||
-            hub.workersCanEdit.trades) && (
+          (managerAccess === "owner" ||
+            (managerAccess === "manager" && hub.workersCanEdit.trades)) && (
             <NavLink
               href="/trades"
               label={t("trades")}

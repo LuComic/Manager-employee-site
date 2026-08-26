@@ -198,6 +198,10 @@ export default defineSchema({
       "start",
     ])
     .index("by_hubId_and_source_and_start", ["hubId", "source", "start"])
+    .index(
+      "by_hubId_source_sourceDeleted_managerDeleted_start",
+      ["hubId", "source", "sourceDeleted", "managerDeleted", "start"]
+    )
     .index("by_hubId_and_categoryId", ["hubId", "categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
@@ -257,6 +261,8 @@ export default defineSchema({
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_updatedAt", ["hubId", "updatedAt"])
+    .index("by_publisherId", ["publisherId"])
+    .index("by_offeringEmployeeId", ["offeringEmployeeId"])
     .index("by_sourceEventId_and_status", ["sourceEventId", "status"])
     .index("by_offeredEventId_and_status", ["offeredEventId", "status"]),
 
@@ -419,6 +425,7 @@ export default defineSchema({
     audience: v.union(
       v.literal("employees"),
       v.literal("managers"),
+      v.literal("trade-managers"),
       v.literal("employee")
     ),
     employeeProfileId: v.optional(v.id("employeeProfiles")),

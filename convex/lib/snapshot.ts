@@ -21,10 +21,17 @@ export async function buildSnapshot(
   }
 ) {
   const eventsPromise = options.includeDrafts
-    ? ctx.db
-        .query("events")
-        .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
-        .take(MAX_SNAPSHOT_EVENTS)
+    ? options.includeDeputySchedules
+      ? ctx.db
+          .query("events")
+          .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
+          .take(MAX_SNAPSHOT_EVENTS)
+      : ctx.db
+          .query("events")
+          .withIndex("by_hubId_and_source_and_start", (q) =>
+            q.eq("hubId", hub._id).eq("source", undefined)
+          )
+          .take(MAX_SNAPSHOT_EVENTS)
     : loadPublishedEvents(ctx, hub._id, options.includePrivateEvents)
   const [
     bannerImageUrl,

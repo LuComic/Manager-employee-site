@@ -34,6 +34,7 @@ type ApprovalContext = {
   accessToken: string
   refreshToken: string
   accessTokenExpiresAt: number
+  resuming: boolean
   source: ShiftPayload
   target: ShiftPayload
 }
@@ -117,7 +118,9 @@ function mealbreakMinutes(value: unknown) {
 async function loadRoster(
   endpoint: string,
   accessToken: string,
-  expected: ShiftPayload
+  expected: ShiftPayload,
+  allowedEmployeeIds: readonly string[],
+  nowTimestamp: number
 ): Promise<LiveRoster> {
   const response = await fetch(
     `https://${endpoint}/api/v1/resource/Roster/${expected.rosterId}`,
@@ -140,7 +143,19 @@ async function loadRoster(
   ) {
     throw new Error("deputyRosterResponseInvalid")
   }
-  if (String(employeeId) !== expected.employeeId) {
+  const published = roster?.Published === true || roster?.Published === 1
+  const expectedStartTimestamp = Date.parse(expected.startUtc) / 1000
+  const expectedEndTimestamp = Date.parse(expected.endUtc) / 1000
+  if (
+    String(rosterId) !== expected.rosterId ||
+    !allowedEmployeeIds.includes(String(employeeId)) ||
+    startTimestamp !== expectedStartTimestamp ||
+    endTimestamp !== expectedEndTimestamp ||
+    String(areaId) !== expected.areaId ||
+    published !== expected.published ||
+    !published ||
+    startTimestamp <= nowTimestamp
+  ) {
     throw new Error("deputyShiftTradeStale")
   }
   return {
@@ -149,7 +164,7 @@ async function loadRoster(
     startTimestamp,
     endTimestamp,
     areaId,
-    published: roster?.Published === true || roster?.Published === 1,
+    published,
     mealbreakMinutes: mealbreakMinutes(roster?.Mealbreak),
     open: roster?.Open === true || roster?.Open === 1,
     confirmStatus: finiteNumber(roster?.ConfirmStatus) ?? 0,
@@ -225,49 +240,72 @@ export const approve = action({
       await ctx.runMutation(internal.trades.failApproval, {
         tradeId: args.tradeId,
         message: "invalidDeputyEndpoint",
+        keepProcessing: approval.resuming,
       })
       throw new Error("invalidDeputyEndpoint")
     }
     let accessToken = approval.accessToken
+    let deputyWriteStarted = approval.resuming
     try {
       if (approval.accessTokenExpiresAt <= Date.now() + 60_000) {
         accessToken = await refreshToken(ctx, { ...approval, endpoint })
       }
+      const allowedEmployeeIds = [
+        approval.source.employeeId,
+        approval.target.employeeId,
+      ]
+      const nowTimestamp = Date.now() / 1000
       const [sourceRoster, targetRoster] = await Promise.all([
-        loadRoster(endpoint, accessToken, approval.source),
-        loadRoster(endpoint, accessToken, approval.target),
+        loadRoster(
+          endpoint,
+          accessToken,
+          approval.source,
+          allowedEmployeeIds,
+          nowTimestamp
+        ),
+        loadRoster(
+          endpoint,
+          accessToken,
+          approval.target,
+          allowedEmployeeIds,
+          nowTimestamp
+        ),
       ])
-      await updateRoster(
-        endpoint,
-        accessToken,
-        sourceRoster,
-        approval.target.employeeId
-      )
-      try {
+      if (
+        !approval.resuming &&
+        (sourceRoster.employeeId !== approval.source.employeeId ||
+          targetRoster.employeeId !== approval.target.employeeId)
+      ) {
+        throw new Error("deputyShiftTradeStale")
+      }
+      if (sourceRoster.employeeId !== approval.target.employeeId) {
+        deputyWriteStarted = true
+        await updateRoster(
+          endpoint,
+          accessToken,
+          sourceRoster,
+          approval.target.employeeId
+        )
+      }
+      if (targetRoster.employeeId !== approval.source.employeeId) {
+        deputyWriteStarted = true
         await updateRoster(
           endpoint,
           accessToken,
           targetRoster,
           approval.source.employeeId
         )
-      } catch (error) {
-        await updateRoster(
-          endpoint,
-          accessToken,
-          sourceRoster,
-          approval.source.employeeId
-        ).catch(() => undefined)
-        throw error
       }
+      await ctx.runMutation(internal.trades.finishApproval, args)
     } catch (error) {
       const message = safeApprovalError(error)
       await ctx.runMutation(internal.trades.failApproval, {
         tradeId: args.tradeId,
         message,
+        keepProcessing: deputyWriteStarted,
       })
       throw new Error(message)
     }
-    await ctx.runMutation(internal.trades.finishApproval, args)
     await ctx.runMutation(internal.deputy.queueSyncAfterTrade, {
       connectionId: approval.connectionId,
     })

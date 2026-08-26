@@ -110,6 +110,9 @@ export async function POST(request: Request) {
     })
     if (record.organizationId !== orgId)
       throw new Error("employeeBelongsToAnotherWorkplace")
+    if (body.action === "remove" && record.hasShiftTrades) {
+      throw new Error("employeeHasShiftTrades")
+    }
 
     if (body.action === "reactivate") {
       await convex.mutation(api.employees.reactivateUnclaimed, {

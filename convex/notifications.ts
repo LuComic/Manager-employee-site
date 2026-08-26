@@ -205,15 +205,30 @@ async function latestEmployeeNotificationTime(
 
 async function managerNotifications(
   ctx: QueryCtx | MutationCtx,
-  hubId: Id<"hubs">
+  hubId: Id<"hubs">,
+  includeOwnerNotifications: boolean
 ) {
-  return await ctx.db
-    .query("notifications")
-    .withIndex("by_hubId_and_audience", (q) =>
-      q.eq("hubId", hubId).eq("audience", "managers")
-    )
-    .order("desc")
-    .take(NOTIFICATION_FEED_LIMIT)
+  const [tradeNotifications, ownerNotifications] = await Promise.all([
+    ctx.db
+      .query("notifications")
+      .withIndex("by_hubId_and_audience", (q) =>
+        q.eq("hubId", hubId).eq("audience", "trade-managers")
+      )
+      .order("desc")
+      .take(NOTIFICATION_FEED_LIMIT),
+    includeOwnerNotifications
+      ? ctx.db
+          .query("notifications")
+          .withIndex("by_hubId_and_audience", (q) =>
+            q.eq("hubId", hubId).eq("audience", "managers")
+          )
+          .order("desc")
+          .take(NOTIFICATION_FEED_LIMIT)
+      : [],
+  ])
+  return [...tradeNotifications, ...ownerNotifications]
+    .sort((a, b) => b._creationTime - a._creationTime)
+    .slice(0, NOTIFICATION_FEED_LIMIT)
 }
 
 export const listEmployee = query({
@@ -276,7 +291,11 @@ export const listManager = query({
     ])
     const { hub } = access
     const viewerKey = `identity:${identity.tokenIdentifier}`
-    const notifications = await managerNotifications(ctx, hub._id)
+    const notifications = await managerNotifications(
+      ctx,
+      hub._id,
+      access.permission === "owner"
+    )
     const lastReadAt = await getLastReadAt(ctx, hub._id, viewerKey, "manager")
     return {
       notifications: notifications.map((notification) =>
@@ -302,9 +321,9 @@ export const markManagerRead = mutation({
     ])
     const { hub } = access
     const viewerKey = `identity:${identity.tokenIdentifier}`
-    const latest = (await managerNotifications(ctx, hub._id)).find(
-      (notification) => notification.actorViewerKey !== viewerKey
-    )
+    const latest = (
+      await managerNotifications(ctx, hub._id, access.permission === "owner")
+    ).find((notification) => notification.actorViewerKey !== viewerKey)
     return await setLastReadAt(
       ctx,
       hub._id,

@@ -102,12 +102,12 @@ async function setup(t: ReturnType<typeof convexTest>) {
     await ctx.db.patch("employeeProfiles", aliceMapping.employeeProfileId, {
       clerkUserId: aliceIdentity.subject,
       status: "active",
-      accessLevel: "viewer",
+      accessLevel: "manager",
     })
     await ctx.db.patch("employeeProfiles", bobMapping.employeeProfileId, {
       clerkUserId: bobIdentity.subject,
       status: "active",
-      accessLevel: "viewer",
+      accessLevel: "manager",
     })
     const shifts = await ctx.db.query("events").take(10)
     const aliceShift = shifts.find(
@@ -188,6 +188,103 @@ describe("shift trades", () => {
     ).resolves.toHaveLength(2)
   })
 
+  test("does not let deleted schedule history consume the active schedule limit", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await setup(t)
+    await t.run(async (ctx) => {
+      const category = await ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "deputy-schedules")
+        )
+        .unique()
+      if (!category) throw new Error("Missing schedule category")
+      for (let index = 0; index < 500; index += 1) {
+        await ctx.db.insert("events", {
+          hubId,
+          slug: `deleted-schedule-${index}`,
+          title: "Former worker",
+          description: "Deleted Deputy schedule",
+          categoryId: category._id,
+          start: `2029-01-${String((index % 28) + 1).padStart(2, "0")}T01:00`,
+          end: `2029-01-${String((index % 28) + 1).padStart(2, "0")}T02:00`,
+          location: "Old area",
+          notes: "",
+          published: false,
+          source: "deputy",
+          sourceDeleted: true,
+        })
+      }
+    })
+
+    const schedules = await t
+      .withIdentity(ownerIdentity)
+      .query(api.schedules.listForManager, { hubId })
+    expect(schedules).toHaveLength(2)
+    expect(schedules.map((schedule) => schedule.slug)).toEqual([
+      "deputy-shift-101",
+      "deputy-shift-102",
+    ])
+  })
+
+  test("keeps ordinary manager events outside the Deputy snapshot budget", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await setup(t)
+    await t.run(async (ctx) => {
+      const category = await ctx.db
+        .query("categories")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", "deputy-schedules")
+        )
+        .unique()
+      if (!category) throw new Error("Missing schedule category")
+      for (let index = 0; index < 1_000; index += 1) {
+        await ctx.db.insert("events", {
+          hubId,
+          slug: `snapshot-schedule-${index}`,
+          title: "Worker",
+          description: "Deputy schedule",
+          categoryId: category._id,
+          start: `2029-01-${String((index % 28) + 1).padStart(2, "0")}T03:00`,
+          end: `2029-01-${String((index % 28) + 1).padStart(2, "0")}T04:00`,
+          location: "Area",
+          notes: "",
+          published: true,
+          source: "deputy",
+        })
+      }
+      const ordinaryCategoryId = await ctx.db.insert("categories", {
+        hubId,
+        slug: "ordinary-events",
+        label: "Ordinary events",
+        iconKey: "calendar",
+        description: "Manager calendar events",
+        order: 2,
+        kind: "event",
+      })
+      await ctx.db.insert("events", {
+        hubId,
+        slug: "ordinary-manager-event",
+        title: "Ordinary event",
+        description: "Must remain in the manager snapshot",
+        categoryId: ordinaryCategoryId,
+        start: "2031-01-01T10:00",
+        end: "2031-01-01T11:00",
+        location: "Office",
+        notes: "",
+        published: true,
+      })
+    })
+
+    const snapshot = await t
+      .withIdentity(ownerIdentity)
+      .query(api.hubs.getManagerSnapshot, { nowDate: "2030-09-01" })
+    if (snapshot.kind !== "ready") throw new Error("Expected snapshot")
+    expect(snapshot.events.map((event) => event.id)).toContain(
+      "ordinary-manager-event"
+    )
+  })
+
   test("enforces the feature toggle and completes employee and manager review", async () => {
     const t = convexTest(schema, modules)
     const setupResult = await setup(t)
@@ -221,6 +318,22 @@ describe("shift trades", () => {
       messageKey: "notificationEmployeesWantTrade",
       href: `/trades/${slug}`,
     })
+    await t.mutation(api.content.submitHelpRequest, {
+      hubSlug: "trade-workplace",
+      topic: "Private owner topic",
+      message: "Full-access employees must not see this owner-only request.",
+    })
+    const fullAccessFeed = await t
+      .withIdentity(aliceIdentity)
+      .query(api.notifications.listManager, { hubId })
+    expect(fullAccessFeed.notifications).toHaveLength(1)
+    expect(fullAccessFeed.notifications[0]?.kind).toBe("trade")
+    const ownerFeed = await t
+      .withIdentity(ownerIdentity)
+      .query(api.notifications.listManager, { hubId })
+    expect(
+      ownerFeed.notifications.some((item) => item.kind === "question")
+    ).toBe(true)
 
     await t.withIdentity(ownerIdentity).mutation(api.trades.managerDecline, {
       tradeId,
@@ -292,6 +405,27 @@ describe("shift trades", () => {
         reason: "This offered shift must not be published twice.",
       })
     ).rejects.toThrow("tradeAlreadyPublishedForShift")
+  })
+
+  test("requires full employee access even when shift trades are enabled", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, aliceId, aliceShiftId } = await setup(t)
+    await t.withIdentity(ownerIdentity).mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "trades",
+      enabled: true,
+    })
+    await t.run((ctx) =>
+      ctx.db.patch("employeeProfiles", aliceId, { accessLevel: "editor" })
+    )
+
+    await expect(
+      t.withIdentity(aliceIdentity).mutation(api.trades.create, {
+        hubId,
+        sourceEventId: aliceShiftId,
+        reason: "Editors must not bypass the toggle access policy.",
+      })
+    ).rejects.toThrow("tradesNotEnabled")
   })
 
   test("applies an approved trade to both synchronized schedules", async () => {
@@ -422,5 +556,121 @@ describe("shift trades", () => {
     )
     expect(connection).toMatchObject({ status: "syncing" })
     expect(connection?.activeSyncId).toBeTruthy()
+  })
+
+  test("rejects materially changed live Deputy shifts before writing", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { hubId } = setupResult
+    const { tradeId, slug } = await confirmedTrade(t, setupResult)
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.endsWith("/Roster/101")) {
+          return Response.json({
+            Id: 101,
+            Employee: 11,
+            StartTime: 1915682400,
+            EndTime: 1915711200,
+            OperationalUnit: 999,
+            Published: true,
+          })
+        }
+        if (url.endsWith("/Roster/102")) {
+          return Response.json({
+            Id: 102,
+            Employee: 12,
+            StartTime: 1915776000,
+            EndTime: 1915804800,
+            OperationalUnit: 4,
+            Published: true,
+          })
+        }
+        return new Response(null, { status: 500 })
+      })
+    try {
+      await expect(
+        t
+          .withIdentity(ownerIdentity)
+          .action(api.tradeApproval.approve, { tradeId })
+      ).rejects.toThrow("deputyShiftTradeStale")
+    } finally {
+      fetchMock.mockRestore()
+    }
+    const trade = await t.withIdentity(ownerIdentity).query(api.trades.get, {
+      hubId,
+      slug,
+    })
+    expect(trade?.status).toBe("confirmed")
+  })
+
+  test("resumes finalization after Deputy already swapped both rosters", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { hubId } = setupResult
+    const { tradeId, slug } = await confirmedTrade(t, setupResult)
+    await t.run((ctx) =>
+      ctx.db.patch("shiftTrades", tradeId, { status: "processing" })
+    )
+    const posts: unknown[] = []
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith("/Roster/101")) {
+          return Response.json({
+            Id: 101,
+            Employee: 12,
+            StartTime: 1915682400,
+            EndTime: 1915711200,
+            OperationalUnit: 3,
+            Published: true,
+          })
+        }
+        if (url.endsWith("/Roster/102")) {
+          return Response.json({
+            Id: 102,
+            Employee: 11,
+            StartTime: 1915776000,
+            EndTime: 1915804800,
+            OperationalUnit: 4,
+            Published: true,
+          })
+        }
+        if (
+          url.endsWith("/api/v1/supervise/roster") &&
+          init?.method === "POST"
+        ) {
+          posts.push(init.body)
+        }
+        return new Response(null, { status: 200 })
+      })
+    try {
+      await t
+        .withIdentity(ownerIdentity)
+        .action(api.tradeApproval.approve, { tradeId })
+    } finally {
+      fetchMock.mockRestore()
+    }
+    expect(posts).toEqual([])
+    const trade = await t.withIdentity(ownerIdentity).query(api.trades.get, {
+      hubId,
+      slug,
+    })
+    expect(trade?.status).toBe("approved")
+  })
+
+  test("prevents employee removal while shift trades reference the profile", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { aliceId } = setupResult
+    await confirmedTrade(t, setupResult)
+
+    await expect(
+      t
+        .withIdentity(ownerIdentity)
+        .mutation(api.employees.removeProfileBatch, { profileId: aliceId })
+    ).rejects.toThrow("employeeHasShiftTrades")
   })
 })
