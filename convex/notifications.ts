@@ -169,7 +169,7 @@ async function employeeNotifications(
   ctx: QueryCtx | MutationCtx,
   viewer: Awaited<ReturnType<typeof employeeViewer>>
 ) {
-  const [broadcast, personal] = await Promise.all([
+  const [broadcast, tradeBroadcast, personal] = await Promise.all([
     ctx.db
       .query("notifications")
       .withIndex("by_hubId_and_audience", (q) =>
@@ -180,15 +180,28 @@ async function employeeNotifications(
     viewer.employeeProfileId
       ? ctx.db
           .query("notifications")
-          .withIndex("by_employeeProfileId", (q) =>
-            q.eq("employeeProfileId", viewer.employeeProfileId)
+          .withIndex("by_hubId_and_audience", (q) =>
+            q.eq("hubId", viewer.hub._id).eq("audience", "trade-employees")
           )
-          .filter((q) => q.eq(q.field("audience"), "employee"))
+          .order("desc")
+          .take(NOTIFICATION_FEED_LIMIT)
+      : [],
+    viewer.employeeProfileId
+      ? ctx.db
+          .query("notifications")
+          .withIndex("by_employeeProfileId_and_audience", (q) =>
+            q
+              .eq("employeeProfileId", viewer.employeeProfileId)
+              .eq("audience", "employee")
+          )
           .order("desc")
           .take(NOTIFICATION_FEED_LIMIT)
       : [],
   ])
-  return [...broadcast, ...personal]
+  const visibleBroadcast = viewer.employeeProfileId
+    ? broadcast
+    : broadcast.filter((notification) => notification.kind !== "trade")
+  return [...visibleBroadcast, ...tradeBroadcast, ...personal]
     .sort((a, b) => b._creationTime - a._creationTime)
     .slice(0, NOTIFICATION_FEED_LIMIT)
 }

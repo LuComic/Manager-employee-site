@@ -35,6 +35,10 @@ type NotificationInput = NotificationDetails &
         employeeProfileId?: never
       }
     | {
+        audience: "trade-employees"
+        employeeProfileId?: never
+      }
+    | {
         audience: "employee"
         employeeProfileId: Id<"employeeProfiles">
       }

@@ -70,7 +70,11 @@ export function ScheduleManager() {
               className="w-full border border-input bg-background px-3 sm:max-w-sm"
               aria-label={t("filterSchedulesByWorker")}
             >
-              <SelectValue />
+              <SelectValue>
+                {worker === "all"
+                  ? t("all")
+                  : workers.find(([id]) => id === worker)?.[1]}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">

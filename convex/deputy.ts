@@ -571,6 +571,10 @@ export const applyRosterBatch = internalMutation({
       for (const relation of relations) {
         if (relation.employeeProfileId !== employeeProfileId) {
           await ctx.db.delete("eventEmployees", relation._id)
+        } else if (relation.eventStartUtc !== roster.startUtc) {
+          await ctx.db.patch("eventEmployees", relation._id, {
+            eventStartUtc: roster.startUtc,
+          })
         }
       }
       if (
@@ -582,6 +586,7 @@ export const applyRosterBatch = internalMutation({
           hubId: hub._id,
           eventId,
           employeeProfileId,
+          eventStartUtc: roster.startUtc,
           addedAt: Date.now(),
           addedBy: "deputy",
         })

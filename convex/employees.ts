@@ -31,6 +31,19 @@ const accessLevel = v.union(
   v.literal("manager")
 )
 
+const ACTIVE_TRADE_STATUSES = [
+  "published",
+  "offer-pending",
+  "confirmed",
+  "processing",
+] as const satisfies readonly Doc<"shiftTrades">["status"][]
+
+const HISTORICAL_TRADE_STATUSES = [
+  "approved",
+  "manager-declined",
+  "unpublished",
+] as const satisfies readonly Doc<"shiftTrades">["status"][]
+
 function clean(value: string | undefined, max: number) {
   const result = value?.trim() ?? ""
   if (result.length > max) throw new Error("employeeDetailIsTooLong")
@@ -173,19 +186,44 @@ export const listAssignable = query({
   },
 })
 
-async function employeeHasShiftTrades(
+async function employeeHasActiveShiftTrades(
+  ctx: QueryCtx | MutationCtx,
+  profileId: Id<"employeeProfiles">
+) {
+  const activeTrades = await Promise.all(
+    ACTIVE_TRADE_STATUSES.flatMap((status) => [
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_publisherId_and_status", (q) =>
+          q.eq("publisherId", profileId).eq("status", status)
+        )
+        .first(),
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_offeringEmployeeId_and_status", (q) =>
+          q.eq("offeringEmployeeId", profileId).eq("status", status)
+        )
+        .first(),
+    ])
+  )
+  return activeTrades.some(Boolean)
+}
+
+async function employeeHasProcessingShiftTrade(
   ctx: QueryCtx | MutationCtx,
   profileId: Id<"employeeProfiles">
 ) {
   const [publishedTrade, offeredTrade] = await Promise.all([
     ctx.db
       .query("shiftTrades")
-      .withIndex("by_publisherId", (q) => q.eq("publisherId", profileId))
+      .withIndex("by_publisherId_and_status", (q) =>
+        q.eq("publisherId", profileId).eq("status", "processing")
+      )
       .first(),
     ctx.db
       .query("shiftTrades")
-      .withIndex("by_offeringEmployeeId", (q) =>
-        q.eq("offeringEmployeeId", profileId)
+      .withIndex("by_offeringEmployeeId_and_status", (q) =>
+        q.eq("offeringEmployeeId", profileId).eq("status", "processing")
       )
       .first(),
   ])
@@ -198,6 +236,10 @@ export const getForAdmin = query({
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
     const { hub } = await requireHubPermission(ctx, profile.hubId, "owner")
+    const [hasShiftTrades, hasProcessingShiftTrade] = await Promise.all([
+      employeeHasActiveShiftTrades(ctx, profile._id),
+      employeeHasProcessingShiftTrade(ctx, profile._id),
+    ])
     return {
       profile: {
         id: profile._id,
@@ -210,7 +252,8 @@ export const getForAdmin = query({
       },
       organizationId: hub.clerkOrganizationId,
       hubSlug: hub.slug,
-      hasShiftTrades: await employeeHasShiftTrades(ctx, profile._id),
+      hasShiftTrades,
+      hasProcessingShiftTrade,
     }
   },
 })
@@ -489,6 +532,40 @@ async function deactivateProfileRecords(
   profile: Doc<"employeeProfiles">,
   now: number
 ) {
+  const activeTrades = (
+    await Promise.all(
+      ACTIVE_TRADE_STATUSES.flatMap((status) => [
+        ctx.db
+          .query("shiftTrades")
+          .withIndex("by_publisherId_and_status", (q) =>
+            q.eq("publisherId", profile._id).eq("status", status)
+          )
+          .take(500),
+        ctx.db
+          .query("shiftTrades")
+          .withIndex("by_offeringEmployeeId_and_status", (q) =>
+            q.eq("offeringEmployeeId", profile._id).eq("status", status)
+          )
+          .take(500),
+      ])
+    )
+  ).flat()
+  const uniqueTrades = new Map(activeTrades.map((trade) => [trade._id, trade]))
+  if (
+    [...uniqueTrades.values()].some((trade) => trade.status === "processing")
+  ) {
+    throw new Error("employeeHasTradeApprovalInProgress")
+  }
+  await Promise.all(
+    [...uniqueTrades.values()].map((trade) =>
+      ctx.db.patch("shiftTrades", trade._id, {
+        status: "unpublished",
+        approvalAttemptId: undefined,
+        approvalStartedAt: undefined,
+        updatedAt: now,
+      })
+    )
+  )
   await ctx.db.patch("employeeProfiles", profile._id, {
     status: "deactivated",
     invitationStatus:
@@ -533,9 +610,33 @@ export const removeProfileBatch = mutation({
       profile.hubId,
       "owner"
     )
-    if (await employeeHasShiftTrades(ctx, profile._id)) {
+    if (await employeeHasActiveShiftTrades(ctx, profile._id)) {
       throw new Error("employeeHasShiftTrades")
     }
+
+    const historicalTradeMatches = (
+      await Promise.all(
+        HISTORICAL_TRADE_STATUSES.flatMap((status) => [
+          ctx.db
+            .query("shiftTrades")
+            .withIndex("by_publisherId_and_status", (q) =>
+              q.eq("publisherId", profile._id).eq("status", status)
+            )
+            .take(100),
+          ctx.db
+            .query("shiftTrades")
+            .withIndex("by_offeringEmployeeId_and_status", (q) =>
+              q.eq("offeringEmployeeId", profile._id).eq("status", status)
+            )
+            .take(100),
+        ])
+      )
+    ).flat()
+    const historicalTrades = [
+      ...new Map(
+        historicalTradeMatches.map((trade) => [trade._id, trade])
+      ).values(),
+    ]
 
     const [
       eventAssignments,
@@ -581,12 +682,16 @@ export const removeProfileBatch = mutation({
     for (const readState of notificationReadStates) {
       await ctx.db.delete("notificationReadStates", readState._id)
     }
+    for (const trade of historicalTrades) {
+      await ctx.db.delete("shiftTrades", trade._id)
+    }
 
     if (
       eventAssignments.length > 0 ||
       documentAssignments.length > 0 ||
       employeeNotifications.length > 0 ||
-      notificationReadStates.length > 0
+      notificationReadStates.length > 0 ||
+      historicalTrades.length > 0
     ) {
       return { removed: false }
     }

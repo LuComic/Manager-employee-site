@@ -32,6 +32,7 @@ export type ShiftTrade = {
   employeeDeclineReason?: string
   managerDeclineReason?: string
   deputyError?: string
+  canManage: boolean
   viewerRole: "publisher" | "offerer" | "manager" | "employee"
   createdAt: number
   updatedAt: number

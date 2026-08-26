@@ -198,10 +198,13 @@ export default defineSchema({
       "start",
     ])
     .index("by_hubId_and_source_and_start", ["hubId", "source", "start"])
-    .index(
-      "by_hubId_source_sourceDeleted_managerDeleted_start",
-      ["hubId", "source", "sourceDeleted", "managerDeleted", "start"]
-    )
+    .index("by_hubId_source_sourceDeleted_managerDeleted_start", [
+      "hubId",
+      "source",
+      "sourceDeleted",
+      "managerDeleted",
+      "start",
+    ])
     .index("by_hubId_and_categoryId", ["hubId", "categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
@@ -256,13 +259,15 @@ export default defineSchema({
     employeeDeclineReason: v.optional(v.string()),
     managerDeclineReason: v.optional(v.string()),
     deputyError: v.optional(v.string()),
+    approvalAttemptId: v.optional(v.string()),
+    approvalStartedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_updatedAt", ["hubId", "updatedAt"])
-    .index("by_publisherId", ["publisherId"])
-    .index("by_offeringEmployeeId", ["offeringEmployeeId"])
+    .index("by_publisherId_and_status", ["publisherId", "status"])
+    .index("by_offeringEmployeeId_and_status", ["offeringEmployeeId", "status"])
     .index("by_sourceEventId_and_status", ["sourceEventId", "status"])
     .index("by_offeredEventId_and_status", ["offeredEventId", "status"]),
 
@@ -279,11 +284,16 @@ export default defineSchema({
     hubId: v.id("hubs"),
     eventId: v.id("events"),
     employeeProfileId: v.id("employeeProfiles"),
+    eventStartUtc: v.optional(v.string()),
     addedAt: v.number(),
     addedBy: v.string(),
   })
     .index("by_eventId_and_employeeProfileId", ["eventId", "employeeProfileId"])
     .index("by_employeeProfileId_and_eventId", ["employeeProfileId", "eventId"])
+    .index("by_employeeProfileId_and_eventStartUtc", [
+      "employeeProfileId",
+      "eventStartUtc",
+    ])
     .index("by_hubId_and_eventId", ["hubId", "eventId"]),
 
   clerkWebhookEvents: defineTable({
@@ -425,6 +435,7 @@ export default defineSchema({
     audience: v.union(
       v.literal("employees"),
       v.literal("managers"),
+      v.literal("trade-employees"),
       v.literal("trade-managers"),
       v.literal("employee")
     ),
@@ -453,7 +464,11 @@ export default defineSchema({
     createdAt: v.optional(v.number()),
   })
     .index("by_hubId_and_audience", ["hubId", "audience"])
-    .index("by_employeeProfileId", ["employeeProfileId"]),
+    .index("by_employeeProfileId", ["employeeProfileId"])
+    .index("by_employeeProfileId_and_audience", [
+      "employeeProfileId",
+      "audience",
+    ]),
 
   notificationReadStates: defineTable({
     hubId: v.id("hubs"),

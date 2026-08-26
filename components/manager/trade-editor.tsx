@@ -110,6 +110,7 @@ function TradeEditorForm({
   const [reason, setReason] = useState(trade?.reason ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const selectedShift = shifts.find((shift) => shift.eventId === eventId)
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -178,7 +179,29 @@ function TradeEditorForm({
                   id="trade-shift"
                   className="w-full border border-input bg-background px-3"
                 >
-                  <SelectValue placeholder={t("chooseShift")} />
+                  <SelectValue placeholder={t("chooseShift")}>
+                    {selectedShift
+                      ? t("shiftOption", {
+                          date: formatDate(
+                            selectedShift.start,
+                            undefined,
+                            hub?.timeZone,
+                            languageTag
+                          ),
+                          start: formatTime(
+                            selectedShift.start,
+                            hub?.timeZone,
+                            languageTag
+                          ),
+                          end: formatTime(
+                            selectedShift.end,
+                            hub?.timeZone,
+                            languageTag
+                          ),
+                          area: selectedShift.area,
+                        })
+                      : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {shifts.map((shift) => (

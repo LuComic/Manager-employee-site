@@ -72,6 +72,7 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
   const cancelOffer = useMutation(api.trades.cancelOffer)
   const respondToOffer = useMutation(api.trades.respondToOffer)
   const managerDecline = useMutation(api.trades.managerDecline)
+  const managerCancelTrade = useMutation(api.trades.managerCancel)
   const approveTrade = useAction(api.tradeApproval.approve)
   const [selectedShift, setSelectedShift] = useState("")
   const [declineMode, setDeclineMode] = useState<"employee" | "manager" | null>(
@@ -270,6 +271,12 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
                   "tradeApprovedAndDeputyUpdated"
                 )
               }
+              onManagerCancel={() =>
+                void run(async () => {
+                  await managerCancelTrade({ tradeId: trade.id })
+                  router.push("/trades")
+                }, "tradeUnpublished")
+              }
             />
           </div>
         </CardContent>
@@ -400,6 +407,7 @@ function TradeActions({
   onAccept,
   onDecline,
   onManagerAccept,
+  onManagerCancel,
 }: {
   trade: ShiftTrade
   shifts: TradeShift[]
@@ -414,9 +422,23 @@ function TradeActions({
   onAccept: () => void
   onDecline: (mode: "employee" | "manager") => void
   onManagerAccept: () => void
+  onManagerCancel: () => void
 }) {
   const t = useAppTranslations()
   if (trade.viewerRole === "manager") {
+    if (trade.status === "published" || trade.status === "offer-pending") {
+      return (
+        <div className="flex justify-end">
+          <Button
+            variant="destructive"
+            onClick={onManagerCancel}
+            disabled={pending}
+          >
+            <T>cancel</T>
+          </Button>
+        </div>
+      )
+    }
     return trade.status === "confirmed" || trade.status === "processing" ? (
       <div className="flex flex-wrap justify-end gap-2">
         {trade.status === "confirmed" && (
@@ -473,6 +495,7 @@ function TradeActions({
     )
   }
   if (trade.viewerRole === "employee" && trade.status === "published") {
+    const selected = shifts.find((shift) => shift.eventId === selectedShift)
     return (
       <div className="space-y-2">
         <Label htmlFor="offered-shift">
@@ -487,7 +510,21 @@ function TradeActions({
               id="offered-shift"
               className="min-w-0 flex-1 border border-input bg-background px-3"
             >
-              <SelectValue placeholder={t("chooseShift")} />
+              <SelectValue placeholder={t("chooseShift")}>
+                {selected
+                  ? t("shiftOption", {
+                      date: formatDate(
+                        selected.start,
+                        undefined,
+                        timeZone,
+                        languageTag
+                      ),
+                      start: formatTime(selected.start, timeZone, languageTag),
+                      end: formatTime(selected.end, timeZone, languageTag),
+                      area: selected.area,
+                    })
+                  : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {shifts.map((shift) => (
@@ -514,7 +551,33 @@ function TradeActions({
           >
             <ArrowLeftRight /> <T>switch</T>
           </Button>
+          {trade.canManage && (
+            <Button
+              variant="destructive"
+              onClick={onManagerCancel}
+              disabled={pending}
+            >
+              <T>cancel</T>
+            </Button>
+          )}
         </div>
+      </div>
+    )
+  }
+  if (
+    trade.canManage &&
+    trade.viewerRole === "employee" &&
+    trade.status === "offer-pending"
+  ) {
+    return (
+      <div className="flex justify-end">
+        <Button
+          variant="destructive"
+          onClick={onManagerCancel}
+          disabled={pending}
+        >
+          <T>cancel</T>
+        </Button>
       </div>
     )
   }

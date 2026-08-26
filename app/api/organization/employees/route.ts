@@ -113,6 +113,9 @@ export async function POST(request: Request) {
     if (body.action === "remove" && record.hasShiftTrades) {
       throw new Error("employeeHasShiftTrades")
     }
+    if (body.action === "deactivate" && record.hasProcessingShiftTrade) {
+      throw new Error("employeeHasTradeApprovalInProgress")
+    }
 
     if (body.action === "reactivate") {
       await convex.mutation(api.employees.reactivateUnclaimed, {

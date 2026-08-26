@@ -34,6 +34,7 @@ type ApprovalContext = {
   accessToken: string
   refreshToken: string
   accessTokenExpiresAt: number
+  attemptId: string
   resuming: boolean
   source: ShiftPayload
   target: ShiftPayload
@@ -239,6 +240,7 @@ export const approve = action({
     if (!endpoint) {
       await ctx.runMutation(internal.trades.failApproval, {
         tradeId: args.tradeId,
+        attemptId: approval.attemptId,
         message: "invalidDeputyEndpoint",
         keepProcessing: approval.resuming,
       })
@@ -296,11 +298,15 @@ export const approve = action({
           approval.source.employeeId
         )
       }
-      await ctx.runMutation(internal.trades.finishApproval, args)
+      await ctx.runMutation(internal.trades.finishApproval, {
+        ...args,
+        attemptId: approval.attemptId,
+      })
     } catch (error) {
       const message = safeApprovalError(error)
       await ctx.runMutation(internal.trades.failApproval, {
         tradeId: args.tradeId,
+        attemptId: approval.attemptId,
         message,
         keepProcessing: deputyWriteStarted,
       })
