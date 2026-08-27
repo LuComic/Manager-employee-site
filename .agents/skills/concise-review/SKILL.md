@@ -25,7 +25,7 @@ Whatever you're reviewing, make sure to pay attention to:
 
 Make the output a concise, straight to the point report with numbered findings, starting from the most important. Each issue should include:
 
-- description of the problem
+- short and concise description of the problem
 - files affected
 - maybe an example if its an edge case
 - the severity level.
