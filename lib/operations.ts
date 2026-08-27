@@ -66,6 +66,7 @@ export type EmployeeProfile = {
   status: EmployeeStatus
   accessLevel: EmployeeAccessLevel
   clerkUserId?: string
+  pendingClerkAction?: "deactivate" | "remove"
   invitationId?: string
   invitationStatus:
     "not-sent" | "pending" | "accepted" | "expired" | "revoked" | "failed"

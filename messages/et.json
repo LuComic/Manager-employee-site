@@ -115,6 +115,7 @@
     "tradeParticipantCannotApprove": "Selles vahetuses osalev haldur ei saa seda kinnitada.",
     "tradeApprovalInProgress": "Teine haldur juba kinnitab seda vahetust.",
     "employeeHasTradeApprovalInProgress": "Enne töötaja inaktiveerimist oota poolelioleva vahetuse kinnitamise lõppemiseni.",
+    "employeeUpdateInProgress": "Selle töötaja teine uuendamine on juba pooleli. Proovi varsti uuesti.",
     "deputyShiftTradeUpdateFailed": "Deputy ei saanud mõlemat vahetust uuendada. Kontrolli graafikuid ja proovi uuesti.",
     "deputyShiftTradeStale": "Üks vahetustest muutus Deputys. Sünkrooni graafikud, vaata vahetus üle ja proovi uuesti.",
     "notificationNewShiftTrade": "Uus vahetus",

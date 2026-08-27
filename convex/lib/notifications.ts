@@ -18,6 +18,7 @@ type NotificationDetails = {
   messageKey?: string
   messageValues?: Record<string, string | number>
   href: string
+  shiftTradeId?: Id<"shiftTrades">
 }
 
 type NotificationInput = NotificationDetails &

@@ -110,6 +110,12 @@ export default defineSchema({
     invitedAt: v.optional(v.number()),
     activatedAt: v.optional(v.number()),
     deactivatedAt: v.optional(v.number()),
+    pendingClerkAction: v.optional(
+      v.union(v.literal("deactivate"), v.literal("remove"))
+    ),
+    pendingClerkActionId: v.optional(v.string()),
+    pendingClerkActionPreviousStatus: v.optional(employeeStatus),
+    pendingClerkActionStartedAt: v.optional(v.number()),
     invitationId: v.optional(v.string()),
     invitationStatus: invitationStatus,
     invitationCorrelationHash: v.optional(v.string()),
@@ -237,7 +243,9 @@ export default defineSchema({
     hubId: v.id("hubs"),
     deputyEmployeeId: v.string(),
     employeeProfileId: v.id("employeeProfiles"),
-  }).index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"]),
+  })
+    .index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"])
+    .index("by_hubId_and_employeeProfileId", ["hubId", "employeeProfileId"]),
 
   shiftTrades: defineTable({
     hubId: v.id("hubs"),
@@ -301,6 +309,11 @@ export default defineSchema({
     eventType: v.string(),
     receivedAt: v.number(),
   }).index("by_eventId", ["eventId"]),
+
+  dataMigrations: defineTable({
+    name: v.string(),
+    completedAt: v.number(),
+  }).index("by_name", ["name"]),
 
   announcements: defineTable({
     hubId: v.id("hubs"),
@@ -460,6 +473,7 @@ export default defineSchema({
     href: v.string(),
     // Used to suppress unread indicators for an authenticated actor's actions.
     actorViewerKey: v.optional(v.string()),
+    shiftTradeId: v.optional(v.id("shiftTrades")),
     // Transitional: older notification rows stored this redundantly.
     createdAt: v.optional(v.number()),
   })
@@ -468,7 +482,9 @@ export default defineSchema({
     .index("by_employeeProfileId_and_audience", [
       "employeeProfileId",
       "audience",
-    ]),
+    ])
+    .index("by_shiftTradeId", ["shiftTradeId"])
+    .index("by_hubId_and_href", ["hubId", "href"]),
 
   notificationReadStates: defineTable({
     hubId: v.id("hubs"),

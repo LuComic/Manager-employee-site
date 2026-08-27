@@ -207,6 +207,58 @@ describe("Deputy schedule synchronization", () => {
     ])
   })
 
+  test("does not map Deputy employees from separate sync windows to one email-matched profile", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, connectionId } = await setup(t)
+    const sharedProfileId = await t
+      .withIdentity(ownerIdentity)
+      .mutation(api.employees.create, {
+        hubId,
+        displayName: "Shared Email Profile",
+        email: "shared@example.com",
+      })
+
+    for (const [employeeId, externalId, employeeName] of [
+      ["7", "first-window", "First Deputy Worker"],
+      ["8", "second-window", "Second Deputy Worker"],
+    ] as const) {
+      await t.mutation(internal.deputy.applyRosterBatch, {
+        connectionId,
+        generation: 1,
+        syncId: "sync-1",
+        rosters: [
+          {
+            externalId,
+            startUtc: "2026-08-04T06:00:00.000Z",
+            endUtc: "2026-08-04T14:00:00.000Z",
+            employeeId,
+            employeeName,
+            employeeEmail: "shared@example.com",
+            areaId: "3",
+            areaName: "Kitchen",
+            published: true,
+          },
+        ],
+      })
+    }
+
+    const mappings = await t.run((ctx) =>
+      ctx.db
+        .query("deputyEmployeeMappings")
+        .withIndex("by_hubId_and_deputyEmployeeId", (q) => q.eq("hubId", hubId))
+        .take(10)
+    )
+    expect(mappings).toHaveLength(2)
+    expect(
+      new Set(mappings.map((mapping) => mapping.employeeProfileId)).size
+    ).toBe(2)
+    expect(
+      mappings.filter(
+        (mapping) => mapping.employeeProfileId === sharedProfileId
+      )
+    ).toHaveLength(1)
+  })
+
   test("queues one follow-up sync when a trade completes during an active sync", async () => {
     const t = convexTest(schema, modules)
     const { connectionId } = await setup(t)

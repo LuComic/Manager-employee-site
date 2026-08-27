@@ -11,4 +11,11 @@ crons.interval(
   { paginationOpts: { numItems: 50, cursor: null } }
 )
 
+crons.interval(
+  "backfill event assignment start times",
+  { hours: 1 },
+  internal.trades.backfillEventAssignmentStartUtc,
+  { paginationOpts: { numItems: 100, cursor: null } }
+)
+
 export default crons

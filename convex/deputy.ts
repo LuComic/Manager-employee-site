@@ -131,6 +131,24 @@ async function deputyCategory(ctx: MutationCtx, hubId: Id<"hubs">) {
   return (await ctx.db.get("categories", id))!
 }
 
+async function createDeputyEmployeeMapping(
+  ctx: MutationCtx,
+  args: {
+    hubId: Id<"hubs">
+    deputyEmployeeId: string
+    employeeProfileId: Id<"employeeProfiles">
+  }
+) {
+  const profileMapping = await ctx.db
+    .query("deputyEmployeeMappings")
+    .withIndex("by_hubId_and_employeeProfileId", (q) =>
+      q.eq("hubId", args.hubId).eq("employeeProfileId", args.employeeProfileId)
+    )
+    .first()
+  if (profileMapping) throw new Error("deputyRosterSyncFailed")
+  await ctx.db.insert("deputyEmployeeMappings", args)
+}
+
 async function deputyEmployee(
   ctx: MutationCtx,
   args: {
@@ -152,6 +170,21 @@ async function deputyEmployee(
     )
     .unique()
   if (mapping) {
+    const mappingsForProfile = await ctx.db
+      .query("deputyEmployeeMappings")
+      .withIndex("by_hubId_and_employeeProfileId", (q) =>
+        q
+          .eq("hubId", args.hubId)
+          .eq("employeeProfileId", mapping.employeeProfileId)
+      )
+      .take(2)
+    if (
+      mappingsForProfile.some(
+        (candidate) => candidate.deputyEmployeeId !== args.deputyEmployeeId
+      )
+    ) {
+      throw new Error("deputyRosterSyncFailed")
+    }
     const profile = await ctx.db.get(
       "employeeProfiles",
       mapping.employeeProfileId
@@ -196,9 +229,17 @@ async function deputyEmployee(
         ).filter(
           (profile) => profile.email?.trim().toLocaleLowerCase() === validEmail
         )
-    const available = matches.filter(
-      (profile) => profile.status !== "deactivated"
-    )
+    const available = []
+    for (const profile of matches) {
+      if (profile.status === "deactivated") continue
+      const existingProfileMapping = await ctx.db
+        .query("deputyEmployeeMappings")
+        .withIndex("by_hubId_and_employeeProfileId", (q) =>
+          q.eq("hubId", args.hubId).eq("employeeProfileId", profile._id)
+        )
+        .first()
+      if (!existingProfileMapping) available.push(profile)
+    }
     const active = available.filter((profile) => profile.status === "active")
     const profile =
       active.length === 1
@@ -207,7 +248,7 @@ async function deputyEmployee(
           ? available[0]
           : null
     if (profile) {
-      await ctx.db.insert("deputyEmployeeMappings", {
+      await createDeputyEmployeeMapping(ctx, {
         hubId: args.hubId,
         deputyEmployeeId: args.deputyEmployeeId,
         employeeProfileId: profile._id,
@@ -230,7 +271,7 @@ async function deputyEmployee(
     updatedAt: now,
     invitationStatus: "not-sent",
   })
-  await ctx.db.insert("deputyEmployeeMappings", {
+  await createDeputyEmployeeMapping(ctx, {
     hubId: args.hubId,
     deputyEmployeeId: args.deputyEmployeeId,
     employeeProfileId,

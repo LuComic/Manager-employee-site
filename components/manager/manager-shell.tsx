@@ -49,8 +49,10 @@ import {
 import type { AppMessageKey } from "@/i18n/messages"
 import { cn } from "@/lib/utils"
 import {
+  canAccessManagerPath,
+  canAccessTradeManager,
   firstWorkerManagerPath,
-  type WorkerEditableSection,
+  workerSectionForManagerPath,
 } from "@/lib/worker-editing"
 
 type NavigationLink = {
@@ -94,7 +96,6 @@ const moreNavigationGroups: {
         href: "/manager/trades",
         label: "trades",
         icon: ArrowLeftRight,
-        managerOnly: true,
       },
       {
         href: "/manager/announcements",
@@ -144,27 +145,13 @@ function isActiveLink(pathname: string, href: string) {
   return href === "/manager" ? pathname === href : pathname.startsWith(href)
 }
 
-function sectionForManagerPath(pathname: string): WorkerEditableSection | null {
-  if (pathname.startsWith("/manager/guides")) return "guides"
-  if (pathname.startsWith("/manager/calendar")) return "events"
-  if (pathname.startsWith("/manager/announcements")) return "announcements"
-  if (pathname.startsWith("/manager/documents")) return "documents"
-  if (pathname.startsWith("/manager/questions")) return "faqs"
-  if (pathname.startsWith("/manager/trades")) return "trades"
-  return null
-}
-
 export function ManagerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const href = useLocalizedHref()
   const t = useAppTranslations()
   const { hub, hubState, managerAccess } = useOperations()
   const focusedEditor = pathname.endsWith("/new") || pathname.endsWith("/edit")
-  const workerSection = sectionForManagerPath(pathname)
   const workerLandingPath = firstWorkerManagerPath(hub?.workersCanEdit)
-  const workerRouteAllowed = Boolean(
-    workerSection && hub?.workersCanEdit[workerSection]
-  )
   const visibleNavigationItems =
     managerAccess === "viewer"
       ? hub?.workersCanEdit.guides
@@ -178,7 +165,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           .map((group) => ({
             ...group,
             items: group.items.filter((item) => {
-              const section = sectionForManagerPath(item.href)
+              const section = workerSectionForManagerPath(item.href)
               return Boolean(
                 !item.managerOnly && section && hub?.workersCanEdit[section]
               )
@@ -194,34 +181,23 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               items:
                 managerAccess === "manager"
                   ? group.items
-                  : group.items.filter((item) => !item.managerOnly),
+                  : group.items.filter((item) => {
+                      const section = workerSectionForManagerPath(item.href)
+                      return Boolean(
+                        !item.managerOnly &&
+                        (section !== "trades" ||
+                          canAccessTradeManager(
+                            managerAccess,
+                            Boolean(hub?.workersCanEdit.trades)
+                          ))
+                      )
+                    }),
             }))
-  const contentRoute =
-    pathname === "/manager" ||
-    pathname.startsWith("/manager/today") ||
-    pathname.startsWith("/manager/guides") ||
-    pathname.startsWith("/manager/categories") ||
-    pathname.startsWith("/manager/calendar") ||
-    pathname.startsWith("/manager/schedules") ||
-    pathname.startsWith("/manager/trades") ||
-    pathname.startsWith("/manager/announcements") ||
-    pathname.startsWith("/manager/documents") ||
-    pathname.startsWith("/manager/questions") ||
-    pathname.startsWith("/manager/drafts") ||
-    pathname.startsWith("/manager/logs") ||
-    pathname.startsWith("/manager/notifications")
-  const managerOnlyRoute =
-    pathname.startsWith("/manager/logs") ||
-    pathname.startsWith("/manager/schedules") ||
-    pathname.startsWith("/manager/trades")
-  const routeAllowed =
-    managerAccess === "owner" ||
-    (managerAccess === "manager" && contentRoute) ||
-    (managerAccess === "editor" &&
-      contentRoute &&
-      !managerOnlyRoute &&
-      (!pathname.endsWith("/new") || workerRouteAllowed)) ||
-    (managerAccess === "viewer" && workerRouteAllowed)
+  const routeAllowed = canAccessManagerPath({
+    access: managerAccess,
+    pathname,
+    workersCanEdit: hub?.workersCanEdit,
+  })
   return (
     <div className="min-h-svh bg-muted/40">
       <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur sm:static sm:z-auto sm:border-b-0 sm:bg-background sm:backdrop-blur-none">

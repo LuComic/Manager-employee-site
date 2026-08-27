@@ -1750,14 +1750,27 @@ describe("Organization employees, invitations, and event links", () => {
     await expect(
       t
         .withIdentity(orgMemberIdentity)
-        .mutation(api.employees.removeProfileBatch, { profileId })
+        .mutation(api.employees.prepareClerkRemoval, {
+          profileId,
+          action: "remove",
+        })
     ).rejects.toThrow("workplaceOwnerAccessRequired")
 
+    const { operationId } = await owner.mutation(
+      api.employees.prepareClerkRemoval,
+      { profileId, action: "remove" }
+    )
     expect(
-      await owner.mutation(api.employees.removeProfileBatch, { profileId })
+      await owner.mutation(api.employees.removeProfileBatch, {
+        profileId,
+        operationId,
+      })
     ).toEqual({ removed: false })
     expect(
-      await owner.mutation(api.employees.removeProfileBatch, { profileId })
+      await owner.mutation(api.employees.removeProfileBatch, {
+        profileId,
+        operationId,
+      })
     ).toEqual({ removed: true })
 
     const relatedRecords = await t.run(async (ctx) => {
@@ -2275,8 +2288,13 @@ describe("Organization employees, invitations, and event links", () => {
       employeeProfileIds: [profileId],
     }
     await admin.mutation(api.content.saveEvent, event)
+    const { operationId } = await admin.mutation(
+      api.employees.prepareClerkRemoval,
+      { profileId, action: "deactivate" }
+    )
     await admin.mutation(api.employees.deactivateAfterClerkRemoval, {
       profileId,
+      operationId,
     })
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
@@ -2325,8 +2343,13 @@ describe("Organization employees, invitations, and event links", () => {
           })
       ).kind
     ).toBe("ready")
+    const { operationId } = await admin.mutation(
+      api.employees.prepareClerkRemoval,
+      { profileId, action: "deactivate" }
+    )
     await admin.mutation(api.employees.deactivateAfterClerkRemoval, {
       profileId,
+      operationId,
     })
     expect(
       (

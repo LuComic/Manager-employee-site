@@ -1,6 +1,8 @@
+import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
 
 import { normalizeWorkersCanEdit } from "../lib/worker-editing"
+import { internal } from "./_generated/api"
 import type { Doc, Id } from "./_generated/dataModel"
 import {
   internalMutation,
@@ -66,6 +68,8 @@ const ACTIVE_TRADE_STATUSES = [
 ] as const satisfies readonly Doc<"shiftTrades">["status"][]
 
 const APPROVAL_LEASE_MS = 15 * 60 * 1000
+const EVENT_ASSIGNMENT_START_UTC_MIGRATION =
+  "event-assignment-start-utc-2026-08"
 
 function cleanReason(value: string, errorKey = "tradeReasonRequired") {
   const reason = value.trim()
@@ -386,6 +390,60 @@ export const listMyShifts = query({
   },
 })
 
+export const backfillEventAssignmentStartUtc = internalMutation({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.paginationOpts.cursor === null) {
+      const completed = await ctx.db
+        .query("dataMigrations")
+        .withIndex("by_name", (q) =>
+          q.eq("name", EVENT_ASSIGNMENT_START_UTC_MIGRATION)
+        )
+        .unique()
+      if (completed) return null
+    }
+    const page = await ctx.db
+      .query("eventEmployees")
+      .paginate(args.paginationOpts)
+    for (const assignment of page.page) {
+      if (assignment.eventStartUtc !== undefined) continue
+      const event = await ctx.db.get("events", assignment.eventId)
+      if (event?.startUtc) {
+        await ctx.db.patch("eventEmployees", assignment._id, {
+          eventStartUtc: event.startUtc,
+        })
+      }
+    }
+    if (page.isDone) {
+      const completed = await ctx.db
+        .query("dataMigrations")
+        .withIndex("by_name", (q) =>
+          q.eq("name", EVENT_ASSIGNMENT_START_UTC_MIGRATION)
+        )
+        .unique()
+      if (!completed) {
+        await ctx.db.insert("dataMigrations", {
+          name: EVENT_ASSIGNMENT_START_UTC_MIGRATION,
+          completedAt: Date.now(),
+        })
+      }
+    } else {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.trades.backfillEventAssignmentStartUtc,
+        {
+          paginationOpts: {
+            ...args.paginationOpts,
+            cursor: page.continueCursor,
+          },
+        }
+      )
+    }
+    return null
+  },
+})
+
 export const canPublish = query({
   args: { hubId: v.id("hubs") },
   returns: v.boolean(),
@@ -418,7 +476,7 @@ export const create = mutation({
     await assertShiftNotInActiveTrade(ctx, args.sourceEventId)
     const now = Date.now()
     const slug = crypto.randomUUID()
-    await ctx.db.insert("shiftTrades", {
+    const tradeId = await ctx.db.insert("shiftTrades", {
       hubId: args.hubId,
       slug,
       publisherId: access.employee._id,
@@ -430,6 +488,7 @@ export const create = mutation({
     })
     await createNotification(ctx, {
       hubId: args.hubId,
+      shiftTradeId: tradeId,
       audience: "trade-employees",
       kind: "trade",
       titleKey: "notificationNewShiftTrade",
@@ -528,6 +587,7 @@ export const offer = mutation({
     })
     await createNotification(ctx, {
       hubId: trade.hubId,
+      shiftTradeId: trade._id,
       audience: "employee",
       employeeProfileId: trade.publisherId,
       kind: "trade",
@@ -600,6 +660,7 @@ export const respondToOffer = mutation({
       })
       await createNotification(ctx, {
         hubId: trade.hubId,
+        shiftTradeId: trade._id,
         audience: "trade-managers",
         kind: "trade",
         titleKey: "notificationShiftTradeNeedsApproval",
@@ -624,6 +685,7 @@ export const respondToOffer = mutation({
       })
       await createNotification(ctx, {
         hubId: trade.hubId,
+        shiftTradeId: trade._id,
         audience: "employee",
         employeeProfileId: trade.offeringEmployeeId,
         kind: "trade",
@@ -658,6 +720,7 @@ export const managerDecline = mutation({
     ]) {
       await createNotification(ctx, {
         hubId: trade.hubId,
+        shiftTradeId: trade._id,
         audience: "employee",
         employeeProfileId,
         kind: "trade",
@@ -736,17 +799,12 @@ export const beginApproval = internalMutation({
     ) {
       throw new Error("tradeApprovalInProgress")
     }
-    const approverProfiles = await ctx.db
-      .query("employeeProfiles")
-      .withIndex("by_hubId_and_clerkUserId", (q) =>
-        q.eq("hubId", trade.hubId).eq("clerkUserId", identity.subject)
-      )
-      .take(10)
-    const approverIsParticipant = approverProfiles.some(
-      (profile) =>
-        profile.status === "active" &&
-        (profile._id === trade.publisherId ||
-          profile._id === trade.offeringEmployeeId)
+    const [publisher, offeringEmployee] = await Promise.all([
+      ctx.db.get("employeeProfiles", trade.publisherId),
+      ctx.db.get("employeeProfiles", trade.offeringEmployeeId),
+    ])
+    const approverIsParticipant = [publisher, offeringEmployee].some(
+      (profile) => profile?.clerkUserId === identity.subject
     )
     if (approverIsParticipant) {
       throw new Error("tradeParticipantCannotApprove")
@@ -894,6 +952,7 @@ export const finishApproval = internalMutation({
     ]) {
       await createNotification(ctx, {
         hubId: trade.hubId,
+        shiftTradeId: trade._id,
         audience: "employee",
         employeeProfileId,
         kind: "trade",
