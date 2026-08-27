@@ -74,6 +74,7 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
   const managerDecline = useMutation(api.trades.managerDecline)
   const managerCancelTrade = useMutation(api.trades.managerCancel)
   const approveTrade = useAction(api.tradeApproval.approve)
+  const rollbackTrade = useAction(api.tradeApproval.rollback)
   const [selectedShift, setSelectedShift] = useState("")
   const [declineMode, setDeclineMode] = useState<"employee" | "manager" | null>(
     null
@@ -271,6 +272,12 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
                   "tradeApprovedAndDeputyUpdated"
                 )
               }
+              onManagerRollback={() =>
+                void run(
+                  () => rollbackTrade({ tradeId: trade.id }),
+                  "tradeDeputySchedulesRestored"
+                )
+              }
               onManagerCancel={() =>
                 void run(async () => {
                   await managerCancelTrade({ tradeId: trade.id })
@@ -407,6 +414,7 @@ function TradeActions({
   onAccept,
   onDecline,
   onManagerAccept,
+  onManagerRollback,
   onManagerCancel,
 }: {
   trade: ShiftTrade
@@ -422,6 +430,7 @@ function TradeActions({
   onAccept: () => void
   onDecline: (mode: "employee" | "manager") => void
   onManagerAccept: () => void
+  onManagerRollback: () => void
   onManagerCancel: () => void
 }) {
   const t = useAppTranslations()
@@ -457,6 +466,15 @@ function TradeActions({
             <T>accept</T>
           )}
         </Button>
+        {trade.status === "processing" && (
+          <Button
+            variant="outline"
+            onClick={onManagerRollback}
+            disabled={pending}
+          >
+            <T>restoreDeputySchedules</T>
+          </Button>
+        )}
       </div>
     ) : null
   }

@@ -18,4 +18,11 @@ crons.interval(
   { paginationOpts: { numItems: 100, cursor: null } }
 )
 
+crons.interval(
+  "expire unavailable shift trades",
+  { minutes: 15 },
+  internal.trades.expireUnavailableTrades,
+  { paginationOpts: { numItems: 100, cursor: null } }
+)
+
 export default crons

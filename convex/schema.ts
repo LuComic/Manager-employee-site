@@ -204,13 +204,10 @@ export default defineSchema({
       "start",
     ])
     .index("by_hubId_and_source_and_start", ["hubId", "source", "start"])
-    .index("by_hubId_source_sourceDeleted_managerDeleted_start", [
-      "hubId",
-      "source",
-      "sourceDeleted",
-      "managerDeleted",
-      "start",
-    ])
+    .index("by_hubId_source_sourceDeleted_managerDeleted_start", {
+      fields: ["hubId", "source", "sourceDeleted", "managerDeleted", "start"],
+      staged: true,
+    })
     .index("by_hubId_and_categoryId", ["hubId", "categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
@@ -245,7 +242,10 @@ export default defineSchema({
     employeeProfileId: v.id("employeeProfiles"),
   })
     .index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"])
-    .index("by_hubId_and_employeeProfileId", ["hubId", "employeeProfileId"]),
+    .index("by_hubId_and_employeeProfileId", {
+      fields: ["hubId", "employeeProfileId"],
+      staged: true,
+    }),
 
   shiftTrades: defineTable({
     hubId: v.id("hubs"),
@@ -269,6 +269,9 @@ export default defineSchema({
     deputyError: v.optional(v.string()),
     approvalAttemptId: v.optional(v.string()),
     approvalStartedAt: v.optional(v.number()),
+    approvalOperation: v.optional(
+      v.union(v.literal("approve"), v.literal("rollback"))
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -298,10 +301,10 @@ export default defineSchema({
   })
     .index("by_eventId_and_employeeProfileId", ["eventId", "employeeProfileId"])
     .index("by_employeeProfileId_and_eventId", ["employeeProfileId", "eventId"])
-    .index("by_employeeProfileId_and_eventStartUtc", [
-      "employeeProfileId",
-      "eventStartUtc",
-    ])
+    .index("by_employeeProfileId_and_eventStartUtc", {
+      fields: ["employeeProfileId", "eventStartUtc"],
+      staged: true,
+    })
     .index("by_hubId_and_eventId", ["hubId", "eventId"]),
 
   clerkWebhookEvents: defineTable({
@@ -479,12 +482,15 @@ export default defineSchema({
   })
     .index("by_hubId_and_audience", ["hubId", "audience"])
     .index("by_employeeProfileId", ["employeeProfileId"])
-    .index("by_employeeProfileId_and_audience", [
-      "employeeProfileId",
-      "audience",
-    ])
-    .index("by_shiftTradeId", ["shiftTradeId"])
-    .index("by_hubId_and_href", ["hubId", "href"]),
+    .index("by_employeeProfileId_and_audience", {
+      fields: ["employeeProfileId", "audience"],
+      staged: true,
+    })
+    .index("by_shiftTradeId", { fields: ["shiftTradeId"], staged: true })
+    .index("by_hubId_and_href", {
+      fields: ["hubId", "href"],
+      staged: true,
+    }),
 
   notificationReadStates: defineTable({
     hubId: v.id("hubs"),

@@ -1,4 +1,7 @@
-import { paginationOptsValidator } from "convex/server"
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from "convex/server"
 import { v } from "convex/values"
 
 import { normalizeWorkersCanEdit } from "../lib/worker-editing"
@@ -101,6 +104,12 @@ function assertEmployeeTradeAccess(
   }
 }
 
+function assertEmployeeTradeResolutionAccess(
+  access: Awaited<ReturnType<typeof accessForTrades>>
+) {
+  if (!access.employee) throw new Error("employeeProfileRequired")
+}
+
 async function assertOwnDeputyShift(
   ctx: ReadCtx,
   args: {
@@ -162,6 +171,66 @@ async function assertShiftNotInActiveTrade(
   )
   if (conflicts.some((trade) => trade && trade._id !== excludedTradeId)) {
     throw new Error("tradeAlreadyPublishedForShift")
+  }
+}
+
+async function isAssignedFutureDeputyShift(
+  ctx: MutationCtx,
+  hubId: Id<"hubs">,
+  employeeId: Id<"employeeProfiles">,
+  eventId: Id<"events">,
+  now: number
+) {
+  const [event, assignment] = await Promise.all([
+    ctx.db.get("events", eventId),
+    ctx.db
+      .query("eventEmployees")
+      .withIndex("by_eventId_and_employeeProfileId", (q) =>
+        q.eq("eventId", eventId).eq("employeeProfileId", employeeId)
+      )
+      .unique(),
+  ])
+  return Boolean(
+    event &&
+    assignment &&
+    event.hubId === hubId &&
+    event.source === "deputy" &&
+    event.published &&
+    !event.sourceDeleted &&
+    !event.managerDeleted &&
+    Date.parse(event.startUtc ?? event.start) > now
+  )
+}
+
+async function clearTradeNotifications(
+  ctx: MutationCtx,
+  trade: Doc<"shiftTrades">,
+  audiences?: readonly Doc<"notifications">["audience"][]
+) {
+  const audiencesToCheck = [
+    "trade-employees",
+    "trade-managers",
+    "employee",
+    "employees",
+    "managers",
+  ] as const satisfies readonly Doc<"notifications">["audience"][]
+  const notificationGroups = await Promise.all(
+    audiencesToCheck.map((audience) =>
+      ctx.db
+        .query("notifications")
+        .withIndex("by_hubId_and_audience", (q) =>
+          q.eq("hubId", trade.hubId).eq("audience", audience)
+        )
+        .take(100)
+    )
+  )
+  const notifications = notificationGroups
+    .flat()
+    .filter((notification) => notification.shiftTradeId === trade._id)
+  for (const notification of notifications) {
+    if (!audiences || audiences.includes(notification.audience)) {
+      await ctx.db.delete("notifications", notification._id)
+    }
   }
 }
 
@@ -286,24 +355,24 @@ async function tradeResults(
 }
 
 export const list = query({
-  args: { hubId: v.id("hubs") },
-  returns: v.array(tradeValidator),
+  args: { hubId: v.id("hubs"), paginationOpts: paginationOptsValidator },
+  returns: paginationResultValidator(tradeValidator),
   handler: async (ctx, args) => {
     const access = await accessForTrades(ctx, args.hubId)
     const manager =
       access.permission === "manager" || access.permission === "owner"
     if (!manager) assertEmployeeTradeAccess(access)
-    const trades = await ctx.db
+    const result = await ctx.db
       .query("shiftTrades")
       .withIndex("by_hubId_and_updatedAt", (q) => q.eq("hubId", args.hubId))
       .order("desc")
-      .take(200)
+      .paginate(args.paginationOpts)
     const visible = manager
-      ? trades
-      : trades.filter((trade) =>
+      ? result.page
+      : result.page.filter((trade) =>
           ACTIVE_TRADE_STATUSES.some((status) => status === trade.status)
         )
-    return await tradeResults(ctx, visible, access)
+    return { ...result, page: await tradeResults(ctx, visible, access) }
   },
 })
 
@@ -340,27 +409,15 @@ export const listMyShifts = query({
     const access = await accessForTrades(ctx, args.hubId)
     assertEmployeeTradeAccess(access)
     if (!access.employee) return []
-    const [futureAssignments, legacyAssignments] = await Promise.all([
-      ctx.db
-        .query("eventEmployees")
-        .withIndex("by_employeeProfileId_and_eventStartUtc", (q) =>
-          q
-            .eq("employeeProfileId", access.employee!._id)
-            .gt("eventStartUtc", new Date(args.now).toISOString())
-        )
-        .order("asc")
-        .take(200),
-      ctx.db
-        .query("eventEmployees")
-        .withIndex("by_employeeProfileId_and_eventStartUtc", (q) =>
-          q
-            .eq("employeeProfileId", access.employee!._id)
-            .eq("eventStartUtc", undefined)
-        )
-        .order("desc")
-        .take(200),
-    ])
-    const assignments = [...futureAssignments, ...legacyAssignments]
+    // Keep legacy assignments visible while the date index is staged and
+    // backfilled. The existing index is bounded well above the previous 200
+    // row cap so a long history does not hide near-future shifts.
+    const assignments = await ctx.db
+      .query("eventEmployees")
+      .withIndex("by_employeeProfileId_and_eventId", (q) =>
+        q.eq("employeeProfileId", access.employee!._id)
+      )
+      .take(1_000)
     const assignedEvents = await Promise.all(
       assignments.map((assignment) => ctx.db.get("events", assignment.eventId))
     )
@@ -540,7 +597,7 @@ export const unpublish = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) return null
     const access = await accessForTrades(ctx, trade.hubId)
-    assertEmployeeTradeAccess(access)
+    assertEmployeeTradeResolutionAccess(access)
     if (!access.employee || access.employee._id !== trade.publisherId) {
       throw new Error("unauthorized")
     }
@@ -551,6 +608,7 @@ export const unpublish = mutation({
       status: "unpublished",
       updatedAt: Date.now(),
     })
+    await clearTradeNotifications(ctx, trade)
     return null
   },
 })
@@ -568,6 +626,12 @@ export const offer = mutation({
       throw new Error("cannotOfferOwnTrade")
     }
     if (trade.status !== "published") throw new Error("tradeHasActiveOffer")
+    await assertOwnDeputyShift(ctx, {
+      hubId: trade.hubId,
+      employeeId: trade.publisherId,
+      eventId: trade.sourceEventId,
+      now: Date.now(),
+    })
     await assertOwnDeputyShift(ctx, {
       hubId: trade.hubId,
       employeeId: access.employee._id,
@@ -607,7 +671,7 @@ export const cancelOffer = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) return null
     const access = await accessForTrades(ctx, trade.hubId)
-    assertEmployeeTradeAccess(access)
+    assertEmployeeTradeResolutionAccess(access)
     if (
       !access.employee ||
       access.employee._id !== trade.offeringEmployeeId ||
@@ -621,6 +685,7 @@ export const cancelOffer = mutation({
       offeredEventId: undefined,
       updatedAt: Date.now(),
     })
+    await clearTradeNotifications(ctx, trade, ["employee"])
     return null
   },
 })
@@ -636,7 +701,7 @@ export const respondToOffer = mutation({
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) throw new Error("tradeNotFound")
     const access = await accessForTrades(ctx, trade.hubId)
-    assertEmployeeTradeAccess(access)
+    assertEmployeeTradeResolutionAccess(access)
     if (!access.employee || access.employee._id !== trade.publisherId) {
       throw new Error("unauthorized")
     }
@@ -648,6 +713,20 @@ export const respondToOffer = mutation({
       throw new Error("tradeOfferNotAvailable")
     }
     if (args.response === "accept") {
+      await Promise.all([
+        assertOwnDeputyShift(ctx, {
+          hubId: trade.hubId,
+          employeeId: trade.publisherId,
+          eventId: trade.sourceEventId,
+          now: Date.now(),
+        }),
+        assertOwnDeputyShift(ctx, {
+          hubId: trade.hubId,
+          employeeId: trade.offeringEmployeeId,
+          eventId: trade.offeredEventId,
+          now: Date.now(),
+        }),
+      ])
       const offerer = await ctx.db.get(
         "employeeProfiles",
         trade.offeringEmployeeId
@@ -658,6 +737,7 @@ export const respondToOffer = mutation({
         employeeDeclineReason: undefined,
         updatedAt: Date.now(),
       })
+      await clearTradeNotifications(ctx, trade, ["employee"])
       await createNotification(ctx, {
         hubId: trade.hubId,
         shiftTradeId: trade._id,
@@ -714,6 +794,7 @@ export const managerDecline = mutation({
       managerDeclineReason: reason,
       updatedAt: Date.now(),
     })
+    await clearTradeNotifications(ctx, trade, ["trade-managers"])
     for (const employeeProfileId of [
       trade.publisherId,
       trade.offeringEmployeeId,
@@ -747,12 +828,31 @@ export const managerCancel = mutation({
       status: "unpublished",
       updatedAt: Date.now(),
     })
+    await clearTradeNotifications(ctx, trade)
+    for (const employeeProfileId of [
+      trade.publisherId,
+      ...(trade.offeringEmployeeId ? [trade.offeringEmployeeId] : []),
+    ]) {
+      await createNotification(ctx, {
+        hubId: trade.hubId,
+        shiftTradeId: trade._id,
+        audience: "employee",
+        employeeProfileId,
+        kind: "trade",
+        titleKey: "notificationShiftTradeCancelled",
+        messageKey: "notificationManagerCancelledTrade",
+        href: "/trades",
+      })
+    }
     return null
   },
 })
 
 export const beginApproval = internalMutation({
-  args: { tradeId: v.id("shiftTrades") },
+  args: {
+    tradeId: v.id("shiftTrades"),
+    operation: v.optional(v.union(v.literal("approve"), v.literal("rollback"))),
+  },
   returns: v.object({
     connectionId: v.id("deputyConnections"),
     tokenVersion: v.number(),
@@ -762,6 +862,7 @@ export const beginApproval = internalMutation({
     accessTokenExpiresAt: v.number(),
     attemptId: v.string(),
     resuming: v.boolean(),
+    operation: v.union(v.literal("approve"), v.literal("rollback")),
     source: v.object({
       rosterId: v.string(),
       employeeId: v.string(),
@@ -780,11 +881,15 @@ export const beginApproval = internalMutation({
     }),
   }),
   handler: async (ctx, args) => {
+    const operation = args.operation ?? "approve"
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) throw new Error("tradeNotFound")
     const { identity } = await requireHubPermission(ctx, trade.hubId, "manager")
     if (
-      (trade.status !== "confirmed" && trade.status !== "processing") ||
+      (operation === "approve" &&
+        trade.status !== "confirmed" &&
+        trade.status !== "processing") ||
+      (operation === "rollback" && trade.status !== "processing") ||
       !trade.offeredEventId ||
       !trade.offeringEmployeeId
     ) {
@@ -792,6 +897,13 @@ export const beginApproval = internalMutation({
     }
     const now = Date.now()
     const resuming = trade.status === "processing"
+    if (
+      resuming &&
+      trade.approvalOperation === "rollback" &&
+      operation === "approve"
+    ) {
+      throw new Error("tradeRecoveryRequiresRollback")
+    }
     if (
       trade.status === "processing" &&
       trade.approvalAttemptId &&
@@ -858,6 +970,7 @@ export const beginApproval = internalMutation({
       deputyError: undefined,
       approvalAttemptId: attemptId,
       approvalStartedAt: now,
+      approvalOperation: operation,
       updatedAt: Date.now(),
     })
     return {
@@ -868,6 +981,7 @@ export const beginApproval = internalMutation({
       accessTokenExpiresAt: connection.accessTokenExpiresAt,
       attemptId,
       resuming,
+      operation,
       source: shiftPayload(source),
       target: shiftPayload(target),
     }
@@ -907,9 +1021,14 @@ async function replaceEventEmployee(
 }
 
 export const finishApproval = internalMutation({
-  args: { tradeId: v.id("shiftTrades"), attemptId: v.string() },
+  args: {
+    tradeId: v.id("shiftTrades"),
+    attemptId: v.string(),
+    operation: v.optional(v.union(v.literal("approve"), v.literal("rollback"))),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const operation = args.operation ?? "approve"
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (
       !trade ||
@@ -919,6 +1038,17 @@ export const finishApproval = internalMutation({
       !trade.offeringEmployeeId
     ) {
       throw new Error("tradeNotReadyForManager")
+    }
+    if (operation === "rollback") {
+      await ctx.db.patch("shiftTrades", trade._id, {
+        status: "confirmed",
+        deputyError: undefined,
+        approvalAttemptId: undefined,
+        approvalStartedAt: undefined,
+        approvalOperation: undefined,
+        updatedAt: Date.now(),
+      })
+      return null
     }
     const [source, target] = await Promise.all([
       ctx.db.get("events", trade.sourceEventId),
@@ -944,6 +1074,7 @@ export const finishApproval = internalMutation({
       deputyError: undefined,
       approvalAttemptId: undefined,
       approvalStartedAt: undefined,
+      approvalOperation: undefined,
       updatedAt: Date.now(),
     })
     for (const employeeProfileId of [
@@ -971,6 +1102,7 @@ export const failApproval = internalMutation({
     attemptId: v.string(),
     message: v.string(),
     keepProcessing: v.boolean(),
+    operation: v.optional(v.union(v.literal("approve"), v.literal("rollback"))),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -987,8 +1119,62 @@ export const failApproval = internalMutation({
       deputyError: args.message.slice(0, 300),
       approvalAttemptId: undefined,
       approvalStartedAt: undefined,
+      approvalOperation: args.keepProcessing
+        ? trade.approvalOperation
+        : undefined,
       updatedAt: Date.now(),
     })
+    return null
+  },
+})
+
+export const expireUnavailableTrades = internalMutation({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("shiftTrades").paginate(args.paginationOpts)
+    const now = Date.now()
+    for (const trade of page.page) {
+      if (trade.status !== "published" && trade.status !== "offer-pending")
+        continue
+      const sourceAvailable = await isAssignedFutureDeputyShift(
+        ctx,
+        trade.hubId,
+        trade.publisherId,
+        trade.sourceEventId,
+        now
+      )
+      if (!sourceAvailable) {
+        await ctx.db.patch("shiftTrades", trade._id, {
+          status: "unpublished",
+          updatedAt: now,
+        })
+        await clearTradeNotifications(ctx, trade)
+        continue
+      }
+      if (!trade.offeringEmployeeId || !trade.offeredEventId) continue
+      const offerAvailable = await isAssignedFutureDeputyShift(
+        ctx,
+        trade.hubId,
+        trade.offeringEmployeeId,
+        trade.offeredEventId,
+        now
+      )
+      if (!offerAvailable) {
+        await ctx.db.patch("shiftTrades", trade._id, {
+          status: "published",
+          offeringEmployeeId: undefined,
+          offeredEventId: undefined,
+          updatedAt: now,
+        })
+        await clearTradeNotifications(ctx, trade, ["employee"])
+      }
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.trades.expireUnavailableTrades, {
+        paginationOpts: { ...args.paginationOpts, cursor: page.continueCursor },
+      })
+    }
     return null
   },
 })

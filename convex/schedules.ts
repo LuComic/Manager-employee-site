@@ -19,28 +19,18 @@ export const listForManager = query({
   returns: v.array(scheduleValidator),
   handler: async (ctx, args) => {
     await requireHubPermission(ctx, args.hubId, "manager")
+    // This temporary bounded fallback keeps schedule reads live while the
+    // more selective existing-table index backfills asynchronously.
     const schedules = (
-      await Promise.all(
-        ([false, undefined] as const).flatMap((sourceDeleted) =>
-          ([false, undefined] as const).map((managerDeleted) =>
-            ctx.db
-              .query("events")
-              .withIndex(
-                "by_hubId_source_sourceDeleted_managerDeleted_start",
-                (q) =>
-                  q
-                    .eq("hubId", args.hubId)
-                    .eq("source", "deputy")
-                    .eq("sourceDeleted", sourceDeleted)
-                    .eq("managerDeleted", managerDeleted)
-              )
-              .order("desc")
-              .take(500)
-          )
+      await ctx.db
+        .query("events")
+        .withIndex("by_hubId_and_source_and_start", (q) =>
+          q.eq("hubId", args.hubId).eq("source", "deputy")
         )
-      )
+        .order("desc")
+        .take(1_000)
     )
-      .flat()
+      .filter((schedule) => !schedule.sourceDeleted && !schedule.managerDeleted)
       .sort((a, b) => b.start.localeCompare(a.start))
       .slice(0, 500)
     return schedules

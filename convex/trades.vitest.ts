@@ -149,17 +149,18 @@ async function confirmedTrade(
   })
   const listed = await t.withIdentity(bobIdentity).query(api.trades.list, {
     hubId,
+    paginationOpts: { numItems: 50, cursor: null },
   })
-  expect(listed).toHaveLength(1)
+  expect(listed.page).toHaveLength(1)
   await t.withIdentity(bobIdentity).mutation(api.trades.offer, {
-    tradeId: listed[0].id,
+    tradeId: listed.page[0].id,
     eventId: bobShiftId,
   })
   await t.withIdentity(aliceIdentity).mutation(api.trades.respondToOffer, {
-    tradeId: listed[0].id,
+    tradeId: listed.page[0].id,
     response: "accept",
   })
-  return { tradeId: listed[0].id, slug }
+  return { tradeId: listed.page[0].id, slug }
 }
 
 describe("shift trades", () => {
@@ -381,11 +382,12 @@ describe("shift trades", () => {
       })
     const trades = await t.withIdentity(bobIdentity).query(api.trades.list, {
       hubId,
+      paginationOpts: { numItems: 50, cursor: null },
     })
-    const aliceTrade = trades.find(
+    const aliceTrade = trades.page.find(
       (trade) => trade.publisherName === "Alice Worker"
     )
-    const bobTrade = trades.find((trade) => trade.slug === bobTradeSlug)
+    const bobTrade = trades.page.find((trade) => trade.slug === bobTradeSlug)
     if (!aliceTrade || !bobTrade) throw new Error("Missing trades")
 
     await expect(
@@ -527,10 +529,15 @@ describe("shift trades", () => {
     const legacyAssignments = await t.run((ctx) =>
       ctx.db
         .query("eventEmployees")
-        .withIndex("by_employeeProfileId_and_eventStartUtc", (q) =>
-          q.eq("employeeProfileId", aliceId).eq("eventStartUtc", undefined)
+        .withIndex("by_employeeProfileId_and_eventId", (q) =>
+          q.eq("employeeProfileId", aliceId)
         )
         .take(300)
+        .then((assignments) =>
+          assignments.filter(
+            (assignment) => assignment.eventStartUtc === undefined
+          )
+        )
     )
     expect(legacyAssignments).toEqual([])
 
@@ -801,13 +808,13 @@ describe("shift trades", () => {
         intRosterId: 101,
         intRosterEmployee: 12,
         intMealbreakMinute: 30,
-        intConfirmStatus: 2,
+        intConfirmStatus: 0,
       }),
       expect.objectContaining({
         intRosterId: 102,
         intRosterEmployee: 11,
         intMealbreakMinute: 45,
-        intConfirmStatus: 1,
+        intConfirmStatus: 0,
       }),
     ])
     const approved = await t.withIdentity(ownerIdentity).query(api.trades.get, {
@@ -820,6 +827,135 @@ describe("shift trades", () => {
     )
     expect(connection).toMatchObject({ status: "syncing" })
     expect(connection?.activeSyncId).toBeTruthy()
+  })
+
+  test("restores a partially applied Deputy trade back to manager review", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { hubId } = setupResult
+    const { tradeId, slug } = await confirmedTrade(t, setupResult)
+    let sourceEmployee = 11
+    let targetEmployee = 12
+    let rejectTarget = true
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith("/Roster/101")) {
+          return Response.json({
+            Id: 101,
+            Employee: sourceEmployee,
+            StartTime: 1915682400,
+            EndTime: 1915711200,
+            OperationalUnit: 3,
+            Published: true,
+          })
+        }
+        if (url.endsWith("/Roster/102")) {
+          return Response.json({
+            Id: 102,
+            Employee: targetEmployee,
+            StartTime: 1915776000,
+            EndTime: 1915804800,
+            OperationalUnit: 4,
+            Published: true,
+          })
+        }
+        if (
+          url.endsWith("/api/v1/supervise/roster") &&
+          init?.method === "POST"
+        ) {
+          const payload = JSON.parse(String(init.body)) as {
+            intRosterId: number
+            intRosterEmployee: number
+          }
+          if (payload.intRosterId === 102 && rejectTarget) {
+            return new Response(null, { status: 409 })
+          }
+          if (payload.intRosterId === 101)
+            sourceEmployee = payload.intRosterEmployee
+          if (payload.intRosterId === 102)
+            targetEmployee = payload.intRosterEmployee
+          return new Response(null, { status: 200 })
+        }
+        return new Response(null, { status: 404 })
+      })
+    try {
+      await expect(
+        t
+          .withIdentity(ownerIdentity)
+          .action(api.tradeApproval.approve, { tradeId })
+      ).rejects.toThrow("deputyTargetRosterUpdateFailed")
+      await expect(
+        t.withIdentity(ownerIdentity).query(api.trades.get, { hubId, slug })
+      ).resolves.toMatchObject({ status: "processing" })
+
+      rejectTarget = false
+      await t
+        .withIdentity(ownerIdentity)
+        .action(api.tradeApproval.rollback, { tradeId })
+      await expect(
+        t.withIdentity(ownerIdentity).query(api.trades.get, { hubId, slug })
+      ).resolves.toMatchObject({ status: "confirmed" })
+      expect(sourceEmployee).toBe(11)
+      expect(targetEmployee).toBe(12)
+    } finally {
+      fetchMock.mockRestore()
+    }
+  })
+
+  test("returns to manager review when Deputy rejects the first roster update", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { hubId } = setupResult
+    const { tradeId, slug } = await confirmedTrade(t, setupResult)
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith("/Roster/101")) {
+          return Response.json({
+            Id: 101,
+            Employee: 11,
+            StartTime: 1915682400,
+            EndTime: 1915711200,
+            OperationalUnit: 3,
+            Published: true,
+          })
+        }
+        if (url.endsWith("/Roster/102")) {
+          return Response.json({
+            Id: 102,
+            Employee: 12,
+            StartTime: 1915776000,
+            EndTime: 1915804800,
+            OperationalUnit: 4,
+            Published: true,
+          })
+        }
+        if (
+          url.endsWith("/api/v1/supervise/roster") &&
+          init?.method === "POST"
+        ) {
+          return new Response(null, { status: 409 })
+        }
+        return new Response(null, { status: 404 })
+      })
+    try {
+      await expect(
+        t
+          .withIdentity(ownerIdentity)
+          .action(api.tradeApproval.approve, { tradeId })
+      ).rejects.toThrow("deputySourceRosterUpdateFailed")
+    } finally {
+      fetchMock.mockRestore()
+    }
+    await expect(
+      t.withIdentity(ownerIdentity).query(api.trades.get, { hubId, slug })
+    ).resolves.toMatchObject({
+      status: "confirmed",
+      deputyError: "deputySourceRosterUpdateFailed",
+    })
   })
 
   test("rejects materially changed live Deputy shifts before writing", async () => {
@@ -1033,19 +1169,29 @@ describe("shift trades", () => {
       t.run((ctx) => ctx.db.get("shiftTrades", tradeId))
     ).resolves.toBeNull()
     const danglingNotifications = await t.run(async (ctx) => {
-      const [linked, legacy] = await Promise.all([
-        ctx.db
-          .query("notifications")
-          .withIndex("by_shiftTradeId", (q) => q.eq("shiftTradeId", tradeId))
-          .take(20),
-        ctx.db
-          .query("notifications")
-          .withIndex("by_hubId_and_href", (q) =>
-            q.eq("hubId", setupResult.hubId).eq("href", `/trades/${slug}`)
-          )
-          .take(20),
-      ])
-      return [...linked, ...legacy]
+      const notificationGroups = await Promise.all(
+        [
+          "trade-employees",
+          "trade-managers",
+          "employee",
+          "employees",
+          "managers",
+        ].map((audience) =>
+          ctx.db
+            .query("notifications")
+            .withIndex("by_hubId_and_audience", (q) =>
+              q.eq("hubId", setupResult.hubId).eq("audience", audience as never)
+            )
+            .take(20)
+        )
+      )
+      return notificationGroups
+        .flat()
+        .filter(
+          (notification) =>
+            notification.shiftTradeId === tradeId ||
+            notification.href === `/trades/${slug}`
+        )
     })
     expect(danglingNotifications).toEqual([])
   })

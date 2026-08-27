@@ -1,7 +1,7 @@
 "use client"
 
 import { ArrowLeftRight, Plus } from "lucide-react"
-import { useQuery } from "convex/react"
+import { usePaginatedQuery, useQuery } from "convex/react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { ManagerListItem } from "@/components/manager/manager-list-item"
@@ -24,8 +24,17 @@ export function TradeManager() {
   const t = useAppTranslations()
   const languageTag = useLanguageTag()
   const { hub } = useOperations()
-  const trades = useQuery(api.trades.list, hub ? { hubId: hub.id } : "skip") as
-    ShiftTrade[] | undefined
+  const {
+    results: trades,
+    status,
+    loadMore,
+  } = usePaginatedQuery(api.trades.list, hub ? { hubId: hub.id } : "skip", {
+    initialNumItems: 50,
+  }) as {
+    results: ShiftTrade[]
+    status: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted"
+    loadMore: (numItems: number) => void
+  }
   const canPublish = useQuery(
     api.trades.canPublish,
     hub ? { hubId: hub.id } : "skip"
@@ -46,7 +55,7 @@ export function TradeManager() {
           </div>
         }
       />
-      {trades === undefined ? (
+      {status === "LoadingFirstPage" ? (
         <p role="status" className="text-sm text-muted-foreground">
           <T>loadingTrades</T>
         </p>
@@ -85,6 +94,16 @@ export function TradeManager() {
               }
             />
           ))}
+          {status !== "Exhausted" && (
+            <button
+              type="button"
+              className={buttonVariants({ variant: "outline" })}
+              onClick={() => loadMore(50)}
+              disabled={status === "LoadingMore"}
+            >
+              <T>loadMore</T>
+            </button>
+          )}
         </div>
       ) : (
         <EmptyState

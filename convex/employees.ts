@@ -598,7 +598,7 @@ async function requirePendingClerkActionOwner(
   ) {
     throw new Error("workplaceOwnerAccessRequired")
   }
-  return auditActorFromIdentity(identity, profile.displayName)
+  return auditActorFromIdentity(identity)
 }
 
 export const prepareClerkRemoval = mutation({
@@ -736,27 +736,30 @@ export const removeProfileBatch = mutation({
 
     const historicalTradeCleanup = await Promise.all(
       historicalTrades.map(async (trade) => {
-        const [linkedNotifications, legacyNotifications] = await Promise.all([
-          ctx.db
-            .query("notifications")
-            .withIndex("by_shiftTradeId", (q) =>
-              q.eq("shiftTradeId", trade._id)
-            )
-            .take(101),
-          ctx.db
-            .query("notifications")
-            .withIndex("by_hubId_and_href", (q) =>
-              q.eq("hubId", trade.hubId).eq("href", `/trades/${trade.slug}`)
-            )
-            .take(101),
-        ])
-        const notifications = [
-          ...new Map(
-            [...linkedNotifications, ...legacyNotifications].map(
-              (notification) => [notification._id, notification]
-            )
-          ).values(),
-        ]
+        const tradeNotificationAudiences = [
+          "trade-employees",
+          "trade-managers",
+          "employee",
+          "employees",
+          "managers",
+        ] as const satisfies readonly Doc<"notifications">["audience"][]
+        const notificationGroups = await Promise.all(
+          tradeNotificationAudiences.map((audience) =>
+            ctx.db
+              .query("notifications")
+              .withIndex("by_hubId_and_audience", (q) =>
+                q.eq("hubId", trade.hubId).eq("audience", audience)
+              )
+              .take(101)
+          )
+        )
+        const notifications = notificationGroups
+          .flat()
+          .filter(
+            (notification) =>
+              notification.shiftTradeId === trade._id ||
+              notification.href === `/trades/${trade.slug}`
+          )
         return {
           trade,
           notifications: notifications.slice(0, 100),
@@ -798,10 +801,15 @@ export const removeProfileBatch = mutation({
         .take(100),
       ctx.db
         .query("deputyEmployeeMappings")
-        .withIndex("by_hubId_and_employeeProfileId", (q) =>
-          q.eq("hubId", profile.hubId).eq("employeeProfileId", profile._id)
+        .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
+          q.eq("hubId", profile.hubId)
         )
-        .take(100),
+        .take(500)
+        .then((mappings) =>
+          mappings.filter(
+            (mapping) => mapping.employeeProfileId === profile._id
+          )
+        ),
     ])
 
     for (const assignment of eventAssignments) {

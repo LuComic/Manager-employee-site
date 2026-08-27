@@ -1,7 +1,7 @@
 "use client"
 
 import { ArrowLeftRight, Plus } from "lucide-react"
-import { useQuery } from "convex/react"
+import { usePaginatedQuery, useQuery } from "convex/react"
 
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
@@ -15,8 +15,17 @@ import type { ShiftTrade } from "@/lib/trades"
 
 export function TradesPage() {
   const { hub } = useOperations()
-  const trades = useQuery(api.trades.list, hub ? { hubId: hub.id } : "skip") as
-    ShiftTrade[] | undefined
+  const {
+    results: trades,
+    status,
+    loadMore,
+  } = usePaginatedQuery(api.trades.list, hub ? { hubId: hub.id } : "skip", {
+    initialNumItems: 50,
+  }) as {
+    results: ShiftTrade[]
+    status: "LoadingFirstPage" | "CanLoadMore" | "LoadingMore" | "Exhausted"
+    loadMore: (numItems: number) => void
+  }
   const canPublish = useQuery(
     api.trades.canPublish,
     hub ? { hubId: hub.id } : "skip"
@@ -34,7 +43,7 @@ export function TradesPage() {
           ) : undefined
         }
       />
-      {trades === undefined ? (
+      {status === "LoadingFirstPage" ? (
         <p className="mt-6 text-sm text-muted-foreground" role="status">
           <T>loadingTrades</T>
         </p>
@@ -45,6 +54,16 @@ export function TradesPage() {
               <TradeCard key={trade.id} trade={trade} />
             ))}
           </div>
+          {status !== "Exhausted" && (
+            <button
+              type="button"
+              className={buttonVariants({ variant: "outline" })}
+              onClick={() => loadMore(50)}
+              disabled={status === "LoadingMore"}
+            >
+              <T>loadMore</T>
+            </button>
+          )}
         </div>
       ) : (
         <div className="mt-6">
@@ -53,6 +72,16 @@ export function TradesPage() {
             title="noShiftTradesAvailable"
             description="publishedShiftTradesAppearHere"
           />
+          {status !== "Exhausted" && (
+            <button
+              type="button"
+              className={`mt-4 ${buttonVariants({ variant: "outline" })}`}
+              onClick={() => loadMore(50)}
+              disabled={status === "LoadingMore"}
+            >
+              <T>loadMore</T>
+            </button>
+          )}
         </div>
       )}
     </div>

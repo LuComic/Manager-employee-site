@@ -30,6 +30,15 @@ Make the output a concise, straight to the point report with numbered findings, 
 - maybe an example if its an edge case
 - the severity level.
 
+Format these on a new line each, eg:
+
+```
+1. P1 - Crazy issue
+Problem: bla bla bla
+Files: [one, two, three]
+Example: bla bla bla
+```
+
 When creating the output, remember that another agent will use that to tackle the listed issues. That's something to keep in mind, since another agent will also look at these issues, analyse and find the best solution, so your task isn't to create some Plan or a detailed solution yourself.
 
 For the output, use an editable textfield component inside of the chat. That way I can make changes to the text myself.

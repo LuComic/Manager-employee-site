@@ -189,13 +189,16 @@ async function employeeNotifications(
     viewer.employeeProfileId
       ? ctx.db
           .query("notifications")
-          .withIndex("by_employeeProfileId_and_audience", (q) =>
-            q
-              .eq("employeeProfileId", viewer.employeeProfileId)
-              .eq("audience", "employee")
+          .withIndex("by_employeeProfileId", (q) =>
+            q.eq("employeeProfileId", viewer.employeeProfileId)
           )
           .order("desc")
-          .take(NOTIFICATION_FEED_LIMIT)
+          .take(NOTIFICATION_FEED_LIMIT * 5)
+          .then((notifications) =>
+            notifications.filter(
+              (notification) => notification.audience === "employee"
+            )
+          )
       : [],
   ])
   const visibleBroadcast = viewer.employeeProfileId

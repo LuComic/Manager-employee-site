@@ -36,6 +36,7 @@ type ApprovalContext = {
   accessTokenExpiresAt: number
   attemptId: string
   resuming: boolean
+  operation: "approve" | "rollback"
   source: ShiftPayload
   target: ShiftPayload
 }
@@ -189,7 +190,10 @@ function rosterUpdate(shift: LiveRoster, employeeId: string) {
     blnForceOverwrite: 0,
     blnOpen: shift.open ? 1 : 0,
     strComment: "Shift trade approved in Workhal",
-    intConfirmStatus: shift.confirmStatus,
+    // Deputy exposes additional read-only confirmation states (2 and 3), but
+    // its roster update API accepts only 0 or 1. A replacement must never
+    // inherit the previous assignee's confirmation outcome.
+    intConfirmStatus: 0,
     ...(shift.connectStatus !== undefined
       ? { intConnectStatus: shift.connectStatus }
       : {}),
@@ -200,7 +204,9 @@ async function updateRoster(
   endpoint: string,
   accessToken: string,
   shift: LiveRoster,
-  employeeId: string
+  employeeId: string,
+  errorMessage:
+    "deputySourceRosterUpdateFailed" | "deputyTargetRosterUpdateFailed"
 ) {
   const response = await fetch(`https://${endpoint}/api/v1/supervise/roster`, {
     method: "POST",
@@ -210,13 +216,15 @@ async function updateRoster(
     },
     body: JSON.stringify(rosterUpdate(shift, employeeId)),
   })
-  if (!response.ok) throw new Error("deputyShiftTradeUpdateFailed")
+  if (!response.ok) throw new Error(errorMessage)
 }
 
 function safeApprovalError(error: unknown) {
   const supported = new Set([
     "deputyIntegrationNotConfigured",
     "deputyShiftTradeUpdateFailed",
+    "deputySourceRosterUpdateFailed",
+    "deputyTargetRosterUpdateFailed",
     "deputyShiftTradeStale",
     "deputyRosterResponseInvalid",
     "deputySyncSuperseded",
@@ -228,93 +236,124 @@ function safeApprovalError(error: unknown) {
     : "deputyShiftTradeUpdateFailed"
 }
 
+async function reconcile(
+  ctx: ActionCtx,
+  tradeId: Id<"shiftTrades">,
+  operation: "approve" | "rollback"
+) {
+  const approval: ApprovalContext = await ctx.runMutation(
+    internal.trades.beginApproval,
+    { tradeId, operation }
+  )
+  const endpoint = normalizeDeputyEndpoint(approval.endpoint)
+  if (!endpoint) {
+    await ctx.runMutation(internal.trades.failApproval, {
+      tradeId,
+      attemptId: approval.attemptId,
+      message: "invalidDeputyEndpoint",
+      keepProcessing: approval.resuming,
+      operation: approval.operation,
+    })
+    throw new Error("invalidDeputyEndpoint")
+  }
+  let accessToken = approval.accessToken
+  let deputyWriteSucceeded = false
+  try {
+    if (approval.accessTokenExpiresAt <= Date.now() + 60_000) {
+      accessToken = await refreshToken(ctx, { ...approval, endpoint })
+    }
+    const allowedEmployeeIds = [
+      approval.source.employeeId,
+      approval.target.employeeId,
+    ]
+    const nowTimestamp = Date.now() / 1000
+    const [sourceRoster, targetRoster] = await Promise.all([
+      loadRoster(
+        endpoint,
+        accessToken,
+        approval.source,
+        allowedEmployeeIds,
+        nowTimestamp
+      ),
+      loadRoster(
+        endpoint,
+        accessToken,
+        approval.target,
+        allowedEmployeeIds,
+        nowTimestamp
+      ),
+    ])
+    if (
+      !approval.resuming &&
+      (sourceRoster.employeeId !== approval.source.employeeId ||
+        targetRoster.employeeId !== approval.target.employeeId)
+    ) {
+      throw new Error("deputyShiftTradeStale")
+    }
+    const desiredSourceEmployeeId =
+      approval.operation === "approve"
+        ? approval.target.employeeId
+        : approval.source.employeeId
+    const desiredTargetEmployeeId =
+      approval.operation === "approve"
+        ? approval.source.employeeId
+        : approval.target.employeeId
+    if (sourceRoster.employeeId !== desiredSourceEmployeeId) {
+      await updateRoster(
+        endpoint,
+        accessToken,
+        sourceRoster,
+        desiredSourceEmployeeId,
+        "deputySourceRosterUpdateFailed"
+      )
+      deputyWriteSucceeded = true
+    }
+    if (targetRoster.employeeId !== desiredTargetEmployeeId) {
+      await updateRoster(
+        endpoint,
+        accessToken,
+        targetRoster,
+        desiredTargetEmployeeId,
+        "deputyTargetRosterUpdateFailed"
+      )
+      deputyWriteSucceeded = true
+    }
+    await ctx.runMutation(internal.trades.finishApproval, {
+      tradeId,
+      attemptId: approval.attemptId,
+      operation: approval.operation,
+    })
+  } catch (error) {
+    const message = safeApprovalError(error)
+    await ctx.runMutation(internal.trades.failApproval, {
+      tradeId,
+      attemptId: approval.attemptId,
+      message,
+      // A failed first request has not changed Deputy, so return to manager
+      // review. A partial swap stays locked until it is completed or restored.
+      keepProcessing: deputyWriteSucceeded || approval.operation === "rollback",
+      operation: approval.operation,
+    })
+    throw new Error(message)
+  }
+  await ctx.runMutation(internal.deputy.queueSyncAfterTrade, {
+    connectionId: approval.connectionId,
+  })
+  return null
+}
+
 export const approve = action({
   args: { tradeId: v.id("shiftTrades") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const approval: ApprovalContext = await ctx.runMutation(
-      internal.trades.beginApproval,
-      args
-    )
-    const endpoint = normalizeDeputyEndpoint(approval.endpoint)
-    if (!endpoint) {
-      await ctx.runMutation(internal.trades.failApproval, {
-        tradeId: args.tradeId,
-        attemptId: approval.attemptId,
-        message: "invalidDeputyEndpoint",
-        keepProcessing: approval.resuming,
-      })
-      throw new Error("invalidDeputyEndpoint")
-    }
-    let accessToken = approval.accessToken
-    let deputyWriteStarted = approval.resuming
-    try {
-      if (approval.accessTokenExpiresAt <= Date.now() + 60_000) {
-        accessToken = await refreshToken(ctx, { ...approval, endpoint })
-      }
-      const allowedEmployeeIds = [
-        approval.source.employeeId,
-        approval.target.employeeId,
-      ]
-      const nowTimestamp = Date.now() / 1000
-      const [sourceRoster, targetRoster] = await Promise.all([
-        loadRoster(
-          endpoint,
-          accessToken,
-          approval.source,
-          allowedEmployeeIds,
-          nowTimestamp
-        ),
-        loadRoster(
-          endpoint,
-          accessToken,
-          approval.target,
-          allowedEmployeeIds,
-          nowTimestamp
-        ),
-      ])
-      if (
-        !approval.resuming &&
-        (sourceRoster.employeeId !== approval.source.employeeId ||
-          targetRoster.employeeId !== approval.target.employeeId)
-      ) {
-        throw new Error("deputyShiftTradeStale")
-      }
-      if (sourceRoster.employeeId !== approval.target.employeeId) {
-        deputyWriteStarted = true
-        await updateRoster(
-          endpoint,
-          accessToken,
-          sourceRoster,
-          approval.target.employeeId
-        )
-      }
-      if (targetRoster.employeeId !== approval.source.employeeId) {
-        deputyWriteStarted = true
-        await updateRoster(
-          endpoint,
-          accessToken,
-          targetRoster,
-          approval.source.employeeId
-        )
-      }
-      await ctx.runMutation(internal.trades.finishApproval, {
-        ...args,
-        attemptId: approval.attemptId,
-      })
-    } catch (error) {
-      const message = safeApprovalError(error)
-      await ctx.runMutation(internal.trades.failApproval, {
-        tradeId: args.tradeId,
-        attemptId: approval.attemptId,
-        message,
-        keepProcessing: deputyWriteStarted,
-      })
-      throw new Error(message)
-    }
-    await ctx.runMutation(internal.deputy.queueSyncAfterTrade, {
-      connectionId: approval.connectionId,
-    })
-    return null
+    return await reconcile(ctx, args.tradeId, "approve")
+  },
+})
+
+export const rollback = action({
+  args: { tradeId: v.id("shiftTrades") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    return await reconcile(ctx, args.tradeId, "rollback")
   },
 })
