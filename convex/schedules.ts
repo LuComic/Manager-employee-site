@@ -27,12 +27,16 @@ export const listForManager = query({
         .withIndex("by_hubId_and_source_and_start", (q) =>
           q.eq("hubId", args.hubId).eq("source", "deputy")
         )
+        .filter((q) =>
+          q.and(
+            q.neq(q.field("sourceDeleted"), true),
+            q.neq(q.field("managerDeleted"), true)
+          )
+        )
         .order("desc")
-        .take(1_000)
+        .take(500)
     )
-      .filter((schedule) => !schedule.sourceDeleted && !schedule.managerDeleted)
       .sort((a, b) => b.start.localeCompare(a.start))
-      .slice(0, 500)
     return schedules
       .map((schedule) => ({
         id: schedule._id,

@@ -204,15 +204,15 @@ describe("shift trades", () => {
         )
         .unique()
       if (!category) throw new Error("Missing schedule category")
-      for (let index = 0; index < 500; index += 1) {
+      for (let index = 0; index < 1_000; index += 1) {
         await ctx.db.insert("events", {
           hubId,
           slug: `deleted-schedule-${index}`,
           title: "Former worker",
           description: "Deleted Deputy schedule",
           categoryId: category._id,
-          start: `2029-01-${String((index % 28) + 1).padStart(2, "0")}T01:00`,
-          end: `2029-01-${String((index % 28) + 1).padStart(2, "0")}T02:00`,
+          start: `2031-01-${String((index % 28) + 1).padStart(2, "0")}T01:00`,
+          end: `2031-01-${String((index % 28) + 1).padStart(2, "0")}T02:00`,
           location: "Old area",
           notes: "",
           published: false,
@@ -229,6 +229,122 @@ describe("shift trades", () => {
     expect(schedules.map((schedule) => schedule.slug)).toEqual([
       "deputy-shift-101",
       "deputy-shift-102",
+    ])
+  })
+
+  test("cleans trade notifications beyond the first 100 audience rows", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, aliceShiftId } = await setup(t)
+    await t.withIdentity(ownerIdentity).mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "trades",
+      enabled: true,
+    })
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 101; index += 1) {
+        await ctx.db.insert("notifications", {
+          hubId,
+          audience: "trade-employees",
+          kind: "trade",
+          titleKey: "notificationNewShiftTrade",
+          href: `/trades/archive-${index}`,
+        })
+      }
+    })
+    const slug = await t
+      .withIdentity(aliceIdentity)
+      .mutation(api.trades.create, {
+        hubId,
+        sourceEventId: aliceShiftId,
+        reason: "I need to switch this shift.",
+      })
+    const trade = await t.run((ctx) =>
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", slug)
+        )
+        .unique()
+    )
+    if (!trade) throw new Error("Missing trade")
+
+    await t.withIdentity(aliceIdentity).mutation(api.trades.unpublish, {
+      tradeId: trade._id,
+    })
+
+    const notifications = await t.run((ctx) =>
+      ctx.db
+        .query("notifications")
+        .withIndex("by_hubId_and_audience", (q) =>
+          q.eq("hubId", hubId).eq("audience", "trade-employees")
+        )
+        .filter((q) => q.eq(q.field("shiftTradeId"), trade._id))
+        .collect()
+    )
+    expect(notifications).toEqual([])
+  })
+
+  test("replaces an offer notification when the publisher declines", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, aliceShiftId, bobShiftId, bobId } = await setup(t)
+    await t.withIdentity(ownerIdentity).mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "trades",
+      enabled: true,
+    })
+    const slug = await t
+      .withIdentity(aliceIdentity)
+      .mutation(api.trades.create, {
+        hubId,
+        sourceEventId: aliceShiftId,
+        reason: "I need to switch this shift.",
+      })
+    const trade = await t.run((ctx) =>
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_hubId_and_slug", (q) =>
+          q.eq("hubId", hubId).eq("slug", slug)
+        )
+        .unique()
+    )
+    if (!trade) throw new Error("Missing trade")
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 101; index += 1) {
+        await ctx.db.insert("notifications", {
+          hubId,
+          audience: "employee",
+          employeeProfileId: bobId,
+          kind: "trade",
+          titleKey: "notificationShiftTradeDeclined",
+          href: `/trades/archive-${index}`,
+        })
+      }
+    })
+    await t.withIdentity(bobIdentity).mutation(api.trades.offer, {
+      tradeId: trade._id,
+      eventId: bobShiftId,
+    })
+
+    await t.withIdentity(aliceIdentity).mutation(api.trades.respondToOffer, {
+      tradeId: trade._id,
+      response: "decline",
+      reason: "I cannot work the offered shift.",
+    })
+
+    const notifications = await t.run((ctx) =>
+      ctx.db
+        .query("notifications")
+        .withIndex("by_hubId_and_audience", (q) =>
+          q.eq("hubId", hubId).eq("audience", "employee")
+        )
+        .filter((q) => q.eq(q.field("shiftTradeId"), trade._id))
+        .collect()
+    )
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        employeeProfileId: bobId,
+        titleKey: "notificationShiftTradeDeclined",
+      }),
     ])
   })
 

@@ -139,15 +139,15 @@ async function createDeputyEmployeeMapping(
     employeeProfileId: Id<"employeeProfiles">
   }
 ) {
-  const mappings = await ctx.db
+  const profileMapping = await ctx.db
     .query("deputyEmployeeMappings")
     .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
       q.eq("hubId", args.hubId)
     )
-    .take(500)
-  const profileMapping = mappings.find(
-    (mapping) => mapping.employeeProfileId === args.employeeProfileId
-  )
+    .filter((q) =>
+      q.eq(q.field("employeeProfileId"), args.employeeProfileId)
+    )
+    .first()
   if (profileMapping) throw new Error("deputyRosterSyncFailed")
   await ctx.db.insert("deputyEmployeeMappings", args)
 }
@@ -173,21 +173,19 @@ async function deputyEmployee(
     )
     .unique()
   if (mapping) {
-    const mappingsForProfile = (
-      await ctx.db
-        .query("deputyEmployeeMappings")
-        .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
-          q.eq("hubId", args.hubId)
-        )
-        .take(500)
-    ).filter(
-      (candidate) => candidate.employeeProfileId === mapping.employeeProfileId
-    )
-    if (
-      mappingsForProfile.some(
-        (candidate) => candidate.deputyEmployeeId !== args.deputyEmployeeId
+    const conflictingMapping = await ctx.db
+      .query("deputyEmployeeMappings")
+      .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
+        q.eq("hubId", args.hubId)
       )
-    ) {
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("employeeProfileId"), mapping.employeeProfileId),
+          q.neq(q.field("deputyEmployeeId"), args.deputyEmployeeId)
+        )
+      )
+      .first()
+    if (conflictingMapping) {
       throw new Error("deputyRosterSyncFailed")
     }
     const profile = await ctx.db.get(
@@ -237,17 +235,14 @@ async function deputyEmployee(
     const available = []
     for (const profile of matches) {
       if (profile.status === "deactivated") continue
-      const existingProfileMappings = await ctx.db
+      const existingProfileMapping = await ctx.db
         .query("deputyEmployeeMappings")
         .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
           q.eq("hubId", args.hubId)
         )
-        .take(500)
-      if (
-        !existingProfileMappings.some(
-          (mapping) => mapping.employeeProfileId === profile._id
-        )
-      ) {
+        .filter((q) => q.eq(q.field("employeeProfileId"), profile._id))
+        .first()
+      if (!existingProfileMapping) {
         available.push(profile)
       }
     }

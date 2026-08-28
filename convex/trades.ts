@@ -207,28 +207,23 @@ async function clearTradeNotifications(
   trade: Doc<"shiftTrades">,
   audiences?: readonly Doc<"notifications">["audience"][]
 ) {
-  const audiencesToCheck = [
-    "trade-employees",
-    "trade-managers",
-    "employee",
-    "employees",
-    "managers",
-  ] as const satisfies readonly Doc<"notifications">["audience"][]
-  const notificationGroups = await Promise.all(
-    audiencesToCheck.map((audience) =>
-      ctx.db
-        .query("notifications")
-        .withIndex("by_hubId_and_audience", (q) =>
-          q.eq("hubId", trade.hubId).eq("audience", audience)
-        )
-        .take(100)
-    )
-  )
-  const notifications = notificationGroups
-    .flat()
-    .filter((notification) => notification.shiftTradeId === trade._id)
-  for (const notification of notifications) {
-    if (!audiences || audiences.includes(notification.audience)) {
+  const audiencesToCheck =
+    audiences ??
+    ([
+      "trade-employees",
+      "trade-managers",
+      "employee",
+      "employees",
+      "managers",
+    ] as const satisfies readonly Doc<"notifications">["audience"][])
+  for (const audience of audiencesToCheck) {
+    const notifications = ctx.db
+      .query("notifications")
+      .withIndex("by_hubId_and_audience", (q) =>
+        q.eq("hubId", trade.hubId).eq("audience", audience)
+      )
+      .filter((q) => q.eq(q.field("shiftTradeId"), trade._id))
+    for await (const notification of notifications) {
       await ctx.db.delete("notifications", notification._id)
     }
   }
@@ -763,6 +758,7 @@ export const respondToOffer = mutation({
         employeeDeclineReason: reason,
         updatedAt: Date.now(),
       })
+      await clearTradeNotifications(ctx, trade, ["employee"])
       await createNotification(ctx, {
         hubId: trade.hubId,
         shiftTradeId: trade._id,

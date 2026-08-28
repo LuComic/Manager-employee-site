@@ -259,6 +259,80 @@ describe("Deputy schedule synchronization", () => {
     ).toHaveLength(1)
   })
 
+  test("does not duplicate a profile mapping beyond the first 500 hub mappings", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, connectionId } = await setup(t)
+    const owner = t.withIdentity(ownerIdentity)
+    const existingProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Existing Worker",
+      email: "existing@example.com",
+    })
+    const fillerProfileId = await owner.mutation(api.employees.create, {
+      hubId,
+      displayName: "Filler Worker",
+      email: "filler@example.com",
+    })
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 500; index += 1) {
+        await ctx.db.insert("deputyEmployeeMappings", {
+          hubId,
+          deputyEmployeeId: `filler-${String(index).padStart(4, "0")}`,
+          employeeProfileId: fillerProfileId,
+        })
+      }
+      await ctx.db.insert("deputyEmployeeMappings", {
+        hubId,
+        deputyEmployeeId: "zz-existing",
+        employeeProfileId: existingProfileId,
+      })
+    })
+
+    await expect(
+      t.mutation(internal.deputy.applyRosterBatch, {
+        connectionId,
+        generation: 1,
+        syncId: "sync-1",
+        rosters: [
+          {
+            externalId: "new-worker-shift",
+            startUtc: "2026-08-04T06:00:00.000Z",
+            endUtc: "2026-08-04T14:00:00.000Z",
+            employeeId: "new-deputy-worker",
+            employeeName: "Existing Worker",
+            employeeEmail: "existing@example.com",
+            areaId: "3",
+            areaName: "Kitchen",
+            published: true,
+          },
+        ],
+      })
+    ).resolves.toBe(true)
+
+    const mappings = await t.run(async (ctx) => {
+      const newMapping = await ctx.db
+        .query("deputyEmployeeMappings")
+        .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
+          q
+            .eq("hubId", hubId)
+            .eq("deputyEmployeeId", "new-deputy-worker")
+        )
+        .unique()
+      const existingProfileMappings = await ctx.db
+        .query("deputyEmployeeMappings")
+        .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
+          q.eq("hubId", hubId)
+        )
+        .filter((q) =>
+          q.eq(q.field("employeeProfileId"), existingProfileId)
+        )
+        .collect()
+      return { newMapping, existingProfileMappings }
+    })
+    expect(mappings.newMapping?.employeeProfileId).not.toBe(existingProfileId)
+    expect(mappings.existingProfileMappings).toHaveLength(1)
+  })
+
   test("queues one follow-up sync when a trade completes during an active sync", async () => {
     const t = convexTest(schema, modules)
     const { connectionId } = await setup(t)
