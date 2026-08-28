@@ -11,12 +11,12 @@ import { DocumentResourceIcon } from "@/components/documents/document-card"
 import { ConfirmDeleteDialog } from "@/components/manager/confirm-delete-dialog"
 import { ManagerFilterPanel } from "@/components/manager/manager-filter-panel"
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { ManagerListItem } from "@/components/manager/manager-list-item"
 import { WorkersCanEditToggle } from "@/components/manager/workers-can-edit-toggle"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -149,34 +149,30 @@ export function DocumentManager() {
       {visible.length ? (
         <div className="space-y-4">
           {visible.map((document) => (
-            <Card key={document.id} size="sm" className="shadow-none">
-              <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                  <DocumentResourceIcon resource={document.resource} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold">{document.title}</h3>
-                    <span aria-hidden="true" className="text-border">
-                      |
-                    </span>
-                    <Badge
-                      variant={document.published ? "secondary" : "outline"}
-                    >
-                      <T>{document.published ? "published" : "draft"}</T>
-                    </Badge>
-                    <span aria-hidden="true" className="text-border">
-                      |
-                    </span>
-                    <Badge variant="outline">
-                      {t(documentResourceLabelKey(document.resource))}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {document.description}
-                  </p>
-                </div>
-                <div className="grid w-full auto-cols-fr grid-flow-col gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <ManagerListItem
+              key={document.id}
+              icon={<DocumentResourceIcon resource={document.resource} />}
+              title={document.title}
+              summaryHref={
+                document.published
+                  ? `/documents/${document.id}`
+                  : `/manager/documents/${document.id}/edit`
+              }
+              metadata={[
+                <Badge
+                  key="status"
+                  variant={document.published ? "secondary" : "outline"}
+                >
+                  <T>{document.published ? "published" : "draft"}</T>
+                </Badge>,
+                <Badge key="resource" variant="outline">
+                  {t(documentResourceLabelKey(document.resource))}
+                </Badge>,
+              ]}
+              description={document.description}
+              actionsClassName="grid w-full grid-flow-col auto-cols-fr sm:flex sm:w-auto sm:flex-wrap"
+              actions={
+                <>
                   <Button
                     variant="outline"
                     size="sm"
@@ -224,9 +220,9 @@ export function DocumentManager() {
                       <Trash2 />
                     </Button>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </>
+              }
+            />
           ))}
         </div>
       ) : (

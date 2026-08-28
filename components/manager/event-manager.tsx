@@ -14,7 +14,6 @@ import {
   Search,
   Trash2,
   Upload,
-  UsersRound,
 } from "lucide-react"
 
 import { CalendarExportButton } from "@/components/calendar/calendar-export-button"
@@ -68,10 +67,7 @@ import {
   PRIVATE_EVENT_FILTER,
   type CalendarEvent,
 } from "@/lib/operations"
-import {
-  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
-  eventCategoryLabel,
-} from "@/lib/categories"
+import { eventCategoryLabel } from "@/lib/categories"
 import { cn } from "@/lib/utils"
 import type { AppMessageKey } from "@/i18n/messages"
 import type { TranslationValues } from "next-intl"
@@ -98,7 +94,6 @@ export function EventManager() {
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<Status>("All")
   const [category, setCategory] = useState<string>("All")
-  const [showWorkerSchedules, setShowWorkerSchedules] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importResult, setImportResult] = useState<CalendarImportResult | null>(
@@ -120,12 +115,16 @@ export function EventManager() {
   } | null>(null)
   const canCreateEvents = canCreateInSection("events")
   const hasPrivateEvents = events.some((event) => event.isPrivate)
+  const calendarEvents = events.filter((event) => event.source !== "deputy")
+  const calendarEventTypes = eventTypes.filter(
+    (eventType) => eventType.id !== "deputy-schedules"
+  )
   const importReadyCount =
     (importResult?.events.length ?? 0) +
     (importResult?.cancellations.length ?? 0)
   const visible = useMemo(
     () =>
-      events
+      calendarEvents
         .filter(
           (event) =>
             `${event.title} ${event.description} ${event.location}`
@@ -133,11 +132,10 @@ export function EventManager() {
               .includes(query.toLowerCase()) &&
             (status === "All" ||
               (status === "Published" ? event.published : !event.published)) &&
-            eventMatchesFilter(event, category) &&
-            (showWorkerSchedules || event.source !== "deputy")
+            eventMatchesFilter(event, category)
         )
         .sort((a, b) => a.start.localeCompare(b.start)),
-    [events, query, status, category, showWorkerSchedules]
+    [calendarEvents, query, status, category]
   )
 
   function resetImport() {
@@ -171,7 +169,7 @@ export function EventManager() {
         defaultDescription: t("calendarImportedExternalDescription"),
         defaultLocation: t("calendarNoLocationSpecified"),
         cancelledEventTitle: t("calendarCancelledEvent"),
-        eventTypes: eventTypes.map((eventType) => ({
+        eventTypes: calendarEventTypes.map((eventType) => ({
           ...eventType,
           label: eventCategoryLabel(eventType.id, eventTypes),
         })),
@@ -311,7 +309,7 @@ export function EventManager() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <CalendarExportButton
-                  events={events.filter((event) => event.published)}
+                  events={calendarEvents.filter((event) => event.published)}
                   calendarName={t("namedCalendar", {
                     name: hub?.name ?? t("workplace"),
                   })}
@@ -400,24 +398,13 @@ export function EventManager() {
                 <PrivateEventFilterLabel />
               </SelectItem>
             )}
-            {eventTypes.map((eventType) => (
+            {calendarEventTypes.map((eventType) => (
               <SelectItem key={eventType.id} value={eventType.id}>
                 {eventCategoryLabel(eventType.id, eventTypes)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Button
-          type="button"
-          role="switch"
-          aria-checked={showWorkerSchedules}
-          aria-label={t("showWorkerSchedules")}
-          variant={showWorkerSchedules ? "default" : "outline"}
-          className="w-full xl:w-auto"
-          onClick={() => setShowWorkerSchedules((current) => !current)}
-        >
-          <UsersRound /> <T>workers</T>
-        </Button>
       </ManagerFilterPanel>
       {visible.length ? (
         <div className="space-y-4">
@@ -425,12 +412,12 @@ export function EventManager() {
             <ManagerListItem
               key={event.id}
               icon={<CalendarDays className="size-5" />}
-              iconClassName={
-                event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
-                  ? "bg-muted text-muted-foreground"
-                  : undefined
-              }
               title={event.title}
+              summaryHref={
+                event.published
+                  ? `/calendar/${event.id}`
+                  : `/manager/calendar/${event.id}/edit`
+              }
               metadata={[
                 <Badge
                   key="status"
@@ -463,23 +450,19 @@ export function EventManager() {
               actionsClassName="grid w-full grid-flow-col auto-cols-fr sm:flex sm:w-auto"
               actions={
                 <>
-                  {event.source !== "deputy" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-                      onClick={() => {
-                        saveEvent({ ...event, published: !event.published })
-                        showFeedback(
-                          event.published
-                            ? "eventUnpublished"
-                            : "eventPublished"
-                        )
-                      }}
-                    >
-                      <T>{event.published ? "unpublish" : "publish"}</T>
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+                    onClick={() => {
+                      saveEvent({ ...event, published: !event.published })
+                      showFeedback(
+                        event.published ? "eventUnpublished" : "eventPublished"
+                      )
+                    }}
+                  >
+                    <T>{event.published ? "unpublish" : "publish"}</T>
+                  </Button>
                   <Link
                     href={`/manager/calendar/${event.id}/edit`}
                     className={cn(

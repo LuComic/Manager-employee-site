@@ -6,9 +6,12 @@ import {
   mutation,
   query,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server"
 import {
+  getActiveOrganizationFromIdentity,
   hashCredential,
+  requireIdentity,
   requireHubEditingPermission,
   requireHubPermission,
   requireOrganizationHub,
@@ -29,6 +32,31 @@ const accessLevel = v.union(
   v.literal("editor"),
   v.literal("manager")
 )
+const pendingClerkAction = v.union(v.literal("deactivate"), v.literal("remove"))
+
+const ACTIVE_TRADE_STATUSES = [
+  "published",
+  "offer-pending",
+  "confirmed",
+  "processing",
+] as const satisfies readonly Doc<"shiftTrades">["status"][]
+
+const HISTORICAL_TRADE_STATUSES = [
+  "approved",
+  "manager-declined",
+  "unpublished",
+] as const satisfies readonly Doc<"shiftTrades">["status"][]
+
+const MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS = 500
+const MAX_ACTIVE_TRADES_PER_DEACTIVATION = 500
+
+const TRADE_NOTIFICATION_AUDIENCES = [
+  "trade-employees",
+  "trade-managers",
+  "employee",
+  "employees",
+  "managers",
+] as const satisfies readonly Doc<"notifications">["audience"][]
 
 function clean(value: string | undefined, max: number) {
   const result = value?.trim() ?? ""
@@ -72,6 +100,9 @@ async function activateProfile(
   clerkUserId: string,
   now: number
 ) {
+  if (profile.pendingClerkActionId) {
+    throw new Error("employeeUpdateInProgress")
+  }
   if (profile.clerkUserId && profile.clerkUserId !== clerkUserId) {
     throw new Error("employeeProfileIsAlreadyConnected")
   }
@@ -123,6 +154,7 @@ export const list = query({
       status: profile.status,
       accessLevel: profile.accessLevel ?? "viewer",
       clerkUserId: profile.clerkUserId,
+      pendingClerkAction: profile.pendingClerkAction,
       invitationId: profile.invitationId,
       invitationStatus: profile.invitationStatus,
       invitationError: profile.invitationError,
@@ -172,12 +204,135 @@ export const listAssignable = query({
   },
 })
 
+async function employeeHasActiveShiftTrades(
+  ctx: QueryCtx | MutationCtx,
+  profileId: Id<"employeeProfiles">
+) {
+  const activeTrades = await Promise.all(
+    ACTIVE_TRADE_STATUSES.flatMap((status) => [
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_publisherId_and_status", (q) =>
+          q.eq("publisherId", profileId).eq("status", status)
+        )
+        .first(),
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_offeringEmployeeId_and_status", (q) =>
+          q.eq("offeringEmployeeId", profileId).eq("status", status)
+        )
+        .first(),
+    ])
+  )
+  return activeTrades.some(Boolean)
+}
+
+async function employeeHasProcessingShiftTrade(
+  ctx: QueryCtx | MutationCtx,
+  profileId: Id<"employeeProfiles">
+) {
+  const [publishedTrade, offeredTrade] = await Promise.all([
+    ctx.db
+      .query("shiftTrades")
+      .withIndex("by_publisherId_and_status", (q) =>
+        q.eq("publisherId", profileId).eq("status", "processing")
+      )
+      .first(),
+    ctx.db
+      .query("shiftTrades")
+      .withIndex("by_offeringEmployeeId_and_status", (q) =>
+        q.eq("offeringEmployeeId", profileId).eq("status", "processing")
+      )
+      .first(),
+  ])
+  return Boolean(publishedTrade || offeredTrade)
+}
+
+async function activeTradesForDeactivation(
+  ctx: MutationCtx,
+  profileId: Id<"employeeProfiles">
+) {
+  const tradeGroups = await Promise.all(
+    ACTIVE_TRADE_STATUSES.flatMap((status) => [
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_publisherId_and_status", (q) =>
+          q.eq("publisherId", profileId).eq("status", status)
+        )
+        .take(MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS + 1),
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_offeringEmployeeId_and_status", (q) =>
+          q.eq("offeringEmployeeId", profileId).eq("status", status)
+        )
+        .take(MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS + 1),
+    ])
+  )
+  if (
+    tradeGroups.some(
+      (trades) => trades.length > MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS
+    )
+  ) {
+    throw new Error("employeeHasTooManyActiveShiftTrades")
+  }
+  const activeTrades = [
+    ...new Map(tradeGroups.flat().map((trade) => [trade._id, trade])).values(),
+  ]
+  if (activeTrades.length > MAX_ACTIVE_TRADES_PER_DEACTIVATION) {
+    throw new Error("employeeHasTooManyActiveShiftTrades")
+  }
+  return activeTrades
+}
+
+async function tradeNotifications(
+  ctx: MutationCtx,
+  trade: Doc<"shiftTrades">,
+  limit: number
+) {
+  const notificationGroups = await Promise.all(
+    TRADE_NOTIFICATION_AUDIENCES.map((audience) =>
+      ctx.db
+        .query("notifications")
+        .withIndex("by_hubId_and_audience", (q) =>
+          q.eq("hubId", trade.hubId).eq("audience", audience)
+        )
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("shiftTradeId"), trade._id),
+            q.eq(q.field("href"), `/trades/${trade.slug}`)
+          )
+        )
+        .take(limit)
+    )
+  )
+  return {
+    notifications: notificationGroups.flat(),
+    hasMore: notificationGroups.some(
+      (notifications) => notifications.length === limit
+    ),
+  }
+}
+
+async function assertTradeNotificationCleanupFits(
+  ctx: MutationCtx,
+  trades: readonly Doc<"shiftTrades">[]
+) {
+  for (const trade of trades) {
+    const { hasMore } = await tradeNotifications(ctx, trade, 101)
+    if (hasMore) throw new Error("tradeHasTooManyNotifications")
+  }
+}
+
 export const getForAdmin = query({
   args: { profileId: v.id("employeeProfiles") },
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
     const { hub } = await requireHubPermission(ctx, profile.hubId, "owner")
+    const [hasShiftTrades, hasProcessingShiftTrade] = await Promise.all([
+      employeeHasActiveShiftTrades(ctx, profile._id),
+      employeeHasProcessingShiftTrade(ctx, profile._id),
+    ])
     return {
       profile: {
         id: profile._id,
@@ -190,6 +345,8 @@ export const getForAdmin = query({
       },
       organizationId: hub.clerkOrganizationId,
       hubSlug: hub.slug,
+      hasShiftTrades,
+      hasProcessingShiftTrade,
     }
   },
 })
@@ -468,6 +625,24 @@ async function deactivateProfileRecords(
   profile: Doc<"employeeProfiles">,
   now: number
 ) {
+  const activeTrades = await activeTradesForDeactivation(ctx, profile._id)
+  if (activeTrades.some((trade) => trade.status === "processing")) {
+    throw new Error("employeeHasTradeApprovalInProgress")
+  }
+  for (const trade of activeTrades) {
+    await ctx.db.patch("shiftTrades", trade._id, {
+      status: "unpublished",
+      approvalAttemptId: undefined,
+      approvalStartedAt: undefined,
+      approvalOperation: undefined,
+      updatedAt: now,
+    })
+    const { notifications, hasMore } = await tradeNotifications(ctx, trade, 101)
+    if (hasMore) throw new Error("tradeHasTooManyNotifications")
+    for (const notification of notifications) {
+      await ctx.db.delete("notifications", notification._id)
+    }
+  }
   await ctx.db.patch("employeeProfiles", profile._id, {
     status: "deactivated",
     invitationStatus:
@@ -479,17 +654,108 @@ async function deactivateProfileRecords(
   })
 }
 
-export const deactivateAfterClerkRemoval = mutation({
-  args: { profileId: v.id("employeeProfiles") },
+async function requirePendingClerkActionOwner(
+  ctx: MutationCtx,
+  profile: Doc<"employeeProfiles">
+) {
+  const identity = await requireIdentity(ctx)
+  const organization = getActiveOrganizationFromIdentity(identity)
+  const hub = await ctx.db.get("hubs", profile.hubId)
+  if (
+    !hub ||
+    organization?.organizationId !== hub.clerkOrganizationId ||
+    organization.role !== "org:admin"
+  ) {
+    throw new Error("workplaceOwnerAccessRequired")
+  }
+  return auditActorFromIdentity(identity)
+}
+
+export const prepareClerkRemoval = mutation({
+  args: {
+    profileId: v.id("employeeProfiles"),
+    action: pendingClerkAction,
+  },
+  returns: v.object({ operationId: v.string() }),
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    const { auditActor } = await requireHubPermission(
-      ctx,
-      profile.hubId,
-      "owner"
-    )
+    await requireHubPermission(ctx, profile.hubId, "owner")
+    if (profile.pendingClerkActionId) {
+      if (profile.pendingClerkAction !== args.action) {
+        throw new Error("employeeUpdateInProgress")
+      }
+      return { operationId: profile.pendingClerkActionId }
+    }
+    if (
+      args.action === "remove" &&
+      (await employeeHasActiveShiftTrades(ctx, profile._id))
+    ) {
+      throw new Error("employeeHasShiftTrades")
+    }
+    if (
+      args.action === "deactivate" &&
+      (await employeeHasProcessingShiftTrade(ctx, profile._id))
+    ) {
+      throw new Error("employeeHasTradeApprovalInProgress")
+    }
+    if (args.action === "deactivate") {
+      const activeTrades = await activeTradesForDeactivation(ctx, profile._id)
+      await assertTradeNotificationCleanupFits(ctx, activeTrades)
+    }
+    const operationId = crypto.randomUUID()
+    await ctx.db.patch("employeeProfiles", profile._id, {
+      status: "deactivated",
+      pendingClerkAction: args.action,
+      pendingClerkActionId: operationId,
+      pendingClerkActionPreviousStatus: profile.status,
+      pendingClerkActionStartedAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    return { operationId }
+  },
+})
+
+export const abortClerkRemoval = mutation({
+  args: { profileId: v.id("employeeProfiles"), operationId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const profile = await ctx.db.get("employeeProfiles", args.profileId)
+    if (!profile) return null
+    await requirePendingClerkActionOwner(ctx, profile)
+    if (profile.pendingClerkActionId !== args.operationId) return null
+    await ctx.db.patch("employeeProfiles", profile._id, {
+      status: profile.pendingClerkActionPreviousStatus ?? profile.status,
+      pendingClerkAction: undefined,
+      pendingClerkActionId: undefined,
+      pendingClerkActionPreviousStatus: undefined,
+      pendingClerkActionStartedAt: undefined,
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
+export const deactivateAfterClerkRemoval = mutation({
+  args: { profileId: v.id("employeeProfiles"), operationId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const profile = await ctx.db.get("employeeProfiles", args.profileId)
+    if (!profile) throw new Error("employeeNotFound")
+    const auditActor = await requirePendingClerkActionOwner(ctx, profile)
+    if (
+      profile.pendingClerkAction !== "deactivate" ||
+      profile.pendingClerkActionId !== args.operationId
+    ) {
+      throw new Error("employeeUpdateInProgress")
+    }
     await deactivateProfileRecords(ctx, profile, Date.now())
+    await ctx.db.patch("employeeProfiles", profile._id, {
+      pendingClerkAction: undefined,
+      pendingClerkActionId: undefined,
+      pendingClerkActionPreviousStatus: undefined,
+      pendingClerkActionStartedAt: undefined,
+    })
     await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "edited",
@@ -502,15 +768,59 @@ export const deactivateAfterClerkRemoval = mutation({
 })
 
 export const removeProfileBatch = mutation({
-  args: { profileId: v.id("employeeProfiles") },
+  args: { profileId: v.id("employeeProfiles"), operationId: v.string() },
   returns: v.object({ removed: v.boolean() }),
   handler: async (ctx, args) => {
     const profile = await ctx.db.get("employeeProfiles", args.profileId)
     if (!profile) throw new Error("employeeNotFound")
-    const { auditActor } = await requireHubPermission(
-      ctx,
-      profile.hubId,
-      "owner"
+    const auditActor = await requirePendingClerkActionOwner(ctx, profile)
+    if (
+      profile.pendingClerkAction !== "remove" ||
+      profile.pendingClerkActionId !== args.operationId
+    ) {
+      throw new Error("employeeUpdateInProgress")
+    }
+    if (await employeeHasActiveShiftTrades(ctx, profile._id)) {
+      throw new Error("employeeHasShiftTrades")
+    }
+
+    const historicalTradeMatches = (
+      await Promise.all(
+        HISTORICAL_TRADE_STATUSES.flatMap((status) => [
+          ctx.db
+            .query("shiftTrades")
+            .withIndex("by_publisherId_and_status", (q) =>
+              q.eq("publisherId", profile._id).eq("status", status)
+            )
+            .take(100),
+          ctx.db
+            .query("shiftTrades")
+            .withIndex("by_offeringEmployeeId_and_status", (q) =>
+              q.eq("offeringEmployeeId", profile._id).eq("status", status)
+            )
+            .take(100),
+        ])
+      )
+    ).flat()
+    const historicalTrades = [
+      ...new Map(
+        historicalTradeMatches.map((trade) => [trade._id, trade])
+      ).values(),
+    ].slice(0, 20)
+
+    const historicalTradeCleanup = await Promise.all(
+      historicalTrades.map(async (trade) => {
+        const { notifications, hasMore } = await tradeNotifications(
+          ctx,
+          trade,
+          101
+        )
+        return {
+          trade,
+          notifications,
+          canDeleteTrade: !hasMore,
+        }
+      })
     )
 
     const [
@@ -518,6 +828,7 @@ export const removeProfileBatch = mutation({
       documentAssignments,
       employeeNotifications,
       notificationReadStates,
+      deputyMappings,
     ] = await Promise.all([
       ctx.db
         .query("eventEmployees")
@@ -543,6 +854,13 @@ export const removeProfileBatch = mutation({
           q.eq("employeeProfileId", profile._id)
         )
         .take(100),
+      ctx.db
+        .query("deputyEmployeeMappings")
+        .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
+          q.eq("hubId", profile.hubId)
+        )
+        .filter((q) => q.eq(q.field("employeeProfileId"), profile._id))
+        .take(100),
     ])
 
     for (const assignment of eventAssignments) {
@@ -551,18 +869,34 @@ export const removeProfileBatch = mutation({
     for (const assignment of documentAssignments) {
       await ctx.db.delete("documentEmployees", assignment._id)
     }
-    for (const notification of employeeNotifications) {
+    const notificationsToDelete = new Map(
+      [
+        ...employeeNotifications,
+        ...historicalTradeCleanup.flatMap((cleanup) => cleanup.notifications),
+      ].map((notification) => [notification._id, notification])
+    )
+    for (const notification of notificationsToDelete.values()) {
       await ctx.db.delete("notifications", notification._id)
     }
     for (const readState of notificationReadStates) {
       await ctx.db.delete("notificationReadStates", readState._id)
+    }
+    for (const mapping of deputyMappings) {
+      await ctx.db.delete("deputyEmployeeMappings", mapping._id)
+    }
+    for (const cleanup of historicalTradeCleanup) {
+      if (cleanup.canDeleteTrade) {
+        await ctx.db.delete("shiftTrades", cleanup.trade._id)
+      }
     }
 
     if (
       eventAssignments.length > 0 ||
       documentAssignments.length > 0 ||
       employeeNotifications.length > 0 ||
-      notificationReadStates.length > 0
+      notificationReadStates.length > 0 ||
+      deputyMappings.length > 0 ||
+      historicalTrades.length > 0
     ) {
       return { removed: false }
     }
@@ -589,6 +923,9 @@ export const reactivateUnclaimed = mutation({
       profile.hubId,
       "owner"
     )
+    if (profile.pendingClerkActionId) {
+      throw new Error("employeeUpdateInProgress")
+    }
     await ctx.db.patch("employeeProfiles", profile._id, {
       clerkUserId: undefined,
       status: "unclaimed",

@@ -48,6 +48,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "missingSessionToken" }, { status: 401 })
   const convex = convexServerClient(token)
   const clerk = await clerkClient()
+  let preparedRemoval: {
+    profileId: Id<"employeeProfiles">
+    operationId: string
+  } | null = null
+  let preparedRemovalMustResume = false
 
   try {
     const authorization = await convex.query(api.hubs.getOwnerAuthorization, {
@@ -110,6 +115,12 @@ export async function POST(request: Request) {
     })
     if (record.organizationId !== orgId)
       throw new Error("employeeBelongsToAnotherWorkplace")
+    if (body.action === "remove" && record.hasShiftTrades) {
+      throw new Error("employeeHasShiftTrades")
+    }
+    if (body.action === "deactivate" && record.hasProcessingShiftTrade) {
+      throw new Error("employeeHasTradeApprovalInProgress")
+    }
 
     if (body.action === "reactivate") {
       await convex.mutation(api.employees.reactivateUnclaimed, {
@@ -138,10 +149,24 @@ export async function POST(request: Request) {
       assertAdminRemovalIsSafe(membership.role, admins.totalCount)
     }
 
+    const { operationId } = await convex.mutation(
+      api.employees.prepareClerkRemoval,
+      {
+        profileId: body.profileId!,
+        action: body.action,
+      }
+    )
+    preparedRemoval = { profileId: body.profileId!, operationId }
+
     if (
       record.profile.invitationId &&
       record.profile.invitationStatus === "pending"
     ) {
+      // Clerk mutations can succeed remotely even when the request reports a
+      // timeout. From this point onward, keep the Convex reservation so a retry
+      // reconciles forward instead of restoring access to a possibly removed
+      // membership.
+      preparedRemovalMustResume = true
       try {
         await clerk.organizations.revokeOrganizationInvitation({
           organizationId: orgId,
@@ -153,6 +178,7 @@ export async function POST(request: Request) {
       }
     }
     if (membership && targetUserId) {
+      preparedRemovalMustResume = true
       await clerk.organizations.deleteOrganizationMembership({
         organizationId: orgId,
         userId: targetUserId,
@@ -160,9 +186,13 @@ export async function POST(request: Request) {
     }
 
     if (body.action === "remove") {
+      // Batch cleanup is intentionally resumable and may already have deleted
+      // historical records if a later request fails.
+      preparedRemovalMustResume = true
       for (let attempt = 0; attempt < 100; attempt += 1) {
         const result = await convex.mutation(api.employees.removeProfileBatch, {
           profileId: body.profileId!,
+          operationId,
         })
         if (result.removed) {
           return Response.json({
@@ -176,12 +206,18 @@ export async function POST(request: Request) {
 
     await convex.mutation(api.employees.deactivateAfterClerkRemoval, {
       profileId: body.profileId!,
+      operationId,
     })
     return Response.json({
       status: "deactivated",
       refreshSession: targetUserId === userId,
     })
   } catch (error) {
+    if (preparedRemoval && !preparedRemovalMustResume) {
+      await convex
+        .mutation(api.employees.abortClerkRemoval, preparedRemoval)
+        .catch(() => undefined)
+    }
     return Response.json(
       { error: safeErrorMessage(error, "couldNotUpdateEmployee") },
       { status: 400 }

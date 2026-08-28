@@ -17,6 +17,7 @@ const sectionLabelKeys = {
   announcements: "announcements",
   documents: "documents",
   faqs: "commonQuestions",
+  trades: "trades",
 } satisfies Record<WorkerEditableSection, AppMessageKey>
 
 export function WorkersCanEditToggle({

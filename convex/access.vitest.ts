@@ -1750,14 +1750,27 @@ describe("Organization employees, invitations, and event links", () => {
     await expect(
       t
         .withIdentity(orgMemberIdentity)
-        .mutation(api.employees.removeProfileBatch, { profileId })
+        .mutation(api.employees.prepareClerkRemoval, {
+          profileId,
+          action: "remove",
+        })
     ).rejects.toThrow("workplaceOwnerAccessRequired")
 
+    const { operationId } = await owner.mutation(
+      api.employees.prepareClerkRemoval,
+      { profileId, action: "remove" }
+    )
     expect(
-      await owner.mutation(api.employees.removeProfileBatch, { profileId })
+      await owner.mutation(api.employees.removeProfileBatch, {
+        profileId,
+        operationId,
+      })
     ).toEqual({ removed: false })
     expect(
-      await owner.mutation(api.employees.removeProfileBatch, { profileId })
+      await owner.mutation(api.employees.removeProfileBatch, {
+        profileId,
+        operationId,
+      })
     ).toEqual({ removed: true })
 
     const relatedRecords = await t.run(async (ctx) => {
@@ -2275,8 +2288,13 @@ describe("Organization employees, invitations, and event links", () => {
       employeeProfileIds: [profileId],
     }
     await admin.mutation(api.content.saveEvent, event)
+    const { operationId } = await admin.mutation(
+      api.employees.prepareClerkRemoval,
+      { profileId, action: "deactivate" }
+    )
     await admin.mutation(api.employees.deactivateAfterClerkRemoval, {
       profileId,
+      operationId,
     })
     const snapshot = await t.query(api.hubs.getPublicSnapshot, {
       slug: "org-hub",
@@ -2325,8 +2343,13 @@ describe("Organization employees, invitations, and event links", () => {
           })
       ).kind
     ).toBe("ready")
+    const { operationId } = await admin.mutation(
+      api.employees.prepareClerkRemoval,
+      { profileId, action: "deactivate" }
+    )
     await admin.mutation(api.employees.deactivateAfterClerkRemoval, {
       profileId,
+      operationId,
     })
     expect(
       (
@@ -2421,6 +2444,45 @@ describe("Organization employees, invitations, and event links", () => {
 })
 
 describe("notification feeds", () => {
+  test("does not let unrelated profile notifications hide a personal alert", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const profileId = await createEmployee(t, hubId, "Notified Employee")
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", profileId, {
+        clerkUserId: orgMemberIdentity.subject,
+        status: "active",
+      })
+      await ctx.db.insert("notifications", {
+        hubId,
+        audience: "employee",
+        employeeProfileId: profileId,
+        kind: "event",
+        titleKey: "notificationAssignedToEvent",
+        href: "/personal-alert",
+      })
+      for (let index = 0; index < 251; index += 1) {
+        await ctx.db.insert("notifications", {
+          hubId,
+          audience: "managers",
+          employeeProfileId: profileId,
+          kind: "workplace",
+          titleKey: `managerAlert${index}`,
+          href: "/manager/employees",
+        })
+      }
+    })
+
+    const feed = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.notifications.listEmployee, { hubSlug: "org-hub" })
+    expect(feed.notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ titleKey: "notificationAssignedToEvent" }),
+      ])
+    )
+  })
+
   test("shows the actor's own content notifications without marking them unread", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)

@@ -45,7 +45,8 @@ const workerEditableSectionValidator = v.union(
   v.literal("events"),
   v.literal("announcements"),
   v.literal("documents"),
-  v.literal("faqs")
+  v.literal("faqs"),
+  v.literal("trades")
 )
 const hubCredentialsValidator = v.object({
   joinCode: v.string(),
@@ -431,6 +432,7 @@ export const getManagerSnapshot = query({
       ...(await buildSnapshot(ctx, managed.hub, {
         includeDrafts: true,
         includePrivateEvents: true,
+        includeDeputySchedules: false,
         ...(managed.permission === "viewer"
           ? { workerSections: workersCanEdit }
           : {}),
@@ -556,6 +558,7 @@ export const getPublicSnapshot = query({
       ...(await buildSnapshot(ctx, hub, {
         includeDrafts: false,
         includePrivateEvents,
+        includeDeputySchedules: true,
         includeOrganizationMapping: false,
         nowDate: args.nowDate,
       })),
@@ -591,6 +594,7 @@ export const getActiveMemberSnapshot = query({
       ...(await buildSnapshot(ctx, hub, {
         includeDrafts: false,
         includePrivateEvents: true,
+        includeDeputySchedules: true,
         includeOrganizationMapping: false,
         nowDate: args.nowDate,
       })),

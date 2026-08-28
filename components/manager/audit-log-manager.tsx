@@ -18,6 +18,14 @@ const actionMessages = {
   edited: "auditLogEdited",
   deleted: "auditLogDeleted",
   drafted: "auditLogDrafted",
+  tradeOffered: "auditLogTradeOffered",
+  tradeOfferCancelled: "auditLogTradeOfferCancelled",
+  tradeOfferAccepted: "auditLogTradeOfferAccepted",
+  tradeOfferDeclined: "auditLogTradeOfferDeclined",
+  tradeApproved: "auditLogTradeApproved",
+  tradeDeclined: "auditLogTradeDeclined",
+  tradeCancelled: "auditLogTradeCancelled",
+  tradeRolledBack: "auditLogTradeRolledBack",
 } as const satisfies Record<string, AppMessageKey>
 
 const entityMessages = {
@@ -30,6 +38,7 @@ const entityMessages = {
   faq: "auditEntityFaq",
   guide: "auditEntityGuide",
   helpRequest: "auditEntityHelpRequest",
+  shiftTrade: "auditEntityShiftTrade",
   workerNote: "auditEntityWorkerNote",
   workplace: "auditEntityWorkplace",
 } as const satisfies Record<string, AppMessageKey>

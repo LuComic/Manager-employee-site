@@ -2,7 +2,13 @@ import type { Id } from "../_generated/dataModel"
 import type { MutationCtx } from "../_generated/server"
 
 type NotificationKind =
-  "guide" | "event" | "announcement" | "document" | "question" | "workplace"
+  | "guide"
+  | "event"
+  | "announcement"
+  | "document"
+  | "question"
+  | "workplace"
+  | "trade"
 
 type NotificationDetails = {
   hubId: Id<"hubs">
@@ -12,6 +18,7 @@ type NotificationDetails = {
   messageKey?: string
   messageValues?: Record<string, string | number>
   href: string
+  shiftTradeId?: Id<"shiftTrades">
 }
 
 type NotificationInput = NotificationDetails &
@@ -23,6 +30,14 @@ type NotificationInput = NotificationDetails &
     | {
         audience: "managers"
         employeeProfileId?: Id<"employeeProfiles">
+      }
+    | {
+        audience: "trade-managers"
+        employeeProfileId?: never
+      }
+    | {
+        audience: "trade-employees"
+        employeeProfileId?: never
       }
     | {
         audience: "employee"

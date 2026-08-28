@@ -42,6 +42,7 @@ const workersCanEdit = v.object({
   announcements: v.boolean(),
   documents: v.boolean(),
   faqs: v.optional(v.boolean()),
+  trades: v.optional(v.boolean()),
 })
 const richTextDocument = v.object({
   type: v.literal("doc"),
@@ -109,6 +110,12 @@ export default defineSchema({
     invitedAt: v.optional(v.number()),
     activatedAt: v.optional(v.number()),
     deactivatedAt: v.optional(v.number()),
+    pendingClerkAction: v.optional(
+      v.union(v.literal("deactivate"), v.literal("remove"))
+    ),
+    pendingClerkActionId: v.optional(v.string()),
+    pendingClerkActionPreviousStatus: v.optional(employeeStatus),
+    pendingClerkActionStartedAt: v.optional(v.number()),
     invitationId: v.optional(v.string()),
     invitationStatus: invitationStatus,
     invitationCorrelationHash: v.optional(v.string()),
@@ -197,6 +204,10 @@ export default defineSchema({
       "start",
     ])
     .index("by_hubId_and_source_and_start", ["hubId", "source", "start"])
+    .index("by_hubId_source_sourceDeleted_managerDeleted_start", {
+      fields: ["hubId", "source", "sourceDeleted", "managerDeleted", "start"],
+      staged: true,
+    })
     .index("by_hubId_and_categoryId", ["hubId", "categoryId"])
     .searchIndex("search_title", {
       searchField: "title",
@@ -222,13 +233,54 @@ export default defineSchema({
     lastSyncError: v.optional(v.string()),
     activeSyncId: v.optional(v.string()),
     syncStartedAt: v.optional(v.number()),
+    resyncRequested: v.optional(v.boolean()),
   }).index("by_hubId", ["hubId"]),
 
   deputyEmployeeMappings: defineTable({
     hubId: v.id("hubs"),
     deputyEmployeeId: v.string(),
     employeeProfileId: v.id("employeeProfiles"),
-  }).index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"]),
+  })
+    .index("by_hubId_and_deputyEmployeeId", ["hubId", "deputyEmployeeId"])
+    .index("by_hubId_and_employeeProfileId", {
+      fields: ["hubId", "employeeProfileId"],
+      staged: true,
+    }),
+
+  shiftTrades: defineTable({
+    hubId: v.id("hubs"),
+    slug: v.string(),
+    publisherId: v.id("employeeProfiles"),
+    sourceEventId: v.id("events"),
+    reason: v.string(),
+    status: v.union(
+      v.literal("published"),
+      v.literal("offer-pending"),
+      v.literal("confirmed"),
+      v.literal("processing"),
+      v.literal("approved"),
+      v.literal("manager-declined"),
+      v.literal("unpublished")
+    ),
+    offeringEmployeeId: v.optional(v.id("employeeProfiles")),
+    offeredEventId: v.optional(v.id("events")),
+    employeeDeclineReason: v.optional(v.string()),
+    managerDeclineReason: v.optional(v.string()),
+    deputyError: v.optional(v.string()),
+    approvalAttemptId: v.optional(v.string()),
+    approvalStartedAt: v.optional(v.number()),
+    approvalOperation: v.optional(
+      v.union(v.literal("approve"), v.literal("rollback"))
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_hubId_and_slug", ["hubId", "slug"])
+    .index("by_hubId_and_updatedAt", ["hubId", "updatedAt"])
+    .index("by_publisherId_and_status", ["publisherId", "status"])
+    .index("by_offeringEmployeeId_and_status", ["offeringEmployeeId", "status"])
+    .index("by_sourceEventId_and_status", ["sourceEventId", "status"])
+    .index("by_offeredEventId_and_status", ["offeredEventId", "status"]),
 
   eventGuides: defineTable({
     hubId: v.id("hubs"),
@@ -243,11 +295,16 @@ export default defineSchema({
     hubId: v.id("hubs"),
     eventId: v.id("events"),
     employeeProfileId: v.id("employeeProfiles"),
+    eventStartUtc: v.optional(v.string()),
     addedAt: v.number(),
     addedBy: v.string(),
   })
     .index("by_eventId_and_employeeProfileId", ["eventId", "employeeProfileId"])
     .index("by_employeeProfileId_and_eventId", ["employeeProfileId", "eventId"])
+    .index("by_employeeProfileId_and_eventStartUtc", {
+      fields: ["employeeProfileId", "eventStartUtc"],
+      staged: true,
+    })
     .index("by_hubId_and_eventId", ["hubId", "eventId"]),
 
   clerkWebhookEvents: defineTable({
@@ -255,6 +312,11 @@ export default defineSchema({
     eventType: v.string(),
     receivedAt: v.number(),
   }).index("by_eventId", ["eventId"]),
+
+  dataMigrations: defineTable({
+    name: v.string(),
+    completedAt: v.number(),
+  }).index("by_name", ["name"]),
 
   announcements: defineTable({
     hubId: v.id("hubs"),
@@ -389,6 +451,8 @@ export default defineSchema({
     audience: v.union(
       v.literal("employees"),
       v.literal("managers"),
+      v.literal("trade-employees"),
+      v.literal("trade-managers"),
       v.literal("employee")
     ),
     employeeProfileId: v.optional(v.id("employeeProfiles")),
@@ -398,7 +462,8 @@ export default defineSchema({
       v.literal("announcement"),
       v.literal("document"),
       v.literal("question"),
-      v.literal("workplace")
+      v.literal("workplace"),
+      v.literal("trade")
     ),
     // Transitional: existing development rows may still use rendered copy.
     title: v.optional(v.string()),
@@ -411,11 +476,21 @@ export default defineSchema({
     href: v.string(),
     // Used to suppress unread indicators for an authenticated actor's actions.
     actorViewerKey: v.optional(v.string()),
+    shiftTradeId: v.optional(v.id("shiftTrades")),
     // Transitional: older notification rows stored this redundantly.
     createdAt: v.optional(v.number()),
   })
     .index("by_hubId_and_audience", ["hubId", "audience"])
-    .index("by_employeeProfileId", ["employeeProfileId"]),
+    .index("by_employeeProfileId", ["employeeProfileId"])
+    .index("by_employeeProfileId_and_audience", {
+      fields: ["employeeProfileId", "audience"],
+      staged: true,
+    })
+    .index("by_shiftTradeId", { fields: ["shiftTradeId"], staged: true })
+    .index("by_hubId_and_href", {
+      fields: ["hubId", "href"],
+      staged: true,
+    }),
 
   notificationReadStates: defineTable({
     hubId: v.id("hubs"),

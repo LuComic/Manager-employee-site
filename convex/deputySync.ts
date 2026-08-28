@@ -32,9 +32,15 @@ type DeputyRoster = {
   endUtc: string
   employeeId: string
   employeeName: string
+  employeeEmail?: string
   areaId: string
   areaName: string
   published: boolean
+}
+
+type DeputyEmployee = {
+  id: string
+  email?: string
 }
 
 const SYNC_ERROR_MESSAGES = new Set([
@@ -82,6 +88,29 @@ function nestedRecord(value: unknown, ...keys: string[]) {
     current = current ? record(current[key]) : null
   }
   return current
+}
+
+function responseRecords(value: unknown) {
+  return Array.isArray(value)
+    ? value
+    : Array.isArray(record(value)?.data)
+      ? (record(value)!.data as unknown[])
+      : null
+}
+
+function parseEmployee(value: unknown): DeputyEmployee | null {
+  const employee = record(value)
+  if (!employee) return null
+  const id = idValue(employee.Id)
+  if (!id) return null
+  const contact = record(employee.ContactObject)
+  const email1 = stringValue(contact?.Email1)
+  const email2 = stringValue(contact?.Email2)
+  const primaryEmail = idValue(contact?.PrimaryEmail)
+  const email =
+    (primaryEmail === "2" ? (email2 ?? email1) : (email1 ?? email2)) ??
+    stringValue(employee.Email)
+  return { id, ...(email ? { email } : {}) }
 }
 
 function parseRoster(value: unknown): DeputyRoster | null {
@@ -214,6 +243,30 @@ async function rosterPage(args: {
   })
 }
 
+async function employeePage(args: {
+  endpoint: string
+  accessToken: string
+  employeeIds: string[]
+}) {
+  return await fetch(
+    `https://${args.endpoint}/api/v1/resource/Employee/QUERY`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${args.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        search: {
+          s1: { field: "Id", data: args.employeeIds, type: "in" },
+        },
+        join: ["ContactObject"],
+        max: args.employeeIds.length,
+      }),
+    }
+  )
+}
+
 async function synchronize(ctx: ActionCtx, job: SyncJob) {
   const connection: SyncConnection | null = await ctx.runQuery(
     internal.deputy.getConnectionForSync,
@@ -263,11 +316,7 @@ async function synchronize(ctx: ActionCtx, job: SyncJob) {
     } catch {
       throw new Error("deputyRosterResponseInvalid")
     }
-    const page = Array.isArray(payload)
-      ? payload
-      : Array.isArray(record(payload)?.data)
-        ? (record(payload)!.data as unknown[])
-        : null
+    const page = responseRecords(payload)
     if (!page) throw new Error("deputyRosterResponseInvalid")
     return page
   }
@@ -294,12 +343,70 @@ async function synchronize(ctx: ActionCtx, job: SyncJob) {
     throw new Error("deputyRosterResponseInvalid")
   }
 
-  for (let index = 0; index < validRosters.length; index += 20) {
+  const employeeIds = [
+    ...new Set(validRosters.map((roster) => roster.employeeId)),
+  ]
+  const employeesById = new Map<string, DeputyEmployee>()
+  if (employeeIds.length) {
+    let response = await employeePage({
+      endpoint: activeConnection.endpoint,
+      accessToken: activeConnection.accessToken,
+      employeeIds,
+    })
+    if (response.status === 401) {
+      activeConnection = await refreshAccessToken(ctx, job, activeConnection)
+      response = await employeePage({
+        endpoint: activeConnection.endpoint,
+        accessToken: activeConnection.accessToken,
+        employeeIds,
+      })
+    }
+    if (!response.ok) throw new Error("deputyRosterSyncFailed")
+    let payload: unknown
+    try {
+      payload = await response.json()
+    } catch {
+      throw new Error("deputyRosterResponseInvalid")
+    }
+    const page = responseRecords(payload)
+    if (!page) throw new Error("deputyRosterResponseInvalid")
+    for (const value of page) {
+      const employee = parseEmployee(value)
+      if (!employee || employeesById.has(employee.id)) {
+        throw new Error("deputyRosterResponseInvalid")
+      }
+      employeesById.set(employee.id, employee)
+    }
+  }
+
+  const duplicateEmails = new Set<string>()
+  const deputyEmployeeIdByEmail = new Map<string, string>()
+  for (const employee of employeesById.values()) {
+    if (!employee.email) continue
+    const email = employee.email.toLocaleLowerCase()
+    const priorEmployeeId = deputyEmployeeIdByEmail.get(email)
+    if (priorEmployeeId && priorEmployeeId !== employee.id) {
+      duplicateEmails.add(email)
+    } else {
+      deputyEmployeeIdByEmail.set(email, employee.id)
+    }
+  }
+  const enrichedRosters = validRosters.map((roster) => {
+    const email = employeesById.get(roster.employeeId)?.email
+    return {
+      ...roster,
+      ...(email && !duplicateEmails.has(email.toLocaleLowerCase())
+        ? { employeeEmail: email }
+        : {}),
+    }
+  })
+
+  for (let index = 0; index < enrichedRosters.length; index += 20) {
     const applied: boolean = await ctx.runMutation(
       internal.deputy.applyRosterBatch,
       {
         ...job,
-        rosters: validRosters.slice(index, index + 20),
+        rosters: enrichedRosters.slice(index, index + 20),
       }
     )
     if (!applied) return

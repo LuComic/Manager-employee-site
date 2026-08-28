@@ -228,6 +228,7 @@ export function DraftManager() {
               key={draft.key}
               icon={draft.icon}
               title={draft.title}
+              summaryHref={draft.editHref}
               metadata={[
                 <Badge key="status" variant="outline">
                   <T>draft</T>

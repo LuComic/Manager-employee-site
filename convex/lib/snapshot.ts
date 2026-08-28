@@ -14,16 +14,24 @@ export async function buildSnapshot(
   options: {
     includeDrafts: boolean
     includePrivateEvents: boolean
+    includeDeputySchedules: boolean
     workerSections?: WorkersCanEdit
     includeOrganizationMapping: boolean
     nowDate: string
   }
 ) {
   const eventsPromise = options.includeDrafts
-    ? ctx.db
-        .query("events")
-        .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
-        .take(MAX_SNAPSHOT_EVENTS)
+    ? options.includeDeputySchedules
+      ? ctx.db
+          .query("events")
+          .withIndex("by_hubId_and_start", (q) => q.eq("hubId", hub._id))
+          .take(MAX_SNAPSHOT_EVENTS)
+      : ctx.db
+          .query("events")
+          .withIndex("by_hubId_and_source_and_start", (q) =>
+            q.eq("hubId", hub._id).eq("source", undefined)
+          )
+          .take(MAX_SNAPSHOT_EVENTS)
     : loadPublishedEvents(ctx, hub._id, options.includePrivateEvents)
   const [
     bannerImageUrl,
@@ -108,8 +116,14 @@ export async function buildSnapshot(
   const guides = includeGuideDrafts
     ? allGuides
     : allGuides.filter((guide) => guide.published)
+  const visibleCategories = options.includeDeputySchedules
+    ? categories
+    : categories.filter((category) => category.slug !== "deputy-schedules")
   const activeEvents = allEvents.filter(
-    (event) => !event.sourceDeleted && !event.managerDeleted
+    (event) =>
+      !event.sourceDeleted &&
+      !event.managerDeleted &&
+      (options.includeDeputySchedules || event.source !== "deputy")
   )
   const privacyFilteredEvents = options.includePrivateEvents
     ? activeEvents
@@ -128,7 +142,7 @@ export async function buildSnapshot(
     : allDocuments.filter((document) => document.published)
 
   const categorySlugById = new Map(
-    categories.map((category) => [category._id, category.slug])
+    visibleCategories.map((category) => [category._id, category.slug])
   )
   const guideSlugById = new Map(guides.map((guide) => [guide._id, guide.slug]))
   const publishedGuideSlugById = new Map(
@@ -266,7 +280,7 @@ export async function buildSnapshot(
             })),
         }
       : {}),
-    categories: categories.map((category) => ({
+    categories: visibleCategories.map((category) => ({
       id: category.slug,
       label: category.label,
       iconKey: category.iconKey,

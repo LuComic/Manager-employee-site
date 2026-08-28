@@ -12,6 +12,7 @@ import {
   Building2,
   CalendarDays,
   CircleHelp,
+  ArrowLeftRight,
   Files,
   Megaphone,
   type LucideIcon,
@@ -32,7 +33,13 @@ const GUEST_DEVICE_KEY = "workhal:notification-device"
 let cachedGuestDeviceId: string | undefined
 
 const kindIcons: Record<
-  "guide" | "event" | "announcement" | "document" | "question" | "workplace",
+  | "guide"
+  | "event"
+  | "announcement"
+  | "document"
+  | "question"
+  | "workplace"
+  | "trade",
   LucideIcon
 > = {
   guide: BookOpen,
@@ -41,6 +48,7 @@ const kindIcons: Record<
   document: Files,
   question: CircleHelp,
   workplace: Building2,
+  trade: ArrowLeftRight,
 }
 
 function useGuestDeviceId(enabled: boolean) {

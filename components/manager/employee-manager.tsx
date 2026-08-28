@@ -349,17 +349,18 @@ export function EmployeeManager() {
                     >
                       <T>edit</T>
                     </Button>
-                    {employee.status === "deactivated" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        disabled={Boolean(actionId)}
-                        onClick={() => setRemoveTarget(employee)}
-                      >
-                        <Trash2 /> <T>remove</T>
-                      </Button>
-                    )}
+                    {employee.status === "deactivated" &&
+                      employee.pendingClerkAction !== "deactivate" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={Boolean(actionId)}
+                          onClick={() => setRemoveTarget(employee)}
+                        >
+                          <Trash2 /> <T>remove</T>
+                        </Button>
+                      )}
                     {employee.email &&
                       employee.status !== "active" &&
                       employee.status !== "deactivated" && (
@@ -389,7 +390,8 @@ export function EmployeeManager() {
                         <T>cancelEmailInvite</T>
                       </Button>
                     )}
-                    {employee.status !== "deactivated" ? (
+                    {employee.status !== "deactivated" ||
+                    employee.pendingClerkAction === "deactivate" ? (
                       <Button
                         variant="destructive"
                         size="sm"
@@ -398,7 +400,7 @@ export function EmployeeManager() {
                       >
                         <T>deactivate</T>
                       </Button>
-                    ) : (
+                    ) : !employee.pendingClerkAction ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -407,7 +409,7 @@ export function EmployeeManager() {
                       >
                         <T>reactivate</T>
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>

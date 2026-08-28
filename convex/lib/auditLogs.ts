@@ -8,7 +8,15 @@ export const auditActionValidator = v.union(
   v.literal("created"),
   v.literal("edited"),
   v.literal("deleted"),
-  v.literal("drafted")
+  v.literal("drafted"),
+  v.literal("tradeOffered"),
+  v.literal("tradeOfferCancelled"),
+  v.literal("tradeOfferAccepted"),
+  v.literal("tradeOfferDeclined"),
+  v.literal("tradeApproved"),
+  v.literal("tradeDeclined"),
+  v.literal("tradeCancelled"),
+  v.literal("tradeRolledBack")
 )
 
 export const auditEntityTypeValidator = v.union(
@@ -21,6 +29,7 @@ export const auditEntityTypeValidator = v.union(
   v.literal("faq"),
   v.literal("guide"),
   v.literal("helpRequest"),
+  v.literal("shiftTrade"),
   v.literal("workerNote"),
   v.literal("workplace")
 )
@@ -45,11 +54,12 @@ export const auditLogResultValidator = auditLogDocumentValidator.extend({
 
 export type AuditAction = Infer<typeof auditActionValidator>
 export type AuditEntityType = Infer<typeof auditEntityTypeValidator>
-export type AuditActor = {
-  actorId: string
-  actorSubject?: string
-  actorName: string
-}
+export const auditActorValidator = v.object({
+  actorId: v.string(),
+  actorSubject: v.optional(v.string()),
+  actorName: v.string(),
+})
+export type AuditActor = Infer<typeof auditActorValidator>
 
 export const anonymousAuditActor: AuditActor = {
   actorId: "anonymous",

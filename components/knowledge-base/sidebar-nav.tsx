@@ -11,6 +11,7 @@ import {
   CircleHelp,
   Home,
   Megaphone,
+  ArrowLeftRight,
   Settings,
 } from "lucide-react"
 
@@ -71,14 +72,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           <BookOpen />
         </NavLink>
         <NavLink
-          href="/calendar"
-          label={t("calendar")}
-          active={pathname.startsWith("/calendar")}
-          onNavigate={onNavigate}
-        >
-          <CalendarDays />
-        </NavLink>
-        <NavLink
           href="/announcements"
           label={t("announcements")}
           active={pathname.startsWith("/announcements")}
@@ -86,6 +79,36 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         >
           <Megaphone />
         </NavLink>
+      </SidebarSection>
+
+      <SidebarSection
+        label={t("workplace")}
+        href="/calendar"
+        active={
+          pathname.startsWith("/calendar") || pathname.startsWith("/trades")
+        }
+        onNavigate={onNavigate}
+      >
+        <NavLink
+          href="/calendar"
+          label={t("calendar")}
+          active={pathname.startsWith("/calendar")}
+          onNavigate={onNavigate}
+        >
+          <CalendarDays />
+        </NavLink>
+        {hub &&
+          managerAccess &&
+          (managerAccess === "owner" || hub.workersCanEdit.trades) && (
+            <NavLink
+              href="/trades"
+              label={t("trades")}
+              active={pathname.startsWith("/trades")}
+              onNavigate={onNavigate}
+            >
+              <ArrowLeftRight />
+            </NavLink>
+          )}
       </SidebarSection>
 
       <SidebarSection

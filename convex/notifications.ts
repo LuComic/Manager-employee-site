@@ -21,7 +21,8 @@ const notificationKind = v.union(
   v.literal("announcement"),
   v.literal("document"),
   v.literal("question"),
-  v.literal("workplace")
+  v.literal("workplace"),
+  v.literal("trade")
 )
 
 const notificationItem = v.object({
@@ -168,7 +169,7 @@ async function employeeNotifications(
   ctx: QueryCtx | MutationCtx,
   viewer: Awaited<ReturnType<typeof employeeViewer>>
 ) {
-  const [broadcast, personal] = await Promise.all([
+  const [broadcast, tradeBroadcast, personal] = await Promise.all([
     ctx.db
       .query("notifications")
       .withIndex("by_hubId_and_audience", (q) =>
@@ -179,15 +180,31 @@ async function employeeNotifications(
     viewer.employeeProfileId
       ? ctx.db
           .query("notifications")
-          .withIndex("by_employeeProfileId", (q) =>
-            q.eq("employeeProfileId", viewer.employeeProfileId)
+          .withIndex("by_hubId_and_audience", (q) =>
+            q.eq("hubId", viewer.hub._id).eq("audience", "trade-employees")
           )
-          .filter((q) => q.eq(q.field("audience"), "employee"))
           .order("desc")
           .take(NOTIFICATION_FEED_LIMIT)
       : [],
+    viewer.employeeProfileId
+      ? ctx.db
+          .query("notifications")
+          .withIndex("by_employeeProfileId", (q) =>
+            q.eq("employeeProfileId", viewer.employeeProfileId)
+          )
+          .order("desc")
+          .take(NOTIFICATION_FEED_LIMIT * 5)
+          .then((notifications) =>
+            notifications.filter(
+              (notification) => notification.audience === "employee"
+            )
+          )
+      : [],
   ])
-  return [...broadcast, ...personal]
+  const visibleBroadcast = viewer.employeeProfileId
+    ? broadcast
+    : broadcast.filter((notification) => notification.kind !== "trade")
+  return [...visibleBroadcast, ...tradeBroadcast, ...personal]
     .sort((a, b) => b._creationTime - a._creationTime)
     .slice(0, NOTIFICATION_FEED_LIMIT)
 }
@@ -204,15 +221,30 @@ async function latestEmployeeNotificationTime(
 
 async function managerNotifications(
   ctx: QueryCtx | MutationCtx,
-  hubId: Id<"hubs">
+  hubId: Id<"hubs">,
+  includeOwnerNotifications: boolean
 ) {
-  return await ctx.db
-    .query("notifications")
-    .withIndex("by_hubId_and_audience", (q) =>
-      q.eq("hubId", hubId).eq("audience", "managers")
-    )
-    .order("desc")
-    .take(NOTIFICATION_FEED_LIMIT)
+  const [tradeNotifications, ownerNotifications] = await Promise.all([
+    ctx.db
+      .query("notifications")
+      .withIndex("by_hubId_and_audience", (q) =>
+        q.eq("hubId", hubId).eq("audience", "trade-managers")
+      )
+      .order("desc")
+      .take(NOTIFICATION_FEED_LIMIT),
+    includeOwnerNotifications
+      ? ctx.db
+          .query("notifications")
+          .withIndex("by_hubId_and_audience", (q) =>
+            q.eq("hubId", hubId).eq("audience", "managers")
+          )
+          .order("desc")
+          .take(NOTIFICATION_FEED_LIMIT)
+      : [],
+  ])
+  return [...tradeNotifications, ...ownerNotifications]
+    .sort((a, b) => b._creationTime - a._creationTime)
+    .slice(0, NOTIFICATION_FEED_LIMIT)
 }
 
 export const listEmployee = query({
@@ -270,12 +302,16 @@ export const listManager = query({
   returns: notificationFeed,
   handler: async (ctx, args) => {
     const [access, identity] = await Promise.all([
-      requireHubPermission(ctx, args.hubId, "owner"),
+      requireHubPermission(ctx, args.hubId, "manager"),
       requireIdentity(ctx),
     ])
     const { hub } = access
     const viewerKey = `identity:${identity.tokenIdentifier}`
-    const notifications = await managerNotifications(ctx, hub._id)
+    const notifications = await managerNotifications(
+      ctx,
+      hub._id,
+      access.permission === "owner"
+    )
     const lastReadAt = await getLastReadAt(ctx, hub._id, viewerKey, "manager")
     return {
       notifications: notifications.map((notification) =>
@@ -296,14 +332,14 @@ export const markManagerRead = mutation({
   returns: v.number(),
   handler: async (ctx, args) => {
     const [access, identity] = await Promise.all([
-      requireHubPermission(ctx, args.hubId, "owner"),
+      requireHubPermission(ctx, args.hubId, "manager"),
       requireIdentity(ctx),
     ])
     const { hub } = access
     const viewerKey = `identity:${identity.tokenIdentifier}`
-    const latest = (await managerNotifications(ctx, hub._id)).find(
-      (notification) => notification.actorViewerKey !== viewerKey
-    )
+    const latest = (
+      await managerNotifications(ctx, hub._id, access.permission === "owner")
+    ).find((notification) => notification.actorViewerKey !== viewerKey)
     return await setLastReadAt(
       ctx,
       hub._id,
