@@ -92,8 +92,10 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
     try {
       await operation()
       if (feedback) showFeedback(feedback)
+      return true
     } catch (caught) {
       setError(translateError(caught))
+      return false
     } finally {
       setPending(false)
     }
@@ -124,7 +126,7 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
   async function decline() {
     if (!trade) return
     if (!declineReason.trim()) return setError(t("tradeDeclineReasonRequired"))
-    await run(
+    const succeeded = await run(
       () =>
         declineMode === "manager"
           ? managerDecline({ tradeId: trade.id, reason: declineReason })
@@ -135,6 +137,7 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
             }),
       "tradeDeclined"
     )
+    if (!succeeded) return
     setDeclineMode(null)
     setDeclineReason("")
   }

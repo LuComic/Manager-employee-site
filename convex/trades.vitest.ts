@@ -474,6 +474,148 @@ describe("shift trades", () => {
     expect(aliceFeed.notifications[0]).toMatchObject({
       titleKey: "notificationManagerDeclinedTrade",
     })
+    const relatedNotifications = await t.run((ctx) =>
+      ctx.db
+        .query("notifications")
+        .filter((q) => q.eq(q.field("shiftTradeId"), tradeId))
+        .collect()
+    )
+    expect(relatedNotifications).toHaveLength(2)
+    expect(
+      relatedNotifications.every(
+        (notification) =>
+          notification.audience === "employee" &&
+          notification.titleKey === "notificationManagerDeclinedTrade"
+      )
+    ).toBe(true)
+    const auditLogs = await t
+      .withIdentity(ownerIdentity)
+      .query(api.auditLogs.list, {
+        hubId,
+        paginationOpts: { cursor: null, numItems: 20 },
+      })
+    expect(
+      auditLogs.page
+        .filter((log) => log.entityId === tradeId)
+        .map((log) => log.action)
+    ).toEqual([
+      "tradeDeclined",
+      "tradeOfferAccepted",
+      "tradeOffered",
+      "created",
+    ])
+  })
+
+  test("paginates active employee trades without terminal-history gaps", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, aliceId, bobId, aliceShiftId } = await setup(t)
+    await t.withIdentity(ownerIdentity).mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "trades",
+      enabled: true,
+    })
+    await t.run((ctx) =>
+      ctx.db.patch("employeeProfiles", bobId, { accessLevel: "viewer" })
+    )
+    const activeSlug = await t
+      .withIdentity(aliceIdentity)
+      .mutation(api.trades.create, {
+        hubId,
+        sourceEventId: aliceShiftId,
+        reason: "This active trade must remain on the first employee page.",
+      })
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 200; index += 1) {
+        await ctx.db.insert("shiftTrades", {
+          hubId,
+          slug: `resolved-history-${index}`,
+          publisherId: aliceId,
+          sourceEventId: aliceShiftId,
+          reason: "Resolved history",
+          status: "unpublished",
+          createdAt: index + 1,
+          updatedAt: Date.now() + index + 1,
+        })
+      }
+    })
+
+    const trades = await t.withIdentity(bobIdentity).query(api.trades.list, {
+      hubId,
+      paginationOpts: { cursor: null, numItems: 50 },
+    })
+    expect(trades.page.map((trade) => trade.slug)).toEqual([activeSlug])
+    expect(trades.isDone).toBe(true)
+  })
+
+  test("records edits, offer decisions, and cancellations in trade history", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId, aliceShiftId, bobShiftId } = await setup(t)
+    await t.withIdentity(ownerIdentity).mutation(api.hubs.setWorkersCanEdit, {
+      hubId,
+      section: "trades",
+      enabled: true,
+    })
+    const slug = await t
+      .withIdentity(aliceIdentity)
+      .mutation(api.trades.create, {
+        hubId,
+        sourceEventId: aliceShiftId,
+        reason: "Initial reason",
+      })
+    const trade = await t.withIdentity(ownerIdentity).query(api.trades.get, {
+      hubId,
+      slug,
+    })
+    if (!trade) throw new Error("Missing trade")
+    await t.withIdentity(aliceIdentity).mutation(api.trades.edit, {
+      tradeId: trade.id,
+      sourceEventId: aliceShiftId,
+      reason: "Updated reason",
+    })
+    await t.withIdentity(bobIdentity).mutation(api.trades.offer, {
+      tradeId: trade.id,
+      eventId: bobShiftId,
+    })
+    await t.withIdentity(bobIdentity).mutation(api.trades.cancelOffer, {
+      tradeId: trade.id,
+    })
+    await t.withIdentity(bobIdentity).mutation(api.trades.offer, {
+      tradeId: trade.id,
+      eventId: bobShiftId,
+    })
+    await t.withIdentity(aliceIdentity).mutation(api.trades.respondToOffer, {
+      tradeId: trade.id,
+      response: "decline",
+      reason: "The offered shift does not work.",
+    })
+    await t.withIdentity(bobIdentity).mutation(api.trades.offer, {
+      tradeId: trade.id,
+      eventId: bobShiftId,
+    })
+    await t.withIdentity(ownerIdentity).mutation(api.trades.managerCancel, {
+      tradeId: trade.id,
+    })
+
+    const auditLogs = await t
+      .withIdentity(ownerIdentity)
+      .query(api.auditLogs.list, {
+        hubId,
+        paginationOpts: { cursor: null, numItems: 20 },
+      })
+    expect(
+      auditLogs.page
+        .filter((log) => log.entityId === trade.id)
+        .map((log) => log.action)
+    ).toEqual([
+      "tradeCancelled",
+      "tradeOffered",
+      "tradeOfferDeclined",
+      "tradeOffered",
+      "tradeOfferCancelled",
+      "tradeOffered",
+      "edited",
+      "created",
+    ])
   })
 
   test("keeps each shift in at most one active trade", async () => {
@@ -552,7 +694,7 @@ describe("shift trades", () => {
     ).resolves.toMatchObject({ status: "confirmed", viewerRole: "publisher" })
   })
 
-  test("backfills every legacy assignment before listing future shifts", async () => {
+  test("lists legacy assignments immediately and backfills them", async () => {
     vi.useFakeTimers()
     const t = convexTest(schema, modules)
     const { hubId, aliceId } = await setup(t)
@@ -578,7 +720,7 @@ describe("shift trades", () => {
       for (const assignment of existingAssignments) {
         await ctx.db.delete("eventEmployees", assignment._id)
       }
-      for (let index = 0; index < 250; index += 1) {
+      for (let index = 0; index < 1_001; index += 1) {
         const start = new Date(Date.UTC(2020, 0, 1 + index, 8))
         const end = new Date(start.getTime() + 8 * 60 * 60 * 1000)
         const eventId = await ctx.db.insert("events", {
@@ -631,11 +773,21 @@ describe("shift trades", () => {
         hubId,
         eventId,
         employeeProfileId: aliceId,
-        addedAt: 250,
+        addedAt: 1_001,
         addedBy: "test",
       })
       return eventId
     })
+
+    const shiftsBeforeBackfill = await t
+      .withIdentity(aliceIdentity)
+      .query(api.trades.listMyShifts, {
+        hubId,
+        now: Date.parse("2035-01-01T00:00:00.000Z"),
+      })
+    expect(shiftsBeforeBackfill.map((shift) => shift.eventId)).toEqual([
+      futureEventId,
+    ])
 
     await t.mutation(internal.trades.backfillEventAssignmentStartUtc, {
       paginationOpts: { numItems: 100, cursor: null },
@@ -794,6 +946,7 @@ describe("shift trades", () => {
       owner.mutation(internal.trades.finishApproval, {
         tradeId,
         attemptId: approval.attemptId,
+        auditActor: approval.auditActor,
       })
     ).rejects.toThrow("tradeNotReadyForManager")
     await owner.mutation(internal.trades.failApproval, {
@@ -825,7 +978,15 @@ describe("shift trades", () => {
     })
     await t
       .withIdentity(ownerIdentity)
-      .mutation(internal.trades.finishApproval, { tradeId, attemptId })
+      .mutation(internal.trades.finishApproval, {
+        tradeId,
+        attemptId,
+        auditActor: {
+          actorId: ownerIdentity.tokenIdentifier,
+          actorSubject: ownerIdentity.subject,
+          actorName: "Test owner",
+        },
+      })
 
     const result = await t.run(async (ctx) => {
       const [aliceShift, bobShift, aliceAssignment, bobAssignment] =
@@ -862,6 +1023,20 @@ describe("shift trades", () => {
       slug,
     })
     expect(approved?.status).toBe("approved")
+    const relatedNotifications = await t.run((ctx) =>
+      ctx.db
+        .query("notifications")
+        .filter((q) => q.eq(q.field("shiftTradeId"), tradeId))
+        .collect()
+    )
+    expect(relatedNotifications).toHaveLength(2)
+    expect(
+      relatedNotifications.every(
+        (notification) =>
+          notification.audience === "employee" &&
+          notification.titleKey === "notificationShiftTradeApproved"
+      )
+    ).toBe(true)
   })
 
   test("updates both Deputy rosters and preserves live roster settings", async () => {
@@ -938,6 +1113,21 @@ describe("shift trades", () => {
       slug,
     })
     expect(approved?.status).toBe("approved")
+    const auditLogs = await t
+      .withIdentity(ownerIdentity)
+      .query(api.auditLogs.list, {
+        hubId,
+        paginationOpts: { cursor: null, numItems: 20 },
+      })
+    expect(
+      auditLogs.page.find(
+        (log) => log.entityId === tradeId && log.action === "tradeApproved"
+      )
+    ).toMatchObject({
+      actorId: ownerIdentity.tokenIdentifier,
+      actorSubject: ownerIdentity.subject,
+      entityType: "shiftTrade",
+    })
     const connection = await t.run((ctx) =>
       ctx.db.get("deputyConnections", connectionId)
     )
@@ -1015,6 +1205,20 @@ describe("shift trades", () => {
       ).resolves.toMatchObject({ status: "confirmed" })
       expect(sourceEmployee).toBe(11)
       expect(targetEmployee).toBe(12)
+      const auditLogs = await t
+        .withIdentity(ownerIdentity)
+        .query(api.auditLogs.list, {
+          hubId,
+          paginationOpts: { cursor: null, numItems: 20 },
+        })
+      expect(
+        auditLogs.page.find(
+          (log) => log.entityId === tradeId && log.action === "tradeRolledBack"
+        )
+      ).toMatchObject({
+        actorId: ownerIdentity.tokenIdentifier,
+        actorSubject: ownerIdentity.subject,
+      })
     } finally {
       fetchMock.mockRestore()
     }
@@ -1071,6 +1275,121 @@ describe("shift trades", () => {
     ).resolves.toMatchObject({
       status: "confirmed",
       deputyError: "deputySourceRosterUpdateFailed",
+    })
+  })
+
+  test("keeps an approval locked when the first Deputy write has an ambiguous network failure", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { hubId } = setupResult
+    const { tradeId, slug } = await confirmedTrade(t, setupResult)
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith("/Roster/101")) {
+          return Response.json({
+            Id: 101,
+            Employee: 11,
+            StartTime: 1915682400,
+            EndTime: 1915711200,
+            OperationalUnit: 3,
+            Published: true,
+          })
+        }
+        if (url.endsWith("/Roster/102")) {
+          return Response.json({
+            Id: 102,
+            Employee: 12,
+            StartTime: 1915776000,
+            EndTime: 1915804800,
+            OperationalUnit: 4,
+            Published: true,
+          })
+        }
+        if (
+          url.endsWith("/api/v1/supervise/roster") &&
+          init?.method === "POST"
+        ) {
+          throw new Error("socketClosedAfterRequest")
+        }
+        return new Response(null, { status: 404 })
+      })
+    try {
+      await expect(
+        t
+          .withIdentity(ownerIdentity)
+          .action(api.tradeApproval.approve, { tradeId })
+      ).rejects.toThrow("deputyShiftTradeUpdateFailed")
+    } finally {
+      fetchMock.mockRestore()
+    }
+    await expect(
+      t.withIdentity(ownerIdentity).query(api.trades.get, { hubId, slug })
+    ).resolves.toMatchObject({
+      status: "processing",
+      deputyError: "deputyShiftTradeUpdateFailed",
+    })
+  })
+
+  test("keeps a resumed partial Deputy swap locked when the remaining update fails", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { hubId } = setupResult
+    const { tradeId, slug } = await confirmedTrade(t, setupResult)
+    await t.run((ctx) =>
+      ctx.db.patch("shiftTrades", tradeId, {
+        status: "processing",
+        approvalStartedAt: 0,
+        approvalOperation: "approve",
+      })
+    )
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith("/Roster/101")) {
+          return Response.json({
+            Id: 101,
+            Employee: 12,
+            StartTime: 1915682400,
+            EndTime: 1915711200,
+            OperationalUnit: 3,
+            Published: true,
+          })
+        }
+        if (url.endsWith("/Roster/102")) {
+          return Response.json({
+            Id: 102,
+            Employee: 12,
+            StartTime: 1915776000,
+            EndTime: 1915804800,
+            OperationalUnit: 4,
+            Published: true,
+          })
+        }
+        if (
+          url.endsWith("/api/v1/supervise/roster") &&
+          init?.method === "POST"
+        ) {
+          return new Response(null, { status: 409 })
+        }
+        return new Response(null, { status: 404 })
+      })
+    try {
+      await expect(
+        t
+          .withIdentity(ownerIdentity)
+          .action(api.tradeApproval.approve, { tradeId })
+      ).rejects.toThrow("deputyTargetRosterUpdateFailed")
+    } finally {
+      fetchMock.mockRestore()
+    }
+    await expect(
+      t.withIdentity(ownerIdentity).query(api.trades.get, { hubId, slug })
+    ).resolves.toMatchObject({
+      status: "processing",
+      deputyError: "deputyTargetRosterUpdateFailed",
     })
   })
 
@@ -1246,22 +1565,38 @@ describe("shift trades", () => {
   test("allows employee removal after all referenced trades are historical", async () => {
     const t = convexTest(schema, modules)
     const setupResult = await setup(t)
-    const { aliceId } = setupResult
+    const { aliceId, bobId } = setupResult
     const { tradeId, slug } = await confirmedTrade(t, setupResult)
     const owner = t.withIdentity(ownerIdentity)
     await owner.mutation(api.trades.managerDecline, {
       tradeId,
       reason: "This trade is complete history.",
     })
-    await t.run((ctx) =>
-      ctx.db.insert("notifications", {
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 150; index += 1) {
+        await ctx.db.insert("notifications", {
+          hubId: setupResult.hubId,
+          audience: "trade-managers",
+          kind: "trade",
+          titleKey: "notificationShiftTradeNeedsApproval",
+          href: `/trades/unrelated-${index}`,
+        })
+      }
+      for (let index = 0; index < 500; index += 1) {
+        await ctx.db.insert("deputyEmployeeMappings", {
+          hubId: setupResult.hubId,
+          deputyEmployeeId: `0${index.toString().padStart(4, "0")}`,
+          employeeProfileId: bobId,
+        })
+      }
+      await ctx.db.insert("notifications", {
         hubId: setupResult.hubId,
         audience: "trade-managers",
         kind: "trade",
         titleKey: "notificationShiftTradeNeedsApproval",
         href: `/trades/${slug}`,
       })
-    )
+    })
 
     await expect(
       owner.query(api.employees.getForAdmin, { profileId: aliceId })
@@ -1284,7 +1619,7 @@ describe("shift trades", () => {
     await expect(
       t.run((ctx) => ctx.db.get("shiftTrades", tradeId))
     ).resolves.toBeNull()
-    const danglingNotifications = await t.run(async (ctx) => {
+    const danglingRecords = await t.run(async (ctx) => {
       const notificationGroups = await Promise.all(
         [
           "trade-employees",
@@ -1301,22 +1636,31 @@ describe("shift trades", () => {
             .take(20)
         )
       )
-      return notificationGroups
-        .flat()
-        .filter(
-          (notification) =>
-            notification.shiftTradeId === tradeId ||
-            notification.href === `/trades/${slug}`
-        )
+      return {
+        notifications: notificationGroups
+          .flat()
+          .filter(
+            (notification) =>
+              notification.shiftTradeId === tradeId ||
+              notification.href === `/trades/${slug}`
+          ),
+        deputyMappings: await ctx.db
+          .query("deputyEmployeeMappings")
+          .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
+            q.eq("hubId", setupResult.hubId)
+          )
+          .filter((q) => q.eq(q.field("employeeProfileId"), aliceId))
+          .take(10),
+      }
     })
-    expect(danglingNotifications).toEqual([])
+    expect(danglingRecords).toEqual({ notifications: [], deputyMappings: [] })
   })
 
   test("unpublishes active trades when a participant is deactivated", async () => {
     const t = convexTest(schema, modules)
     const setupResult = await setup(t)
     const { hubId, aliceId } = setupResult
-    const { slug } = await confirmedTrade(t, setupResult)
+    const { tradeId, slug } = await confirmedTrade(t, setupResult)
 
     const owner = t.withIdentity(ownerIdentity)
     const { operationId } = await owner.mutation(
@@ -1331,6 +1675,46 @@ describe("shift trades", () => {
     await expect(
       t.withIdentity(ownerIdentity).query(api.trades.get, { hubId, slug })
     ).resolves.toMatchObject({ status: "unpublished" })
+    await expect(
+      t.run((ctx) =>
+        ctx.db
+          .query("notifications")
+          .filter((q) => q.eq(q.field("shiftTradeId"), tradeId))
+          .collect()
+      )
+    ).resolves.toEqual([])
+  })
+
+  test("refuses deactivation before bounded cleanup could leave active trades", async () => {
+    const t = convexTest(schema, modules)
+    const setupResult = await setup(t)
+    const { hubId, aliceId, aliceShiftId } = setupResult
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 501; index += 1) {
+        await ctx.db.insert("shiftTrades", {
+          hubId,
+          slug: `overflow-trade-${index}`,
+          publisherId: aliceId,
+          sourceEventId: aliceShiftId,
+          reason: "Overflow guard regression coverage",
+          status: "published",
+          createdAt: index,
+          updatedAt: index,
+        })
+      }
+    })
+
+    await expect(
+      t
+        .withIdentity(ownerIdentity)
+        .mutation(api.employees.prepareClerkRemoval, {
+          profileId: aliceId,
+          action: "deactivate",
+        })
+    ).rejects.toThrow("employeeHasTooManyActiveShiftTrades")
+    await expect(
+      t.run((ctx) => ctx.db.get("employeeProfiles", aliceId))
+    ).resolves.toMatchObject({ status: "active" })
   })
 
   test("lets a manager cancel a published trade with an inactive publisher", async () => {

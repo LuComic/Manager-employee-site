@@ -4,6 +4,7 @@ import { normalizeDeputyEndpoint } from "../lib/deputy"
 import { internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import { action, env, type ActionCtx } from "./_generated/server"
+import type { AuditActor } from "./lib/auditLogs"
 
 type ShiftPayload = {
   rosterId: string
@@ -37,6 +38,7 @@ type ApprovalContext = {
   attemptId: string
   resuming: boolean
   operation: "approve" | "rollback"
+  auditActor: AuditActor
   source: ShiftPayload
   target: ShiftPayload
 }
@@ -204,9 +206,7 @@ async function updateRoster(
   endpoint: string,
   accessToken: string,
   shift: LiveRoster,
-  employeeId: string,
-  errorMessage:
-    "deputySourceRosterUpdateFailed" | "deputyTargetRosterUpdateFailed"
+  employeeId: string
 ) {
   const response = await fetch(`https://${endpoint}/api/v1/supervise/roster`, {
     method: "POST",
@@ -216,7 +216,7 @@ async function updateRoster(
     },
     body: JSON.stringify(rosterUpdate(shift, employeeId)),
   })
-  if (!response.ok) throw new Error(errorMessage)
+  return response.ok
 }
 
 function safeApprovalError(error: unknown) {
@@ -257,7 +257,7 @@ async function reconcile(
     throw new Error("invalidDeputyEndpoint")
   }
   let accessToken = approval.accessToken
-  let deputyWriteSucceeded = false
+  let deputyMayHaveChanged = false
   try {
     if (approval.accessTokenExpiresAt <= Date.now() + 60_000) {
       accessToken = await refreshToken(ctx, { ...approval, endpoint })
@@ -298,30 +298,46 @@ async function reconcile(
       approval.operation === "approve"
         ? approval.source.employeeId
         : approval.target.employeeId
-    if (sourceRoster.employeeId !== desiredSourceEmployeeId) {
-      await updateRoster(
+    const reconcileRoster = async (
+      roster: LiveRoster,
+      employeeId: string,
+      errorMessage:
+        "deputySourceRosterUpdateFailed" | "deputyTargetRosterUpdateFailed"
+    ) => {
+      const deputyHadAlreadyChanged = deputyMayHaveChanged
+      // Once the request is sent, a transport failure is ambiguous: Deputy
+      // may have committed the write even if its response never arrived.
+      deputyMayHaveChanged = true
+      const updated = await updateRoster(
         endpoint,
         accessToken,
+        roster,
+        employeeId
+      )
+      if (!updated) {
+        deputyMayHaveChanged = deputyHadAlreadyChanged
+        throw new Error(errorMessage)
+      }
+    }
+    if (sourceRoster.employeeId !== desiredSourceEmployeeId) {
+      await reconcileRoster(
         sourceRoster,
         desiredSourceEmployeeId,
         "deputySourceRosterUpdateFailed"
       )
-      deputyWriteSucceeded = true
     }
     if (targetRoster.employeeId !== desiredTargetEmployeeId) {
-      await updateRoster(
-        endpoint,
-        accessToken,
+      await reconcileRoster(
         targetRoster,
         desiredTargetEmployeeId,
         "deputyTargetRosterUpdateFailed"
       )
-      deputyWriteSucceeded = true
     }
     await ctx.runMutation(internal.trades.finishApproval, {
       tradeId,
       attemptId: approval.attemptId,
       operation: approval.operation,
+      auditActor: approval.auditActor,
     })
   } catch (error) {
     const message = safeApprovalError(error)
@@ -329,9 +345,12 @@ async function reconcile(
       tradeId,
       attemptId: approval.attemptId,
       message,
-      // A failed first request has not changed Deputy, so return to manager
-      // review. A partial swap stays locked until it is completed or restored.
-      keepProcessing: deputyWriteSucceeded || approval.operation === "rollback",
+      // Any possibly applied write stays locked until the swap is completed or
+      // restored. A definitely rejected fresh request returns to review.
+      keepProcessing:
+        approval.resuming ||
+        deputyMayHaveChanged ||
+        approval.operation === "rollback",
       operation: approval.operation,
     })
     throw new Error(message)

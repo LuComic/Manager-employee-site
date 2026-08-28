@@ -47,6 +47,17 @@ const HISTORICAL_TRADE_STATUSES = [
   "unpublished",
 ] as const satisfies readonly Doc<"shiftTrades">["status"][]
 
+const MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS = 500
+const MAX_ACTIVE_TRADES_PER_DEACTIVATION = 500
+
+const TRADE_NOTIFICATION_AUDIENCES = [
+  "trade-employees",
+  "trade-managers",
+  "employee",
+  "employees",
+  "managers",
+] as const satisfies readonly Doc<"notifications">["audience"][]
+
 function clean(value: string | undefined, max: number) {
   const result = value?.trim() ?? ""
   if (result.length > max) throw new Error("employeeDetailIsTooLong")
@@ -235,6 +246,81 @@ async function employeeHasProcessingShiftTrade(
       .first(),
   ])
   return Boolean(publishedTrade || offeredTrade)
+}
+
+async function activeTradesForDeactivation(
+  ctx: MutationCtx,
+  profileId: Id<"employeeProfiles">
+) {
+  const tradeGroups = await Promise.all(
+    ACTIVE_TRADE_STATUSES.flatMap((status) => [
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_publisherId_and_status", (q) =>
+          q.eq("publisherId", profileId).eq("status", status)
+        )
+        .take(MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS + 1),
+      ctx.db
+        .query("shiftTrades")
+        .withIndex("by_offeringEmployeeId_and_status", (q) =>
+          q.eq("offeringEmployeeId", profileId).eq("status", status)
+        )
+        .take(MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS + 1),
+    ])
+  )
+  if (
+    tradeGroups.some(
+      (trades) => trades.length > MAX_ACTIVE_TRADES_PER_ROLE_AND_STATUS
+    )
+  ) {
+    throw new Error("employeeHasTooManyActiveShiftTrades")
+  }
+  const activeTrades = [
+    ...new Map(tradeGroups.flat().map((trade) => [trade._id, trade])).values(),
+  ]
+  if (activeTrades.length > MAX_ACTIVE_TRADES_PER_DEACTIVATION) {
+    throw new Error("employeeHasTooManyActiveShiftTrades")
+  }
+  return activeTrades
+}
+
+async function tradeNotifications(
+  ctx: MutationCtx,
+  trade: Doc<"shiftTrades">,
+  limit: number
+) {
+  const notificationGroups = await Promise.all(
+    TRADE_NOTIFICATION_AUDIENCES.map((audience) =>
+      ctx.db
+        .query("notifications")
+        .withIndex("by_hubId_and_audience", (q) =>
+          q.eq("hubId", trade.hubId).eq("audience", audience)
+        )
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("shiftTradeId"), trade._id),
+            q.eq(q.field("href"), `/trades/${trade.slug}`)
+          )
+        )
+        .take(limit)
+    )
+  )
+  return {
+    notifications: notificationGroups.flat(),
+    hasMore: notificationGroups.some(
+      (notifications) => notifications.length === limit
+    ),
+  }
+}
+
+async function assertTradeNotificationCleanupFits(
+  ctx: MutationCtx,
+  trades: readonly Doc<"shiftTrades">[]
+) {
+  for (const trade of trades) {
+    const { hasMore } = await tradeNotifications(ctx, trade, 101)
+    if (hasMore) throw new Error("tradeHasTooManyNotifications")
+  }
 }
 
 export const getForAdmin = query({
@@ -539,40 +625,24 @@ async function deactivateProfileRecords(
   profile: Doc<"employeeProfiles">,
   now: number
 ) {
-  const activeTrades = (
-    await Promise.all(
-      ACTIVE_TRADE_STATUSES.flatMap((status) => [
-        ctx.db
-          .query("shiftTrades")
-          .withIndex("by_publisherId_and_status", (q) =>
-            q.eq("publisherId", profile._id).eq("status", status)
-          )
-          .take(500),
-        ctx.db
-          .query("shiftTrades")
-          .withIndex("by_offeringEmployeeId_and_status", (q) =>
-            q.eq("offeringEmployeeId", profile._id).eq("status", status)
-          )
-          .take(500),
-      ])
-    )
-  ).flat()
-  const uniqueTrades = new Map(activeTrades.map((trade) => [trade._id, trade]))
-  if (
-    [...uniqueTrades.values()].some((trade) => trade.status === "processing")
-  ) {
+  const activeTrades = await activeTradesForDeactivation(ctx, profile._id)
+  if (activeTrades.some((trade) => trade.status === "processing")) {
     throw new Error("employeeHasTradeApprovalInProgress")
   }
-  await Promise.all(
-    [...uniqueTrades.values()].map((trade) =>
-      ctx.db.patch("shiftTrades", trade._id, {
-        status: "unpublished",
-        approvalAttemptId: undefined,
-        approvalStartedAt: undefined,
-        updatedAt: now,
-      })
-    )
-  )
+  for (const trade of activeTrades) {
+    await ctx.db.patch("shiftTrades", trade._id, {
+      status: "unpublished",
+      approvalAttemptId: undefined,
+      approvalStartedAt: undefined,
+      approvalOperation: undefined,
+      updatedAt: now,
+    })
+    const { notifications, hasMore } = await tradeNotifications(ctx, trade, 101)
+    if (hasMore) throw new Error("tradeHasTooManyNotifications")
+    for (const notification of notifications) {
+      await ctx.db.delete("notifications", notification._id)
+    }
+  }
   await ctx.db.patch("employeeProfiles", profile._id, {
     status: "deactivated",
     invitationStatus:
@@ -628,6 +698,10 @@ export const prepareClerkRemoval = mutation({
       (await employeeHasProcessingShiftTrade(ctx, profile._id))
     ) {
       throw new Error("employeeHasTradeApprovalInProgress")
+    }
+    if (args.action === "deactivate") {
+      const activeTrades = await activeTradesForDeactivation(ctx, profile._id)
+      await assertTradeNotificationCleanupFits(ctx, activeTrades)
     }
     const operationId = crypto.randomUUID()
     await ctx.db.patch("employeeProfiles", profile._id, {
@@ -736,34 +810,15 @@ export const removeProfileBatch = mutation({
 
     const historicalTradeCleanup = await Promise.all(
       historicalTrades.map(async (trade) => {
-        const tradeNotificationAudiences = [
-          "trade-employees",
-          "trade-managers",
-          "employee",
-          "employees",
-          "managers",
-        ] as const satisfies readonly Doc<"notifications">["audience"][]
-        const notificationGroups = await Promise.all(
-          tradeNotificationAudiences.map((audience) =>
-            ctx.db
-              .query("notifications")
-              .withIndex("by_hubId_and_audience", (q) =>
-                q.eq("hubId", trade.hubId).eq("audience", audience)
-              )
-              .take(101)
-          )
+        const { notifications, hasMore } = await tradeNotifications(
+          ctx,
+          trade,
+          101
         )
-        const notifications = notificationGroups
-          .flat()
-          .filter(
-            (notification) =>
-              notification.shiftTradeId === trade._id ||
-              notification.href === `/trades/${trade.slug}`
-          )
         return {
           trade,
-          notifications: notifications.slice(0, 100),
-          canDeleteTrade: notifications.length <= 100,
+          notifications,
+          canDeleteTrade: !hasMore,
         }
       })
     )
@@ -804,12 +859,8 @@ export const removeProfileBatch = mutation({
         .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
           q.eq("hubId", profile.hubId)
         )
-        .take(500)
-        .then((mappings) =>
-          mappings.filter(
-            (mapping) => mapping.employeeProfileId === profile._id
-          )
-        ),
+        .filter((q) => q.eq(q.field("employeeProfileId"), profile._id))
+        .take(100),
     ])
 
     for (const assignment of eventAssignments) {

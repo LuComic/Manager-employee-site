@@ -2444,6 +2444,45 @@ describe("Organization employees, invitations, and event links", () => {
 })
 
 describe("notification feeds", () => {
+  test("does not let unrelated profile notifications hide a personal alert", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createOrganizationHub(t)
+    const profileId = await createEmployee(t, hubId, "Notified Employee")
+    await t.run(async (ctx) => {
+      await ctx.db.patch("employeeProfiles", profileId, {
+        clerkUserId: orgMemberIdentity.subject,
+        status: "active",
+      })
+      await ctx.db.insert("notifications", {
+        hubId,
+        audience: "employee",
+        employeeProfileId: profileId,
+        kind: "event",
+        titleKey: "notificationAssignedToEvent",
+        href: "/personal-alert",
+      })
+      for (let index = 0; index < 251; index += 1) {
+        await ctx.db.insert("notifications", {
+          hubId,
+          audience: "managers",
+          employeeProfileId: profileId,
+          kind: "workplace",
+          titleKey: `managerAlert${index}`,
+          href: "/manager/employees",
+        })
+      }
+    })
+
+    const feed = await t
+      .withIdentity(orgMemberIdentity)
+      .query(api.notifications.listEmployee, { hubSlug: "org-hub" })
+    expect(feed.notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ titleKey: "notificationAssignedToEvent" }),
+      ])
+    )
+  })
+
   test("shows the actor's own content notifications without marking them unread", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createOrganizationHub(t)

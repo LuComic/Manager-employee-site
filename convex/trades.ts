@@ -15,6 +15,13 @@ import {
   type QueryCtx,
 } from "./_generated/server"
 import { requireHubPermission } from "./lib/access"
+import {
+  auditActorFromIdentity,
+  auditActorValidator,
+  createAuditLog,
+  type AuditAction,
+  type AuditActor,
+} from "./lib/auditLogs"
 import { decryptDeputyTokens } from "./lib/deputyCredentials"
 import { createNotification } from "./lib/notifications"
 
@@ -73,6 +80,7 @@ const ACTIVE_TRADE_STATUSES = [
 const APPROVAL_LEASE_MS = 15 * 60 * 1000
 const EVENT_ASSIGNMENT_START_UTC_MIGRATION =
   "event-assignment-start-utc-2026-08"
+const MAX_ASSIGNMENTS_WITHOUT_START_INDEX = 5_000
 
 function cleanReason(value: string, errorKey = "tradeReasonRequired") {
   const reason = value.trim()
@@ -216,17 +224,46 @@ async function clearTradeNotifications(
       "employees",
       "managers",
     ] as const satisfies readonly Doc<"notifications">["audience"][])
-  for (const audience of audiencesToCheck) {
-    const notifications = ctx.db
-      .query("notifications")
-      .withIndex("by_hubId_and_audience", (q) =>
-        q.eq("hubId", trade.hubId).eq("audience", audience)
-      )
-      .filter((q) => q.eq(q.field("shiftTradeId"), trade._id))
-    for await (const notification of notifications) {
-      await ctx.db.delete("notifications", notification._id)
-    }
+  const notificationGroups = await Promise.all(
+    audiencesToCheck.map((audience) =>
+      ctx.db
+        .query("notifications")
+        .withIndex("by_hubId_and_audience", (q) =>
+          q.eq("hubId", trade.hubId).eq("audience", audience)
+        )
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("shiftTradeId"), trade._id),
+            q.eq(q.field("href"), `/trades/${trade.slug}`)
+          )
+        )
+        .take(501)
+    )
+  )
+  if (
+    notificationGroups.some((notifications) => notifications.length === 501)
+  ) {
+    throw new Error("tradeHasTooManyNotifications")
   }
+  for (const notification of notificationGroups.flat()) {
+    await ctx.db.delete("notifications", notification._id)
+  }
+}
+
+async function createTradeAuditLog(
+  ctx: MutationCtx,
+  trade: Doc<"shiftTrades">,
+  actor: AuditActor,
+  action: AuditAction
+) {
+  const publisher = await ctx.db.get("employeeProfiles", trade.publisherId)
+  await createAuditLog(ctx, actor, {
+    hubId: trade.hubId,
+    action,
+    entityType: "shiftTrade",
+    entityId: trade._id,
+    entityTitle: publisher?.displayName ?? trade.slug,
+  })
 }
 
 function shiftSummary(
@@ -357,17 +394,22 @@ export const list = query({
     const manager =
       access.permission === "manager" || access.permission === "owner"
     if (!manager) assertEmployeeTradeAccess(access)
-    const result = await ctx.db
+    const trades = ctx.db
       .query("shiftTrades")
       .withIndex("by_hubId_and_updatedAt", (q) => q.eq("hubId", args.hubId))
       .order("desc")
-      .paginate(args.paginationOpts)
-    const visible = manager
-      ? result.page
-      : result.page.filter((trade) =>
-          ACTIVE_TRADE_STATUSES.some((status) => status === trade.status)
-        )
-    return { ...result, page: await tradeResults(ctx, visible, access) }
+    const result = await (
+      manager
+        ? trades
+        : trades.filter((q) =>
+            q.or(
+              ...ACTIVE_TRADE_STATUSES.map((status) =>
+                q.eq(q.field("status"), status)
+              )
+            )
+          )
+    ).paginate(args.paginationOpts)
+    return { ...result, page: await tradeResults(ctx, result.page, access) }
   },
 })
 
@@ -404,15 +446,14 @@ export const listMyShifts = query({
     const access = await accessForTrades(ctx, args.hubId)
     assertEmployeeTradeAccess(access)
     if (!access.employee) return []
-    // Keep legacy assignments visible while the date index is staged and
-    // backfilled. The existing index is bounded well above the previous 200
-    // row cap so a long history does not hide near-future shifts.
+    // Keep legacy rows visible until the staged date index has been deployed,
+    // backfilled, and activated in a later production rollout.
     const assignments = await ctx.db
       .query("eventEmployees")
       .withIndex("by_employeeProfileId_and_eventId", (q) =>
         q.eq("employeeProfileId", access.employee!._id)
       )
-      .take(1_000)
+      .take(MAX_ASSIGNMENTS_WITHOUT_START_INDEX)
     const assignedEvents = await Promise.all(
       assignments.map((assignment) => ctx.db.get("events", assignment.eventId))
     )
@@ -548,6 +589,14 @@ export const create = mutation({
       messageValues: { name: access.employee.displayName },
       href: `/trades/${slug}`,
     })
+    const trade = await ctx.db.get("shiftTrades", tradeId)
+    if (!trade) throw new Error("tradeNotFound")
+    await createTradeAuditLog(
+      ctx,
+      trade,
+      auditActorFromIdentity(access.identity, access.employee.displayName),
+      "created"
+    )
     return slug
   },
 })
@@ -581,6 +630,12 @@ export const edit = mutation({
       employeeDeclineReason: undefined,
       updatedAt: Date.now(),
     })
+    await createTradeAuditLog(
+      ctx,
+      trade,
+      auditActorFromIdentity(access.identity, access.employee.displayName),
+      "edited"
+    )
     return null
   },
 })
@@ -604,6 +659,12 @@ export const unpublish = mutation({
       updatedAt: Date.now(),
     })
     await clearTradeNotifications(ctx, trade)
+    await createTradeAuditLog(
+      ctx,
+      trade,
+      auditActorFromIdentity(access.identity, access.employee.displayName),
+      "tradeCancelled"
+    )
     return null
   },
 })
@@ -655,6 +716,12 @@ export const offer = mutation({
       messageValues: { name: access.employee.displayName },
       href: `/trades/${trade.slug}`,
     })
+    await createTradeAuditLog(
+      ctx,
+      trade,
+      auditActorFromIdentity(access.identity, access.employee.displayName),
+      "tradeOffered"
+    )
     return null
   },
 })
@@ -681,6 +748,12 @@ export const cancelOffer = mutation({
       updatedAt: Date.now(),
     })
     await clearTradeNotifications(ctx, trade, ["employee"])
+    await createTradeAuditLog(
+      ctx,
+      trade,
+      auditActorFromIdentity(access.identity, access.employee.displayName),
+      "tradeOfferCancelled"
+    )
     return null
   },
 })
@@ -746,6 +819,12 @@ export const respondToOffer = mutation({
         },
         href: `/trades/${trade.slug}`,
       })
+      await createTradeAuditLog(
+        ctx,
+        trade,
+        auditActorFromIdentity(access.identity, access.employee.displayName),
+        "tradeOfferAccepted"
+      )
     } else {
       const reason = cleanReason(
         args.reason ?? "",
@@ -769,6 +848,12 @@ export const respondToOffer = mutation({
         message: reason,
         href: `/trades/${trade.slug}`,
       })
+      await createTradeAuditLog(
+        ctx,
+        trade,
+        auditActorFromIdentity(access.identity, access.employee.displayName),
+        "tradeOfferDeclined"
+      )
     }
     return null
   },
@@ -780,7 +865,7 @@ export const managerDecline = mutation({
   handler: async (ctx, args) => {
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) throw new Error("tradeNotFound")
-    await requireHubPermission(ctx, trade.hubId, "manager")
+    const { identity } = await requireHubPermission(ctx, trade.hubId, "manager")
     if (trade.status !== "confirmed" || !trade.offeringEmployeeId) {
       throw new Error("tradeNotReadyForManager")
     }
@@ -790,7 +875,7 @@ export const managerDecline = mutation({
       managerDeclineReason: reason,
       updatedAt: Date.now(),
     })
-    await clearTradeNotifications(ctx, trade, ["trade-managers"])
+    await clearTradeNotifications(ctx, trade)
     for (const employeeProfileId of [
       trade.publisherId,
       trade.offeringEmployeeId,
@@ -806,6 +891,12 @@ export const managerDecline = mutation({
         href: `/trades/${trade.slug}`,
       })
     }
+    await createTradeAuditLog(
+      ctx,
+      trade,
+      auditActorFromIdentity(identity),
+      "tradeDeclined"
+    )
     return null
   },
 })
@@ -816,7 +907,7 @@ export const managerCancel = mutation({
   handler: async (ctx, args) => {
     const trade = await ctx.db.get("shiftTrades", args.tradeId)
     if (!trade) return null
-    await requireHubPermission(ctx, trade.hubId, "manager")
+    const { identity } = await requireHubPermission(ctx, trade.hubId, "manager")
     if (trade.status !== "published" && trade.status !== "offer-pending") {
       throw new Error("tradeCannotBeUnpublished")
     }
@@ -840,6 +931,12 @@ export const managerCancel = mutation({
         href: "/trades",
       })
     }
+    await createTradeAuditLog(
+      ctx,
+      trade,
+      auditActorFromIdentity(identity),
+      "tradeCancelled"
+    )
     return null
   },
 })
@@ -859,6 +956,7 @@ export const beginApproval = internalMutation({
     attemptId: v.string(),
     resuming: v.boolean(),
     operation: v.union(v.literal("approve"), v.literal("rollback")),
+    auditActor: auditActorValidator,
     source: v.object({
       rosterId: v.string(),
       employeeId: v.string(),
@@ -978,6 +1076,7 @@ export const beginApproval = internalMutation({
       attemptId,
       resuming,
       operation,
+      auditActor: auditActorFromIdentity(identity),
       source: shiftPayload(source),
       target: shiftPayload(target),
     }
@@ -1021,6 +1120,7 @@ export const finishApproval = internalMutation({
     tradeId: v.id("shiftTrades"),
     attemptId: v.string(),
     operation: v.optional(v.union(v.literal("approve"), v.literal("rollback"))),
+    auditActor: auditActorValidator,
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -1044,6 +1144,7 @@ export const finishApproval = internalMutation({
         approvalOperation: undefined,
         updatedAt: Date.now(),
       })
+      await createTradeAuditLog(ctx, trade, args.auditActor, "tradeRolledBack")
       return null
     }
     const [source, target] = await Promise.all([
@@ -1073,6 +1174,7 @@ export const finishApproval = internalMutation({
       approvalOperation: undefined,
       updatedAt: Date.now(),
     })
+    await clearTradeNotifications(ctx, trade)
     for (const employeeProfileId of [
       trade.publisherId,
       trade.offeringEmployeeId,
@@ -1088,6 +1190,7 @@ export const finishApproval = internalMutation({
         href: `/trades/${trade.slug}`,
       })
     }
+    await createTradeAuditLog(ctx, trade, args.auditActor, "tradeApproved")
     return null
   },
 })
