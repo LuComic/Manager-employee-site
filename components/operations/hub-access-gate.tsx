@@ -12,6 +12,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import {
   OrganizationSwitcher,
   SignInButton,
+  SignOutButton,
   SignUpButton,
   useAuth,
 } from "@clerk/nextjs"
@@ -51,6 +52,8 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [code, setCode] = useState("")
+  const requestedHubHref = `${href("/")}?hub=${encodeURIComponent(hubSlug)}`
+  const differentAccountSignInHref = `${href("/sign-in")}?redirect_url=${encodeURIComponent(requestedHubHref)}`
   const shouldRedirectMissingWorkspace =
     hubState === "not-found" && pathname === "/" && !searchParams.has("hub")
 
@@ -158,18 +161,38 @@ export function HubAccessGate({ children }: { children: React.ReactNode }) {
               </Button>
             </form>
 
-            {!isSignedIn && (
-              <div className="mt-6 space-y-4 border-t pt-6">
-                <p className="text-sm text-muted-foreground">
-                  <T>haveAnEmployeeOrManagerAccount</T>
-                </p>
-                <SignInButton mode="modal" forceRedirectUrl={href("/")}>
-                  <Button type="button" variant="outline" className="w-full">
-                    <LogIn /> <T>signIn</T>
-                  </Button>
-                </SignInButton>
-              </div>
-            )}
+            <div className="mt-6 space-y-4 border-t pt-6">
+              {isSignedIn ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    <T>signedInAccountNoWorkplaceAccess</T>
+                  </p>
+                  <div className="flex min-h-10 items-center border bg-background px-2">
+                    <OrganizationSwitcher
+                      hidePersonal={false}
+                      afterSelectOrganizationUrl={requestedHubHref}
+                      afterSelectPersonalUrl={requestedHubHref}
+                    />
+                  </div>
+                  <SignOutButton redirectUrl={differentAccountSignInHref}>
+                    <Button type="button" variant="outline" className="w-full">
+                      <LogIn /> <T>signInWithAnotherAccount</T>
+                    </Button>
+                  </SignOutButton>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    <T>haveAnEmployeeOrManagerAccount</T>
+                  </p>
+                  <SignInButton mode="modal" forceRedirectUrl={href("/")}>
+                    <Button type="button" variant="outline" className="w-full">
+                      <LogIn /> <T>signIn</T>
+                    </Button>
+                  </SignInButton>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
