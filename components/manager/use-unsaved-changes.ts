@@ -1,8 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useRef } from "react"
+import { createElement, useCallback, useEffect, useRef } from "react"
 import { toast } from "sonner"
 
+import { Button } from "@/components/ui/button"
 import { useRouter } from "@/i18n/navigation"
 import type { AppMessageKey } from "@/i18n/messages"
 import { useAppTranslations } from "@/i18n/use-app-translations"
@@ -14,6 +15,7 @@ type UnsavedChangesOptions = {
   itemName: AppMessageKey
   toastId: string
   onDiscard: () => void
+  onSaveDraft?: () => Promise<boolean>
 }
 
 export function useUnsavedChanges({
@@ -21,11 +23,13 @@ export function useUnsavedChanges({
   itemName,
   toastId,
   onDiscard,
+  onSaveDraft,
 }: UnsavedChangesOptions) {
   const router = useRouter()
   const t = useAppTranslations()
   const dirtyRef = useRef(dirty)
   const onDiscardRef = useRef(onDiscard)
+  const onSaveDraftRef = useRef(onSaveDraft)
   const guardActiveRef = useRef(false)
   const allowHistoryNavigationRef = useRef(false)
   const guardStateRef = useRef<unknown>(null)
@@ -39,15 +43,36 @@ export function useUnsavedChanges({
     onDiscardRef.current = onDiscard
   }, [onDiscard])
 
+  useEffect(() => {
+    onSaveDraftRef.current = onSaveDraft
+  }, [onSaveDraft])
+
   const showDiscardToast = useCallback(
-    (discard: () => void) => {
+    (discard: () => void, saveDraft?: () => Promise<void>) => {
       toast.warning(
         t("discardYourUnsavedItemNameChanges", {
           itemName: t(itemName),
         }),
         {
           id: toastId,
-          description: t("yourChangesWillNotBeSaved"),
+          description: saveDraft
+            ? createElement(
+                "div",
+                { className: "space-y-2" },
+                createElement("p", null, t("yourChangesWillNotBeSaved")),
+                createElement(
+                  Button,
+                  {
+                    type: "button",
+                    variant: "ghost",
+                    size: "sm",
+                    className: "-ml-3",
+                    onClick: () => void saveDraft(),
+                  },
+                  t("saveAsDraft")
+                )
+              )
+            : t("yourChangesWillNotBeSaved"),
           duration: Infinity,
           cancel: {
             label: t("noKeepEditing"),
@@ -92,10 +117,22 @@ export function useUnsavedChanges({
         return
       }
 
-      showDiscardToast(() => {
-        onDiscardRef.current()
-        leaveWithoutPrompt(destination)
-      })
+      showDiscardToast(
+        () => {
+          onDiscardRef.current()
+          leaveWithoutPrompt(destination)
+        },
+        onSaveDraftRef.current
+          ? async () => {
+              try {
+                const saved = await onSaveDraftRef.current?.()
+                if (saved) leaveWithoutPrompt(destination)
+              } catch {
+                // The editor reports save failures and remains open for correction.
+              }
+            }
+          : undefined
+      )
     },
     [leaveWithoutPrompt, showDiscardToast]
   )
@@ -124,13 +161,29 @@ export function useUnsavedChanges({
         return
 
       window.history.pushState(guardStateRef.current, "", editorUrlRef.current)
-      showDiscardToast(() => {
-        toast.dismiss(toastId)
-        allowHistoryNavigationRef.current = true
-        guardActiveRef.current = false
-        onDiscardRef.current()
-        window.history.go(-2)
-      })
+      showDiscardToast(
+        () => {
+          toast.dismiss(toastId)
+          allowHistoryNavigationRef.current = true
+          guardActiveRef.current = false
+          onDiscardRef.current()
+          window.history.go(-2)
+        },
+        onSaveDraftRef.current
+          ? async () => {
+              try {
+                const saved = await onSaveDraftRef.current?.()
+                if (!saved) return
+                toast.dismiss(toastId)
+                allowHistoryNavigationRef.current = true
+                guardActiveRef.current = false
+                window.history.go(-2)
+              } catch {
+                // The editor reports save failures and remains open for correction.
+              }
+            }
+          : undefined
+      )
     }
 
     window.addEventListener("popstate", handlePopState)

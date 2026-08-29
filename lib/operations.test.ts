@@ -12,6 +12,8 @@ import {
   formatEventDateTimeEndpoint,
   formatEventTime,
   formatTime,
+  getAnnouncementDaysUntilDue,
+  getFeaturedAnnouncement,
   getAnnouncementState,
   normalizeReadingTime,
   PRIVATE_EVENT_FILTER,
@@ -154,6 +156,63 @@ describe("Europe/Tallinn dates", () => {
     expect(
       getAnnouncementState(announcement, new Date("2026-07-19T00:01:00+03:00"))
     ).toBe("Expired")
+  })
+
+  test("features current and upcoming announcements by urgency and due date", () => {
+    const baseAnnouncement = {
+      title: "Notice",
+      content: { type: "doc" as const, content: [] },
+      publishedAt: "2026-08-01",
+      expiresAt: "2026-08-31",
+      priority: "Normal" as const,
+      pinned: false,
+      published: true,
+    }
+    const featured = getFeaturedAnnouncement(
+      [
+        { ...baseAnnouncement, id: "normal" },
+        {
+          ...baseAnnouncement,
+          id: "urgent-later",
+          priority: "Urgent",
+          expiresAt: "2026-08-25",
+        },
+        {
+          ...baseAnnouncement,
+          id: "urgent-sooner",
+          priority: "Urgent",
+          expiresAt: "2026-08-21",
+        },
+        {
+          ...baseAnnouncement,
+          id: "upcoming",
+          priority: "Urgent",
+          publishedAt: "2026-08-20",
+        },
+      ],
+      new Date("2026-08-18T12:00:00+03:00")
+    )
+
+    expect(featured?.id).toBe("urgent-sooner")
+    expect(
+      getFeaturedAnnouncement(
+        [
+          {
+            ...baseAnnouncement,
+            id: "upcoming",
+            publishedAt: "2026-08-20",
+          },
+        ],
+        new Date("2026-08-18T12:00:00+03:00")
+      )?.id
+    ).toBe("upcoming")
+    expect(
+      featured &&
+        getAnnouncementDaysUntilDue(
+          featured,
+          new Date("2026-08-18T12:00:00+03:00")
+        )
+    ).toBe(3)
   })
 })
 

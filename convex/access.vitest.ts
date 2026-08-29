@@ -675,6 +675,55 @@ describe("hub authorization and anonymous access", () => {
     expect(managerAfter.guides[0]?.relatedGuideIds).toEqual([])
   })
 
+  test("employee snapshots retain expired published announcements", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+    const content = {
+      type: "doc" as const,
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Operational update" }],
+        },
+      ],
+    }
+
+    await owner.mutation(api.content.saveAnnouncement, {
+      hubId,
+      slug: "expired-announcement",
+      title: "Expired announcement",
+      content,
+      publishedAt: "2026-08-14",
+      expiresAt: "2026-08-21",
+      priority: "Urgent",
+      pinned: false,
+      published: true,
+    })
+    await owner.mutation(api.content.saveAnnouncement, {
+      hubId,
+      slug: "draft-announcement",
+      title: "Draft announcement",
+      content,
+      publishedAt: "2026-08-14",
+      expiresAt: "2026-08-21",
+      priority: "Normal",
+      pinned: false,
+      published: false,
+    })
+
+    const snapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "test-hub",
+      credential: "ABCD-EFGH",
+      nowDate: "2026-08-29",
+    })
+    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
+
+    expect(
+      snapshot.announcements.map((announcement) => announcement.id)
+    ).toEqual(["expired-announcement"])
+  })
+
   test("documents enforce ownership, draft visibility, search, and deletion", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t)

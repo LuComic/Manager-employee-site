@@ -33,6 +33,17 @@ export async function buildSnapshot(
           )
           .take(MAX_SNAPSHOT_EVENTS)
     : loadPublishedEvents(ctx, hub._id, options.includePrivateEvents)
+  const announcementsPromise = options.includeDrafts
+    ? ctx.db
+        .query("announcements")
+        .withIndex("by_hubId_and_published", (q) => q.eq("hubId", hub._id))
+        .take(500)
+    : ctx.db
+        .query("announcements")
+        .withIndex("by_hubId_and_published", (q) =>
+          q.eq("hubId", hub._id).eq("published", true)
+        )
+        .take(500)
   const [
     bannerImageUrl,
     categories,
@@ -63,10 +74,7 @@ export async function buildSnapshot(
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
       .take(MAX_GUIDE_LINKS_PER_HUB + 1),
     eventsPromise,
-    ctx.db
-      .query("announcements")
-      .withIndex("by_hubId_and_published", (q) => q.eq("hubId", hub._id))
-      .take(500),
+    announcementsPromise,
     ctx.db
       .query("eventGuides")
       .withIndex("by_hubId", (q) => q.eq("hubId", hub._id))
@@ -133,10 +141,7 @@ export async function buildSnapshot(
     : privacyFilteredEvents.filter((event) => event.published)
   const announcements = includeAnnouncementDrafts
     ? allAnnouncements
-    : allAnnouncements.filter(
-        (announcement) =>
-          announcement.published && announcement.expiresAt >= options.nowDate
-      )
+    : allAnnouncements.filter((announcement) => announcement.published)
   const documents = includeDocumentDrafts
     ? allDocuments
     : allDocuments.filter((document) => document.published)

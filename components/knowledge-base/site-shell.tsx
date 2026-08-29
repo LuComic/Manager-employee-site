@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react"
 import { Menu } from "lucide-react"
 import { OrganizationSwitcher, Show, UserButton } from "@clerk/nextjs"
 
+import { AnnouncementTopbar } from "@/components/announcements/announcement-topbar"
 import { Brand } from "@/components/knowledge-base/brand"
 import {
   ContactButton,
@@ -63,6 +64,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           </aside>
 
           <div className="lg:pl-64">
+            <AnnouncementTopbar />
             <header className="sticky top-0 z-20 border-b bg-background/90 px-4 py-2 backdrop-blur sm:px-6 lg:px-8 lg:py-5">
               <div className="mx-auto grid max-w-7xl grid-cols-[auto_auto_1fr] items-center gap-2 sm:flex sm:gap-3">
                 <Button
