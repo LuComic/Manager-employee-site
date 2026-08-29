@@ -72,12 +72,20 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    draft.description.trim() &&
+    (resourceMode === "file"
+      ? resourceFile || draft.resource?.kind === "file"
+      : isValidSharedLink(linkUrl.trim()))
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "document",
     toastId: "discard-document-changes",
     onDiscard: () => setDirty(false),
-    onSaveDraft: () => save(true),
+    onSaveDraft: canSaveDraft ? () => save(true) : undefined,
   })
 
   useEffect(

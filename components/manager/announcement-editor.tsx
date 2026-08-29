@@ -94,12 +94,20 @@ export function AnnouncementEditor({
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    !isRichTextEmpty(draft.content) &&
+    draft.publishedAt &&
+    draft.expiresAt &&
+    draft.expiresAt >= draft.publishedAt
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "announcement",
     toastId: "discard-announcement-changes",
     onDiscard: () => setDirty(false),
-    onSaveDraft: () => save(true),
+    onSaveDraft: canSaveDraft ? () => save(true) : undefined,
   })
 
   function change(patch: Partial<AnnouncementDraft>) {

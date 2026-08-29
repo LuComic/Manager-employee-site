@@ -112,12 +112,20 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const [keywordInput, setKeywordInput] = useState("")
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    draft.description.trim() &&
+    normalizeReadingTime(draft.duration) &&
+    draft.category &&
+    !isRichTextEmpty(draft.content)
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "guide",
     toastId: "discard-guide-changes",
     onDiscard: () => setDirty(false),
-    onSaveDraft: () => save(true),
+    onSaveDraft: canSaveDraft ? () => save(true) : undefined,
   })
 
   function change(patch: Partial<GuideDraft>) {

@@ -43,6 +43,7 @@ export async function buildSnapshot(
         .withIndex("by_hubId_and_published", (q) =>
           q.eq("hubId", hub._id).eq("published", true)
         )
+        .order("desc")
         .take(500)
   const [
     bannerImageUrl,

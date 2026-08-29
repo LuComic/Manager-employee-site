@@ -55,33 +55,56 @@ export function useUnsavedChanges({
         }),
         {
           id: toastId,
-          description: saveDraft
-            ? createElement(
-                "div",
-                { className: "space-y-2" },
-                createElement("p", null, t("yourChangesWillNotBeSaved")),
-                createElement(
-                  Button,
-                  {
-                    type: "button",
-                    variant: "ghost",
-                    size: "sm",
-                    className: "-ml-3",
-                    onClick: () => void saveDraft(),
-                  },
-                  t("saveAsDraft")
-                )
+          className: "unsaved-changes-toast",
+          description: createElement(
+            "div",
+            { className: "space-y-4" },
+            createElement("p", null, t("yourChangesWillNotBeSaved")),
+            createElement(
+              "div",
+              {
+                className: `grid gap-2 ${
+                  saveDraft ? "sm:grid-cols-3" : "sm:grid-cols-2"
+                }`,
+              },
+              saveDraft
+                ? createElement(
+                    Button,
+                    {
+                      type: "button",
+                      variant: "secondary",
+                      size: "sm",
+                      className: "w-full",
+                      onClick: () => void saveDraft(),
+                    },
+                    t("saveAsDraft")
+                  )
+                : null,
+              createElement(
+                Button,
+                {
+                  type: "button",
+                  variant: "outline",
+                  size: "sm",
+                  className: "w-full",
+                  onClick: () => toast.dismiss(toastId),
+                },
+                t("noKeepEditing")
+              ),
+              createElement(
+                Button,
+                {
+                  type: "button",
+                  variant: "destructive",
+                  size: "sm",
+                  className: "w-full",
+                  onClick: discard,
+                },
+                t("yesDiscard")
               )
-            : t("yourChangesWillNotBeSaved"),
+            )
+          ),
           duration: Infinity,
-          cancel: {
-            label: t("noKeepEditing"),
-            onClick: () => undefined,
-          },
-          action: {
-            label: t("yesDiscard"),
-            onClick: discard,
-          },
         }
       )
     },

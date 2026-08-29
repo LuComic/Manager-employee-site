@@ -132,12 +132,21 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const deputyManaged = draft?.source === "deputy"
   const canManagePrivacy =
     managerAccess === "manager" || managerAccess === "owner"
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    draft.description.trim() &&
+    draft.location.trim() &&
+    isCompleteLocalDateTime(draft.start) &&
+    isCompleteLocalDateTime(draft.end) &&
+    eventEndsAfterStart(draft)
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "event",
     toastId: "discard-event-changes",
     onDiscard: () => setDirty(false),
-    onSaveDraft: deputyManaged ? undefined : () => save(true),
+    onSaveDraft: deputyManaged || !canSaveDraft ? undefined : () => save(true),
   })
 
   function change(next: CalendarEvent) {
