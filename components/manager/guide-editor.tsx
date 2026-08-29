@@ -112,11 +112,20 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const [keywordInput, setKeywordInput] = useState("")
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    draft.description.trim() &&
+    normalizeReadingTime(draft.duration) &&
+    draft.category &&
+    !isRichTextEmpty(draft.content)
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "guide",
     toastId: "discard-guide-changes",
     onDiscard: () => setDirty(false),
+    onSaveDraft: canSaveDraft ? () => save(true) : undefined,
   })
 
   function change(patch: Partial<GuideDraft>) {
@@ -152,17 +161,22 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
     })
   }
 
-  async function submit() {
-    if (!draft) return
+  async function save(asDraft = false) {
+    if (!draft) return false
     const duration = normalizeReadingTime(draft.duration)
     if (
       !draft.title.trim() ||
       !draft.description.trim() ||
       !duration ||
       !draft.category
-    )
-      return setError("addTitleDescriptionWorkAreaReadingTime")
-    if (isRichTextEmpty(draft.content)) return setError("addGuideInstructions")
+    ) {
+      setError("addTitleDescriptionWorkAreaReadingTime")
+      return false
+    }
+    if (isRichTextEmpty(draft.content)) {
+      setError("addGuideInstructions")
+      return false
+    }
 
     let id = draft.id
     if (!id) {
@@ -187,15 +201,21 @@ export function GuideEditor({ guideId }: { guideId?: string }) {
         keywords: uniqueKeywords(draft.keywords),
         relatedGuideIds: draft.relatedGuideIds,
         content: draft.content,
-        published: draft.published,
+        published: asDraft ? false : draft.published,
         featured: draft.featured,
       })
       setDirty(false)
-      showFeedback(draft.id ? "guideSaved" : "guideCreated")
-      leaveWithoutPrompt("/manager/guides")
+      showFeedback(
+        asDraft ? "savedAsDraft" : draft.id ? "guideSaved" : "guideCreated"
+      )
+      return true
     } finally {
       setSaving(false)
     }
+  }
+
+  async function submit() {
+    if (await save()) leaveWithoutPrompt("/manager/guides")
   }
 
   if (!guideCategories.length)

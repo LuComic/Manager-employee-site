@@ -94,11 +94,20 @@ export function AnnouncementEditor({
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    !isRichTextEmpty(draft.content) &&
+    draft.publishedAt &&
+    draft.expiresAt &&
+    draft.expiresAt >= draft.publishedAt
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "announcement",
     toastId: "discard-announcement-changes",
     onDiscard: () => setDirty(false),
+    onSaveDraft: canSaveDraft ? () => save(true) : undefined,
   })
 
   function change(patch: Partial<AnnouncementDraft>) {
@@ -111,14 +120,20 @@ export function AnnouncementEditor({
     requestLeave("/manager/announcements")
   }
 
-  async function submit() {
-    if (!draft) return
-    if (!draft.title.trim() || isRichTextEmpty(draft.content))
-      return setError("addATitleAndMessage")
-    if (!draft.publishedAt || !draft.expiresAt)
-      return setError("addPublishAndExpirationDates")
-    if (draft.expiresAt < draft.publishedAt)
-      return setError("expirationDateCannotBeforePublishDate")
+  async function save(asDraft = false) {
+    if (!draft) return false
+    if (!draft.title.trim() || isRichTextEmpty(draft.content)) {
+      setError("addATitleAndMessage")
+      return false
+    }
+    if (!draft.publishedAt || !draft.expiresAt) {
+      setError("addPublishAndExpirationDates")
+      return false
+    }
+    if (draft.expiresAt < draft.publishedAt) {
+      setError("expirationDateCannotBeforePublishDate")
+      return false
+    }
 
     let id = draft.id
     if (!id) {
@@ -136,15 +151,26 @@ export function AnnouncementEditor({
         ...draft,
         id,
         title: draft.title.trim(),
+        published: asDraft ? false : draft.published,
         guideId: draft.guideId || undefined,
         eventId: draft.eventId || undefined,
       })
       setDirty(false)
-      showFeedback(draft.id ? "announcementSaved" : "announcementCreated")
-      leaveWithoutPrompt("/manager/announcements")
+      showFeedback(
+        asDraft
+          ? "savedAsDraft"
+          : draft.id
+            ? "announcementSaved"
+            : "announcementCreated"
+      )
+      return true
     } finally {
       setSaving(false)
     }
+  }
+
+  async function submit() {
+    if (await save()) leaveWithoutPrompt("/manager/announcements")
   }
 
   if (!draft)

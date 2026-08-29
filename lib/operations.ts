@@ -264,6 +264,53 @@ export function getAnnouncementState(
   return "Active"
 }
 
+const announcementPriorityRank = {
+  Normal: 0,
+  Important: 1,
+  Urgent: 2,
+} satisfies Record<AnnouncementPriority, number>
+
+export function getFeaturedAnnouncement(
+  announcements: Announcement[],
+  now = new Date(),
+  timeZone = HUB_TIME_ZONE
+) {
+  return announcements
+    .filter((announcement) => {
+      const state = getAnnouncementState(announcement, now, timeZone)
+      return state === "Active" || state === "Upcoming"
+    })
+    .sort(
+      (a, b) =>
+        announcementPriorityRank[b.priority] -
+          announcementPriorityRank[a.priority] ||
+        a.expiresAt.localeCompare(b.expiresAt) ||
+        b.publishedAt.localeCompare(a.publishedAt) ||
+        a.id.localeCompare(b.id)
+    )[0]
+}
+
+export function getAnnouncementDaysUntilDue(
+  announcement: Announcement,
+  now = new Date(),
+  timeZone = HUB_TIME_ZONE
+) {
+  const today = toDateKey(now, timeZone)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(announcement.expiresAt)) return null
+
+  const [todayYear, todayMonth, todayDay] = today.split("-").map(Number)
+  const [dueYear, dueMonth, dueDay] = announcement.expiresAt
+    .split("-")
+    .map(Number)
+  const millisecondsPerDay = 24 * 60 * 60 * 1000
+
+  return Math.round(
+    (Date.UTC(dueYear, dueMonth - 1, dueDay) -
+      Date.UTC(todayYear, todayMonth - 1, todayDay)) /
+      millisecondsPerDay
+  )
+}
+
 export function formatDate(
   value: string,
   options?: Intl.DateTimeFormatOptions,

@@ -34,7 +34,7 @@ const Toaster = ({ position, ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       position={position ?? responsivePosition}
-      className="toaster group"
+      className="toaster group sm:has-[.unsaved-changes-toast]:[--width:36rem]!"
       expand
       icons={{
         success: <CircleCheckIcon className="size-4" />,

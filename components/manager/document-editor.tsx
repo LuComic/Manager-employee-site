@@ -72,11 +72,20 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
   const [dirty, setDirty] = useState(false)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    draft.description.trim() &&
+    (resourceMode === "file"
+      ? resourceFile || draft.resource?.kind === "file"
+      : isValidSharedLink(linkUrl.trim()))
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "document",
     toastId: "discard-document-changes",
     onDiscard: () => setDirty(false),
+    onSaveDraft: canSaveDraft ? () => save(true) : undefined,
   })
 
   useEffect(
@@ -105,20 +114,23 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
     requestLeave("/manager/documents")
   }
 
-  async function submit() {
-    if (!draft) return
+  async function save(asDraft = false) {
+    if (!draft) return false
     if (!draft.title.trim() || !draft.description.trim()) {
-      return setError("addANameAndDescription")
+      setError("addANameAndDescription")
+      return false
     }
     if (
       resourceMode === "file" &&
       !resourceFile &&
       draft.resource?.kind !== "file"
     ) {
-      return setError("chooseAFileToUpload")
+      setError("chooseAFileToUpload")
+      return false
     }
     if (resourceMode === "link" && !isValidSharedLink(linkUrl.trim())) {
-      return setError("addValidhttphttpsSharedLink")
+      setError("addValidhttphttpsSharedLink")
+      return false
     }
 
     let id = draft.id
@@ -148,6 +160,7 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
           title: draft.title.trim(),
           description: draft.description.trim(),
           resource,
+          published: asDraft ? false : draft.published,
           updatedAt: Date.now(),
         },
         {
@@ -157,11 +170,17 @@ export function DocumentEditor({ documentId }: { documentId?: string }) {
         }
       )
       setDirty(false)
-      showFeedback(draft.id ? "documentSaved" : "documentShared")
-      leaveWithoutPrompt("/manager/documents")
+      showFeedback(
+        asDraft ? "savedAsDraft" : draft.id ? "documentSaved" : "documentShared"
+      )
+      return true
     } finally {
       setSaving(false)
     }
+  }
+
+  async function submit() {
+    if (await save()) leaveWithoutPrompt("/manager/documents")
   }
 
   if (!draft)

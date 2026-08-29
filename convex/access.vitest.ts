@@ -675,6 +675,74 @@ describe("hub authorization and anonymous access", () => {
     expect(managerAfter.guides[0]?.relatedGuideIds).toEqual([])
   })
 
+  test("employee snapshots retain the newest published announcements", async () => {
+    const t = convexTest(schema, modules)
+    const { hubId } = await createHub(t)
+    const owner = t.withIdentity(ownerIdentity)
+    const content = {
+      type: "doc" as const,
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Operational update" }],
+        },
+      ],
+    }
+
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 500; index += 1) {
+        await ctx.db.insert("announcements", {
+          hubId,
+          slug: `expired-announcement-${index}`,
+          title: `Expired announcement ${index}`,
+          content,
+          publishedAt: "2026-08-14",
+          expiresAt: "2026-08-21",
+          priority: "Normal",
+          pinned: false,
+          published: true,
+        })
+      }
+    })
+    await owner.mutation(api.content.saveAnnouncement, {
+      hubId,
+      slug: "latest-announcement",
+      title: "Latest announcement",
+      content,
+      publishedAt: "2026-08-29",
+      expiresAt: "2026-09-05",
+      priority: "Urgent",
+      pinned: false,
+      published: true,
+    })
+    await owner.mutation(api.content.saveAnnouncement, {
+      hubId,
+      slug: "draft-announcement",
+      title: "Draft announcement",
+      content,
+      publishedAt: "2026-08-14",
+      expiresAt: "2026-08-21",
+      priority: "Normal",
+      pinned: false,
+      published: false,
+    })
+
+    const snapshot = await t.query(api.hubs.getPublicSnapshot, {
+      slug: "test-hub",
+      credential: "ABCD-EFGH",
+      nowDate: "2026-08-29",
+    })
+    if (snapshot.kind !== "ready") throw new Error("Expected public snapshot")
+
+    expect(snapshot.announcements).toHaveLength(500)
+    expect(
+      snapshot.announcements.map((announcement) => announcement.id)
+    ).toContain("latest-announcement")
+    expect(
+      snapshot.announcements.map((announcement) => announcement.id)
+    ).not.toContain("draft-announcement")
+  })
+
   test("documents enforce ownership, draft visibility, search, and deletion", async () => {
     const t = convexTest(schema, modules)
     const { hubId } = await createHub(t)

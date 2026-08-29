@@ -132,11 +132,21 @@ export function EventEditor({ eventId }: { eventId?: string }) {
   const deputyManaged = draft?.source === "deputy"
   const canManagePrivacy =
     managerAccess === "manager" || managerAccess === "owner"
+  const canSaveDraft = Boolean(
+    draft &&
+    draft.title.trim() &&
+    draft.description.trim() &&
+    draft.location.trim() &&
+    isCompleteLocalDateTime(draft.start) &&
+    isCompleteLocalDateTime(draft.end) &&
+    eventEndsAfterStart(draft)
+  )
   const { leaveWithoutPrompt, requestLeave } = useUnsavedChanges({
     dirty,
     itemName: "event",
     toastId: "discard-event-changes",
     onDiscard: () => setDirty(false),
+    onSaveDraft: deputyManaged || !canSaveDraft ? undefined : () => save(true),
   })
 
   function change(next: CalendarEvent) {
@@ -175,23 +185,26 @@ export function EventEditor({ eventId }: { eventId?: string }) {
     requestLeave("/manager/calendar")
   }
 
-  async function submit() {
-    if (!draft) return
+  async function save(asDraft = false) {
+    if (!draft) return false
     if (
       !draft.title.trim() ||
       !draft.description.trim() ||
       !draft.location.trim()
     ) {
-      return setError("addATitleDescriptionAndLocation")
+      setError("addATitleDescriptionAndLocation")
+      return false
     }
     if (
       !isCompleteLocalDateTime(draft.start) ||
       !isCompleteLocalDateTime(draft.end)
     ) {
-      return setError("addStartEndDateTime")
+      setError("addStartEndDateTime")
+      return false
     }
     if (!eventEndsAfterStart(draft)) {
-      return setError("endLaterThanStart")
+      setError("endLaterThanStart")
+      return false
     }
 
     let id = draft.id
@@ -214,6 +227,7 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         description: draft.description.trim(),
         location: draft.location.trim(),
         notes: draft.notes.trim(),
+        published: asDraft ? false : draft.published,
       })
       for (const attachment of removedAttachments) {
         await deleteAttachment(attachment)
@@ -222,11 +236,17 @@ export function EventEditor({ eventId }: { eventId?: string }) {
         await uploadAttachment(eventSlug, file)
       }
       setDirty(false)
-      showFeedback(draft.id ? "eventSaved" : "eventCreated")
-      leaveWithoutPrompt("/manager/calendar")
+      showFeedback(
+        asDraft ? "savedAsDraft" : draft.id ? "eventSaved" : "eventCreated"
+      )
+      return true
     } finally {
       setSaving(false)
     }
+  }
+
+  async function submit() {
+    if (await save()) leaveWithoutPrompt("/manager/calendar")
   }
 
   if (!draft) {
