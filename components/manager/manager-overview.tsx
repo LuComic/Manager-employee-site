@@ -19,9 +19,11 @@ import {
 } from "lucide-react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { AreaIconTile } from "@/components/operations/area-icon-tile"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import type { AppMessageKey } from "@/i18n/messages"
+import type { AreaKey } from "@/lib/area-styles"
 import { getAnnouncementState } from "@/lib/operations"
 
 type OverviewSection = {
@@ -32,6 +34,7 @@ type OverviewSection = {
     value: string | number
     detail: string
     icon: LucideIcon
+    area: AreaKey
   }[]
 }
 
@@ -64,6 +67,7 @@ export function ManagerOverview() {
                 .length,
             }),
             icon: Tags,
+            area: "guides",
           },
           {
             href: "/manager/guides",
@@ -73,6 +77,7 @@ export function ManagerOverview() {
               count: guides.filter((item) => item.published).length,
             }),
             icon: BookOpen,
+            area: "guides",
           },
         ],
       },
@@ -88,6 +93,7 @@ export function ManagerOverview() {
                 .length,
             }),
             icon: Users,
+            area: "workplace",
           },
           {
             href: "/manager/access",
@@ -95,6 +101,7 @@ export function ManagerOverview() {
             value: t("protectedStatus"),
             detail: t("joinCodeAndPrivateLink"),
             icon: ShieldCheck,
+            area: "workplace",
           },
         ],
       },
@@ -109,6 +116,7 @@ export function ManagerOverview() {
               count: events.filter((item) => item.published).length,
             }),
             icon: CalendarDays,
+            area: "calendar",
           },
           {
             href: "/manager/announcements",
@@ -122,6 +130,7 @@ export function ManagerOverview() {
               ).length,
             }),
             icon: Megaphone,
+            area: "announcements",
           },
           {
             href: "/manager/documents",
@@ -131,6 +140,7 @@ export function ManagerOverview() {
               count: documents.filter((item) => item.published).length,
             }),
             icon: Files,
+            area: "documents",
           },
           {
             href: "/manager/questions",
@@ -138,6 +148,7 @@ export function ManagerOverview() {
             value: faqs.length,
             detail: t("availableToEmployees"),
             icon: CircleHelp,
+            area: "questions",
           },
         ],
       },
@@ -193,36 +204,40 @@ export function ManagerOverview() {
             <T>{section.title}</T>
           </h2>
           <div className="grid gap-3 lg:grid-cols-2">
-            {section.cards.map(({ href, title, value, detail, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-              >
-                <Card
-                  size="sm"
-                  className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+            {section.cards.map(
+              ({ href, title, value, detail, icon: Icon, area }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="group outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
                 >
-                  <CardContent className="flex h-full items-center gap-4">
-                    <span className="flex size-9 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                      <Icon className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold">
-                        <T>{title}</T>
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {detail}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-lg font-semibold">
-                      {value}
-                    </span>
-                    <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                  <Card
+                    size="sm"
+                    className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+                  >
+                    <CardContent className="flex h-full items-center gap-4">
+                      <AreaIconTile
+                        area={area}
+                        icon={Icon}
+                        className="size-9"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold">
+                          <T>{title}</T>
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {detail}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-lg font-semibold">
+                        {value}
+                      </span>
+                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            )}
           </div>
         </section>
       ))}

@@ -86,6 +86,21 @@ function required(
   return clean
 }
 
+function currentDateInTimeZone(timeZone?: string) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: timeZone ?? "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(new Date())
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  )
+  return `${parts.year}-${parts.month}-${parts.day}`
+}
+
 async function resolveEventReference(
   ctx: MutationCtx,
   args: {
@@ -972,7 +987,11 @@ export const acknowledgeAnnouncement = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { identity } = await requireHubPermission(ctx, args.hubId, "viewer")
+    const { hub, identity } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "viewer"
+    )
     const employees = await ctx.db
       .query("employeeProfiles")
       .withIndex("by_hubId_and_clerkUserId", (q) =>
@@ -989,10 +1008,13 @@ export const acknowledgeAnnouncement = mutation({
         q.eq("hubId", args.hubId).eq("slug", args.slug)
       )
       .unique()
+    const currentDate = currentDateInTimeZone(hub.timeZone)
     if (
       !announcement ||
       !announcement.published ||
-      announcement.priority === "Normal"
+      announcement.priority === "Normal" ||
+      announcement.publishedAt > currentDate ||
+      announcement.expiresAt < currentDate
     ) {
       throw new Error("announcementNotAvailable")
     }
