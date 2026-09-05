@@ -42,6 +42,7 @@ export function AnnouncementsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
+        area="announcements"
         title="announcements"
         description="temporaryOperationalUpdatesChangesNoticesWholeEstablishment"
       />
@@ -80,6 +81,7 @@ export function AnnouncementsPage() {
         </div>
       ) : (
         <EmptyState
+          area="announcements"
           icon={Megaphone}
           title={
             filter === "Active"

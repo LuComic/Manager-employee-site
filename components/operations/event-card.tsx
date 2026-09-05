@@ -10,13 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
-  eventCategoryLabel,
-} from "@/lib/categories"
+import { eventCategoryLabel } from "@/lib/categories"
 import { formatEventDateTime, type CalendarEvent } from "@/lib/operations"
 import { useOperations } from "@/components/providers/operations-provider"
 import { cn } from "@/lib/utils"
+import {
+  eventCategoryColor,
+  eventCategoryColorStyles,
+} from "@/lib/event-category-colors"
 
 export function EventCard({
   event,
@@ -30,7 +31,8 @@ export function EventCard({
   const languageTag = useLanguageTag()
   const t = useAppTranslations()
   const { eventTypes } = useOperations()
-  const deputySchedule = event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
+  const categoryColor = eventCategoryColor(event.category, eventTypes)
+  const colorStyle = eventCategoryColorStyles[categoryColor]
 
   return (
     <Link
@@ -41,13 +43,13 @@ export function EventCard({
         size="sm"
         className={cn(
           "h-full shadow-none transition-colors",
-          deputySchedule
-            ? "bg-muted text-muted-foreground group-hover:bg-muted/80"
-            : "group-hover:bg-muted/40"
+          "border-l-2",
+          colorStyle.rail,
+          colorStyle.hover
         )}
       >
         <CardHeader>
-          <Badge variant="secondary">
+          <Badge className={colorStyle.soft}>
             {eventCategoryLabel(event.category, eventTypes)}
           </Badge>
           <CardTitle className="text-base">{event.title}</CardTitle>

@@ -5,6 +5,7 @@ import { T } from "@/components/translated-text"
 import { Headphones } from "lucide-react"
 
 import { ContactButton } from "@/components/knowledge-base/contact-dialog"
+import { AreaIconTile } from "@/components/operations/area-icon-tile"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -22,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { areaStyles } from "@/lib/area-styles"
 
 export default function QuestionsPage() {
   const { faqs } = useOperations()
@@ -29,6 +31,7 @@ export default function QuestionsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeading
+        area="questions"
         title="commonQuestions"
         description="quickAnswersMomentsNotQuiteSureWhat"
       />
@@ -58,6 +61,7 @@ export default function QuestionsPage() {
       ) : (
         <div className="mt-6">
           <EmptyState
+            area="questions"
             icon={Headphones}
             title="noCommonQuestionsYet"
             description="answersAppearHereOnceAddedStillAskHelpMessage"
@@ -65,10 +69,18 @@ export default function QuestionsPage() {
         </div>
       )}
 
-      <Card size="sm" className="mt-6 bg-primary/5 shadow-none ring-primary/10">
+      <Card
+        size="sm"
+        className={`mt-6 border-l-2 shadow-none ${areaStyles.questions.rail}`}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base tracking-normal normal-case">
-            <Headphones className="size-4 text-primary" /> <T>stillUnsure</T>
+            <AreaIconTile
+              area="questions"
+              icon={Headphones}
+              className="size-8"
+            />
+            <T>stillUnsure</T>
           </CardTitle>
           <CardDescription>
             <T>alwaysFineAskHelpUnsure</T>

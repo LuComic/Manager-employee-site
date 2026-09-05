@@ -6,6 +6,7 @@ import { useAppTranslations } from "@/i18n/use-app-translations"
 import { useMemo, useState } from "react"
 import { Link } from "@/i18n/navigation"
 import {
+  Eye,
   FilePenLine,
   Megaphone,
   Pin,
@@ -33,13 +34,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  announcementPriorityMessageKeys,
   announcementStateMessageKeys,
   getAnnouncementState,
   type Announcement,
 } from "@/lib/operations"
 import { richTextToPlainText } from "@/lib/rich-text"
 import { cn } from "@/lib/utils"
+import { AnnouncementPriorityBadge } from "@/components/announcements/announcement-priority-badge"
 
 type Status = "All" | "Active" | "Upcoming" | "Expired" | "Draft"
 
@@ -151,6 +152,8 @@ export function AnnouncementManager() {
               <ManagerListItem
                 key={announcement.id}
                 icon={<Megaphone className="size-5" />}
+                iconClassName="bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
+                cardClassName="border-l-2 border-l-amber-400 dark:border-l-amber-500"
                 title={announcement.title}
                 summaryHref={
                   announcement.published
@@ -164,19 +167,25 @@ export function AnnouncementManager() {
                   >
                     {t(announcementStateMessageKeys[state])}
                   </Badge>,
-                  <Badge
+                  announcement.priority !== "Normal" ? (
+                    <Badge key="acknowledgements" variant="secondary">
+                      <Eye />
+                      {t("seenCount", {
+                        count: announcement.acknowledgedCount ?? 0,
+                        total: announcement.activeEmployeeCount ?? 0,
+                      })}
+                    </Badge>
+                  ) : null,
+                  <AnnouncementPriorityBadge
                     key="priority"
-                    variant={
-                      announcement.priority === "Urgent"
-                        ? "destructive"
-                        : "secondary"
-                    }
-                  >
-                    {t(announcementPriorityMessageKeys[announcement.priority])}
-                  </Badge>,
+                    priority={announcement.priority}
+                  />,
                   announcement.pinned ? (
-                    <Badge key="pinned" variant="secondary">
-                      <Pin /> <T>pinned</T>
+                    <Badge
+                      key="pinned"
+                      className="border border-dashed border-foreground/20 px-2 py-1 text-foreground"
+                    >
+                      <Pin /> <T>featured</T>
                     </Badge>
                   ) : null,
                 ]}
@@ -254,6 +263,7 @@ export function AnnouncementManager() {
         </div>
       ) : (
         <EmptyState
+          area="announcements"
           icon={Megaphone}
           title="noMatchingAnnouncements"
           description="clearSearchChooseStatusFilter"

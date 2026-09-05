@@ -147,6 +147,31 @@ export async function buildSnapshot(
     ? allDocuments
     : allDocuments.filter((document) => document.published)
 
+  const identity = await ctx.auth.getUserIdentity()
+  const activeEmployee = identity
+    ? employeeProfiles.find(
+        (profile) =>
+          profile.clerkUserId === identity.subject &&
+          profile.status === "active"
+      )
+    : undefined
+  const viewerAcknowledgements = activeEmployee
+    ? await ctx.db
+        .query("announcementAcknowledgements")
+        .withIndex("by_employeeProfileId_and_announcementId", (q) =>
+          q.eq("employeeProfileId", activeEmployee._id)
+        )
+        .take(500)
+    : []
+  const acknowledgedAnnouncementIds = new Set(
+    viewerAcknowledgements.map(
+      (acknowledgement) => acknowledgement.announcementId
+    )
+  )
+  const activeEmployeeCount = employeeProfiles.filter(
+    (profile) => profile.status === "active"
+  ).length
+
   const categorySlugById = new Map(
     visibleCategories.map((category) => [category._id, category.slug])
   )
@@ -293,6 +318,7 @@ export async function buildSnapshot(
       description: category.description,
       order: category.order,
       kind: category.kind,
+      color: category.color,
     })),
     guides: guides.flatMap((guide) => {
       const category = categorySlugById.get(guide.categoryId)
@@ -353,6 +379,17 @@ export async function buildSnapshot(
       priority: announcement.priority,
       pinned: announcement.pinned,
       published: announcement.published,
+      ...(activeEmployee
+        ? {
+            acknowledged: acknowledgedAnnouncementIds.has(announcement._id),
+          }
+        : {}),
+      ...(options.includeDrafts
+        ? {
+            acknowledgedCount: announcement.acknowledgedCount ?? 0,
+            activeEmployeeCount,
+          }
+        : {}),
       guideId: announcement.guideId
         ? publishedGuideSlugById.get(announcement.guideId)
         : undefined,

@@ -127,6 +127,7 @@ async function deputyCategory(ctx: MutationCtx, hubId: Id<"hubs">) {
     description: "Employee schedules synchronized from Deputy.",
     order: (last?.order ?? -1) + 1,
     kind: "event",
+    color: "blue",
   })
   return (await ctx.db.get("categories", id))!
 }
@@ -144,9 +145,7 @@ async function createDeputyEmployeeMapping(
     .withIndex("by_hubId_and_deputyEmployeeId", (q) =>
       q.eq("hubId", args.hubId)
     )
-    .filter((q) =>
-      q.eq(q.field("employeeProfileId"), args.employeeProfileId)
-    )
+    .filter((q) => q.eq(q.field("employeeProfileId"), args.employeeProfileId))
     .first()
   if (profileMapping) throw new Error("deputyRosterSyncFailed")
   await ctx.db.insert("deputyEmployeeMappings", args)

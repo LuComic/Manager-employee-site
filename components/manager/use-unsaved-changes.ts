@@ -59,7 +59,11 @@ export function useUnsavedChanges({
           description: createElement(
             "div",
             { className: "space-y-4" },
-            createElement("p", null, t("yourChangesWillNotBeSaved")),
+            createElement(
+              "p",
+              { className: "sm:pl-7" },
+              t("yourChangesWillNotBeSaved")
+            ),
             createElement(
               "div",
               {
@@ -104,6 +108,10 @@ export function useUnsavedChanges({
               )
             )
           ),
+          classNames: {
+            title: "sm:col-start-2 sm:col-end-5 sm:row-start-1",
+            description: "sm:col-start-1 sm:col-end-5 sm:row-start-2",
+          },
           duration: Infinity,
         }
       )

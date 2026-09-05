@@ -34,6 +34,10 @@ import {
   formatEventTime,
 } from "@/lib/operations"
 import { cn } from "@/lib/utils"
+import {
+  eventCategoryColor,
+  eventCategoryColorStyles,
+} from "@/lib/event-category-colors"
 
 export function EventDetail({ eventId }: { eventId: string }) {
   const t = useAppTranslations()
@@ -43,6 +47,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
   if (!event)
     return (
       <EmptyState
+        area="calendar"
         icon={CalendarDays}
         title="eventNotAvailable"
         description="eventUnpublishedRemovedReturnCalendarCurrentEvents"
@@ -59,6 +64,8 @@ export function EventDetail({ eventId }: { eventId: string }) {
   } as const
   const spansMultipleDates =
     !event.allDay && event.start.slice(0, 10) !== event.end.slice(0, 10)
+  const colorStyle =
+    eventCategoryColorStyles[eventCategoryColor(event.category, eventTypes)]
 
   return (
     <article className="mx-auto max-w-4xl space-y-6">
@@ -71,9 +78,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
       >
         <ArrowLeft data-icon="inline-start" /> <T>backToCalendar</T>
       </Link>
-      <Card className="shadow-none">
+      <Card className={cn("border-t-2 shadow-none", colorStyle.header)}>
         <CardHeader className="border-b">
-          <Badge variant="secondary">
+          <Badge className={colorStyle.soft}>
             {eventCategoryLabel(event.category, eventTypes)}
           </Badge>
           <CardTitle>
@@ -230,7 +237,7 @@ function Detail({
 }) {
   return (
     <div className="flex gap-4">
-      <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
+      <span className="flex size-10 shrink-0 items-center justify-center bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
         <Icon className="size-5" />
       </span>
       <div className="min-w-0">

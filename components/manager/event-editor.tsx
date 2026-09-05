@@ -47,6 +47,11 @@ import {
   takeQuickEventDraft,
   type QuickEventDraft,
 } from "@/lib/quick-event-draft"
+import {
+  eventCategoryColor,
+  eventCategoryColorStyles,
+} from "@/lib/event-category-colors"
+import { cn } from "@/lib/utils"
 
 function cloneEvent(event: CalendarEvent): CalendarEvent {
   return {
@@ -626,13 +631,33 @@ export function EventEditor({ eventId }: { eventId?: string }) {
                     className="w-full border border-input bg-background px-3"
                   >
                     <SelectValue>
-                      {eventCategoryLabel(draft.category, eventTypes)}
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "size-2 rounded-full",
+                            eventCategoryColorStyles[
+                              eventCategoryColor(draft.category, eventTypes)
+                            ].dot
+                          )}
+                        />
+                        {eventCategoryLabel(draft.category, eventTypes)}
+                      </span>
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {eventTypes.map((eventType) => (
                       <SelectItem key={eventType.id} value={eventType.id}>
-                        {eventCategoryLabel(eventType.id, eventTypes)}
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "size-2 rounded-full",
+                              eventCategoryColorStyles[
+                                eventCategoryColor(eventType.id, eventTypes)
+                              ].dot
+                            )}
+                          />
+                          {eventCategoryLabel(eventType.id, eventTypes)}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

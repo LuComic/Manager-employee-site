@@ -30,6 +30,7 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
   if (!document)
     return (
       <EmptyState
+        area="documents"
         icon={Files}
         title="documentNotAvailable"
         description="documentUnpublishedRemovedBrowseLibraryFind"
@@ -91,9 +92,9 @@ export function DocumentPageContent({ documentId }: { documentId: string }) {
         )}
       </div>
 
-      <Card className="max-w-4xl shadow-none">
+      <Card className="max-w-4xl border-l-2 border-l-emerald-400 shadow-none dark:border-l-emerald-500">
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <span className="flex size-12 shrink-0 items-center justify-center bg-primary/10 text-primary">
+          <span className="flex size-12 shrink-0 items-center justify-center bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
             <DocumentResourceIcon resource={resource} />
           </span>
           <div className="min-w-0 flex-1">

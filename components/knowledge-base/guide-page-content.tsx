@@ -12,6 +12,7 @@ export function GuidePageContent({ guideId }: { guideId: string }) {
   if (!guide)
     return (
       <EmptyState
+        area="guides"
         icon={BookOpen}
         title="guideNotAvailable"
         description="guideUnpublishedRemovedBrowseCurrentGuidesFind"

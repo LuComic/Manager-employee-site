@@ -17,6 +17,7 @@ import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Badge } from "@/components/ui/badge"
 import { PageHeading } from "@/components/operations/page-heading"
+import { AreaIconTile } from "@/components/operations/area-icon-tile"
 import {
   Card,
   CardDescription,
@@ -25,6 +26,8 @@ import {
 } from "@/components/ui/card"
 import { useOperations } from "@/components/providers/operations-provider"
 import { toDateKey } from "@/lib/operations"
+import { areaStyles, type AreaKey } from "@/lib/area-styles"
+import { cn } from "@/lib/utils"
 import type { AppMessageKey } from "@/i18n/messages"
 
 type Result = {
@@ -42,6 +45,14 @@ const resultTypeKeys = {
   Question: "question",
   Document: "document",
 } satisfies Record<Result["type"], AppMessageKey>
+
+const resultAreas = {
+  Guide: "guides",
+  Event: "calendar",
+  Announcement: "announcements",
+  Question: "questions",
+  Document: "documents",
+} satisfies Record<Result["type"], AreaKey>
 
 export function SearchResults({ query }: { query: string }) {
   const t = useAppTranslations()
@@ -89,6 +100,7 @@ export function SearchResults({ query }: { query: string }) {
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {results.map((result) => {
+              const area = resultAreas[result.type]
               const Icon =
                 result.type === "Guide"
                   ? BookOpen
@@ -107,13 +119,19 @@ export function SearchResults({ query }: { query: string }) {
                 >
                   <Card
                     size="sm"
-                    className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+                    className={cn(
+                      "h-full border-l-2 shadow-none transition-all group-hover:-translate-y-0.5 group-active:translate-y-0",
+                      areaStyles[area].rail,
+                      areaStyles[area].hover
+                    )}
                   >
                     <CardHeader>
-                      <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
-                        <Icon className="size-4" />
-                      </span>
-                      <Badge variant="secondary">
+                      <AreaIconTile
+                        area={area}
+                        icon={Icon}
+                        className="mb-2 size-9"
+                      />
+                      <Badge className={areaStyles[area].tile}>
                         {t(resultTypeKeys[result.type])}
                       </Badge>
                       <CardTitle className="text-base">

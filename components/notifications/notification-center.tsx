@@ -20,6 +20,7 @@ import {
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 
 import { ManagerHeading } from "@/components/manager/manager-heading"
+import { AreaIconTile } from "@/components/operations/area-icon-tile"
 import { EmptyState } from "@/components/operations/empty-state"
 import { PageHeading } from "@/components/operations/page-heading"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -27,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
+import { areaStyles, type AreaKey } from "@/lib/area-styles"
 import { cn } from "@/lib/utils"
 
 const GUEST_DEVICE_KEY = "workhal:notification-device"
@@ -50,6 +52,16 @@ const kindIcons: Record<
   workplace: Building2,
   trade: ArrowLeftRight,
 }
+
+const notificationAreas = {
+  guide: "guides",
+  event: "calendar",
+  announcement: "announcements",
+  document: "documents",
+  question: "questions",
+  workplace: "workplace",
+  trade: "trades",
+} satisfies Record<keyof typeof kindIcons, AreaKey>
 
 function useGuestDeviceId(enabled: boolean) {
   const [guestDeviceId, setGuestDeviceId] = useState<string>()
@@ -189,6 +201,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
     />
   ) : (
     <PageHeading
+      area="notifications"
       title="notifications"
       description="newGuidesEventsAnnouncementsAssignmentsWorkplaceUpdates"
     />
@@ -205,6 +218,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
         <div className="space-y-3">
           {feed.notifications.map((notification) => {
             const Icon = kindIcons[notification.kind]
+            const area = notificationAreas[notification.kind]
             const wasUnread =
               !notification.isOwn && notification.createdAt > feed.lastReadAt
             return (
@@ -216,14 +230,14 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
                 <Card
                   size="sm"
                   className={cn(
-                    "shadow-none transition-colors group-hover:bg-muted/40",
-                    wasUnread && "border-primary/40 bg-primary/5"
+                    "border-l-2 shadow-none transition-all group-hover:-translate-y-0.5 group-active:translate-y-0",
+                    areaStyles[area].rail,
+                    areaStyles[area].hover,
+                    wasUnread && "bg-primary/5 ring-1 ring-primary/20"
                   )}
                 >
                   <CardContent className="flex items-start gap-4">
-                    <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                      <Icon className="size-5" />
-                    </span>
+                    <AreaIconTile area={area} icon={Icon} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="font-semibold">
@@ -257,6 +271,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
         </div>
       ) : (
         <EmptyState
+          area="notifications"
           icon={Bell}
           title="noNotificationsYet"
           description={

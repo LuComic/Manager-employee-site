@@ -152,6 +152,8 @@ export function DocumentManager() {
             <ManagerListItem
               key={document.id}
               icon={<DocumentResourceIcon resource={document.resource} />}
+              iconClassName="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+              cardClassName="border-l-2 border-l-emerald-400 dark:border-l-emerald-500"
               title={document.title}
               summaryHref={
                 document.published
@@ -227,6 +229,7 @@ export function DocumentManager() {
         </div>
       ) : (
         <EmptyState
+          area="documents"
           icon={Files}
           title={documents.length ? "noMatchingDocuments" : "noDocumentsYet"}
           description={

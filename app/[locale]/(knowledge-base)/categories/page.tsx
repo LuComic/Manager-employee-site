@@ -14,6 +14,7 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <PageHeading
+        area="guides"
         title="guideCategories"
         description="chooseWorkAreaSeeAllPublishedGuides"
       />
@@ -34,6 +35,7 @@ export default function CategoriesPage() {
         </div>
       ) : (
         <EmptyState
+          area="guides"
           icon={BookOpen}
           title="noGuideCategories"
           description="workAreasAppearHereManagerCreates"

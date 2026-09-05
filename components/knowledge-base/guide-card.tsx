@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { Guide } from "@/lib/knowledge-base"
+import { AreaIconTile } from "@/components/operations/area-icon-tile"
+import { areaStyles } from "@/lib/area-styles"
 
 export function GuideCard({
   guide,
@@ -27,12 +29,10 @@ export function GuideCard({
     >
       <Card
         size="sm"
-        className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+        className={`h-full border-l-2 shadow-none transition-all group-hover:-translate-y-0.5 group-active:translate-y-0 ${areaStyles.guides.rail} ${areaStyles.guides.hover}`}
       >
         <CardHeader>
-          <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
-            <Icon className="size-4" />
-          </span>
+          <AreaIconTile area="guides" icon={Icon} className="mb-2 size-9" />
           <CardTitle className="text-base tracking-normal normal-case">
             {guide.title}
           </CardTitle>

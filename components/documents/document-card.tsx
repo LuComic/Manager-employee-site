@@ -22,6 +22,7 @@ import {
   type DocumentResource,
   type WorkspaceDocument,
 } from "@/lib/documents"
+import { areaStyles } from "@/lib/area-styles"
 
 export function DocumentResourceIcon({
   resource,
@@ -56,7 +57,7 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
     >
       <Card
         size="sm"
-        className="h-full overflow-hidden py-0 shadow-none transition-colors group-hover:bg-muted/40"
+        className={`h-full overflow-hidden border-l-2 py-0 shadow-none transition-all group-hover:-translate-y-0.5 group-active:translate-y-0 ${areaStyles.documents.rail} ${areaStyles.documents.hover}`}
       >
         {document.bannerImageUrl && (
           <div
@@ -67,7 +68,9 @@ export function DocumentCard({ document }: { document: WorkspaceDocument }) {
           />
         )}
         <CardHeader className="pt-4">
-          <span className="mb-2 flex size-9 items-center justify-center bg-primary/10 text-primary">
+          <span
+            className={`mb-2 flex size-9 items-center justify-center ${areaStyles.documents.tile}`}
+          >
             <DocumentResourceIcon resource={document.resource} />
           </span>
           <CardTitle className="text-base tracking-normal normal-case">

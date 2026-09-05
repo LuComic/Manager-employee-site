@@ -16,6 +16,7 @@ type ManagerListItemProps = {
   iconClassName?: string
   descriptionClassName?: string
   summaryHref?: string
+  cardClassName?: string
 }
 
 export function ManagerListItem({
@@ -30,6 +31,7 @@ export function ManagerListItem({
   iconClassName,
   descriptionClassName,
   summaryHref,
+  cardClassName,
 }: ManagerListItemProps) {
   const iconElement = (
     <span
@@ -74,7 +76,8 @@ export function ManagerListItem({
       size="sm"
       className={cn(
         "shadow-none transition-colors",
-        summaryHref && "has-[a[data-manager-summary-link]:hover]:bg-muted/40"
+        summaryHref && "has-[a[data-manager-summary-link]:hover]:bg-muted/40",
+        cardClassName
       )}
     >
       <CardContent

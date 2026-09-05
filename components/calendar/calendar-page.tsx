@@ -45,11 +45,12 @@ import {
   PRIVATE_EVENT_FILTER,
   toDateKey,
 } from "@/lib/operations"
-import {
-  DEPUTY_SCHEDULES_EVENT_TYPE_ID,
-  eventCategoryLabel,
-} from "@/lib/categories"
+import { eventCategoryLabel } from "@/lib/categories"
 import { cn } from "@/lib/utils"
+import {
+  eventCategoryColor,
+  eventCategoryColorStyles,
+} from "@/lib/event-category-colors"
 
 type View = "month" | "list"
 type FilterSelection = {
@@ -188,9 +189,14 @@ export function CalendarPage() {
       : eventCategoryLabel(filterId, eventTypes)
   }
 
+  function eventColorStyle(categoryId: string) {
+    return eventCategoryColorStyles[eventCategoryColor(categoryId, eventTypes)]
+  }
+
   return (
     <div className="space-y-6">
       <PageHeading
+        area="calendar"
         title="calendar"
         description="sharedDatesReservationsTrainingDeliveriesVisitsOtherMessage"
         action={
@@ -292,6 +298,13 @@ export function CalendarPage() {
                   }
                   className={filterCheckboxItemClassName}
                 >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "size-2 rounded-full",
+                      eventColorStyle(eventType.id).dot
+                    )}
+                  />
                   {eventCategoryLabel(eventType.id, eventTypes)}
                 </DropdownMenuCheckboxItem>
               ))}
@@ -381,9 +394,7 @@ export function CalendarPage() {
                             key={event.id}
                             className={cn(
                               "size-1.5 shrink-0 rounded-full",
-                              event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
-                                ? "bg-muted-foreground"
-                                : "bg-primary"
+                              eventColorStyle(event.category).dot
                             )}
                           />
                         ))}
@@ -482,10 +493,8 @@ export function CalendarPage() {
                               href={`/calendar/${event.id}`}
                               className={cn(
                                 "pointer-events-auto relative z-10 block px-2 py-1 text-xs font-medium",
-                                event.category ===
-                                  DEPUTY_SCHEDULES_EVENT_TYPE_ID
-                                  ? "bg-muted text-muted-foreground hover:bg-muted/80"
-                                  : "bg-primary/10 text-foreground hover:bg-primary/20",
+                                eventColorStyle(event.category).soft,
+                                eventColorStyle(event.category).hover,
                                 continuesFromPreviousDay && "-ml-2 pl-4",
                                 continuesIntoNextDay && "-mr-2 pr-4"
                               )}
@@ -526,9 +535,9 @@ export function CalendarPage() {
               href={`/calendar/${event.id}`}
               className={cn(
                 "group flex flex-col gap-4 border p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:flex-row sm:items-center",
-                event.category === DEPUTY_SCHEDULES_EVENT_TYPE_ID
-                  ? "bg-muted text-muted-foreground hover:bg-muted/80"
-                  : "bg-background hover:bg-muted/30"
+                "border-l-2 bg-background",
+                eventColorStyle(event.category).rail,
+                eventColorStyle(event.category).hover
               )}
             >
               <div className="sm:w-40">
@@ -552,7 +561,7 @@ export function CalendarPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold">{event.title}</h3>
-                  <Badge variant="secondary">
+                  <Badge className={eventColorStyle(event.category).soft}>
                     {eventCategoryLabel(event.category, eventTypes)}
                   </Badge>
                 </div>
@@ -569,6 +578,7 @@ export function CalendarPage() {
         </div>
       ) : (
         <EmptyState
+          area="calendar"
           icon={CalendarDays}
           title="noEventsInThisView"
           description="tryAnotherMonthOrEventType"

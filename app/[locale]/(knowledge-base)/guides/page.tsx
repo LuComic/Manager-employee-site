@@ -18,6 +18,7 @@ export default function GuidesPage() {
   return (
     <div className="space-y-6">
       <PageHeading
+        area="guides"
         title="guides"
         description="clearStepStepInstructionsTasksComeUpMessage"
       />
@@ -42,6 +43,7 @@ export default function GuidesPage() {
           </div>
         ) : (
           <EmptyState
+            area="guides"
             icon={BookOpen}
             title="noGuideCategories"
             description="workAreasAppearHereManagerCreates"
@@ -63,6 +65,7 @@ export default function GuidesPage() {
           </div>
         ) : (
           <EmptyState
+            area="guides"
             icon={BookOpen}
             title="noPublishedGuides"
             description="publishedGuidesWillAppearHere"

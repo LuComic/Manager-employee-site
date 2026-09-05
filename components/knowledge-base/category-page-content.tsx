@@ -13,6 +13,7 @@ export function CategoryPageContent({ categoryId }: { categoryId: string }) {
   if (!category)
     return (
       <EmptyState
+        area="guides"
         icon={BookOpen}
         title="categoryNotFound"
         description="chooseGuideCategoryNavigation"
@@ -24,6 +25,7 @@ export function CategoryPageContent({ categoryId }: { categoryId: string }) {
   return (
     <div>
       <PageHeading
+        area="guides"
         titleText={category.label}
         descriptionText={category.description}
       />
@@ -36,6 +38,7 @@ export function CategoryPageContent({ categoryId }: { categoryId: string }) {
       ) : (
         <div className="mt-6">
           <EmptyState
+            area="guides"
             icon={BookOpen}
             title="noPublishedGuides"
             description="publishedGuidesCategoryAppearHere"

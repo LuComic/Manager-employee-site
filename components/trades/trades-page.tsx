@@ -33,6 +33,7 @@ export function TradesPage() {
   return (
     <div>
       <PageHeading
+        area="trades"
         title="trades"
         description="browseAvailableAndPendingShiftTrades"
         action={
@@ -68,6 +69,7 @@ export function TradesPage() {
       ) : (
         <div className="mt-6">
           <EmptyState
+            area="trades"
             icon={ArrowLeftRight}
             title="noShiftTradesAvailable"
             description="publishedShiftTradesAppearHere"

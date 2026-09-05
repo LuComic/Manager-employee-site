@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { CategoryIcon } from "@/lib/category-icons"
 import type { Category } from "@/lib/knowledge-base"
+import { areaStyles } from "@/lib/area-styles"
 
 export function CategoryCard({
   category,
@@ -19,9 +20,11 @@ export function CategoryCard({
   return (
     <Link
       href={`/categories/${category.id}`}
-      className="group flex items-start gap-4 bg-background p-4 transition-colors hover:bg-muted/60"
+      className={`group flex items-start gap-4 border-l-2 bg-background p-4 transition-colors ${areaStyles.guides.rail} hover:bg-violet-50/70 active:bg-violet-100/70 dark:hover:bg-violet-950/30`}
     >
-      <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
+      <span
+        className={`flex size-10 shrink-0 items-center justify-center ${areaStyles.guides.tile}`}
+      >
         <CategoryIcon iconKey={category.iconKey} className="size-5" />
       </span>
       <span>
