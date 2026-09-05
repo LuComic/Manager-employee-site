@@ -30,6 +30,14 @@ import {
 } from "./lib/notifications"
 
 const categoryKindValidator = v.union(v.literal("guide"), v.literal("event"))
+const eventCategoryColorValidator = v.union(
+  v.literal("blue"),
+  v.literal("teal"),
+  v.literal("violet"),
+  v.literal("amber"),
+  v.literal("rose"),
+  v.literal("green")
+)
 
 const richTextDocument = v.object({
   type: v.literal("doc"),
@@ -78,6 +86,21 @@ function required(
   return clean
 }
 
+function currentDateInTimeZone(timeZone?: string) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: timeZone ?? "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(new Date())
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  )
+  return `${parts.year}-${parts.month}-${parts.day}`
+}
+
 async function resolveEventReference(
   ctx: MutationCtx,
   args: {
@@ -119,6 +142,7 @@ export const saveCategory = mutation({
     iconKey: v.string(),
     description: v.string(),
     kind: categoryKindValidator,
+    color: v.optional(eventCategoryColorValidator),
   },
   returns: v.string(),
   handler: async (ctx, args) => {
@@ -148,6 +172,7 @@ export const saveCategory = mutation({
           ? required(args.description, "categoryDescription", 300)
           : args.description.trim().slice(0, 300),
       kind: args.kind,
+      color: args.kind === "event" ? (args.color ?? "blue") : undefined,
     }
     if (existing) {
       await ctx.db.patch("categories", existing._id, value)
@@ -901,12 +926,36 @@ export const saveAnnouncement = mutation({
       guideId: guide?._id,
       eventId: event?._id,
     }
+    const acknowledgementRelevantChange = Boolean(
+      existing &&
+      (existing.title !== value.title ||
+        JSON.stringify(existing.content) !== JSON.stringify(value.content) ||
+        existing.publishedAt !== value.publishedAt ||
+        existing.expiresAt !== value.expiresAt ||
+        existing.priority !== value.priority)
+    )
+    if (existing && acknowledgementRelevantChange) {
+      const acknowledgements = await ctx.db
+        .query("announcementAcknowledgements")
+        .withIndex("by_announcementId_and_employeeProfileId", (q) =>
+          q.eq("announcementId", existing._id)
+        )
+        .take(500)
+      for (const acknowledgement of acknowledgements) {
+        await ctx.db.delete("announcementAcknowledgements", acknowledgement._id)
+      }
+    }
     const announcementId = existing
-      ? (await ctx.db.patch("announcements", existing._id, value), existing._id)
+      ? (await ctx.db.patch("announcements", existing._id, {
+          ...value,
+          ...(acknowledgementRelevantChange ? { acknowledgedCount: 0 } : {}),
+        }),
+        existing._id)
       : await ctx.db.insert("announcements", {
           hubId: args.hubId,
           slug: required(args.slug, "announcementSlug", 100),
           ...value,
+          acknowledgedCount: 0,
         })
     await notifyPublicationChange(ctx, {
       hubId: args.hubId,
@@ -931,6 +980,66 @@ export const saveAnnouncement = mutation({
   },
 })
 
+export const acknowledgeAnnouncement = mutation({
+  args: {
+    hubId: v.id("hubs"),
+    slug: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { hub, identity } = await requireHubPermission(
+      ctx,
+      args.hubId,
+      "viewer"
+    )
+    const employees = await ctx.db
+      .query("employeeProfiles")
+      .withIndex("by_hubId_and_clerkUserId", (q) =>
+        q.eq("hubId", args.hubId).eq("clerkUserId", identity.subject)
+      )
+      .take(10)
+    const employee = employees.find((profile) => profile.status === "active")
+    if (!employee) {
+      throw new Error("activeEmployeeProfileRequired")
+    }
+    const announcement = await ctx.db
+      .query("announcements")
+      .withIndex("by_hubId_and_slug", (q) =>
+        q.eq("hubId", args.hubId).eq("slug", args.slug)
+      )
+      .unique()
+    const currentDate = currentDateInTimeZone(hub.timeZone)
+    if (
+      !announcement ||
+      !announcement.published ||
+      announcement.priority === "Normal" ||
+      announcement.publishedAt > currentDate ||
+      announcement.expiresAt < currentDate
+    ) {
+      throw new Error("announcementNotAvailable")
+    }
+    const existing = await ctx.db
+      .query("announcementAcknowledgements")
+      .withIndex("by_announcementId_and_employeeProfileId", (q) =>
+        q
+          .eq("announcementId", announcement._id)
+          .eq("employeeProfileId", employee._id)
+      )
+      .unique()
+    if (existing) return null
+    await ctx.db.insert("announcementAcknowledgements", {
+      hubId: args.hubId,
+      announcementId: announcement._id,
+      employeeProfileId: employee._id,
+      acknowledgedAt: Date.now(),
+    })
+    await ctx.db.patch("announcements", announcement._id, {
+      acknowledgedCount: (announcement.acknowledgedCount ?? 0) + 1,
+    })
+    return null
+  },
+})
+
 export const deleteAnnouncement = mutation({
   args: { hubId: v.id("hubs"), slug: v.string() },
   handler: async (ctx, args) => {
@@ -946,6 +1055,15 @@ export const deleteAnnouncement = mutation({
       )
       .unique()
     if (announcement) {
+      const acknowledgements = await ctx.db
+        .query("announcementAcknowledgements")
+        .withIndex("by_announcementId_and_employeeProfileId", (q) =>
+          q.eq("announcementId", announcement._id)
+        )
+        .take(500)
+      for (const acknowledgement of acknowledgements) {
+        await ctx.db.delete("announcementAcknowledgements", acknowledgement._id)
+      }
       await ctx.db.delete("announcements", announcement._id)
       if (announcement.published) {
         await createNotification(ctx, {

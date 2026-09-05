@@ -213,6 +213,7 @@ export const create = mutation({
       description: "",
       order: 0,
       kind: "event",
+      color: "blue",
     })
     await createAuditLog(ctx, auditActorFromIdentity(identity), {
       hubId,

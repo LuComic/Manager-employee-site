@@ -151,6 +151,7 @@ type OperationsContextValue = OperationsState & {
   uploadAttachment: (eventSlug: string, file: File) => Promise<void>
   deleteAttachment: (attachment: Attachment) => Promise<void>
   saveAnnouncement: (announcement: Announcement) => Promise<void>
+  acknowledgeAnnouncement: (id: string) => Promise<void>
   deleteAnnouncement: (id: string) => Promise<void>
   saveFaq: (faq: Faq) => Promise<void>
   moveFaq: (id: string, direction: -1 | 1) => Promise<void>
@@ -326,6 +327,9 @@ export function OperationsProvider({
   const saveEventMutation = useMutation(api.content.saveEvent)
   const deleteEventMutation = useMutation(api.content.deleteEvent)
   const saveAnnouncementMutation = useMutation(api.content.saveAnnouncement)
+  const acknowledgeAnnouncementMutation = useMutation(
+    api.content.acknowledgeAnnouncement
+  )
   const deleteAnnouncementMutation = useMutation(api.content.deleteAnnouncement)
   const saveFaqMutation = useMutation(api.content.saveFaq)
   const moveFaqMutation = useMutation(api.content.moveFaq)
@@ -471,6 +475,7 @@ export function OperationsProvider({
       description: category.description,
       iconKey: category.iconKey as CategoryIconKey,
       kind: category.kind,
+      color: category.color,
     })) as Category[]
     const categoryById = new Map(
       storedCategories
@@ -789,6 +794,7 @@ export function OperationsProvider({
           iconKey: category.iconKey,
           description: category.description,
           kind: category.kind,
+          color: category.color,
         })
       )
     },
@@ -904,6 +910,10 @@ export function OperationsProvider({
           eventSlug: announcement.eventId,
         })
       )
+    },
+    acknowledgeAnnouncement: async (slug) => {
+      if (!hub) throw new Error("announcementNotAvailable")
+      await run(() => acknowledgeAnnouncementMutation({ hubId: hub.id, slug }))
     },
     deleteAnnouncement: async (slug) => {
       await run(() =>

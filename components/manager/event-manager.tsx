@@ -68,6 +68,10 @@ import {
   type CalendarEvent,
 } from "@/lib/operations"
 import { eventCategoryLabel } from "@/lib/categories"
+import {
+  eventCategoryColor,
+  eventCategoryColorStyles,
+} from "@/lib/event-category-colors"
 import { cn } from "@/lib/utils"
 import type { AppMessageKey } from "@/i18n/messages"
 import type { TranslationValues } from "next-intl"
@@ -408,88 +412,99 @@ export function EventManager() {
       </ManagerFilterPanel>
       {visible.length ? (
         <div className="space-y-4">
-          {visible.map((event) => (
-            <ManagerListItem
-              key={event.id}
-              icon={<CalendarDays className="size-5" />}
-              title={event.title}
-              summaryHref={
-                event.published
-                  ? `/calendar/${event.id}`
-                  : `/manager/calendar/${event.id}/edit`
-              }
-              metadata={[
-                <Badge
-                  key="status"
-                  variant={event.published ? "secondary" : "outline"}
-                >
-                  <T>{event.published ? "published" : "draft"}</T>
-                </Badge>,
-                <Badge key="category" variant="secondary">
-                  {eventCategoryLabel(event.category, eventTypes)}
-                </Badge>,
-              ]}
-              description={
-                <>
-                  {formatEventDate(
-                    event,
-                    undefined,
-                    hub?.timeZone,
-                    languageTag
-                  )}
-                  ,{" "}
-                  {formatEventTime(
-                    event,
-                    hub?.timeZone,
-                    languageTag,
-                    t("allDay")
-                  )}{" "}
-                  · {event.location}
-                </>
-              }
-              actionsClassName="grid w-full grid-flow-col auto-cols-fr sm:flex sm:w-auto"
-              actions={
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-                    onClick={() => {
-                      saveEvent({ ...event, published: !event.published })
-                      showFeedback(
-                        event.published ? "eventUnpublished" : "eventPublished"
-                      )
-                    }}
+          {visible.map((event) => {
+            const colorStyle =
+              eventCategoryColorStyles[
+                eventCategoryColor(event.category, eventTypes)
+              ]
+            return (
+              <ManagerListItem
+                key={event.id}
+                icon={<CalendarDays className="size-5" />}
+                iconClassName={colorStyle.soft}
+                cardClassName={cn("border-l-2", colorStyle.rail)}
+                title={event.title}
+                summaryHref={
+                  event.published
+                    ? `/calendar/${event.id}`
+                    : `/manager/calendar/${event.id}/edit`
+                }
+                metadata={[
+                  <Badge
+                    key="status"
+                    variant={event.published ? "secondary" : "outline"}
                   >
-                    <T>{event.published ? "unpublish" : "publish"}</T>
-                  </Button>
-                  <Link
-                    href={`/manager/calendar/${event.id}/edit`}
-                    className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" }),
-                      "min-h-11 w-full sm:min-h-9 sm:w-auto"
+                    <T>{event.published ? "published" : "draft"}</T>
+                  </Badge>,
+                  <Badge key="category" className={colorStyle.soft}>
+                    {eventCategoryLabel(event.category, eventTypes)}
+                  </Badge>,
+                ]}
+                description={
+                  <>
+                    {formatEventDate(
+                      event,
+                      undefined,
+                      hub?.timeZone,
+                      languageTag
                     )}
-                  >
-                    <FilePenLine data-icon="inline-start" /> <T>edit</T>
-                  </Link>
-                  {canCreateContent && (
+                    ,{" "}
+                    {formatEventTime(
+                      event,
+                      hub?.timeZone,
+                      languageTag,
+                      t("allDay")
+                    )}{" "}
+                    · {event.location}
+                  </>
+                }
+                actionsClassName="grid w-full grid-flow-col auto-cols-fr sm:flex sm:w-auto"
+                actions={
+                  <>
                     <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      className="w-full sm:size-9"
-                      onClick={() => setDeleteTarget(event)}
-                      aria-label={t("deleteName", { name: event.title })}
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+                      onClick={() => {
+                        saveEvent({ ...event, published: !event.published })
+                        showFeedback(
+                          event.published
+                            ? "eventUnpublished"
+                            : "eventPublished"
+                        )
+                      }}
                     >
-                      <Trash2 />
+                      <T>{event.published ? "unpublish" : "publish"}</T>
                     </Button>
-                  )}
-                </>
-              }
-            />
-          ))}
+                    <Link
+                      href={`/manager/calendar/${event.id}/edit`}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "sm" }),
+                        "min-h-11 w-full sm:min-h-9 sm:w-auto"
+                      )}
+                    >
+                      <FilePenLine data-icon="inline-start" /> <T>edit</T>
+                    </Link>
+                    {canCreateContent && (
+                      <Button
+                        variant="destructive"
+                        size="icon-sm"
+                        className="w-full sm:size-9"
+                        onClick={() => setDeleteTarget(event)}
+                        aria-label={t("deleteName", { name: event.title })}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </>
+                }
+              />
+            )
+          })}
         </div>
       ) : (
         <EmptyState
+          area="calendar"
           icon={CalendarDays}
           title="noMatchingEvents"
           description="clearSearchChooseDifferentFilters"

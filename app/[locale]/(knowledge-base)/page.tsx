@@ -9,6 +9,8 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
+  Clock3,
+  Files,
   MapPin,
   Megaphone,
 } from "lucide-react"
@@ -25,13 +27,22 @@ import type { AppMessageKey } from "@/i18n/messages"
 import {
   eventRendersOnDate,
   formatDate,
+  formatEventDateTime,
+  getAnnouncementDaysUntilDue,
   isAnnouncementActive,
   toDateKey,
+  type Announcement,
+  type CalendarEvent,
 } from "@/lib/operations"
 import {
   defaultTodaySections,
   type TodaySectionKey,
 } from "@/lib/today-sections"
+import { areaStyles, type AreaKey } from "@/lib/area-styles"
+import { AreaIconTile } from "@/components/operations/area-icon-tile"
+import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 const quickLinks = [
   {
@@ -39,24 +50,35 @@ const quickLinks = [
     title: "guides",
     description: "findPracticalInstructionsByWorkArea",
     icon: BookOpen,
+    area: "guides",
   },
   {
     href: "/calendar",
     title: "calendar",
     description: "seeReservationsTrainingAndVisits",
     icon: CalendarDays,
+    area: "calendar",
   },
   {
     href: "/announcements",
     title: "announcements",
     description: "checkTemporaryOperationalUpdates",
     icon: Megaphone,
+    area: "announcements",
+  },
+  {
+    href: "/documents",
+    title: "documents",
+    description: "openSharedFilesAndLinks",
+    icon: Files,
+    area: "documents",
   },
 ] satisfies {
   href: string
   title: AppMessageKey
   description: AppMessageKey
   icon: typeof BookOpen
+  area: AreaKey
 }[]
 
 export default function TodayPage() {
@@ -78,6 +100,32 @@ export default function TodayPage() {
     )
     .sort((a, b) => Number(b.pinned) - Number(a.pinned))
     .slice(0, 3)
+  const allActiveAnnouncements = announcements
+    .filter((announcement) =>
+      isAnnouncementActive(announcement, new Date(), timeZone)
+    )
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned))
+  const urgentAnnouncement = allActiveAnnouncements.find(
+    (announcement) => announcement.priority === "Urgent"
+  )
+  const expiringAnnouncement = allActiveAnnouncements
+    .filter((announcement) => {
+      const days = getAnnouncementDaysUntilDue(
+        announcement,
+        new Date(),
+        timeZone
+      )
+      return days !== null && days >= 0 && days <= 2
+    })
+    .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt))[0]
+  const nextEvent = [...todayEvents, ...upcomingEvents][0]
+  const attention = urgentAnnouncement
+    ? ({ kind: "announcement", announcement: urgentAnnouncement } as const)
+    : expiringAnnouncement
+      ? ({ kind: "expiring", announcement: expiringAnnouncement } as const)
+      : nextEvent
+        ? ({ kind: "event", event: nextEvent } as const)
+        : null
   const usefulGuides = guides
     .filter((guide) => guide.published && guide.featured)
     .slice(0, 4)
@@ -135,34 +183,42 @@ export default function TodayPage() {
               title="quickLinks"
               description="goToWorkhalMainAreas"
             />
-            <div className="grid gap-3 md:grid-cols-3">
-              {quickLinks.map(({ href, title, description, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="group outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                >
-                  <Card
-                    size="sm"
-                    className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {quickLinks.map(
+                ({ href, title, description, icon: Icon, area }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="group outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
                   >
-                    <CardContent className="flex h-full items-start gap-3">
-                      <span className="flex size-9 shrink-0 items-center justify-center bg-primary/10 text-primary">
-                        <Icon className="size-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold">
-                          <T>{title}</T>
+                    <Card
+                      size="sm"
+                      className={cn(
+                        "h-full border-l-2 shadow-none transition-all group-hover:-translate-y-0.5 group-active:translate-y-0",
+                        areaStyles[area].rail,
+                        areaStyles[area].hover
+                      )}
+                    >
+                      <CardContent className="flex h-full items-start gap-3">
+                        <AreaIconTile
+                          area={area}
+                          icon={Icon}
+                          className="size-9"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold">
+                            <T>{title}</T>
+                          </span>
+                          <span className="mt-1 block text-sm text-muted-foreground">
+                            <T>{description}</T>
+                          </span>
                         </span>
-                        <span className="mt-1 block text-sm text-muted-foreground">
-                          <T>{description}</T>
-                        </span>
-                      </span>
-                      <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+                        <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              )}
             </div>
           </section>
         )
@@ -182,9 +238,12 @@ export default function TodayPage() {
               </div>
             ) : (
               <EmptyState
+                area="calendar"
                 icon={CalendarDays}
                 title="nothingScheduledToday"
                 description="useCalendarLookAheadUpcomingEvents"
+                actionLabel="openCalendar"
+                actionHref="/calendar"
               />
             )}
           </section>
@@ -211,6 +270,7 @@ export default function TodayPage() {
               </div>
             ) : (
               <EmptyState
+                area="announcements"
                 icon={Megaphone}
                 title="noCurrentAnnouncements"
                 description="thereAreNoActiveOperationalUpdates"
@@ -238,9 +298,12 @@ export default function TodayPage() {
               </div>
             ) : (
               <EmptyState
+                area="calendar"
                 icon={CalendarDays}
                 title="noUpcomingEvents"
                 description="publishedFutureEventsWillAppearHere"
+                actionLabel="openCalendar"
+                actionHref="/calendar"
               />
             )}
           </section>
@@ -261,9 +324,12 @@ export default function TodayPage() {
               </div>
             ) : (
               <EmptyState
+                area="guides"
                 icon={BookOpen}
                 title="noUsefulGuidesYet"
                 description="featuredPublishedGuidesWillAppearHere"
+                actionLabel="allGuides"
+                actionHref="/guides"
               />
             )}
           </section>
@@ -277,10 +343,99 @@ export default function TodayPage() {
         {(hub?.todaySections ?? defaultTodaySections)
           .filter((section) => section.visible)
           .map((section) => (
-            <Fragment key={section.key}>{renderSection(section.key)}</Fragment>
+            <Fragment key={section.key}>
+              {renderSection(section.key)}
+              {section.key === "welcome" && attention && (
+                <AttentionCard
+                  attention={attention}
+                  timeZone={timeZone}
+                  languageTag={languageTag}
+                />
+              )}
+            </Fragment>
           ))}
+        {!(hub?.todaySections ?? defaultTodaySections).some(
+          (section) => section.visible && section.key === "welcome"
+        ) &&
+          attention && (
+            <AttentionCard
+              attention={attention}
+              timeZone={timeZone}
+              languageTag={languageTag}
+            />
+          )}
       </div>
       <WorkerNotes key={hub?.id ?? "no-workplace"} />
     </>
+  )
+}
+
+type TodayAttention =
+  | {
+      kind: "announcement" | "expiring"
+      announcement: Announcement
+    }
+  | {
+      kind: "event"
+      event: CalendarEvent
+    }
+
+function AttentionCard({
+  attention,
+  timeZone,
+  languageTag,
+}: {
+  attention: TodayAttention
+  timeZone?: string
+  languageTag: string
+}) {
+  const t = useAppTranslations()
+  const isEvent = attention.kind === "event"
+  const title = isEvent ? attention.event.title : attention.announcement.title
+  const href = isEvent
+    ? `/calendar/${attention.event.id}`
+    : `/announcements/${attention.announcement.id}`
+  const chip = isEvent
+    ? formatEventDateTime(attention.event, timeZone, languageTag, t("allDay"))
+    : attention.kind === "announcement"
+      ? t("urgentUpdate")
+      : t("expiresSoon")
+  const description = isEvent
+    ? attention.event.description
+    : attention.kind === "announcement"
+      ? t("urgentUpdateNeedsReview")
+      : t("updateExpiresSoonReviewNow")
+  const area: AreaKey = isEvent ? "calendar" : "announcements"
+  const Icon = isEvent ? Clock3 : Megaphone
+
+  return (
+    <section
+      className={cn(
+        "border border-l-2 bg-card p-5 shadow-sm",
+        areaStyles[area].rail
+      )}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <AreaIconTile area={area} icon={Icon} className="size-11" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={areaStyles[area].tile}>{chip}</Badge>
+          </div>
+          <h2 className="mt-2 text-lg font-semibold">{title}</h2>
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        <Link
+          href={href}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "shrink-0"
+          )}
+        >
+          <T>viewDetails</T> <ArrowRight />
+        </Link>
+      </div>
+    </section>
   )
 }

@@ -52,6 +52,11 @@ import {
   type CategoryKind,
 } from "@/lib/categories"
 import { slugify } from "@/lib/operations"
+import {
+  eventCategoryColorOptions,
+  eventCategoryColorStyles,
+  type EventCategoryColor,
+} from "@/lib/event-category-colors"
 import { cn } from "@/lib/utils"
 
 type CategoryDraft = {
@@ -60,6 +65,7 @@ type CategoryDraft = {
   description: string
   iconKey: CategoryIconKey
   kind: CategoryKind
+  color: EventCategoryColor
 }
 
 const blankCategory: CategoryDraft = {
@@ -68,6 +74,7 @@ const blankCategory: CategoryDraft = {
   description: "",
   iconKey: "general",
   kind: "guide",
+  color: "blue",
 }
 
 export function CategoryManager() {
@@ -140,6 +147,7 @@ export function CategoryManager() {
         description,
         iconKey: editing.iconKey,
         kind: editing.kind,
+        ...(editing.kind === "event" ? { color: editing.color } : {}),
       })
       showFeedback(editing.id ? "categorySaved" : "categoryCreated")
       setEditing(null)
@@ -184,6 +192,7 @@ export function CategoryManager() {
               (event) => event.category === category.id
             ).length
             const displayLabel = category.label
+            const eventColor = category.color ?? "blue"
             return (
               <ManagerListItem
                 key={category.id}
@@ -200,7 +209,9 @@ export function CategoryManager() {
                 iconClassName={
                   category.id === DEPUTY_SCHEDULES_EVENT_TYPE_ID
                     ? "bg-muted text-muted-foreground"
-                    : undefined
+                    : category.kind === "event"
+                      ? eventCategoryColorStyles[eventColor].soft
+                      : "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
                 }
                 title={displayLabel}
                 titleAs="h2"
@@ -254,7 +265,11 @@ export function CategoryManager() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setEditing({ ...category, label: displayLabel })
+                        setEditing({
+                          ...category,
+                          label: displayLabel,
+                          color: category.color ?? "blue",
+                        })
                         setError("")
                       }}
                     >
@@ -326,6 +341,7 @@ export function CategoryManager() {
                           kind: value as CategoryKind,
                           description:
                             value === "event" ? "" : editing.description,
+                          color: value === "event" ? editing.color : "blue",
                         })
                       }}
                     >
@@ -376,6 +392,44 @@ export function CategoryManager() {
                       className="min-h-24 border border-input px-3"
                     />
                   </Field>
+                )}
+                {editing.kind === "event" && (
+                  <fieldset>
+                    <legend className="text-sm font-medium">
+                      <T>categoryColor</T>
+                    </legend>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      <T>eventColorUsedAcrossCalendar</T>
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                      {eventCategoryColorOptions.map((option) => {
+                        const selected = editing.color === option.value
+                        const style = eventCategoryColorStyles[option.value]
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() =>
+                              setEditing({ ...editing, color: option.value })
+                            }
+                            className={cn(
+                              "flex min-h-16 flex-col items-center justify-center gap-2 border p-2 text-xs transition-colors hover:bg-muted/40",
+                              selected && "border-foreground/30 bg-muted/50"
+                            )}
+                            aria-pressed={selected}
+                          >
+                            <span
+                              className={cn(
+                                "size-4 rounded-full ring-4 ring-background",
+                                style.dot
+                              )}
+                            />
+                            <T>{option.label}</T>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </fieldset>
                 )}
                 {editing.kind === "guide" && (
                   <fieldset>

@@ -4,17 +4,17 @@ import { T } from "@/components/translated-text"
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
-import { ArrowLeft, CalendarDays, Megaphone, Pin } from "lucide-react"
+import { useState } from "react"
+import { ArrowLeft, CalendarDays, Check, Megaphone, Pin } from "lucide-react"
 
 import { EmptyState } from "@/components/operations/empty-state"
 import { RichTextContent } from "@/components/rich-text/rich-text-content"
 import { RelatedInformation } from "@/components/operations/related-information"
 import { useOperations } from "@/components/providers/operations-provider"
 import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  announcementPriorityMessageKeys,
   announcementStateMessageKeys,
   formatDate,
   getAnnouncementState,
@@ -23,6 +23,10 @@ import {
 } from "@/lib/operations"
 import type { Guide } from "@/lib/knowledge-base"
 import { cn } from "@/lib/utils"
+import {
+  AnnouncementPriorityBadge,
+  announcementPriorityRail,
+} from "@/components/announcements/announcement-priority-badge"
 
 export function AnnouncementDetail({
   announcementId,
@@ -36,6 +40,7 @@ export function AnnouncementDetail({
   if (!announcement)
     return (
       <EmptyState
+        area="announcements"
         icon={Megaphone}
         title="announcementNotAvailable"
         description="announcementUnpublishedRemovedReturnAnnouncementsCurrentUpdates"
@@ -68,9 +73,15 @@ export function AnnouncementArticle({
   preview?: boolean
 }) {
   const t = useAppTranslations()
-  const { hub } = useOperations()
+  const { hub, acknowledgeAnnouncement, showFeedback } = useOperations()
   const languageTag = useLanguageTag()
   const state = getAnnouncementState(announcement, new Date(), hub?.timeZone)
+  const [acknowledging, setAcknowledging] = useState(false)
+  const canAcknowledge =
+    !preview &&
+    state === "Active" &&
+    announcement.priority !== "Normal" &&
+    announcement.acknowledged !== undefined
   return (
     <article className="mx-auto max-w-4xl space-y-6">
       {!preview && (
@@ -84,23 +95,22 @@ export function AnnouncementArticle({
           <ArrowLeft data-icon="inline-start" /> <T>backToAnnouncements</T>
         </Link>
       )}
-      <Card className="shadow-none">
+      <Card
+        className={cn(
+          "border-l-2 shadow-none",
+          announcementPriorityRail(announcement.priority)
+        )}
+      >
         <CardHeader className="border-b">
           <div className="flex flex-wrap items-center gap-4">
-            <Badge
-              variant={
-                announcement.priority === "Urgent" ? "destructive" : "secondary"
-              }
-            >
-              {t(announcementPriorityMessageKeys[announcement.priority])}
-            </Badge>
+            <AnnouncementPriorityBadge priority={announcement.priority} />
             <Badge variant="secondary">
               {t(announcementStateMessageKeys[state])}
             </Badge>
             {announcement.pinned && (
-              <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Pin className="size-3" /> <T>pinned</T>
-              </span>
+              <Badge className="border border-dashed border-foreground/20 px-2 py-1 text-foreground">
+                <Pin /> <T>featured</T>
+              </Badge>
             )}
           </div>
           <CardTitle>
@@ -129,6 +139,34 @@ export function AnnouncementArticle({
               )}
             </span>
           </div>
+          {canAcknowledge && (
+            <div className="mt-6 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                <T>
+                  {announcement.acknowledged
+                    ? "youConfirmedThisUpdate"
+                    : "confirmYouHaveSeenThisUpdate"}
+                </T>
+              </p>
+              <Button
+                size="sm"
+                variant={announcement.acknowledged ? "outline" : "default"}
+                disabled={announcement.acknowledged || acknowledging}
+                onClick={async () => {
+                  setAcknowledging(true)
+                  try {
+                    await acknowledgeAnnouncement(announcement.id)
+                    showFeedback("markedAsSeen")
+                  } finally {
+                    setAcknowledging(false)
+                  }
+                }}
+              >
+                <Check />
+                <T>{announcement.acknowledged ? "seen" : "markAsSeen"}</T>
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
       <RelatedInformation
@@ -138,6 +176,7 @@ export function AnnouncementArticle({
       />
       {!preview && !event && announcement.eventId && (
         <EmptyState
+          area="calendar"
           icon={CalendarDays}
           title="relatedEventIsNotPublished"
           description="linkedEventNotCurrentlyAvailableEmployees"

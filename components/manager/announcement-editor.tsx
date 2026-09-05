@@ -6,6 +6,7 @@ import { useState } from "react"
 import { ArrowLeft, Eye, Megaphone, Pencil } from "lucide-react"
 
 import { AnnouncementArticle } from "@/components/announcements/announcement-detail"
+import { AnnouncementPriorityBadge } from "@/components/announcements/announcement-priority-badge"
 import { RelatedGuidesPicker } from "@/components/manager/related-guides-picker"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -330,17 +331,19 @@ export function AnnouncementEditor({
                     id="announcement-priority"
                     className="w-full border border-input bg-background px-3"
                   >
-                    <SelectValue />
+                    <SelectValue>
+                      <AnnouncementPriorityBadge priority={draft.priority} />
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Normal">
-                      <T>normal</T>
+                      <AnnouncementPriorityBadge priority="Normal" />
                     </SelectItem>
                     <SelectItem value="Important">
-                      <T>important</T>
+                      <AnnouncementPriorityBadge priority="Important" />
                     </SelectItem>
                     <SelectItem value="Urgent">
-                      <T>urgent</T>
+                      <AnnouncementPriorityBadge priority="Urgent" />
                     </SelectItem>
                   </SelectContent>
                 </Select>

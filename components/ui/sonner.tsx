@@ -48,7 +48,7 @@ const Toaster = ({ position, ...props }: ToasterProps) => {
         unstyled: true,
         classNames: {
           toast:
-            "grid w-(--width) grid-cols-[auto_minmax(0,1fr)_auto_auto] items-start gap-x-3 gap-y-4 bg-popover p-4 font-sans text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+            "grid w-(--width) grid-cols-[auto_minmax(0,1fr)_auto_auto] items-start gap-x-3 gap-y-4 bg-popover p-4 font-sans text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-ring/30 sm:[&.unsaved-changes-toast_[data-content]]:contents",
           content:
             "col-start-2 col-end-5 row-start-1 flex min-w-0 flex-col gap-1",
           title: "font-heading text-sm leading-5 font-semibold",

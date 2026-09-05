@@ -135,6 +135,16 @@ export default defineSchema({
     description: v.string(),
     order: v.number(),
     kind: v.union(v.literal("guide"), v.literal("event")),
+    color: v.optional(
+      v.union(
+        v.literal("blue"),
+        v.literal("teal"),
+        v.literal("violet"),
+        v.literal("amber"),
+        v.literal("rose"),
+        v.literal("green")
+      )
+    ),
   })
     .index("by_hubId_and_order", ["hubId", "order"])
     .index("by_hubId_and_kind_and_order", ["hubId", "kind", "order"])
@@ -334,6 +344,7 @@ export default defineSchema({
     published: v.boolean(),
     guideId: v.optional(v.id("guides")),
     eventId: v.optional(v.id("events")),
+    acknowledgedCount: v.optional(v.number()),
   })
     .index("by_hubId_and_slug", ["hubId", "slug"])
     .index("by_hubId_and_published", ["hubId", "published"])
@@ -343,6 +354,21 @@ export default defineSchema({
       searchField: "title",
       filterFields: ["hubId", "published"],
     }),
+
+  announcementAcknowledgements: defineTable({
+    hubId: v.id("hubs"),
+    announcementId: v.id("announcements"),
+    employeeProfileId: v.id("employeeProfiles"),
+    acknowledgedAt: v.number(),
+  })
+    .index("by_announcementId_and_employeeProfileId", [
+      "announcementId",
+      "employeeProfileId",
+    ])
+    .index("by_employeeProfileId_and_announcementId", [
+      "employeeProfileId",
+      "announcementId",
+    ]),
 
   faqs: defineTable({
     hubId: v.id("hubs"),

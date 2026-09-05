@@ -150,6 +150,8 @@ export function GuideManager() {
             <ManagerListItem
               key={guide.id}
               icon={<BookOpen className="size-5" />}
+              iconClassName="bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
+              cardClassName="border-l-2 border-l-violet-400 dark:border-l-violet-500"
               title={guide.title}
               summaryHref={
                 guide.published
@@ -216,6 +218,7 @@ export function GuideManager() {
         </div>
       ) : (
         <EmptyState
+          area="guides"
           icon={BookOpen}
           title="noMatchingGuides"
           description="clearSearchChooseFilter"

@@ -1,5 +1,5 @@
 import { T } from "@/components/translated-text"
-import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
+import { useLanguageTag } from "@/i18n/use-app-translations"
 
 import { Link } from "@/i18n/navigation"
 import { ArrowRight, Pin } from "lucide-react"
@@ -12,12 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  announcementPriorityMessageKeys,
-  formatDate,
-  type Announcement,
-} from "@/lib/operations"
+import { formatDate, type Announcement } from "@/lib/operations"
 import { richTextToPlainText } from "@/lib/rich-text"
+import {
+  AnnouncementPriorityBadge,
+  announcementPriorityRail,
+} from "@/components/announcements/announcement-priority-badge"
+import { cn } from "@/lib/utils"
 
 export function AnnouncementCard({
   announcement,
@@ -25,7 +26,6 @@ export function AnnouncementCard({
   announcement: Announcement
 }) {
   const languageTag = useLanguageTag()
-  const t = useAppTranslations()
 
   return (
     <Link
@@ -34,21 +34,18 @@ export function AnnouncementCard({
     >
       <Card
         size="sm"
-        className="h-full shadow-none transition-colors group-hover:bg-muted/40"
+        className={cn(
+          "h-full border-l-2 shadow-none transition-colors group-hover:bg-amber-50/50 group-active:bg-amber-100/50 dark:group-hover:bg-amber-950/20",
+          announcementPriorityRail(announcement.priority)
+        )}
       >
         <CardHeader>
           <div className="mb-2 flex items-center gap-4">
-            <Badge
-              variant={
-                announcement.priority === "Urgent" ? "destructive" : "secondary"
-              }
-            >
-              {t(announcementPriorityMessageKeys[announcement.priority])}
-            </Badge>
+            <AnnouncementPriorityBadge priority={announcement.priority} />
             {announcement.pinned && (
-              <span className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Pin className="size-3" /> <T>pinned</T>
-              </span>
+              <Badge className="border border-dashed border-foreground/20 px-2 py-1 text-foreground">
+                <Pin /> <T>featured</T>
+              </Badge>
             )}
           </div>
           <CardTitle className="text-base">{announcement.title}</CardTitle>

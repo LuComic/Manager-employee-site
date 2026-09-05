@@ -105,6 +105,9 @@ export type Announcement = {
   published: boolean
   guideId?: string
   eventId?: string
+  acknowledged?: boolean
+  acknowledgedCount?: number
+  activeEmployeeCount?: number
 }
 
 export type Faq = {

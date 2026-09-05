@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import { getPathname, Link, usePathname } from "@/i18n/navigation"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 import { CategoryIcon } from "@/lib/category-icons"
+import { areaStyles, type AreaKey } from "@/lib/area-styles"
 import { cn } from "@/lib/utils"
 import { firstWorkerManagerPath } from "@/lib/worker-editing"
 
@@ -59,6 +60,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           href="/notifications"
           label={t("notifications")}
           active={pathname === "/notifications"}
+          area="notifications"
           onNavigate={onNavigate}
         >
           <Bell />
@@ -67,6 +69,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           href="/guides"
           label={t("guides")}
           active={pathname === "/guides" || pathname.startsWith("/guides/")}
+          area="guides"
           onNavigate={onNavigate}
         >
           <BookOpen />
@@ -75,6 +78,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           href="/announcements"
           label={t("announcements")}
           active={pathname.startsWith("/announcements")}
+          area="announcements"
           onNavigate={onNavigate}
         >
           <Megaphone />
@@ -93,6 +97,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           href="/calendar"
           label={t("calendar")}
           active={pathname.startsWith("/calendar")}
+          area="calendar"
           onNavigate={onNavigate}
         >
           <CalendarDays />
@@ -104,6 +109,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               href="/trades"
               label={t("trades")}
               active={pathname.startsWith("/trades")}
+              area="trades"
               onNavigate={onNavigate}
             >
               <ArrowLeftRight />
@@ -126,6 +132,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               href={categoryHref}
               label={category.label}
               active={pathname === categoryHref}
+              area="guides"
               onNavigate={onNavigate}
             >
               <CategoryIcon iconKey={category.iconKey} />
@@ -148,6 +155,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               href={documentHref}
               label={document.title}
               active={pathname === documentHref}
+              area="documents"
               onNavigate={onNavigate}
             >
               <DocumentResourceIcon resource={document.resource} />
@@ -166,6 +174,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           href="/questions"
           label={t("commonQuestions")}
           active={pathname === "/questions"}
+          area="questions"
           onNavigate={onNavigate}
         >
           <CircleHelp />
@@ -288,12 +297,14 @@ function NavLink({
   href,
   label,
   active,
+  area,
   children,
   onNavigate,
 }: {
   href: string
   label: string
   active: boolean
+  area?: AreaKey
   children: React.ReactNode
   onNavigate?: () => void
 }) {
@@ -310,7 +321,7 @@ function NavLink({
       <span
         className={cn(
           "shrink-0 text-muted-foreground",
-          active && "text-primary"
+          area ? areaStyles[area].iconClass : active && "text-primary"
         )}
       >
         {children}

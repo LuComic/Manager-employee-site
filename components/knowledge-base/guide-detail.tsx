@@ -10,6 +10,8 @@ import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { Category, Guide } from "@/lib/knowledge-base"
 import { cn } from "@/lib/utils"
+import { AreaIconTile } from "@/components/operations/area-icon-tile"
+import { areaStyles } from "@/lib/area-styles"
 
 export function GuideDetail({
   guide,
@@ -39,12 +41,15 @@ export function GuideDetail({
         </Link>
       )}
 
-      <Card className="gap-0 py-0 shadow-none">
+      <Card
+        className={cn(
+          "gap-0 border-l-2 py-0 shadow-none",
+          areaStyles.guides.rail
+        )}
+      >
         <div className="border-b p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <span className="flex size-10 shrink-0 items-center justify-center bg-primary/10 text-primary">
-              <Icon className="size-5" />
-            </span>
+            <AreaIconTile area="guides" icon={Icon} />
             <div>
               <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock3 className="size-4" /> {guide.duration}
