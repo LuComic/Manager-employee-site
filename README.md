@@ -2,6 +2,8 @@
 
 A multi-workplace operations portal built with Next.js 16, React 19, Convex, Clerk, Tailwind CSS, and shadcn/ui. Managers administer a workplace through Clerk Organizations. Employees may use their own Clerk accounts, while public, join-code, and private-link accountless access remains available for shared published content.
 
+// push for prod
+
 ## Local setup
 
 Install dependencies and start the web app:
