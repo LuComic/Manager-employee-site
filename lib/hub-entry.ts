@@ -37,3 +37,28 @@ export function hubEntryHref(entry: HubEntry) {
     : ""
   return `/?${query.toString()}${fragment}`
 }
+
+/** Entry/auth screens should not subscribe to an unselected or remembered hub. */
+export function shouldQueryPublicHub({
+  pathname,
+  hubSlug,
+  authLoading,
+  isAuthenticated,
+  requestedHubSlug,
+}: {
+  pathname: string
+  hubSlug: string
+  authLoading: boolean
+  isAuthenticated: boolean
+  requestedHubSlug?: string
+}) {
+  return (
+    pathname !== "/join" &&
+    !pathname.startsWith("/manager") &&
+    !pathname.startsWith("/sign-in") &&
+    !pathname.startsWith("/sign-up") &&
+    Boolean(hubSlug.trim()) &&
+    !authLoading &&
+    (Boolean(requestedHubSlug) || !isAuthenticated)
+  )
+}

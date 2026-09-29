@@ -1,5 +1,7 @@
 "use client"
 
+import { LegalLinks } from "@/components/legal-links"
+
 import { T } from "@/components/translated-text"
 import {
   useAppTranslations,
@@ -424,6 +426,7 @@ export function HubEntryScreen({
           </section>
         </div>
       </div>
+      <LegalLinks />
     </main>
   )
 }
