@@ -24,6 +24,7 @@ import {
 } from "@/i18n/use-app-translations"
 import type { AppMessageKey } from "@/i18n/messages"
 import type { Locale } from "@/i18n/routing"
+import { shouldQueryPublicHub } from "@/lib/hub-entry"
 import { workspaceDocumentTitle } from "@/lib/branding"
 import {
   isBannerImageContentType,
@@ -297,10 +298,13 @@ export function OperationsProvider({
   )
   const publicSnapshot = useQuery(
     api.hubs.getPublicSnapshot,
-    !isManagerRoute &&
-      !isAuthPage &&
-      !authLoading &&
-      (requestedHubSlug || !isAuthenticated)
+    shouldQueryPublicHub({
+      pathname,
+      hubSlug,
+      authLoading,
+      isAuthenticated,
+      requestedHubSlug,
+    })
       ? { slug: hubSlug, credential, nowDate }
       : "skip"
   )
@@ -649,9 +653,11 @@ export function OperationsProvider({
             : memberSnapshot.kind === "none"
               ? "not-found"
               : memberSnapshot.kind
-          : publicSnapshot === undefined
-            ? "loading"
-            : publicSnapshot.kind
+          : !hubSlug || pathname === "/join"
+            ? "not-found"
+            : publicSnapshot === undefined
+              ? "loading"
+              : publicSnapshot.kind
 
   const value: OperationsContextValue = {
     ...state,

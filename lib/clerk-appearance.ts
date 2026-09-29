@@ -14,6 +14,10 @@ const cardShadow =
  */
 export const clerkAppearance = {
   theme: shadcn,
+  options: {
+    privacyPageUrl: "https://workhal.com/privacy",
+    termsPageUrl: "https://workhal.com/tos",
+  },
   variables: {
     borderRadius: "0rem",
     colorBackground: "var(--card)",
@@ -151,9 +155,6 @@ export const clerkAppearance = {
       fontWeight: 600,
       textDecorationThickness: "1px",
       textUnderlineOffset: "4px",
-    },
-    footerItem: {
-      display: "none",
     },
     formFieldAction: {
       color: "var(--primary)",
