@@ -11,7 +11,8 @@
     "test": "bun test",
     "test:convex": "vitest run",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "build:vercel": "bun scripts/vercel-build.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "^16.3.3",
     "@types/bun": "^1.3.14",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -49,6 +51,7 @@
     "convex-test": "^0.0.54",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "jsdom": "^30.1.1",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",

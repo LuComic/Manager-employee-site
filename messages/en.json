@@ -1180,7 +1180,8 @@
     "documentSlugRequired": "The document needs a stable URL identifier",
     "documentSlugTooLong": "The document URL identifier must be 100 characters or fewer",
     "betaCreatorApprovalRequired": "During beta, only approved accounts can create or manage workplaces. You can still access your assigned workplace.",
-    "couldNotConnectAccount": "We could not connect your workplace account. Please try again.",
-    "tryAgain": "Try again"
+    "couldNotConnectAccount": "We could not finish connecting your workplace account. You can keep using your current access or try again.",
+    "tryAgain": "Try again",
+    "connectingYourWorkplace": "Connecting your workplace"
   }
 }

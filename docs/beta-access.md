@@ -25,12 +25,16 @@ one operator-controlled policy and automatically includes employee emails.
   cannot create a new workplace during beta. Owner/manager capabilities in Workhal
   require central approval while beta is enabled. Stored roles are not rewritten.
 - Existing invitation completion and accountless workplace links/codes still work.
+  Account synchronization runs without replacing the current page; failures show
+  a retry notice while server-side membership and permission checks remain active.
   Signup approval is separate from guest access and organization membership.
 
 ## Configure before enabling beta
 
-Deploy the frontend and Convex functions together. In the **same Clerk instance**
-as the app, configure the following:
+Deploy the frontend and Convex functions together through `bun run build:vercel`
+as described in [production deployment](production-deployment.md). Production
+and Preview each need their own scoped Vercel `CONVEX_DEPLOY_KEY`. In the
+**same Clerk instance** as the app, configure the following:
 
 1. Use **Open** access mode (not Invite-only or Waitlist); require email
    verification. Clerk's native allowlist requires a paid plan in production.

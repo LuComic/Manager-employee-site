@@ -37,6 +37,7 @@ provided production or deployment URL.
 The Convex deployment also expects:
 
 - `CLERK_FRONTEND_API_URL` (the Clerk issuer already used by `convex/auth.config.ts`)
+- `CLERK_SECRET_KEY` (the same Clerk instance used by the frontend, for beta access and verified-email account linking)
 - `CLERK_WEBHOOK_SIGNING_SECRET` (the signing secret for the direct Convex webhook endpoint)
 - `HUB_CREDENTIALS_ENCRYPTION_KEY` (a 64-character hexadecimal AES-256 key used only by Convex)
 - `DEPUTY_CLIENT_ID`, `DEPUTY_CLIENT_SECRET`, and `DEPUTY_OAUTH_REDIRECT_URI` (the same Deputy OAuth application values used by Next.js, required for background token refresh)
@@ -109,6 +110,8 @@ https://<deployment-name>.convex.site/clerk-webhooks
 
 In Clerk Dashboard → Configure → Webhooks, subscribe to:
 
+- `user.created`
+- `user.updated`
 - `organizationInvitation.created`
 - `organizationInvitation.accepted`
 - `organizationInvitation.revoked`
@@ -155,7 +158,7 @@ bun run build
 bunx convex dev --once   # validate and sync Convex functions
 ```
 
-For production, configure the production Clerk issuer and webhook secret on the production Convex deployment, deploy the schema and functions, deploy the Next.js application, and test new-workplace provisioning.
+For production and previews, follow [the matched deployment workflow](docs/production-deployment.md). Vercel uses `bun run build:vercel` to build the frontend and deploy the matching Convex functions together. Set separately scoped `CONVEX_DEPLOY_KEY` values in Vercel first; `bun run build` alone does not release the backend. Test account connection and new-workplace provisioning after deployment.
 
 Convex's generated AI guidance and local skills are installed for development. No production MCP access or model credentials are configured by this repository.
 

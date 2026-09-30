@@ -7,7 +7,7 @@ export default defineConfig({
   },
   test: {
     environment: "edge-runtime",
-    include: ["convex/**/*.vitest.ts"],
+    include: ["convex/**/*.vitest.ts", "components/**/*.vitest.tsx"],
     env: {
       CLERK_WEBHOOK_SIGNING_SECRET:
         "whsec_c2VjdXJpdHktdGVzdC1vbmx5LXNlY3JldA==",

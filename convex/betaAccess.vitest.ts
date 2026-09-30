@@ -102,6 +102,44 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe("beta employee accounts", () => {
+  test("an approved creator can connect and create a workplace after verified-email synchronization", async () => {
+    const { t, owner } = await fixture()
+    await t.run(async (ctx) => {
+      const account = await ctx.db
+        .query("accountEmails")
+        .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", "owner"))
+        .unique()
+      await ctx.db.delete("accountEmails", account!._id)
+    })
+    expect(await owner.query(api.betaAccess.getMyAccess, {})).toEqual({
+      canCreateOrganization: false,
+    })
+    clerk.users.getUser.mockResolvedValue({
+      ...mockUser(),
+      id: "owner",
+      emailAddresses: [
+        {
+          emailAddress: "OWNER@example.com",
+          verification: { status: "verified" },
+        },
+      ],
+    })
+    expect(await owner.action(api.betaClerk.connectAccount, {})).toEqual([])
+    expect(await owner.query(api.betaAccess.getMyAccess, {})).toEqual({
+      canCreateOrganization: true,
+    })
+    expect(clerk.users.updateUser).toHaveBeenCalledWith("owner", {
+      createOrganizationEnabled: true,
+    })
+    await expect(
+      t
+        .withIdentity({ ...ownerIdentity, org_id: "org-new" })
+        .mutation(api.hubs.create, { ...hubArgs, slug: "approved-new" })
+    ).resolves.toMatchObject({ created: true })
+    expect(
+      clerk.organizations.createOrganizationMembership
+    ).not.toHaveBeenCalled()
+  })
   test("verified employee signup links the existing profile as a member without an invitation", async () => {
     const { t, employee, profileId, hubId } = await fixture()
     expect(await employee.action(api.betaClerk.connectAccount, {})).toEqual([
@@ -208,7 +246,30 @@ describe("beta employee accounts", () => {
     ).toHaveBeenCalledTimes(1)
   })
   test("lifting beta restores ordinary creation and stored roles on the same account", async () => {
-    const { t, employee, profileId } = await fixture()
+    const { t, owner, employee, profileId, hubId } = await fixture()
+    await owner.mutation(api.content.saveEvent, {
+      hubId,
+      slug: "assigned-shift",
+      title: "Assigned shift",
+      description: "Existing assignment",
+      category: "event-reservation",
+      start: "2026-09-30T10:00",
+      end: "2026-09-30T11:00",
+      location: "Office",
+      notes: "",
+      published: true,
+      guideSlugs: [],
+      employeeProfileIds: [profileId],
+    })
+    const assignmentsBefore = await t.run((ctx) =>
+      ctx.db
+        .query("eventEmployees")
+        .withIndex("by_employeeProfileId_and_eventId", (q) =>
+          q.eq("employeeProfileId", profileId)
+        )
+        .take(10)
+    )
+    expect(assignmentsBefore).toHaveLength(1)
     await employee.action(api.betaClerk.connectAccount, {})
     await t.run((ctx) =>
       ctx.db.patch("employeeProfiles", profileId, { accessLevel: "manager" })
@@ -226,6 +287,12 @@ describe("beta employee accounts", () => {
     expect(clerk.instance.updateRestrictions).toHaveBeenCalledWith({
       allowlist: false,
     })
+    expect(
+      clerk.organizations.deleteOrganizationMembership
+    ).not.toHaveBeenCalled()
+    expect(
+      clerk.organizations.createOrganizationMembership
+    ).toHaveBeenCalledTimes(1)
     expect(clerk.users.updateUser).toHaveBeenCalledWith("employee", {
       createOrganizationEnabled: true,
     })
@@ -237,6 +304,16 @@ describe("beta employee accounts", () => {
         organizationHint: "org-a",
       })
     ).toBe("manager")
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("eventEmployees")
+          .withIndex("by_employeeProfileId_and_eventId", (q) =>
+            q.eq("employeeProfileId", profileId)
+          )
+          .take(10)
+      )
+    ).toEqual(assignmentsBefore)
     expect(
       await t.run((ctx) => ctx.db.get("employeeProfiles", profileId))
     ).toMatchObject({
