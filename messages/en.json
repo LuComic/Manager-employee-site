@@ -1177,6 +1177,9 @@
     "documentDescriptionRequired": "Enter a document description",
     "documentDescriptionTooLong": "The document description must be 500 characters or fewer",
     "documentSlugRequired": "The document needs a stable URL identifier",
-    "documentSlugTooLong": "The document URL identifier must be 100 characters or fewer"
+    "documentSlugTooLong": "The document URL identifier must be 100 characters or fewer",
+    "betaCreatorApprovalRequired": "During beta, only approved accounts can create or manage workplaces. You can still access your assigned workplace.",
+    "couldNotConnectAccount": "We could not connect your workplace account. Please try again.",
+    "tryAgain": "Try again"
   }
 }

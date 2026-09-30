@@ -1,4 +1,6 @@
 import { v } from "convex/values"
+import { internal } from "./_generated/api"
+import { betaPolicy, canCreateOrganization } from "./lib/betaAccess"
 
 import type { Doc, Id } from "./_generated/dataModel"
 import {
@@ -18,6 +20,11 @@ import {
 } from "./lib/access"
 import { auditActorFromIdentity, createAuditLog } from "./lib/auditLogs"
 import { createNotification } from "./lib/notifications"
+
+async function syncBetaAccess(ctx: MutationCtx) {
+  if (await betaPolicy(ctx))
+    await ctx.scheduler.runAfter(0, internal.betaClerk.sync, {})
+}
 
 const invitationStatus = v.union(
   v.literal("not-sent"),
@@ -402,6 +409,7 @@ export const create = mutation({
       entityId: profileId,
       entityTitle: displayName,
     })
+    await syncBetaAccess(ctx)
     return profileId
   },
 })
@@ -450,6 +458,7 @@ export const update = mutation({
       accessLevel: args.accessLevel ?? profile.accessLevel ?? "viewer",
       updatedAt: Date.now(),
     })
+    await syncBetaAccess(ctx)
     await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "edited",
@@ -620,6 +629,51 @@ export const activateByInvitation = mutation({
   },
 })
 
+export const activateByVerifiedEmail = internalMutation({
+  args: {
+    profileId: v.id("employeeProfiles"),
+    email: v.string(),
+    clerkUserId: v.string(),
+    tokenIdentifier: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const profile = await ctx.db.get("employeeProfiles", args.profileId)
+    if (
+      !profile ||
+      profile.normalizedEmail !== args.email ||
+      profile.status === "deactivated" ||
+      profile.pendingClerkActionId
+    )
+      throw new Error("employeeNotFound")
+    const account = await ctx.db
+      .query("accountEmails")
+      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", args.clerkUserId))
+      .unique()
+    if (!account?.verifiedEmails.includes(args.email))
+      throw new Error("unauthorized")
+    if (profile.status === "active" && profile.clerkUserId === args.clerkUserId)
+      return null
+    await activateProfile(ctx, profile, args.clerkUserId, Date.now())
+    await createAuditLog(
+      ctx,
+      {
+        actorId: args.tokenIdentifier,
+        actorSubject: args.clerkUserId,
+        actorName: profile.displayName,
+      },
+      {
+        hubId: profile.hubId,
+        action: "edited",
+        entityType: "employee",
+        entityId: profile._id,
+        entityTitle: profile.displayName,
+      }
+    )
+    return null
+  },
+})
+
 async function deactivateProfileRecords(
   ctx: MutationCtx,
   profile: Doc<"employeeProfiles">,
@@ -652,6 +706,7 @@ async function deactivateProfileRecords(
     deactivatedAt: now,
     updatedAt: now,
   })
+  await syncBetaAccess(ctx)
 }
 
 async function requirePendingClerkActionOwner(
@@ -664,7 +719,8 @@ async function requirePendingClerkActionOwner(
   if (
     !hub ||
     organization?.organizationId !== hub.clerkOrganizationId ||
-    organization.role !== "org:admin"
+    organization.role !== "org:admin" ||
+    !(await canCreateOrganization(ctx, identity.subject))
   ) {
     throw new Error("workplaceOwnerAccessRequired")
   }
@@ -902,6 +958,7 @@ export const removeProfileBatch = mutation({
     }
 
     await ctx.db.delete("employeeProfiles", profile._id)
+    await syncBetaAccess(ctx)
     await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "deleted",
@@ -937,6 +994,7 @@ export const reactivateUnclaimed = mutation({
       deactivatedAt: undefined,
       updatedAt: Date.now(),
     })
+    await syncBetaAccess(ctx)
     await createAuditLog(ctx, auditActor, {
       hubId: profile.hubId,
       action: "edited",

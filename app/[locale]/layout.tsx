@@ -13,6 +13,7 @@ import { Geist_Mono, Noto_Sans } from "next/font/google"
 import "../globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider"
+import { AccountAccessGate } from "@/components/providers/account-access-gate"
 import { OperationsProvider } from "@/components/providers/operations-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { getPathname } from "@/i18n/navigation"
@@ -127,7 +128,9 @@ export default async function RootLayout({
                 <Suspense
                   fallback={<div className="min-h-svh bg-background" />}
                 >
-                  <OperationsProvider>{children}</OperationsProvider>
+                  <AccountAccessGate>
+                    <OperationsProvider>{children}</OperationsProvider>
+                  </AccountAccessGate>
                 </Suspense>
                 <Toaster />
               </ThemeProvider>

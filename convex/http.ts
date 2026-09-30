@@ -28,6 +28,12 @@ http.route({
       return new Response("Webhook verification failed", { status: 400 })
     }
 
+    if (event.type === "user.created" || event.type === "user.updated") {
+      await ctx.runAction(internal.betaClerk.refreshUser, {
+        clerkUserId: event.data.id,
+      })
+    }
+
     if (
       event.type === "organizationInvitation.created" ||
       event.type === "organizationInvitation.revoked" ||
