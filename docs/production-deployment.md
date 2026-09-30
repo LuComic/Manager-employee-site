@@ -33,103 +33,46 @@ The language menu, sidebar icon colors, and workplace URL preview from PRs #36â€
 remain intact. No production data, keys, or Clerk settings are changed while
 preparing the repair PR.
 
-## Prevent recurrence
+## Deployment workflow
 
-The project uses two Convex backends: production and shared development.
-Production releases must deploy matching Convex functions/schema alongside the
-frontend. Previews and local development intentionally share the development
-backend and its data.
+Use two Convex backends: production and shared development. Vercel's built-in
+`VERCEL_ENV` chooses the build command in `package.json`:
 
-`vercel.json` sets the Build Command to `bun run build:vercel`. Remove any
-Dashboard override that invokes only `bun run build`. The guarded command selects
-its behavior using `VERCEL_ENV`:
+- Production: `bunx convex deploy --cmd 'bun run build'`. Convex supplies the
+  production URL to Next.js and deploys the matching backend. A missing deploy
+  key fails the build instead of falling back to a local deployment.
+- Preview: `bun run build`, using the shared development URL and Clerk keys
+  configured in Vercel. It runs no Convex command and needs no deploy key.
 
-- **Production:** requires a valid `prod:` deploy key and runs:
+Next.js checks TypeScript during `bun run build`; no separate build-time
+TypeScript command is needed. `vercel.json` and the Vercel dashboard use
+`bun run build:vercel`.
 
-  ```sh
-  bunx convex deploy --cmd 'bun run typecheck && bun run build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL
-  ```
+### Environment settings
 
-  Convex supplies the production browser URL. Vercel only publishes the frontend
-  if the entire command, including backend deployment, succeeds. The guard rejects
-  missing, malformed, development, preview, admin, and project keys without
-  printing their values. It does not fall back to `CONVEX_DEPLOYMENT` or a
-  developer's login. Existing production encryption keys stay unchanged.
-- **Preview:** requires `NEXT_PUBLIC_CONVEX_URL`, runs `bun run typecheck` followed
-  by `bun run build`, and stops if either fails. It keeps the configured URL and
-  Clerk environment, invokes no Convex command, and requires no deploy key. A stale
-  deploy key is ignored and removed from the child build environment.
-- **Local:** use `bun run dev` with `bunx convex dev` against the existing
-  development backend. Ordinary `bun run build` never deploys Convex;
-  `build:vercel` rejects missing or unsupported `VERCEL_ENV` values.
-
-### Vercel dashboard configuration
-
-In Project Settings â†’ Environment Variables:
-
-| Variable | Production scope | Preview scope |
+| Setting | Production | Preview |
 | --- | --- | --- |
-| `CONVEX_DEPLOY_KEY` | Retain the `prod:` key for `vivid-wolf-310`, scoped only to Production | Remove it, including branch-specific overrides; no key is required |
-| `NEXT_PUBLIC_CONVEX_URL` | Retain the production URL; the deploy command supplies the matching URL during build | Set the existing shared development `.convex.cloud` URL used by local development |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Retain the production instance key | Use the matching development instance's `pk_test_` key |
-| `CLERK_SECRET_KEY` | Retain the production instance key | Use the same development instance's `sk_test_` key |
-| `CLERK_FRONTEND_API_URL` | Retain the production issuer | Use the development issuer configured on the shared development Convex backend |
+| `CONVEX_DEPLOY_KEY` | Production deployment's `prod:` key | Unset, including branch overrides |
+| `NEXT_PUBLIC_CONVEX_URL` | Production URL; Convex supplies it during the build | Existing shared development URL |
+| Clerk publishable and secret keys | Production instance | Matching development instance |
 
-Remove Preview branch overrides that would select isolated Convex backends or
-another Clerk instance. Keep Production credentials scoped to Production.
-Configure the shared development Convex deployment with the matching development
-Clerk issuer/secret, webhook secret, and its existing encryption key. The Clerk
-development webhook must target that shared backend's `.convex.site` endpoint.
-Do not copy production credentials or data into development. Rebuild previews
-after updating their environment variables; existing deployments retain their
-build-time values. Existing isolated preview backends may be cleaned up separately;
-this change does not delete them or their data.
+Configure each Convex backend with its matching Clerk issuer, secret key,
+webhook secret, and existing encryption key. Clerk webhooks must target that
+backend's `.convex.site` endpoint. Keep integration credentials and redirects
+scoped to their environment. Do not copy production credentials into development.
+Remove Preview branch overrides that select old isolated backends or a different
+Clerk instance, and rebuild previews after changing their settings.
 
-### Testing backend changes in previews
+### Development and preview testing
 
-Before testing a frontend preview that calls changed backend functions, deploy
-those functions/schema to the existing development backend:
+Local development and all previews share backend code and data. Before testing
+backend changes in a preview, sync them with `bunx convex dev --once` against the
+existing development deployment, without a production deploy key. A preview
+build alone does not update the backend. Keep backend APIs and schemas compatible
+with frontend branches still in use. Existing isolated backends can be cleaned up
+separately; this build command does not delete them.
 
-```sh
-bun run typecheck
-bunx convex dev --once
-```
+After a release, smoke-test sign-in, account connection, workplace creation,
+and invitations. Inspect browser errors and Convex logs as well as Vercel logs.
 
-Confirm the CLI is targeting the development backend, with no production deploy
-key in the local environment. Then build/redeploy and smoke-test the preview.
-Continuous `bunx convex dev` also syncs local backend edits to this same deployment.
-A preview build alone does not sync backend code, so a successful frontend build
-cannot prove its required functions are available.
-
-All previews and local sessions share data, function versions, and schema changes;
-writes from one are visible to the others. Preserve compatibility with older
-frontend branches: introduce new fields/functions additively, keep old contracts
-available while callers and data migrate, and remove obsolete fields/functions
-only after those branches no longer use them. Coordinate development deployments
-rather than assuming branch isolation.
-
-Existing `NEXT_PUBLIC_*` values are baked into the frontend and require a rebuild
-to change. Never print or commit deploy keys.
-
-This repository currently checks Convex through the root `tsconfig.json`; there
-is no separate `convex/tsconfig.json`. Run `bun run typecheck` before a manual
-`bunx convex deploy --codegen disable --typecheck disable`, or add an appropriate
-Convex-specific config before requiring its separate typecheck. The standard CLI
-uses `try` by default. Keep the repository-wide typecheck in CI.
-
-Required production configuration:
-- Vercel: production Clerk publishable/secret keys, matching Convex URL,
-  `SITE_URL=https://app.workhal.com`, and Deputy OAuth settings if enabled.
-- Convex: production Clerk issuer and secret key, webhook signing secret, existing credential
-  encryption key, and Deputy OAuth settings if enabled. Never regenerate an
-  encryption key to fix an unrelated deployment failure.
-- Clerk: webhook URL for the production Convex `.convex.site` endpoint and the
-  production app origin/redirects; use the correct instance for beta restrictions.
-
-Smoke test `/en/join` after hydration and inspect browser console errors as well
-as Vercel logs. Check Convex logs for backend function failures. Check sign-in,
-organization creation, invitations and integrations with authorized test accounts.
-
-References:
-- https://docs.convex.dev/production/hosting/vercel
-- https://vercel.com/docs/logs/runtime
+Reference: [Convex's Vercel deployment guide](https://docs.convex.dev/production/hosting/vercel).
