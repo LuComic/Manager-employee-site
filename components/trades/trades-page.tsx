@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { ArrowLeftRight, Plus } from "lucide-react"
 import { usePaginatedQuery, useQuery } from "convex/react"
 
@@ -45,9 +47,7 @@ export function TradesPage() {
         }
       />
       {status === "LoadingFirstPage" ? (
-        <p className="mt-6 text-sm text-muted-foreground" role="status">
-          <T>loadingTrades</T>
-        </p>
+        <LoadingToast message="loadingTrades" />
       ) : trades.length ? (
         <div className="mt-6 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

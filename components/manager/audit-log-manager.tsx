@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { History } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { usePaginatedQuery } from "convex/react"
@@ -7,7 +9,6 @@ import { usePaginatedQuery } from "convex/react"
 import { ManagerHeading } from "@/components/manager/manager-heading"
 import { EmptyState } from "@/components/operations/empty-state"
 import { useOperations } from "@/components/providers/operations-provider"
-import { T } from "@/components/translated-text"
 import { Button } from "@/components/ui/button"
 import { api } from "@/convex/_generated/api"
 import type { AppMessageKey } from "@/i18n/messages"
@@ -53,19 +54,17 @@ export function AuditLogManager() {
     hub ? { hubId: hub.id } : "skip",
     { initialNumItems: 50 }
   )
-  const loadMoreLabel =
-    status === "LoadingMore"
-      ? t("loadingMoreActivityLogs")
-      : t("loadMoreActivityLogs")
+  const loadMoreLabel = t("loadMoreActivityLogs")
 
   return (
     <div className="space-y-6">
+      {status === "LoadingMore" && (
+        <LoadingToast message="loadingMoreActivityLogs" />
+      )}
       <ManagerHeading title="activityLogs" description="auditLogsDescription" />
 
       {status === "LoadingFirstPage" ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          <T>loadingActivityLogs</T>
-        </p>
+        <LoadingToast message="loadingActivityLogs" />
       ) : results.length ? (
         <div className="space-y-2">
           {results.map((log) => {

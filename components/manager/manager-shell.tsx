@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { T } from "@/components/translated-text"
 import {
   useAppTranslations,
@@ -33,7 +35,7 @@ import {
 import { OrganizationSwitcher } from "@clerk/nextjs"
 
 import { Brand } from "@/components/knowledge-base/brand"
-import { ManagerUserButton } from "@/components/manager/manager-user-button"
+import { AccountUserButton } from "@/components/account-user-button"
 import { HubSetup } from "@/components/manager/hub-setup"
 import { NotificationButton } from "@/components/notifications/notification-center"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -207,7 +209,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between gap-3">
               <Brand linked={!focusedEditor} />
               <div className="flex items-center gap-1 sm:hidden">
-                <ManagerUserButton />
+                <AccountUserButton />
                 {hub && managerAccess && (
                   <NotificationButton
                     manager={
@@ -256,7 +258,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 />
               </div>
               <div className="hidden items-center gap-2 sm:flex">
-                <ManagerUserButton />
+                <AccountUserButton />
                 {hub && managerAccess && (
                   <NotificationButton
                     manager={
@@ -374,9 +376,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {hubState === "loading" ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            <T>loadingYourHub</T>
-          </p>
+          <LoadingToast message="loadingYourHub" />
         ) : hubState === "auth-error" ? (
           <div role="alert" className="max-w-2xl border bg-background p-6">
             <h2 className="font-semibold">

@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { T } from "@/components/translated-text"
 import { useAppTranslations, useLanguageTag } from "@/i18n/use-app-translations"
 import type { AppMessageKey } from "@/i18n/messages"
@@ -211,9 +213,7 @@ export function NotificationCenter({ manager = false }: { manager?: boolean }) {
     <div className="space-y-6">
       {heading}
       {feed === undefined ? (
-        <p className="text-sm text-muted-foreground" role="status">
-          <T>loadingNotifications</T>
-        </p>
+        <LoadingToast message="loadingNotifications" />
       ) : feed.notifications.length ? (
         <div className="space-y-3">
           {feed.notifications.map((notification) => {

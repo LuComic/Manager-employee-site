@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useAuth, useClerk } from "@clerk/nextjs"
 import { useAction, useConvexAuth } from "convex/react"
-import { LoaderCircle } from "lucide-react"
+import { LoadingToast } from "@/components/ui/loading-toast"
 import { api } from "@/convex/_generated/api"
 import { usePathname } from "@/i18n/navigation"
 import { useAppTranslations } from "@/i18n/use-app-translations"
@@ -77,32 +77,23 @@ export function AccountAccessGate({ children }: { children: React.ReactNode }) {
     !skip && isAuthenticated && sessionId && completedSession !== sessionId
   return (
     <>
-      {pending && (
+      {pending && failedSession !== sessionId && (
+        <LoadingToast message="connectingYourWorkplace" />
+      )}
+      {pending && failedSession === sessionId && (
         <div className="border-b bg-muted/40 px-4 py-3 text-sm">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-            {failedSession === sessionId ? (
-              <>
-                <p role="alert">{t("couldNotConnectAccount")}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setFailedSession(null)
-                    setAttempt((value) => value + 1)
-                  }}
-                >
-                  {t("tryAgain")}
-                </Button>
-              </>
-            ) : (
-              <p role="status" className="flex items-center gap-2">
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="size-4 animate-spin"
-                />
-                {t("connectingYourWorkplace")}
-              </p>
-            )}
+            <p role="alert">{t("couldNotConnectAccount")}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setFailedSession(null)
+                setAttempt((value) => value + 1)
+              }}
+            >
+              {t("tryAgain")}
+            </Button>
           </div>
         </div>
       )}

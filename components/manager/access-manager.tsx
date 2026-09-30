@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { T } from "@/components/translated-text"
 
 import { useState } from "react"
@@ -199,7 +201,7 @@ function CredentialCard({
       <CardContent>
         <code className="block overflow-x-auto border bg-muted/40 p-3 text-xs">
           {loading ? (
-            <T>loadingAccessCredentials</T>
+            <LoadingToast message="loadingAccessCredentials" />
           ) : value ? (
             revealed ? (
               value

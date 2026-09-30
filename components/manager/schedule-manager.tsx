@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { useMemo, useState } from "react"
 import { CalendarClock, MapPin } from "lucide-react"
 import { useQuery } from "convex/react"
@@ -90,9 +92,7 @@ export function ScheduleManager() {
         </ManagerFilterPanel>
       )}
       {schedules === undefined ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          <T>loadingSchedules</T>
-        </p>
+        <LoadingToast message="loadingSchedules" />
       ) : visibleSchedules.length ? (
         <div className="space-y-7">
           {[...grouped.entries()].map(([date, items]) => (

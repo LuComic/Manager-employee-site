@@ -41,7 +41,7 @@ const Toaster = ({ position, ...props }: ToasterProps) => {
         info: <InfoIcon className="size-4" />,
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+        loading: <Loader2Icon className="size-4 animate-spin text-primary" />,
         close: <XIcon className="size-3" />,
       }}
       toastOptions={{
@@ -53,7 +53,7 @@ const Toaster = ({ position, ...props }: ToasterProps) => {
             "col-start-2 col-end-5 row-start-1 flex min-w-0 flex-col gap-1",
           title: "font-heading text-sm leading-5 font-semibold",
           description: "text-sm leading-relaxed text-muted-foreground",
-          icon: "col-start-1 row-start-1 mt-0.5 flex size-4 shrink-0 items-center justify-center text-foreground [&>svg]:size-4",
+          icon: "relative col-start-1 row-start-1 mt-0.5 flex size-4 shrink-0 items-center justify-center text-foreground [&>svg]:size-4",
           actionButton: cn(
             buttonVariants({ variant: "destructive", size: "sm" }),
             "col-start-4 row-start-2 !transition-all"
@@ -70,7 +70,7 @@ const Toaster = ({ position, ...props }: ToasterProps) => {
           info: "[&_[data-icon]]:text-primary",
           warning: "[&_[data-icon]]:text-foreground",
           error: "[&_[data-icon]]:text-destructive",
-          loading: "[&_[data-icon]]:text-muted-foreground",
+          loading: "[&_[data-icon]]:text-primary",
         },
       }}
       {...props}

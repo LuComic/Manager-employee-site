@@ -37,6 +37,8 @@ vi.mock("@/i18n/use-app-translations", () => ({
   useAppTranslations: () => (key: string) => key,
 }))
 
+import { Toaster } from "sonner"
+
 import { AccountAccessGate } from "./account-access-gate"
 
 type Workplaces = { organizationId: string; hubSlug: string }[]
@@ -59,9 +61,12 @@ function Content() {
 }
 function Page() {
   return (
-    <AccountAccessGate>
-      <Content />
-    </AccountAccessGate>
+    <>
+      <Toaster />
+      <AccountAccessGate>
+        <Content />
+      </AccountAccessGate>
+    </>
   )
 }
 
@@ -88,9 +93,9 @@ describe("account connection recovery", () => {
     const request = deferred()
     mocks.connect.mockReturnValue(request.promise)
     render(<Page />)
-    expect(screen.getByRole("status").textContent).toBe(
-      "connectingYourWorkplace"
-    )
+    expect(
+      (await screen.findByText("connectingYourWorkplace")).textContent
+    ).toBe("connectingYourWorkplace")
     fireEvent.click(screen.getByText("Workplace content 0"))
     await act(async () =>
       request.reject(
@@ -108,7 +113,9 @@ describe("account connection recovery", () => {
     await screen.findByRole("alert")
     fireEvent.click(screen.getByText("Workplace content 0"))
     fireEvent.click(screen.getByRole("button", { name: "tryAgain" }))
-    await waitFor(() => expect(screen.queryByRole("status")).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByText("connectingYourWorkplace")).toBeNull()
+    )
     expect(screen.queryByRole("alert")).toBeNull()
     expect(screen.getByText("Workplace content 1")).toBeDefined()
     expect(mocks.connect).toHaveBeenCalledTimes(2)
@@ -133,7 +140,9 @@ describe("account connection recovery", () => {
       { organizationId: "org-new", hubSlug: "workplace" },
     ])
     const view = render(<Page />)
-    await waitFor(() => expect(screen.queryByRole("status")).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByText("connectingYourWorkplace")).toBeNull()
+    )
     mocks.auth.orgId = "org-new"
     mocks.clerk.session.lastActiveOrganizationId = "org-new"
     view.rerender(<Page />)
@@ -174,7 +183,9 @@ describe("account connection recovery", () => {
     mocks.auth.sessionId = "session-b"
     mocks.clerk.session.id = "session-b"
     view.rerender(<Page />)
-    await waitFor(() => expect(screen.queryByRole("status")).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByText("connectingYourWorkplace")).toBeNull()
+    )
     await act(async () =>
       oldRequest.resolve([{ organizationId: "org-old", hubSlug: "old" }])
     )
