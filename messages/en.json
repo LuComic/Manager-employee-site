@@ -440,6 +440,7 @@
     "employeeAccess": "Employee access",
     "employeeAccessReconciled": "Employee access reconciled.",
     "employeeAccessUpdated": "Employee access updated.",
+    "workplaceUrlPreview": "The URL for your workplace will look like this:",
     "employeeAddress": "Employee address",
     "employeeBelongsToAnotherWorkplace": "Employee belongs to another workplace",
     "employeeCode": "Employee code",

@@ -30,9 +30,10 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react"
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs"
+import { OrganizationSwitcher } from "@clerk/nextjs"
 
 import { Brand } from "@/components/knowledge-base/brand"
+import { ManagerUserButton } from "@/components/manager/manager-user-button"
 import { HubSetup } from "@/components/manager/hub-setup"
 import { NotificationButton } from "@/components/notifications/notification-center"
 import { useOperations } from "@/components/providers/operations-provider"
@@ -206,7 +207,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between gap-3">
               <Brand linked={!focusedEditor} />
               <div className="flex items-center gap-1 sm:hidden">
-                <UserButton />
+                <ManagerUserButton />
                 {hub && managerAccess && (
                   <NotificationButton
                     manager={
@@ -255,7 +256,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
                 />
               </div>
               <div className="hidden items-center gap-2 sm:flex">
-                <UserButton />
+                <ManagerUserButton />
                 {hub && managerAccess && (
                   <NotificationButton
                     manager={
