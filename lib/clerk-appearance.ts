@@ -7,6 +7,20 @@ const floatingSurfaceShadow =
 const cardShadow =
   "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1), 0 0 0 1px color-mix(in oklch, var(--foreground) 5%, transparent)"
 
+// Clerk gives built-in and custom account-menu rows separate descriptors.
+const userMenuItemStyle = {
+  borderRadius: 0,
+  color: "var(--popover-foreground)",
+  fontSize: "0.75rem",
+  fontWeight: 500,
+  minHeight: "2.5rem !important",
+  padding: "0.5rem 0.75rem",
+  "&:hover": {
+    backgroundColor: "var(--accent)",
+    color: "var(--accent-foreground)",
+  },
+} as const
+
 /**
  * Keeps every prebuilt Clerk surface on the same tokens and component rhythm as
  * the app's Base Sera/shadcn UI. Component-specific rules live here so modals
@@ -344,18 +358,8 @@ export const clerkAppearance = {
         height: "1.625rem",
         width: "1.625rem",
       },
-      userButtonPopoverActionButton: {
-        borderRadius: 0,
-        color: "var(--popover-foreground)",
-        fontSize: "0.75rem",
-        fontWeight: 500,
-        minHeight: "2.5rem !important",
-        padding: "0.5rem 0.75rem",
-        "&:hover": {
-          backgroundColor: "var(--accent)",
-          color: "var(--accent-foreground)",
-        },
-      },
+      userButtonPopoverActionButton: userMenuItemStyle,
+      userButtonPopoverCustomItemButton: userMenuItemStyle,
     },
   },
 } satisfies Appearance
