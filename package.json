@@ -12,7 +12,7 @@
     "test:convex": "vitest run",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "next typegen && tsc --noEmit",
-    "build:vercel": "bun scripts/vercel-build.ts"
+    "build:vercel": "if [ \"$VERCEL_ENV\" = \"production\" ]; then : \"${CONVEX_DEPLOY_KEY:?Set CONVEX_DEPLOY_KEY in Vercel Production}\" && bunx convex deploy --cmd 'bun run build'; else bun run build; fi"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

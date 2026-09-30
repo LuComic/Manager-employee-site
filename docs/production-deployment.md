@@ -33,61 +33,46 @@ The language menu, sidebar icon colors, and workplace URL preview from PRs #36â€
 remain intact. No production data, keys, or Clerk settings are changed while
 preparing the repair PR.
 
-## Prevent recurrence
+## Deployment workflow
 
-A Next.js build does not deploy Convex. For each release, deploy the matching
-Convex functions/schema and then verify the frontend against that deployment.
-Do not use development deploy keys in production or production keys in previews.
+Use two Convex backends: production and shared development. Vercel's built-in
+`VERCEL_ENV` chooses the build command in `package.json`:
 
-`vercel.json` sets the Build Command to `bun run build:vercel`. Remove any
-Dashboard override that invokes only `bun run build`. The guarded command runs:
+- Production: `bunx convex deploy --cmd 'bun run build'`. Convex supplies the
+  production URL to Next.js and deploys the matching backend. A missing deploy
+  key fails the build instead of falling back to a local deployment.
+- Preview: `bun run build`, using the shared development URL and Clerk keys
+  configured in Vercel. It runs no Convex command and needs no deploy key.
 
-```sh
-bunx convex deploy --cmd 'bun run typecheck && bun run build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL
-```
+Next.js checks TypeScript during `bun run build`; no separate build-time
+TypeScript command is needed. `vercel.json` and the Vercel dashboard use
+`bun run build:vercel`.
 
-Convex supplies the matching browser URL. Vercel only publishes the built
-frontend if the entire command, including backend deployment, succeeds. Ordinary
-`bun run build` remains a local build and never deploys Convex.
+### Environment settings
 
-Configure `CONVEX_DEPLOY_KEY` separately in Vercel:
+| Setting | Production | Preview |
+| --- | --- | --- |
+| `CONVEX_DEPLOY_KEY` | Production deployment's `prod:` key | Unset, including branch overrides |
+| `NEXT_PUBLIC_CONVEX_URL` | Production URL; Convex supplies it during the build | Existing shared development URL |
+| Clerk publishable and secret keys | Production instance | Matching development instance |
 
-- **Production:** a `prod:` key for `vivid-wolf-310`, scoped only to Production.
-- **Preview:** a `preview:` key for this Convex project, scoped only to Preview.
-  Each branch gets its own backend. Configure the project's development/preview
-  default environment variables with matching **development** Clerk keys/issuer,
-  webhook secret, and an encryption key for those separate deployments.
+Configure each Convex backend with its matching Clerk issuer, secret key,
+webhook secret, and existing encryption key. Clerk webhooks must target that
+backend's `.convex.site` endpoint. Keep integration credentials and redirects
+scoped to their environment. Do not copy production credentials into development.
+Remove Preview branch overrides that select old isolated backends or a different
+Clerk instance, and rebuild previews after changing their settings.
 
-The guard rejects missing keys, development/admin/project keys, and keys of the
-wrong environment type before spawning the deployment command. It never prints
-a key and does not fall back to a developer's `CONVEX_DEPLOYMENT`. Missing or
-mis-scoped keys produce a failed release instead of publishing a frontend with
-missing backend functions. Existing production encryption keys stay unchanged.
-The PR does not create keys or edit Vercel settings; these settings must be ready
-before its preview/production release can succeed.
+### Development and preview testing
 
-Existing `NEXT_PUBLIC_*` values are baked into the frontend and require a rebuild
-to change. Never print or commit deploy keys.
+Local development and all previews share backend code and data. Before testing
+backend changes in a preview, sync them with `bunx convex dev --once` against the
+existing development deployment, without a production deploy key. A preview
+build alone does not update the backend. Keep backend APIs and schemas compatible
+with frontend branches still in use. Existing isolated backends can be cleaned up
+separately; this build command does not delete them.
 
-This repository currently checks Convex through the root `tsconfig.json`; there
-is no separate `convex/tsconfig.json`. Run `bun run typecheck` before a manual
-`bunx convex deploy --codegen disable --typecheck disable`, or add an appropriate
-Convex-specific config before requiring its separate typecheck. The standard CLI
-uses `try` by default. Keep the repository-wide typecheck in CI.
+After a release, smoke-test sign-in, account connection, workplace creation,
+and invitations. Inspect browser errors and Convex logs as well as Vercel logs.
 
-Required production configuration:
-- Vercel: production Clerk publishable/secret keys, matching Convex URL,
-  `SITE_URL=https://app.workhal.com`, and Deputy OAuth settings if enabled.
-- Convex: production Clerk issuer and secret key, webhook signing secret, existing credential
-  encryption key, and Deputy OAuth settings if enabled. Never regenerate an
-  encryption key to fix an unrelated deployment failure.
-- Clerk: webhook URL for the production Convex `.convex.site` endpoint and the
-  production app origin/redirects; use the correct instance for beta restrictions.
-
-Smoke test `/en/join` after hydration and inspect browser console errors as well
-as Vercel logs. Check Convex logs for backend function failures. Check sign-in,
-organization creation, invitations and integrations with authorized test accounts.
-
-References:
-- https://docs.convex.dev/production/hosting/vercel
-- https://vercel.com/docs/logs/runtime
+Reference: [Convex's Vercel deployment guide](https://docs.convex.dev/production/hosting/vercel).

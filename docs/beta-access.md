@@ -31,10 +31,12 @@ one operator-controlled policy and automatically includes employee emails.
 
 ## Configure before enabling beta
 
-Deploy the frontend and Convex functions together through `bun run build:vercel`
-as described in [production deployment](production-deployment.md). Production
-and Preview each need their own scoped Vercel `CONVEX_DEPLOY_KEY`. In the
-**same Clerk instance** as the app, configure the following:
+Production deploys the frontend and matching Convex functions together through
+`bun run build:vercel`, using a Production-only `prod:` deploy key as described in
+[production deployment](production-deployment.md). Previews only build the frontend
+against shared development Convex and development Clerk keys, with no deploy key.
+Deploy development backend changes with `bunx convex dev --once` before testing
+previews. In the **same Clerk instance** as the app, configure the following:
 
 1. Use **Open** access mode (not Invite-only or Waitlist); require email
    verification. Clerk's native allowlist requires a paid plan in production.
