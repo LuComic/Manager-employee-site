@@ -7,7 +7,7 @@ import {
   useLocalizedHref,
 } from "@/i18n/use-app-translations"
 
-import { useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { Link } from "@/i18n/navigation"
 import {
   OrganizationSwitcher,
@@ -27,7 +27,16 @@ import {
 } from "@/components/ui/card"
 import { slugify } from "@/lib/operations"
 
+const subscribeToOrigin = () => () => {}
+const getOrigin = () => window.location.origin
+const getServerOrigin = () => ""
+
 export function HubSetup() {
+  const origin = useSyncExternalStore(
+    subscribeToOrigin,
+    getOrigin,
+    getServerOrigin
+  )
   const href = useLocalizedHref()
   const t = useAppTranslations()
   const translateError = useAppErrorTranslation()
@@ -116,16 +125,14 @@ export function HubSetup() {
           </span>
         </div>
         <div className="border p-4 text-sm">
-          <p className="font-medium">
-            <T>employeeAddress</T>
+          <p className="text-muted-foreground">
+            <T>workplaceUrlPreview</T>
           </p>
-          <p className="mt-1 text-muted-foreground">
-            <T>assignedAutomaticallyFromTheWorkplaceName</T>
-          </p>
-          <p className="mt-2 font-mono text-xs [overflow-wrap:anywhere]">
-            <T>hubQueryParameter</T>
-            {slug || "workplace"}
-          </p>
+          {origin && (
+            <p className="mt-2 font-medium [overflow-wrap:anywhere]">
+              {`${origin}/?hub=${encodeURIComponent(slug || "workplace")}`}
+            </p>
+          )}
         </div>
         {error && (
           <p role="alert" className="text-sm text-destructive">
