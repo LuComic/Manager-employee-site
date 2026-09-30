@@ -10,14 +10,20 @@ const cardShadow =
 // Clerk gives built-in and custom account-menu rows separate descriptors.
 const userMenuItemStyle = {
   borderRadius: 0,
+  boxShadow: "none",
+  opacity: 1,
   color: "var(--popover-foreground)",
   fontSize: "0.75rem",
   fontWeight: 500,
   minHeight: "2.5rem !important",
   padding: "0.5rem 0.75rem",
-  "&:hover": {
-    backgroundColor: "var(--accent)",
-    color: "var(--accent-foreground)",
+  // Clerk shadows --accent on buttons; use the matching app muted token.
+  // Keyboard focus uses the same highlight as hover.
+  "&:hover, &:focus-visible": {
+    backgroundColor: "var(--muted) !important",
+    color: "var(--foreground) !important",
+    opacity: 1,
+    boxShadow: "none",
   },
 } as const
 
@@ -41,6 +47,7 @@ export const clerkAppearance = {
     colorInput: "var(--background)",
     colorInputForeground: "var(--foreground)",
     colorModalBackdrop: "oklch(0 0 0 / 20%)",
+    colorNeutral: "var(--foreground)",
     colorMuted: "var(--muted)",
     colorMutedForeground: "var(--muted-foreground)",
     colorPrimary: "var(--primary)",
@@ -62,6 +69,9 @@ export const clerkAppearance = {
   elements: {
     button: {
       borderRadius: 0,
+      boxShadow: "none",
+      "&:hover:not(:disabled)": { opacity: 1 },
+      "&:disabled": { opacity: 0.5 },
       fontFamily: "var(--font-sans)",
       fontSize: "0.75rem",
       fontWeight: 600,
@@ -239,8 +249,8 @@ export const clerkAppearance = {
       fontWeight: 500,
       padding: "0.5rem 0.75rem",
       "&:hover": {
-        backgroundColor: "var(--accent)",
-        color: "var(--accent-foreground)",
+        backgroundColor: "var(--muted)",
+        color: "var(--foreground)",
       },
     },
     table: {
@@ -259,9 +269,38 @@ export const clerkAppearance = {
       fontSize: "0.75rem",
       fontWeight: 600,
       minHeight: "2.25rem",
+      boxShadow: "none",
+      "&:hover": {
+        backgroundColor: "color-mix(in oklch, var(--primary) 80%, transparent)",
+        borderColor: "color-mix(in oklch, var(--primary) 80%, transparent)",
+        color: "var(--primary-foreground)",
+        opacity: 1,
+      },
+    },
+    badge: {
+      backgroundColor: "transparent",
+      color: "var(--muted-foreground)",
+      border: 0,
+      fontSize: "0.75rem",
+      fontWeight: 600,
+      borderRadius: 0,
+      opacity: 1,
+      boxShadow: "none",
     },
     navbarButton: {
       borderRadius: 0,
+      boxShadow: "none",
+      color: "var(--muted-foreground)",
+      "&:hover": {
+        backgroundColor: "var(--muted)",
+        color: "var(--foreground)",
+        opacity: 1,
+      },
+      "&[data-active='true']": {
+        backgroundColor: "var(--control-selected)",
+        color: "var(--control-selected-foreground)",
+        borderColor: "var(--control-selected-border)",
+      },
       fontSize: "0.75rem",
       fontWeight: 500,
     },
@@ -320,8 +359,8 @@ export const clerkAppearance = {
         minHeight: "2.5rem !important",
         padding: "0.5rem 0.75rem",
         "&:hover": {
-          backgroundColor: "var(--accent)",
-          color: "var(--accent-foreground)",
+          backgroundColor: "var(--muted)",
+          color: "var(--foreground)",
         },
       },
       organizationSwitcherPreviewButton: {
@@ -329,7 +368,7 @@ export const clerkAppearance = {
         fontSize: "0.75rem",
         padding: "0.5rem 0.75rem !important",
         "&:hover": {
-          backgroundColor: "var(--accent)",
+          backgroundColor: "var(--muted)",
         },
       },
     },

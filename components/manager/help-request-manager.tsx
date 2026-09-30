@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { T } from "@/components/translated-text"
 import {
   useAppErrorTranslation,
@@ -93,9 +95,7 @@ export function HelpRequestManager() {
       </div>
 
       {requests === undefined ? (
-        <p className="text-sm text-muted-foreground" role="status">
-          <T>loadingHelpRequests</T>
-        </p>
+        <LoadingToast message="loadingHelpRequests" />
       ) : visible.length ? (
         <div className="space-y-4">
           {visible.map((request) => (

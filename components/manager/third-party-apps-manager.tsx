@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { CalendarSync, CheckCircle2, RefreshCw, Unplug } from "lucide-react"
@@ -156,9 +158,7 @@ export function ThirdPartyAppsManager() {
             </T>
           </p>
           {connection === undefined ? (
-            <p role="status" className="text-sm text-muted-foreground">
-              <T>loadingIntegration</T>
-            </p>
+            <LoadingToast message="loadingIntegration" />
           ) : connection === null ? (
             <>
               <div className="max-w-2xl space-y-2 text-sm text-muted-foreground">

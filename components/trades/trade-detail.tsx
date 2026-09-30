@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { useState } from "react"
 import {
   ArrowLeft,
@@ -102,11 +104,7 @@ export function TradeDetail({ tradeSlug }: { tradeSlug: string }) {
   }
 
   if (trade === undefined) {
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        <T>loadingTrade</T>
-      </p>
-    )
+    return <LoadingToast message="loadingTrade" />
   }
   if (!trade) {
     return (

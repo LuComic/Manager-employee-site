@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { useEffect, useRef, useState } from "react"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import { ChevronUp, StickyNote, X } from "lucide-react"
@@ -268,6 +270,9 @@ export function WorkerNotes() {
 
   const editor = (
     <>
+      {remoteText === undefined && (
+        <LoadingToast message="loadingWorkersNotes" />
+      )}
       {conflictText !== null && (
         <div
           className="mb-4 border border-destructive/40 bg-destructive/5 p-3 text-sm"
@@ -298,11 +303,7 @@ export function WorkerNotes() {
         maxLength={MAX_NOTES_LENGTH}
         disabled={remoteText === undefined}
         aria-label={t("workerNotePlaceholder")}
-        placeholder={
-          remoteText === undefined
-            ? t("loadingWorkersNotes")
-            : t("workerNotePlaceholder")
-        }
+        placeholder={t("workerNotePlaceholder")}
         className="h-full min-h-0 flex-1 resize-none border-0! p-0! leading-6 focus-visible:border-0!"
         onChange={(event) => changeDraft(event.target.value)}
         onBlur={saveNow}

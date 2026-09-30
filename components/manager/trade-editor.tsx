@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingToast } from "@/components/ui/loading-toast"
+
 import { useState } from "react"
 import { ArrowLeft, ArrowLeftRight, CalendarDays } from "lucide-react"
 import { useMutation, useQuery } from "convex/react"
@@ -42,11 +44,7 @@ export function TradeEditor({ tradeSlug }: { tradeSlug?: string }) {
   ) as ShiftTrade | null | undefined
 
   if (shifts === undefined || (tradeSlug && trade === undefined)) {
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        <T>loadingTrade</T>
-      </p>
-    )
+    return <LoadingToast message="loadingTrade" />
   }
   if (tradeSlug && !trade) {
     return (

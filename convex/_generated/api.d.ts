@@ -8,10 +8,9 @@
  * @module
  */
 
+import type * as auditLogs from "../auditLogs.js";
 import type * as betaAccess from "../betaAccess.js";
 import type * as betaClerk from "../betaClerk.js";
-import type * as lib_betaAccess from "../lib/betaAccess.js";
-import type * as auditLogs from "../auditLogs.js";
 import type * as content from "../content.js";
 import type * as crons from "../crons.js";
 import type * as deputy from "../deputy.js";
@@ -23,6 +22,7 @@ import type * as http from "../http.js";
 import type * as hubs from "../hubs.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_auditLogs from "../lib/auditLogs.js";
+import type * as lib_betaAccess from "../lib/betaAccess.js";
 import type * as lib_credentialEncryption from "../lib/credentialEncryption.js";
 import type * as lib_deputyCredentials from "../lib/deputyCredentials.js";
 import type * as lib_events from "../lib/events.js";
@@ -44,10 +44,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auditLogs: typeof auditLogs;
   betaAccess: typeof betaAccess;
   betaClerk: typeof betaClerk;
-  "lib/betaAccess": typeof lib_betaAccess;
-  auditLogs: typeof auditLogs;
   content: typeof content;
   crons: typeof crons;
   deputy: typeof deputy;
@@ -59,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   hubs: typeof hubs;
   "lib/access": typeof lib_access;
   "lib/auditLogs": typeof lib_auditLogs;
+  "lib/betaAccess": typeof lib_betaAccess;
   "lib/credentialEncryption": typeof lib_credentialEncryption;
   "lib/deputyCredentials": typeof lib_deputyCredentials;
   "lib/events": typeof lib_events;

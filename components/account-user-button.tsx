@@ -6,7 +6,7 @@ import { useLocale } from "next-intl"
 import { getPathname, usePathname } from "@/i18n/navigation"
 import { useAppTranslations } from "@/i18n/use-app-translations"
 
-export function ManagerUserButton() {
+export function AccountUserButton() {
   const locale = useLocale()
   const pathname = usePathname()
   const t = useAppTranslations()
