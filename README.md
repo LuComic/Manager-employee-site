@@ -158,7 +158,9 @@ bun run build
 bunx convex dev --once   # validate and sync Convex functions
 ```
 
-For production and previews, follow [the matched deployment workflow](docs/production-deployment.md). Vercel uses `bun run build:vercel` to build the frontend and deploy the matching Convex functions together. Set separately scoped `CONVEX_DEPLOY_KEY` values in Vercel first; `bun run build` alone does not release the backend. Test account connection and new-workplace provisioning after deployment.
+For production and previews, follow [the deployment workflow](docs/production-deployment.md). Vercel uses `bun run build:vercel`: Production automatically deploys the matching Convex backend and builds the frontend using a Production-only `prod:` deploy key. Previews only typecheck/build the frontend using the shared development `NEXT_PUBLIC_CONVEX_URL` and development Clerk keys configured in Vercel's Preview scope; remove Preview-scoped `CONVEX_DEPLOY_KEY` values. Local `bun run dev` and `bunx convex dev` continue to use that development backend.
+
+Deploy backend changes to development with `bunx convex dev --once` before testing previews. All preview branches and local development intentionally share backend code and data. Keep APIs and schemas compatible with older frontend branches: add fields/functions first, migrate callers and data, then remove obsolete contracts after those branches are retired. Test account connection and new-workplace provisioning after deployment. Existing isolated preview backends can be cleaned up separately; this workflow never deletes them.
 
 Convex's generated AI guidance and local skills are installed for development. No production MCP access or model credentials are configured by this repository.
 
