@@ -25,4 +25,11 @@ crons.interval(
   { paginationOpts: { numItems: 100, cursor: null } }
 )
 
+crons.interval(
+  "reconcile beta access",
+  { minutes: 5 },
+  internal.betaClerk.sync,
+  {}
+)
+
 export default crons

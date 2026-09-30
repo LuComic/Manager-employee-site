@@ -7,6 +7,8 @@ import {
   useLocalizedHref,
 } from "@/i18n/use-app-translations"
 
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 import { useState, useSyncExternalStore } from "react"
 import { Link } from "@/i18n/navigation"
 import {
@@ -42,6 +44,7 @@ export function HubSetup() {
   const translateError = useAppErrorTranslation()
   const afterOrganizationCreated = href("/manager")
   const { createHub } = useOperations()
+  const access = useQuery(api.betaAccess.getMyAccess)
   const { orgId } = useAuth()
   const { organization, isLoaded } = useOrganization()
   const { openCreateOrganization } = useClerk()
@@ -63,7 +66,13 @@ export function HubSetup() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          {access?.canCreateOrganization === false && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {t("betaCreatorApprovalRequired")}
+            </p>
+          )}
           <Button
+            disabled={!access?.canCreateOrganization}
             className="w-full"
             onClick={() =>
               openCreateOrganization({
@@ -141,7 +150,13 @@ export function HubSetup() {
         )}
         <Button
           className="w-full"
-          disabled={!isLoaded || !name || !slug || pending}
+          disabled={
+            !isLoaded ||
+            !name ||
+            !slug ||
+            pending ||
+            !access?.canCreateOrganization
+          }
           onClick={async () => {
             setPending(true)
             setError("")

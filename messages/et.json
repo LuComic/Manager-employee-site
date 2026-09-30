@@ -1178,6 +1178,9 @@
     "documentDescriptionRequired": "Sisesta dokumendi kirjeldus",
     "documentDescriptionTooLong": "Dokumendi kirjeldus võib olla kuni 500 tähemärki",
     "documentSlugRequired": "Dokument vajab püsivat URL-i tunnust",
-    "documentSlugTooLong": "Dokumendi URL-i tunnus võib olla kuni 100 tähemärki"
+    "documentSlugTooLong": "Dokumendi URL-i tunnus võib olla kuni 100 tähemärki",
+    "betaCreatorApprovalRequired": "Beetaperioodil saavad töökohti luua ja hallata ainult heakskiidetud kontod. Oma määratud töökohale pääsed endiselt ligi.",
+    "couldNotConnectAccount": "Töökoha kontoga ühendamine ebaõnnestus. Palun proovi uuesti.",
+    "tryAgain": "Proovi uuesti"
   }
 }

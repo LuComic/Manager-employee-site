@@ -2,6 +2,10 @@
 
 For every implementation task, follow [CI.md](CI.md). It defines the required
 worktree isolation, branch, verification, pull-request, and no-merge workflow.
+At the end of every task, transfer all committed and uncommitted work to the
+regular repository checkout on its task branch, verify the transfer, and release
+the temporary worktree. Follow-up changes stay staged without committing or
+pushing unless the user explicitly requests it.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

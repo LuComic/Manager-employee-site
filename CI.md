@@ -6,7 +6,9 @@ change.
 The first implementation for a task initializes a task branch and draft pull
 request. Follow-up implementation prompts on that pull request accumulate as
 staged local changes. They are not committed or pushed until the user
-explicitly asks to commit and/or push them.
+explicitly asks to commit and/or push them. All task work must end in the regular
+repository checkout on its task branch, including staged, unstaged, and untracked
+files. Temporary worktrees are working locations, not final storage.
 
 The agent must not merge the pull request or modify `main`.
 
@@ -181,7 +183,9 @@ git status --short
 ```
 
 Do not commit or push follow-up changes merely because an implementation
-prompt is complete. Leave the accumulated task changes staged and report:
+prompt is complete. Transfer the accumulated task changes to the regular
+checkout using section 5, leave them staged there, release the temporary
+worktree, and report:
 
 - the branch and pull request;
 - which files are staged;
@@ -232,10 +236,44 @@ create another pull request for the same task branch.
 After creating or updating the pull request, stop. Pull-request review and
 merging are separate tasks controlled by the user.
 
-When the task is fully published and its worktree is clean, close or release
-your own Codex-managed worktree so the user can check out the task branch
-elsewhere. Never close a worktree that contains staged or unstaged changes, and
-never close another agent's worktree.
+### Required handoff at the end of every task
+
+Complete this handoff after initial implementation, follow-up implementation,
+and explicit publishing requests. Do not leave task changes in a temporary
+worktree merely because they have not been committed or pushed.
+
+1. Inspect the source and regular checkout: current branches, HEADs, staged and
+   unstaged diffs, and untracked files. Confirm no other task is using either
+   checkout. Never overwrite unrelated work or switch a busy checkout.
+2. Preserve the exact source HEAD on the task branch. If that branch is checked
+   out in the temporary worktree, detach the temporary checkout at that HEAD to
+   release the branch, then check out the task branch in the regular repository.
+   Do not commit changes just to transfer them.
+3. Transfer staged changes with a binary index patch (`git diff --cached
+   --binary`, then `git apply --index` in the destination). Transfer unstaged
+   changes separately (`git diff --binary`, then `git apply`), and copy task-owned
+   untracked files without overwriting destination files. Store patches outside
+   the worktree being removed. Preserve any needed ignored artifacts separately;
+   do not copy secrets into tracked files.
+4. Compare HEAD, index and working-tree diffs, and untracked file contents between
+   source and destination. Check that the source did not change during transfer.
+   For follow-ups, stage all requested task changes in the regular checkout after
+   verifying the transfer. Do not commit or push without explicit authorization.
+5. Only after verifying preservation, clear transferred changes from the source
+   and archive/release the temporary Codex worktree. Never discard the only copy.
+   Report the regular checkout path, task branch, staged files, verification,
+   commit/push status, and cleanup result.
+
+If the regular checkout is busy, contains unrelated changes, or a transfer
+conflicts, preserve the source and report the specific blocker. Do not declare
+handoff complete or force removal. A branch alone does not hold uncommitted work:
+those files and index changes belong to the checkout until explicitly transferred.
+
+For user-requested cleanup after merging, fetch and verify the merged state.
+Compare leftover work against `origin/main`; a merged PR does not prove later
+uncommitted changes were merged. Transfer any unique work to a task branch in the
+regular checkout before cleanup. Remove branches only when requested and after
+confirming that no unique work will be lost.
 
 The implementation agent must not:
 

@@ -1,3 +1,4 @@
+import { canCreateOrganization } from "./betaAccess"
 import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex } from "@noble/hashes/utils.js"
 
@@ -103,6 +104,12 @@ async function getHubAccessForIdentity(
     permission = activeProfile.accessLevel ?? "viewer"
   } else {
     return null
+  }
+  if (
+    (permission === "owner" || permission === "manager") &&
+    !(await canCreateOrganization(ctx, identity.subject))
+  ) {
+    permission = "viewer"
   }
   return {
     permission,

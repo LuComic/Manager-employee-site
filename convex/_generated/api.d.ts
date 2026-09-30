@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as betaAccess from "../betaAccess.js";
+import type * as betaClerk from "../betaClerk.js";
+import type * as lib_betaAccess from "../lib/betaAccess.js";
 import type * as auditLogs from "../auditLogs.js";
 import type * as content from "../content.js";
 import type * as crons from "../crons.js";
@@ -41,6 +44,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  betaAccess: typeof betaAccess;
+  betaClerk: typeof betaClerk;
+  "lib/betaAccess": typeof lib_betaAccess;
   auditLogs: typeof auditLogs;
   content: typeof content;
   crons: typeof crons;

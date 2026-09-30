@@ -1,3 +1,4 @@
+import { canCreateOrganization } from "./lib/betaAccess"
 import { v } from "convex/values"
 
 import {
@@ -167,6 +168,9 @@ export const create = mutation({
         created: false,
       }
     }
+
+    if (!(await canCreateOrganization(ctx, identity.subject)))
+      throw new Error("betaCreatorApprovalRequired")
 
     const name = args.name.trim()
     if (name.length < 2 || name.length > 80) {

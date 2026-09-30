@@ -63,6 +63,17 @@ const documentResource = v.union(
 )
 
 export default defineSchema({
+  betaPolicy: defineTable({
+    key: v.literal("signup"),
+    enabled: v.boolean(),
+    creatorEmails: v.array(v.string()),
+    syncStartedAt: v.optional(v.number()),
+    syncAgain: v.optional(v.boolean()),
+  }).index("by_key", ["key"]),
+  accountEmails: defineTable({
+    clerkUserId: v.string(),
+    verifiedEmails: v.array(v.string()),
+  }).index("by_clerkUserId", ["clerkUserId"]),
   hubs: defineTable({
     name: v.string(),
     slug: v.string(),
@@ -121,6 +132,7 @@ export default defineSchema({
     invitationCorrelationHash: v.optional(v.string()),
     invitationError: v.optional(v.string()),
   })
+    .index("by_normalizedEmail", ["normalizedEmail"])
     .index("by_hubId_and_displayName", ["hubId", "displayName"])
     .index("by_hubId_and_clerkUserId", ["hubId", "clerkUserId"])
     .index("by_hubId_and_normalizedEmail", ["hubId", "normalizedEmail"])
