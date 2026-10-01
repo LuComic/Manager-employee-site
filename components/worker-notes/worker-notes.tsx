@@ -231,6 +231,10 @@ export function WorkerNotes() {
     stopDragging,
   } = useWorkerNotesWindow(activeHubId)
   const [now, setNow] = useState(() => Date.now())
+  const [mobileViewport, setMobileViewport] = useState<{
+    height: number
+    bottom: number
+  } | null>(null)
   const canAccessWorkerNotes = useQuery(
     api.workerNotes.canAccess,
     isAuthenticated && hub ? { hubId: hub.id } : "skip"
@@ -265,6 +269,29 @@ export function WorkerNotes() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isOpen, setIsOpen])
+
+  useEffect(() => {
+    if (!isOpen || isDesktop || !window.visualViewport) return
+
+    const viewport = window.visualViewport
+    const updateViewport = () => {
+      setMobileViewport({
+        height: viewport.height,
+        bottom: Math.max(
+          0,
+          window.innerHeight - viewport.offsetTop - viewport.height
+        ),
+      })
+    }
+
+    updateViewport()
+    viewport.addEventListener("resize", updateViewport)
+    viewport.addEventListener("scroll", updateViewport)
+    return () => {
+      viewport.removeEventListener("resize", updateViewport)
+      viewport.removeEventListener("scroll", updateViewport)
+    }
+  }, [isDesktop, isOpen])
 
   if (!isMemberView || !hub) return null
 
@@ -344,6 +371,15 @@ export function WorkerNotes() {
             side="bottom"
             showCloseButton={false}
             className="h-[min(42rem,calc(100dvh-1rem))] max-h-[calc(100dvh-1rem)] overflow-hidden"
+            style={
+              mobileViewport
+                ? {
+                    bottom: mobileViewport.bottom,
+                    height: `min(42rem, calc(${mobileViewport.height}px - 1rem))`,
+                    maxHeight: `calc(${mobileViewport.height}px - 1rem)`,
+                  }
+                : undefined
+            }
           >
             <SheetHeader className="flex-row items-start gap-4 border-b text-left">
               <div className="min-w-0 flex-1">
